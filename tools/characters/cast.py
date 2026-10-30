@@ -145,21 +145,21 @@ FACEUNITS = [
 ]
 
 # Head proxies (MakeHuman system assets + CC0 community packs) baked as fitted proxies.
+# Only assets whose files and pack metadata both say CC0 (several hair01 items carry an AGPL3 MakeClothes
+# header that contradicts the pack's CC0 tag, so they are left out). The bun is our own (shells.bun()).
 HAIR = {
     'long': 'long01/long01.mhclo',
-    'longWild': 'sonntag78_junglebook_hair/sonntag78_junglebook_hair.mhclo',
     'bob': 'toigo_blunt_bob_with_bangs/toigo_blunt_bob_with_bangs.mhclo',
     'bobPlain': 'bob02/bob02.mhclo',
+    'bobShort': 'bob01/bob01.mhclo',
     'ponytail': 'ponytail01/ponytail01.mhclo',
-    'bun': 'rehmanpolanski_hair_bun_brown/rehmanpolanski_hair_bun_brown.mhclo',
     'braid': 'braid01/braid01.mhclo',
     'short': 'short02/short02.mhclo',
     'crop': 'short01/short01.mhclo',
     'messy': 'cortu_short_messy_hair/cortu_short_messy_hair.mhclo',
     'swept': 'short04/short04.mhclo',
-    'shag': 'culturalibre_hair_02/culturalibre_hair_02.mhclo',
+    'shag': 'short03/short03.mhclo',
     'curls': 'afro01/afro01.mhclo',
-    'longStraight': 'culturalibre_hair_01/culturalibre_hair_01.mhclo',
 }
 BROWS = {'thin': 'eyebrow010/eyebrow010.mhclo', 'medium': 'eyebrow001/eyebrow001.mhclo', 'thick': 'eyebrow003/eyebrow003.mhclo', 'soft': 'eyebrow006/eyebrow006.mhclo'}
 LASHES = {'f': 'eyelashes01/eyelashes01.mhclo', 'm': 'eyelashes02/eyelashes02.mhclo'}

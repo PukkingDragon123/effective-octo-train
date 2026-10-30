@@ -1,0 +1,108 @@
+{
+ "skins": {
+  "young_m": "skin_young_m.jpg",
+  "young_f": "skin_young_f.jpg",
+  "middle_m": "skin_middle_m.jpg",
+  "middle_f": "skin_middle_f.jpg",
+  "old_m": "skin_old_m.jpg",
+  "old_f": "skin_old_f.jpg"
+ },
+ "hair": {
+  "hair_long": "hair_long.webp",
+  "hair_bob": "hair_bob.webp",
+  "hair_bobPlain": "hair_bobPlain.webp",
+  "hair_bobShort": "hair_bobShort.webp",
+  "hair_ponytail": "hair_ponytail.webp",
+  "hair_braid": "hair_braid.webp",
+  "hair_short": "hair_short.webp",
+  "hair_crop": "hair_crop.webp",
+  "hair_messy": "hair_messy.webp",
+  "hair_swept": "hair_swept.webp",
+  "hair_shag": "hair_shag.webp",
+  "hair_curls": "hair_curls.webp"
+ },
+ "parts": {
+  "brows_thin": [
+   0.001953125,
+   0.751953125,
+   0.248046875,
+   0.998046875
+  ],
+  "brows_medium": [
+   0.251953125,
+   0.751953125,
+   0.498046875,
+   0.998046875
+  ],
+  "brows_thick": [
+   0.001953125,
+   0.501953125,
+   0.248046875,
+   0.748046875
+  ],
+  "brows_soft": [
+   0.251953125,
+   0.501953125,
+   0.498046875,
+   0.748046875
+  ],
+  "lashes_f": [
+   0.501953125,
+   0.751953125,
+   0.748046875,
+   0.998046875
+  ],
+  "lashes_m": [
+   0.751953125,
+   0.751953125,
+   0.998046875,
+   0.998046875
+  ],
+  "tongue": [
+   0.501953125,
+   0.501953125,
+   0.748046875,
+   0.748046875
+  ],
+  "teeth": [
+   0.001953125,
+   0.001953125,
+   0.498046875,
+   0.498046875
+  ]
+ },
+ "eye": "eye.jpg",
+ "partsFile": "parts.webp",
+ "skinAvgLinear": {
+  "young_m": [
+   0.5803,
+   0.3403,
+   0.2306
+  ],
+  "young_f": [
+   0.6271,
+   0.3491,
+   0.2161
+  ],
+  "middle_m": [
+   0.6437,
+   0.3779,
+   0.2501
+  ],
+  "middle_f": [
+   0.6665,
+   0.3981,
+   0.262
+  ],
+  "old_m": [
+   0.515,
+   0.222,
+   0.1162
+  ],
+  "old_f": [
+   0.5805,
+   0.2858,
+   0.1596
+  ]
+ }
+}

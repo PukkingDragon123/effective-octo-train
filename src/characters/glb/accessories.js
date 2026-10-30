@@ -72,7 +72,7 @@ const wornCache = new Map();
 export function wornAccessoryGeometry(t, look) {
   const acc = look.acc.filter((a) => ['glasses', 'cap', 'helmet', 'headscarf', 'amulet-necklace', 'shoulder-bag'].includes(a));
   if (!acc.length) return null;
-  const key = t.sex + '|' + acc.sort().join('+') + '|' + look.hair.style;
+  const key = (t.id || t.sex) + '|' + acc.sort().join('+') + '|' + look.hair.style;
   if (wornCache.has(key)) return wornCache.get(key);
   const mb = new MB();
   const iHead = t.index.Head, iChest = t.index.spine_03, iNeck = t.index.neck_01, iPelvis = t.index.pelvis, iSpine = t.index.spine_01;

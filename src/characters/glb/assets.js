@@ -12,11 +12,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { subdivideRegion } from './subdivide.js';
+import { loadMHPack } from './mhpack.js';
 
 export const EXTRA_BONES = ['eye_l', 'eye_r', 'hair_1', 'hair_2', 'hair_3', 'hairL_1', 'hairL_2', 'hairR_1', 'hairR_2'];
 
 export const TEMPLATES = { m: null, f: null };
 let _loading = null;
+let ANIMS = null; // the UAL clips GLTF (kept for the MakeHuman people's shared clips)
 
 const assetURL = (p) => new URL(p, document.baseURI).href;
 
@@ -361,7 +363,8 @@ export function loadTemplates() {
   if (_loading) return _loading;
   _loading = (async () => {
     const anims = await loadGLB('assets/characters/anims.glb');
-    const [m, f] = await Promise.all([loadTemplate('m', anims), loadTemplate('f', anims)]);
+    ANIMS = anims;
+    const [m, f] = await Promise.all([loadTemplate('m', anims), loadTemplate('f', anims), loadMHPack()]);
     TEMPLATES.m = m;
     TEMPLATES.f = f;
     return TEMPLATES;
@@ -373,4 +376,64 @@ export function templateFor(sex) {
   const t = sex === 'f' ? TEMPLATES.f || TEMPLATES.m : TEMPLATES.m || TEMPLATES.f;
   if (!t) throw new Error('[characters-glb] call await loadCharacterAssets() before creating characters');
   return t;
+}
+
+// ---------------------------------------------------------------- shared clips for MakeHuman people
+// Every MakeHuman person has the Quaternius rest orientations, so the retargeted rotation tracks are
+// identical for all of them (built once); only the pelvis translation is scaled per person.
+let _mhTracks = null;
+export function sharedMHClips(t) {
+  if (!ANIMS) return new Map();
+  if (!_mhTracks) {
+    _mhTracks = new Map();
+    const src = new Map();
+    ANIMS.scene.traverse((o) => src.set(o.name, { q: o.quaternion.clone(), p: o.position.clone() }));
+    const srcPelvisY = Math.max(0.1, worldPosOf(ANIMS.scene, 'pelvis').y);
+    const tq = new THREE.Quaternion(), sq = new THREE.Quaternion(), vq = new THREE.Quaternion();
+    for (const clip of ANIMS.animations) {
+      const name = clip.name.replace(/_Armature$/, '');
+      const tracks = [];
+      let pel = null;
+      for (const tr of clip.tracks) {
+        const dot = tr.name.lastIndexOf('.');
+        const node = tr.name.slice(0, dot), prop = tr.name.slice(dot + 1);
+        if (!(node in t.index) || /leaf/.test(node) || node === 'root') continue;
+        const s = src.get(node);
+        if (prop === 'quaternion') {
+          const vals = Float32Array.from(tr.values);
+          if (s) {
+            sq.copy(s.q).invert();
+            tq.copy(t.restQuat[t.index[node]]).multiply(sq);
+            for (let k = 0; k < vals.length; k += 4) {
+              vq.set(vals[k], vals[k + 1], vals[k + 2], vals[k + 3]).premultiply(tq);
+              vals[k] = vq.x; vals[k + 1] = vq.y; vals[k + 2] = vq.z; vals[k + 3] = vq.w;
+            }
+          }
+          tracks.push(new THREE.QuaternionKeyframeTrack(tr.name, Float32Array.from(tr.times), vals));
+        } else if (prop === 'position' && node === 'pelvis' && s) {
+          pel = { times: Float32Array.from(tr.times), vals: Float32Array.from(tr.values), sp: s.p.clone() };
+        }
+      }
+      new THREE.AnimationClip(name, clip.duration, tracks).optimize();
+      _mhTracks.set(name, { duration: clip.duration, tracks, pel, srcPelvisY });
+    }
+  }
+  const clips = new Map();
+  const ip = t.index.pelvis;
+  for (const [name, e] of _mhTracks) {
+    const tracks = e.tracks.slice();
+    if (e.pel) {
+      const ratio = t.Gp[ip].y / e.srcPelvisY;
+      const rp = t.restPos[ip];
+      const v = e.pel.vals, out = new Float32Array(v.length);
+      for (let k = 0; k < v.length; k += 3) {
+        out[k] = rp.x + (v[k] - e.pel.sp.x) * ratio;
+        out[k + 1] = rp.y + (v[k + 1] - e.pel.sp.y) * ratio;
+        out[k + 2] = rp.z + (v[k + 2] - e.pel.sp.z) * ratio;
+      }
+      tracks.push(new THREE.VectorKeyframeTrack('pelvis.position', e.pel.times, out));
+    }
+    clips.set(name, new THREE.AnimationClip(name, e.duration, tracks));
+  }
+  return clips;
 }

@@ -24,6 +24,11 @@ import { wornAccessoryGeometry, heldGeometry, heldMaterial } from './accessories
 import { AnimController } from './anim.js';
 import { ActionPlayer } from './actions.js';
 import { GhostLayer } from './ghost.js';
+import { MH } from './mhpack.js';
+import { buildPerson, personTemplate, personLod, releasePerson } from './mhperson.js';
+import { mhRecipe, mhSkinKey, mhDefaults } from './mhrecipe.js';
+import { makeMHUniforms, mhBodyMaterial, mhEyeMaterial, driveMHFace } from './mhmaterials.js';
+import { sharedMHClips } from './assets.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
@@ -57,6 +62,22 @@ export class HumanoidGLB {
 
   // ======================================================================= build
   _build(spec) {
+    if (MH.ready && !spec.quaternius) {
+      try {
+        this._buildMH(spec);
+        return;
+      } catch (e) {
+        console.warn('[characters] MakeHuman build failed, using the Quaternius body:', e);
+        if (this.person) { releasePerson(this.person); this.person = null; }
+        this.isMH = false;
+        if (this.inner) this.inner.removeFromParent();
+        this.bones = {};
+      }
+    }
+    this._buildQ(spec);
+  }
+
+  _buildQ(spec) {
     const look = (this.look = normalizeSpec(spec));
     const t = (this.t = templateFor(look.sex));
     const rig = (this.rig = new InstanceRig(t));
@@ -131,6 +152,147 @@ export class HumanoidGLB {
     for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
   }
 
+  /** MakeHuman body: blended T-posed bodies + fitted proxies + clothes shells (mhperson.js). */
+  _buildMH(spec0) {
+    const spec = mhDefaults(spec0);
+    const look = (this.look = normalizeSpec(spec));
+    const recipe = (this.recipe = mhRecipe(spec, look));
+    if (!look.posture && recipe.look?.posture) look.posture = recipe.look.posture;
+    const person = (this.person = buildPerson(recipe));
+    const t = (this.t = personTemplate(person, sharedMHClips));
+    this.isMH = true;
+    const rig = (this.rig = new InstanceRig(t));
+    this.inner = new THREE.Group();
+    this.inner.name = 'glb-inner';
+    this.inner.rotation.y = Math.PI; // model space faces +Z, ours -Z
+    this.root.add(this.inner);
+    for (const b of rig.roots) this.inner.add(b);
+    this.headScale = 1;
+    this.scale = look.height / t.height;
+    this._legRatio = t.Gp[t.index.pelvis].y / 0.949; // clip ground speeds are for the 1.81 m Quaternius template
+    this.inner.scale.setScalar(this.scale);
+    for (const b of rig.bones) this.bones[b.name] = b;
+    for (const [k, n] of Object.entries(CONTRACT_BONES)) if (rig.byName[n]) this.bones[k] = rig.byName[n];
+    const hb = rig.bone('Head');
+    this.jaw = new THREE.Object3D();
+    this.jaw.name = 'jaw';
+    this.jaw.position.copy(t.face.mouth.clone().sub(t.Gp[t.index.Head]).applyQuaternion(t.Gq[t.index.Head].clone().invert()));
+    hb.add(this.jaw);
+    this.bones.jaw = this.jaw;
+    // ---- uniforms / textures / shader look
+    const U = (this.U = makeMHUniforms(t, person));
+    const tex = MH.tex;
+    const skinKey = mhSkinKey(look);
+    U.uSkinMap.value = tex.skins[skinKey] || Object.values(tex.skins).find(Boolean) || null;
+    U.uHairMap.value = recipe.hair ? tex.hair['hair_' + recipe.hair] || null : null;
+    U.uPartsMap.value = tex.parts;
+    const sc = new THREE.Color(look.skin);
+    const avg = tex.skinAvg[skinKey] || [0.6, 0.35, 0.22];
+    U.uSkinCol.value.copy(sc);
+    U.uSkinTint.value.set(clamp(sc.r / avg[0], 0.15, 3), clamp(sc.g / avg[1], 0.15, 3), clamp(sc.b / avg[2], 0.15, 3));
+    U.uHairCol.value.set(look.hair.color);
+    const lx = recipe.look || {};
+    const male = look.sex === 'm' ? 1 : 0;
+    U.uLook.value.set((lx.stubble || 0) * male * (look.child > 0.3 ? 0 : 1), lx.thin || 0, lx.bald || 0, lx.sweat || 0);
+    U.uLook2.value.set(look.old, (lx.moustache || 0) * male, male, look.face.wrinkles);
+    this._placeMarks(lx.marks || [], person, t);
+    const gh = look.ghost;
+    const eyeStyle = gh?.eyes && gh.eyes !== 'normal' ? gh.eyes : 'normal';
+    this._mhBase = {
+      veins: gh ? gh.veins ?? (gh.pale || 0) * 0.45 : 0,
+      pupils: gh ? gh.pupils ?? (gh.pale > 0.6 ? 0.55 : 0) : 0,
+      veil: gh ? gh.hairOverFace || 0 : 0,
+      eyeStyle: { normal: 0, black: 1, glow: 2, milky: 3, white: 3 }[eyeStyle] ?? 0,
+    };
+    if (gh) {
+      U.uGhost.value.set(gh.pale || 0, gh.eyes === 'black' ? 1 : (gh.pale || 0) * 0.35, gh.wet || 0, gh.eyes === 'black' ? 1 : 0);
+      U.uStain.value.set(gh.bloodStains || 0, 0, 0, 0);
+      U.uGhost2.value.set(this._mhBase.veins, this._mhBase.pupils, gh.decay || 0, this._mhBase.eyeStyle);
+      U.uVeil.value.set(this._mhBase.veil, 0, 0, 0);
+    }
+    // ---- clothes atlas (procedural painters)
+    const akey = atlasKey(look);
+    this._atlas = getAtlas(look, akey, look.quality >= 0.75 ? 2048 : 1024);
+    U.uMaskMap.value = this._atlas.mask;
+    this.materials = { body: mhBodyMaterial(U, { map: this._atlas.map, wet: 0.1 + (gh?.wet || 0) * 0.5 }) };
+    this.body = new THREE.SkinnedMesh(person.geo, this.materials.body);
+    this.body.name = 'body';
+    this.body.bind(rig.skeleton, new THREE.Matrix4());
+    this.body.castShadow = true;
+    this.body.receiveShadow = true;
+    this.inner.add(this.body);
+    // ---- eyes
+    if (person.eyeGeo && tex.eye) {
+      this.materials.eyes = mhEyeMaterial(U, tex.eye, { glow: eyeStyle === 'glow' });
+      this.eyes = new THREE.SkinnedMesh(person.eyeGeo, this.materials.eyes);
+    } else {
+      let eg = eyeGeoCache.get(t);
+      if (!eg) { eg = buildEyeGeometry(t); eyeGeoCache.set(t, eg); }
+      this.materials.eyes = eyeMaterial(U, eyeTexture(eyeStyle, '#352215'), { glow: eyeStyle === 'glow' });
+      this.eyes = new THREE.SkinnedMesh(eg, this.materials.eyes);
+    }
+    this.eyes.name = 'eyes';
+    this.eyes.bind(rig.skeleton, new THREE.Matrix4());
+    this.inner.add(this.eyes);
+    // ---- worn accessories
+    const wg = wornAccessoryGeometry(t, look);
+    if (wg) {
+      this.materials.acc = accessoryMaterial(U);
+      this.worn = new THREE.SkinnedMesh(wg, this.materials.acc);
+      this.worn.name = 'accessories';
+      this.worn.bind(rig.skeleton, new THREE.Matrix4());
+      this.worn.castShadow = true;
+      this.inner.add(this.worn);
+    }
+    this.body.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, t.height * 0.5, 0), t.height * 1.1);
+    this.eyes.frustumCulled = false;
+    if (this.worn) this.worn.frustumCulled = false;
+    this.held = {};
+    this._initRuntime();
+    // ghost look parameters that live in the ghost layer (uncanny, blink desync, stutter...)
+    if (gh) {
+      const g0 = {};
+      for (const k of ['uncanny', 'blinkDesync', 'snapTilts', 'stutter', 'breathStop', 'hairOverFace', 'veilGap', 'pupils']) if (gh[k] !== undefined) g0[k] = gh[k];
+      if (gh.uncanny === undefined) g0.uncanny = clamp((gh.pale || 0) - 0.3, 0, 1) * 0.45;
+      if (gh.blinkDesync === undefined && (gh.pale || 0) > 0.5) g0.blinkDesync = 0.6;
+      if (gh.type === 'emaciated') Object.assign(g0, { stutter: gh.stutter ?? 0.35, snapTilts: gh.snapTilts ?? 0.6, stretch: 0.25 });
+      if (gh.type === 'hunched') Object.assign(g0, { snapTilts: gh.snapTilts ?? 0.4 });
+      if (gh.type === 'child') Object.assign(g0, { stare: 1, snapTilts: gh.snapTilts ?? 0.5 });
+      if (gh.type === 'drowned') Object.assign(g0, { breathStop: 1, hairOverFace: gh.hairOverFace ?? 0.8, stutter: gh.stutter ?? 0.15 });
+      if (gh.type === 'hairOverFace') Object.assign(g0, { hairOverFace: gh.hairOverFace ?? 1, breathStop: 1 });
+      if (gh.type === 'crushed') Object.assign(g0, { limbBreak: 0.6, jitter: 0.3, headRoll: 0.4 });
+      const crush = gh.crush ?? (gh.type === 'crushed' ? 1 : 0);
+      if (crush) this._gore.tgt.crush = this._gore.cur.crush = crush;
+      this.ghostLayer.setTargets(g0, 100);
+    }
+    const hand = { basket: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') ? 'R' : 'L' };
+    for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
+  }
+
+  /** moles / scars at named face anchors, snapped onto the skin (nearest body vertex) */
+  _placeMarks(marks, person, t) {
+    const out = this.U.uMarks.value;
+    const lm = person.lm, n = lm.noseTip, e = t.eyes, m = t.face.mouth;
+    const anchors = {
+      cheekL: [0.038, n.y - 0.004, n.z - 0.035], cheekR: [-0.038, n.y - 0.004, n.z - 0.035], jawL: [0.05, m.y - 0.02, m.z - 0.05],
+      chinL: [0.014, lm.chin.y + 0.006, lm.chin.z], chinR: [-0.014, lm.chin.y + 0.006, lm.chin.z], lipL: [0.022, m.y + 0.012, m.z - 0.008],
+      noseR: [-0.014, n.y + 0.004, n.z - 0.012], templeL: [0.06, e[0].y + 0.022, e[0].z - 0.03], browL: [e[0].x + 0.004, e[0].y + 0.024, e[0].z],
+    };
+    const P = person.P;
+    const nb = P.length / 3;
+    marks.slice(0, 4).forEach(([kind, where, size], i) => {
+      const a = anchors[where];
+      if (!a) return;
+      let best = 1e9, bi = 0;
+      for (let v = 0; v < nb; v++) {
+        const dx = P[v * 3] - a[0], dy = P[v * 3 + 1] - a[1], dz = P[v * 3 + 2] - a[2];
+        const d = dx * dx + dy * dy + dz * dz;
+        if (d < best) { best = d; bi = v; }
+      }
+      out[i].set(P[bi * 3], P[bi * 3 + 1], P[bi * 3 + 2], kind === 'scar' ? -(size || 0.01) : size || 0.0015);
+    });
+  }
+
   _initRuntime() {
     const t = this.t, rig = this.rig;
     this.anim = new AnimController(this);
@@ -163,7 +325,7 @@ export class HumanoidGLB {
     this.restPelvis = t.restPos[t.index.pelvis].clone();
     // hair springs (only chains that carry hair)
     this.hairSprings = ['hair_1', 'hair_2', 'hair_3', 'hairL_1', 'hairL_2', 'hairR_1', 'hairR_2'].map((n) => ({ i: t.index[n], tip: new THREE.Vector3(), vel: new THREE.Vector3(), init: false }));
-    this.hairOn = ['long', 'bob', 'ponytail'].includes(this.look.hair.style);
+    this.hairOn = !this.isMH && ['long', 'bob', 'ponytail'].includes(this.look.hair.style);
     this.anim.setMode('stand');
     this.update(0);
   }
@@ -340,6 +502,7 @@ export class HumanoidGLB {
     this.root.removeFromParent();
     if (this.isDouble) { for (const m of Object.values(this.materials || {})) m.dispose?.(); return; }
     this.anim?.dispose();
+    if (this.person) releasePerson(this.person);
     releaseLookGeometry(this._geoHi);
     if (this._geoLo) releaseLookGeometry(this._geoLo);
     releaseAtlas(this._atlas);
@@ -361,12 +524,23 @@ export class HumanoidGLB {
     this.root.add(...clone.children);
     this.inner = this.root.children[0];
     // own uniforms (twist/face copies + overrides), shared textures and geometry
-    this.U = makeCharUniforms(this.t);
-    for (const k of ['uFat', 'uFaceMap', 'uMaskMap']) this.U[k] = src.U[k];
-    this.materials = {
-      body: bodyMaterial(this.U, { map: src._atlas.map, wet: src.materials.body.userData.uniforms?.dlbPaint?.value?.y ?? 0.12 }),
-      eyes: eyeMaterial(this.U, src.materials.eyes.map),
-    };
+    this.isMH = !!src.isMH;
+    if (this.isMH) {
+      this.person = null;
+      this.U = makeMHUniforms(this.t, src.person);
+      for (const k of ['uFat', 'uFaceMap', 'uMaskMap', 'uSkinMap', 'uHairMap', 'uPartsMap', 'uSkinTint', 'uSkinCol', 'uHairCol', 'uLook', 'uLook2', 'uMarks', 'uStain', 'uMorphTex']) this.U[k] = src.U[k];
+      this.materials = {
+        body: mhBodyMaterial(this.U, { map: src._atlas.map, wet: src.materials.body.userData.uniforms?.dlbPaint?.value?.y ?? 0.1 }),
+        eyes: src.person?.eyeGeo ? mhEyeMaterial(this.U, src.materials.eyes.map) : eyeMaterial(this.U, src.materials.eyes.map),
+      };
+    } else {
+      this.U = makeCharUniforms(this.t);
+      for (const k of ['uFat', 'uFaceMap', 'uMaskMap']) this.U[k] = src.U[k];
+      this.materials = {
+        body: bodyMaterial(this.U, { map: src._atlas.map, wet: src.materials.body.userData.uniforms?.dlbPaint?.value?.y ?? 0.12 }),
+        eyes: eyeMaterial(this.U, src.materials.eyes.map),
+      };
+    }
     if (src.materials.acc) this.materials.acc = accessoryMaterial(this.U);
     this.held = {};
     const bones = {};
@@ -415,6 +589,16 @@ export class HumanoidGLB {
     }
     for (const k of ['uFaceA', 'uFaceB', 'uEye', 'uGhost', 'uEyeShape', 'uTwistO', 'uTwistD', 'uGore', 'uGoreW']) this.U[k].value.copy(src.U[k].value);
     this.U.uCrush.value = src.U.uCrush.value;
+    if (this.isMH) {
+      for (const k of ['uGhost2', 'uVeil']) this.U[k].value.copy(src.U[k].value);
+      const W = this.U.uMorphW.value;
+      W.set(src.U.uMorphW.value);
+      // the reflection's own overrides: a wider mouth, wronger proportions, the hair over its face
+      const gv = this.ghostLayer.v;
+      if (gv.mouthStretch > 0) { W[15] = Math.max(W[15], gv.mouthStretch * 0.9); W[11] = Math.max(W[11], gv.mouthStretch * 0.55); }
+      if (gv.uncanny > 0) W[19] = Math.max(W[19], gv.uncanny);
+      if (gv.hairOverFace > 0) this.U.uVeil.value.x = Math.max(this.U.uVeil.value.x, gv.hairOverFace);
+    }
     this.inner.updateMatrixWorld(true);
     this.ghostLayer.update(dt, true);
     this.ghostLayer.applyPose(dt);
@@ -475,13 +659,35 @@ export class HumanoidGLB {
     this._face(dt);
     this._hair(dt);
     this._heldProps(dt);
+    if (this.ghostLayer.v.stutter > 0.01) this._stutter(dt);
     this.inner.updateMatrixWorld(true);
     this._outputs();
+  }
+
+  /** stutter-frame motion: hold the whole pose for a few frames, then jump to the live one */
+  _stutter(dt) {
+    const S = this._stut || (this._stut = { hold: 0, has: false, q: null, p: null });
+    const bones = this.rig.bones, n = bones.length;
+    if (!S.q) { S.q = new Float32Array(n * 4); S.p = new Float32Array(n * 3); }
+    S.hold -= dt;
+    if (S.hold <= 0 || !S.has) {
+      for (let i = 0; i < n; i++) { bones[i].quaternion.toArray(S.q, i * 4); bones[i].position.toArray(S.p, i * 3); }
+      S.has = true;
+      S.hold = (0.05 + Math.random() * 0.3) * this.ghostLayer.v.stutter;
+    } else {
+      for (let i = 0; i < n; i++) { bones[i].quaternion.fromArray(S.q, i * 4); bones[i].position.fromArray(S.p, i * 3); }
+    }
   }
 
   _setLod(l) {
     if (l === this._lod) return;
     this._lod = l;
+    if (this.isMH) {
+      this.body.geometry = l === 'lo' ? personLod(this.person) : this.person.geo;
+      this.eyes.visible = l === 'hi';
+      if (this.worn) this.worn.visible = l === 'hi';
+      return;
+    }
     if (l === 'lo' && !this._geoLo) this._geoLo = acquireLookGeometry(this.t, this.look, 'lo');
     this.body.geometry = l === 'lo' ? this._geoLo.geo : this._geoHi.geo;
     this.eyes.visible = l === 'hi';
@@ -594,6 +800,28 @@ export class HumanoidGLB {
     const n1 = noise.noise2D(tm * 0.21, 3.1 + L.seed % 13), n2 = noise.noise2D(tm * 0.17, 7.7), n3 = noise.noise2D(tm * 0.3, 1.3);
     rig.addEuler(I.Head, n1 * 0.03 * (1 - still), n2 * 0.045 * (1 - still), n3 * 0.02 * (1 - still));
     rig.addEuler(I.spine_03, 0, n2 * 0.015 * (1 - still), n1 * 0.01 * (1 - still));
+    // variety: a drunk's slouch, a monk's upright stance, a ghost grandmother's hunch; old hands and heads tremble
+    const pst = L.posture;
+    if (pst === 'slouch') {
+      const sw = noise.noise2D(tm * 0.35, 9.1);
+      rig.addEuler(I.spine_02, 0.1, 0, 0); rig.addEuler(I.spine_03, 0.12, 0, sw * 0.05);
+      rig.addEuler(I.neck_01, 0.12, 0, 0); rig.addEuler(I.Head, -0.06, 0, sw * 0.08);
+      rig.addEuler(I.clavicle_l, 0.08, 0, 0); rig.addEuler(I.clavicle_r, 0.08, 0, 0);
+      if (!seated) rig.addEuler(I.pelvis, 0, 0, sw * 0.04);
+    } else if (pst === 'upright') {
+      rig.addEuler(I.spine_03, -0.05, 0, 0); rig.addEuler(I.Head, 0.02, 0, 0);
+    } else if (pst === 'hunch') {
+      rig.addEuler(I.spine_01, 0.12, 0, 0); rig.addEuler(I.spine_02, 0.22, 0, 0); rig.addEuler(I.spine_03, 0.3, 0, 0);
+      rig.addEuler(I.neck_01, 0.15, 0, 0); rig.addEuler(I.Head, -0.42, 0, 0);
+      if (!seated) for (const s of ['l', 'r']) { rig.addEuler(I['thigh_' + s], -0.18, 0, 0); rig.addEuler(I['calf_' + s], 0.32, 0, 0); rig.addEuler(I['foot_' + s], -0.12, 0, 0); }
+    }
+    const trem = L.tremor || 0;
+    if (trem > 0.01 && this.isMH) {
+      const k = trem * (0.6 + 0.4 * noise.noise2D(tm * 0.5, 2.2));
+      const s1 = Math.sin(tm * 41.0) * 0.5 + Math.sin(tm * 47.3) * 0.5;
+      rig.addEuler(I.hand_l, s1 * 0.035 * k, 0, 0); rig.addEuler(I.hand_r, -s1 * 0.03 * k, 0, 0);
+      rig.addEuler(I.Head, Math.sin(tm * 37.0) * 0.008 * k, Math.sin(tm * 29.0) * 0.012 * k, 0);
+    }
   }
 
   // ---- look-at (chest / neck / head + eyes)
@@ -863,6 +1091,43 @@ export class HumanoidGLB {
     U.uGore.value.set(G.cur.bleedEyes, G.cur.bleedMouth, G.wound ? G.cur.amount : 0, settings.get('gore') === 'reduced' ? 1 : 0);
     U.uCrush.value = G.cur.crush;
     U.uFaceB.value.set(clamp(ex.surprise + ex.fear * 0.6 + (this.actions.brow || 0), 0, 1.2), clamp(ex.anger + ex.creepy * 0.2, 0, 1), clamp(ex.sad + ex.fear * 0.7, 0, 1), clamp(ex.creepy, 0, 1.2));
+    if (this.isMH) this._mhFace(dt, closed, lidDown, squint, wide);
+  }
+
+  /** MakeHuman face: per-eye blinks (desync), expressions -> morph channels, ghost skin / eyes / veil uniforms */
+  _mhFace(dt, closed, lidDown, squint, wide) {
+    const F = this.faceS, ex = F.expr, U = this.U, gl = this.ghostLayer, gv = gl.v;
+    let bL = closed, bR = closed;
+    const des = clamp(gv.blinkDesync, 0, 1);
+    if (des > 0.01) {
+      // the right eye keeps its own, slower blink: sometimes only one eye closes
+      F.b2T = (F.b2T ?? 1.5) - dt;
+      if (F.b2T <= 0 && !(F.b2 > 0)) { F.b2 = 1e-4; F.b2T = (1.2 + Math.random() * 5) / (0.5 + des); F.b2Dur = 0.17 + Math.random() * 0.6 * des; }
+      let b2 = 0;
+      if (F.b2 > 0) {
+        F.b2 += dt;
+        const u = F.b2 / F.b2Dur;
+        b2 = u < 0.4 ? Math.sin((u / 0.4) * Math.PI / 2) : Math.max(0, 1 - (u - 0.4) / 0.6);
+        if (u >= 1) F.b2 = 0;
+      }
+      const forced = Math.max(F.closed, this.actions.eyesClosed || 0);
+      bR = Math.max(forced, bR * (1 - des), b2);
+    }
+    if (F.talk && F.talkT > (F._lastTalkT ?? 0)) F.syl = (F.syl || 0) + 1;
+    F._lastTalkT = F.talkT;
+    const A = U.uFaceA.value, B = U.uFaceB.value;
+    driveMHFace(U, {
+      blinkL: bL, blinkR: bR, lidDown: clamp(lidDown / 0.35, 0, 1) * 0.8, squint, wide,
+      jaw: A.x, smile: A.y, frown: A.z, stretch: A.w, browRaise: B.x, browFurrow: B.y, browSad: B.z, creepy: B.w,
+      fear: ex.fear, anger: ex.anger, talk: F.talk, syl: F.syl || 0, uncanny: gv.uncanny,
+    });
+    const b = this._mhBase || { veins: 0, pupils: 0, veil: 0 };
+    U.uGhost2.value.x = b.veins + gv.veins;
+    U.uGhost2.value.y = gl.set.has('pupils') ? gv.pupils : b.pupils;
+    U.uVeil.value.x = Math.max(b.veil, gv.hairOverFace);
+    const gap = gv.veilGap;
+    U.uVeil.value.y = -gap * 0.033;
+    U.uVeil.value.z = Math.abs(gap) > 0.05 ? 0.015 * Math.min(1, Math.abs(gap)) : 0;
   }
 
   // ---- hair springs (verlet tips) on the hair chains

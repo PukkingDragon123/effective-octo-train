@@ -26,6 +26,8 @@ import { OUTFIT_TYPES } from './look.js';
 
 export { HumanoidGLB, PlayerBodyGLB, ACTIONS, OUTFIT_TYPES, LOD_DISTANCE, TEMPLATES };
 export { PRESETS, PASSENGERS } from '../Presets.js';
+export { randomPerson } from './mhrecipe.js';
+export { MH as MH_PACK } from './mhpack.js';
 
 /** Load and prepare the GLB bodies + animation clips (idempotent). */
 export async function loadCharacterAssets() {

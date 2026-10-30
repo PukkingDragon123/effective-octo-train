@@ -385,13 +385,13 @@ class LoopStagingImpl {
 
   /** Fire a déjà-vu trigger now (at most one thought per restart). */
   notify(trigger) {
-    if (this.dejaVuDone || this.loops < 1) return false;
+    if (this.dejaVuDone || this.loops < 1) return null;
+    if (g.dialogue?.busy) return null; // never talk over someone (it would cut their line)
     const list = g.data?.loop?.DEJA_VU || [];
     const hit = list.find((d) => d.trigger === trigger && this.loops >= d.minLoop && this.loops <= (d.maxLoop ?? 99));
-    if (!hit) return false;
+    if (!hit) return null;
     this.dejaVuDone = true;
-    runLines(resolve(hit.lines));
-    return true;
+    return runLines(resolve(hit.lines));
   }
 
   /** Call every frame while Ton is around the garage / taxi. */

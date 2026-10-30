@@ -119,7 +119,7 @@ export class AnimController {
       // locomotion: speed-synced playback
       const ls = LOCO_SPEED[name];
       if (ls) {
-        const s = this.h.scale || 1;
+        const s = (this.h.scale || 1) * (this.h._legRatio || 1); // MakeHuman people: leg length vs the 1.81 m template
         a.timeScale = clamp(this.speed / (ls * s), 0.35, 2.2) * (this.h._gaitScale || 1);
       } else if (name !== 'Death01') a.timeScale = this.h._animRate || 1;
     }

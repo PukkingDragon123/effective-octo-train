@@ -1,19 +1,23 @@
 // GLB characters sandbox: the cast under a street lamp at night, close-up faces, Thai actions,
 // the ghost deformation sequence and the first-person body on a test steering wheel.
-//   ?view=lineup|single|actions|ghost|fp|mirror
+//   ?view=lineup|single|actions|ghost|fp|mirror|faces|gore|variety|uncanny
+//   variety: the whole cast (front row), seeded randomPerson() background people (middle) and the
+//            ghost variants (back): emaciated, hunched (Yai Speed), child, drowned, crushed, hair-over-face
+//   uncanny: the woman in white calm -> uncanny -> true form (hair over the face, one eye showing)
 //   &who=<preset id>  &ids=a,b,c (lineup subset)  &cam=front|close|close3|closeSide|three|side|back|torso|hands|lineup|lineupClose
 //   &act=<action>  &mode=<mode>  &expr=<name>&amt=0..1  &talk=1  &studio=1  &hour=22
 //   ghost view: &stage=0..7 (neutral, neckTwist, headRoll snap, backbend, levitate, limbBreak+jitter, mouthStretch, all)
 //   fp view: &pitch=-0.75 &yaw=0 (camera)  &steer=0 (wheel angle, rad)
 import * as THREE from 'three';
 import { paintedMaterial, sky, GLOBAL_UNIFORMS } from '../render/index.js';
-import { loadCharacterAssets, createHumanoidGLB, PlayerBodyGLB, PRESETS, PASSENGERS } from '../characters/glb/index.js';
+import { loadCharacterAssets, createHumanoidGLB, PlayerBodyGLB, PRESETS, PASSENGERS, randomPerson } from '../characters/glb/index.js';
 import { LAYERS } from '../core/layers.js';
 import { CHARACTERS } from '../game/data/characters.js';
 
 // narrative appearance specs (the game's truth) with the contract presets as fallback
 const SPEC = (id) => (CHARACTERS[id]?.appearance ? { ...CHARACTERS[id].appearance, id } : PRESETS[id] || { id });
 const CAST = ['sri', 'womanWhite', 'piak', 'boyM', 'nuan', 'monk', 'saman', 'bua', 'somchai', 'ahKong', 'player'];
+const CAST_ALL = ['ahKong', 'bua', 'sri', 'auntieLek', 'piak', 'somchai', 'saman', 'monk', 'player', 'mMother', 'nuan', 'womanWhite', 'boyM', 'extraChild'];
 
 export default async function ({ engine, cameraRig, params }) {
   const t0 = performance.now();
@@ -107,6 +111,30 @@ export default async function ({ engine, cameraRig, params }) {
     const m = add('boyM', 0.3, 0); m.setGore({ bleedMouth: 0.7, bleedEyes: 0.4, speed: 100 }); m.lookAt(eyeT);
     const b = add('bua', 0.9, 0); b.lookAt(eyeT);
     const k = add('ahKong', 1.5, 0); k.play('smoke', { loop: true });
+  } else if (view === 'variety') {
+    // front: the cast; middle: seeded background people; back: ghost variants
+    const row = (specs, z, gap) => specs.forEach((sp, i) => {
+      const h = createHumanoidGLB(sp);
+      h.root.position.set((i - (specs.length - 1) / 2) * gap, 0, z);
+      h.root.rotation.y = Math.PI;
+      scene.add(h.root);
+      chars.push(h);
+      h.lookAt(eyeT, { weight: 0.5 });
+    });
+    row(CAST_ALL.map(SPEC), 0, 0.62);
+    const roles = ['market', 'market', 'villager', 'monk', 'market', 'villager', 'monk', 'villager', 'market', 'villager'];
+    row(roles.map((role, i) => randomPerson(101 + i * 37, { role })), -1.6, 0.7);
+    const ghosts = ['emaciated', 'hunched', 'child', 'drowned', 'crushed', 'hairOverFace'];
+    row(ghosts.map((g, i) => randomPerson(501 + i * 13, { ghost: g, sex: g === 'emaciated' || g === 'crushed' ? 'm' : 'f' })), -3.2, 0.9);
+  } else if (view === 'uncanny') {
+    const stages = [{}, { uncanny: 0.6, blinkDesync: 1, snapTilts: 0.6, pupils: 1, veins: 0.4 }, { uncanny: 1, hairOverFace: 1, veilGap: 0.7, pupils: -0.9, stutter: 0.5, breathStop: 1, veins: 0.8, mouthStretch: 0.35 }];
+    stages.forEach((g, i) => {
+      const h = add('womanWhite', (i - 1) * 0.5, 0);
+      h.root.position.y = 1.5 - (h.look.height - 0.11);
+      h.setGhost({ ...g, stare: i ? 1 : 0 }, 100);
+      h.lookAt(eyeT, { weight: 1, unlimited: true });
+      focus = focus || h;
+    });
   } else if (view === 'single') {
     const h = add(params.get('who') || 'sri', 0);
     focus = h;
@@ -177,7 +205,7 @@ export default async function ({ engine, cameraRig, params }) {
   console.log(`[characters-glb] built ${chars.length} in ${ms.toFixed(0)} ms`, chars.map((h) => `${h.look?.id}:${h.body?.geometry?.userData?.tris ?? '?'}`).join(' '));
 
   // ---- cameras (characters face +Z)
-  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost', 'gore'].includes(view) ? view : 'front');
+  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost', 'gore', 'variety'].includes(view) ? view : view === 'uncanny' ? 'faces' : 'front');
   const H = focus ? focus.look.height : 1.65;
   const hy = focus ? focus.headPosition.y : 1.5;
   const n = chars.length;
@@ -196,6 +224,7 @@ export default async function ({ engine, cameraRig, params }) {
     gore: [[0.25, 1.35, 3.0], [0.25, 1.1, 0], -22],
     ghost: [[0.3, 1.25, n * 0.6 + 1.9], [0, 0.95, 0], -12],
     lineupClose: [[0, 1.45, 2.6], [0, 1.38, 0], -12],
+    variety: [[0, 1.55, 6.2], [0, 0.95, -1.4], -16],
     actions: [[0.2, 1.3, 4.6], [0.05, 0.9, 0], -10],
     fp: null,
   };

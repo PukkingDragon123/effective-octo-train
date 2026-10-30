@@ -4,11 +4,23 @@
 // back), jitter (0..1 irregular twitching: holds, then sudden small snaps, never noise soup),
 // levitate (m, toes dangle), stretch (0..1 elongated neck/arms/spine), mouthStretch (0..1),
 // crawl (handled by actions). Extras: unlimited (look), stare (fixed eyes), noBlink, breath, stillness.
+// Uncanny layer (MakeHuman characters; harmless no-ops on the old bodies):
+//   uncanny 0..1      proportions a few percent wrong: eyes further apart and larger, mouth wider,
+//                     longer neck (a morph), longer fingers (bone lengths)
+//   blinkDesync 0..1  the eyes blink out of sync, sometimes only one eye
+//   snapTilts 0..1    micro head tilts that hold, then snap to a new angle with no transition
+//   stutter 0..1      stutter-frame motion: the whole body holds a pose, then jumps to the current one
+//   breathStop 0..1   breathing stops
+//   veins 0..1        visible veins under grey translucent skin (adds to the look's)
+//   pupils -1..1      pinprick (-1) .. fully dilated (1) pupils (overrides the look's)
+//   hairOverFace 0..1 wet clumps of hair hang over the face (needs a long-haired / ghost look)
+//   veilGap -1..1     opens a gap in that hair over the left (-) or right (+) eye; 0 closed
 // Values approach their targets with a critically-damped feel (setTargets(g, speed)).
 import * as THREE from 'three';
 import { clamp, damp, smoothstep, noise } from '../../core/math.js';
 
-const KEYS = ['neckTwist', 'headRoll', 'headPitch', 'backbend', 'armTwist', 'jitter', 'levitate', 'mouthStretch', 'limbBreak', 'crawl', 'stretch', 'stare', 'unlimited', 'noBlink', 'still'];
+const KEYS = ['neckTwist', 'headRoll', 'headPitch', 'backbend', 'armTwist', 'jitter', 'levitate', 'mouthStretch', 'limbBreak', 'crawl', 'stretch', 'stare', 'unlimited', 'noBlink', 'still',
+  'uncanny', 'blinkDesync', 'snapTilts', 'stutter', 'breathStop', 'veins', 'pupils', 'hairOverFace', 'veilGap'];
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4();
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 
@@ -26,11 +38,16 @@ export class GhostLayer {
     this.jt = 0;
     this.jCur = new Float32Array(8);
     this.jTgt = new Float32Array(8);
+    // snapping micro tilts
+    this.tiltT = 0;
+    this.tilt = new Float32Array(2);
+    this.set = new Set();
   }
   setTargets(g = {}, speed = 3) {
     for (const k of KEYS) if (g[k] !== undefined) {
       this.tgt[k] = typeof g[k] === 'boolean' ? (g[k] ? 1 : 0) : g[k];
       this.spd[k] = speed;
+      this.set.add(k);
       if (speed >= 50) this.v[k] = this.tgt[k];
     }
     if (g.unlimited !== undefined) this.h.ghost && (this.h.ghost.unlimited = g.unlimited);
@@ -38,13 +55,14 @@ export class GhostLayer {
   // derived fields used by the humanoid
   get levitate() { return this.v.levitate; }
   get mouthStretch() { return this.v.mouthStretch; }
-  get breath() { return 1 - this.v.still * 0.9; }
+  get breath() { return (1 - this.v.still * 0.9) * (1 - clamp(this.v.breathStop, 0, 1)); }
   get stillness() { return clamp(this.v.still + this.v.stare * 0.5, 0, 1); }
   get unlimitedLook() { return this.v.unlimited > 0.5 || this.v.neckTwist !== 0; }
   get stare() { return this.v.stare; }
   get noBlink() { return this.v.noBlink > 0.5 || this.v.stare > 0.8; }
 
   update(dt) {
+    this._dt = dt;
     for (const k of KEYS) {
       const s = this.spd[k];
       this.v[k] = s >= 50 ? this.tgt[k] : damp(this.v[k], this.tgt[k], s, dt);
@@ -104,6 +122,14 @@ export class GhostLayer {
         for (const f of ['index', 'middle', 'ring', 'pinky']) rig.addEuler(I[`${f}_02_${x}`], 0, 0, sg * (0.6 + 0.4 * Math.sin(f.length * 3.1)) * lb);
       }
     }
+    if (v.uncanny > 0.001 && h.isMH) {
+      // longer fingers: every finger joint a little further from the last
+      const k = 1 + 0.2 * v.uncanny;
+      for (const x of ['l', 'r']) for (const f of ['index', 'middle', 'ring', 'pinky', 'thumb']) for (const seg of ['_02_', '_03_']) {
+        const b = rig.bones[I[f + seg + x]];
+        if (b) b.position.multiplyScalar(k);
+      }
+    }
     if (v.armTwist) {
       const a = v.armTwist;
       rig.addAxis(I.upperarm_l, X, a * 0.6); rig.addAxis(I.lowerarm_l, X, a);
@@ -132,6 +158,19 @@ export class GhostLayer {
         if (v.headRoll) { _v.copy(Z).applyQuaternion(_q); rig.rotateWorld(i, _q2.setFromAxisAngle(_v, -v.headRoll * k)); rig.update(i); }
         if (v.headPitch) { h.boneFrame(i, _q); _v.copy(X).applyQuaternion(_q); rig.rotateWorld(i, _q2.setFromAxisAngle(_v, v.headPitch * k)); rig.update(i); }
       }
+    }
+    // ---- micro head tilts that snap: hold an angle, then jump to the next with no transition
+    if (v.snapTilts > 0.01) {
+      this.tiltT -= this._dt || 0.016;
+      if (this.tiltT <= 0) {
+        this.tiltT = 0.35 + Math.random() * 2.2 / (0.5 + v.snapTilts);
+        this.tilt[0] = (Math.random() * 2 - 1) * 0.16 * v.snapTilts;
+        this.tilt[1] = (Math.random() * 2 - 1) * 0.07 * v.snapTilts;
+      }
+      h.boneFrame(I.Head, _q);
+      _v.copy(Z).applyQuaternion(_q); rig.rotateWorld(I.Head, _q2.setFromAxisAngle(_v, this.tilt[0])); rig.update(I.Head);
+      h.boneFrame(I.Head, _q);
+      _v.copy(X).applyQuaternion(_q); rig.rotateWorld(I.Head, _q2.setFromAxisAngle(_v, this.tilt[1])); rig.update(I.Head);
     }
     // ---- jitter: snaps on head / neck / shoulders / fingers
     const j = v.jitter;

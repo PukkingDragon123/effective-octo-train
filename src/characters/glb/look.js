@@ -74,6 +74,9 @@ export function normalizeSpec(spec = {}) {
     outfit, face, ghost, acc,
     noBlink: !!spec.noBlink,
     quality: spec.quality ?? 1,
+    // variety (MakeHuman characters): posture 'normal'|'stoop'|'slouch'|'upright'|'hunch'|'child', hand / head tremor 0..1
+    posture: spec.posture || null,
+    tremor: spec.tremor ?? clamp((age - 68) / 20, 0, 1),
   };
 }
 
