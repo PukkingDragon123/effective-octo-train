@@ -22,7 +22,7 @@ export function generateSound(id, v = 0, loop = false, srOverride = 0) {
   const rng = rngFrom(hashStr(id) + v * 7919 + (loop ? 104729 : 0));
   let res = def.gen({ sr, rng, v, p: {} }, loop && !!def.loopable);
   let channels = Array.isArray(res) ? res : [res];
-  channels = channels.map((c) => sanitize(c));
+  channels = channels.map((c) => sanitize(c, loop && !!def.loopable));
   // joint normalisation
   let pk = 0;
   for (const c of channels) for (let i = 0; i < c.length; i++) pk = Math.max(pk, Math.abs(c[i]));
@@ -42,12 +42,12 @@ export function runTask(type, a) {
       return generateSound(a.id, a.v, a.loop, a.sr);
     case 'inst': {
       const sr = a.sr || DEFAULT_SR;
-      return { channels: [renderInstrument(sr, a.inst, a.f, a.vel, a.seed, a.extra || {})], sr };
+      return { channels: [sanitize(renderInstrument(sr, a.inst, a.f, a.vel, a.seed, a.extra || {}), a.inst === 'drone')], sr };
     }
     case 'murmur': {
       const sr = a.sr || 24000;
       const r = renderMurmur(sr, a.th, a.voice || {}, a.seed);
-      return { channels: [r.buffer], sr, meta: { duration: r.duration } };
+      return { channels: [sanitize(r.buffer)], sr, meta: { duration: r.duration } };
     }
     case 'sung': {
       const sr = a.sr || 24000;
@@ -63,7 +63,7 @@ export function runTask(type, a) {
     }
     case 'bed': {
       const r = renderBed(a.kind, a.sr || DEFAULT_SR, a.seed || 1, a.opts || {});
-      return { channels: r.channels.map(sanitize), sr: r.sr };
+      return { channels: r.channels.map((c) => sanitize(c, true)), sr: r.sr };
     }
     case 'radioChunk': {
       const plan = programItem(a.station, a.n);

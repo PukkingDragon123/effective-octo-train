@@ -1,6 +1,6 @@
 // Tiny constructors for dialogue lines so the script files stay readable.
 // They return plain objects that follow the Line schema (see SCHEMA.md):
-//   { who, th, en, tone?, emotion?, action?, pause?, choice?, branches?, set? }
+//   { who, th, en, tone?, emotion?, action?, pause?, choice?, set? }
 //
 //   P('สวัสดีค่ะ', 'Hello.', { emotion:'smile' })  -> current passenger speaks
 //   Y('ครับ', 'Yes.')                              -> Ton speaks aloud (player)
@@ -14,15 +14,30 @@ export const T = (th, en, x = {}) => ({ who: 'player', th, en, tone: 'thought', 
 export const S = (who, th, en, x = {}) => ({ who, th, en, ...x });
 
 /**
- * Player choice. options: [{key, th, en}]. extra may hold prompt {th,en} (on-screen question), timeout (s), defaultKey,
- * branches: { [key]: [lines] } played right after the pick, set: flags to set per key
- * via setOnPick: { [key]: {flag:value} }.
- * The choice line itself has th/en = the on-screen prompt (may be empty-ish ellipsis).
+ * Player choice line, shaped for src/game/Dialogue.js and ui.choice():
+ *   { who:'player', tone:'thought', th, en,               // on-screen prompt (may be '…')
+ *     choice: { id, options:[{key,th,en}], defaultKey, timeout?, branches?, setOnPick? } }
+ *
+ * extra (x):
+ *   id          stable choice id (Dialogue.play() returns choices[id] = picked key). Always give one.
+ *   prompt      {th,en} prompt text (default '…')
+ *   timeout     seconds; on timeout ui.choice resolves `defaultKey` (default: the LAST option = the silent one)
+ *   branches    { [key]: [Line] } played right after the pick (Dialogue reads choice.branches)
+ *   setOnPick   { [key]: {flag:value} } story flags for that pick. They are ALSO baked into the
+ *               first line of the matching branch as `set`, so the stock Dialogue runner applies them.
  */
 export const C = (options, x = {}) => {
-  const line = { who: 'player', th: x.prompt?.th ?? '…', en: x.prompt?.en ?? '…', tone: 'thought', choice: { options, defaultKey: x.defaultKey ?? options[options.length - 1].key } };
-  if (x.timeout) line.choice.timeout = x.timeout;
-  if (x.branches) line.branches = x.branches;
-  if (x.setOnPick) line.setOnPick = x.setOnPick;
-  return line;
+  const choice = { id: x.id || null, options, defaultKey: x.defaultKey ?? options[options.length - 1].key };
+  if (x.timeout) choice.timeout = x.timeout;
+  if (x.branches || x.setOnPick) {
+    const branches = {};
+    for (const [k, ls] of Object.entries(x.branches || {})) branches[k] = ls.slice();
+    for (const [k, flags] of Object.entries(x.setOnPick || {})) {
+      if (!branches[k] || !branches[k].length) continue; // gameplay reads choice.setOnPick for empty branches
+      branches[k][0] = { ...branches[k][0], set: { ...(branches[k][0].set || {}), ...flags } };
+    }
+    choice.branches = branches;
+  }
+  if (x.setOnPick) choice.setOnPick = x.setOnPick;
+  return { who: 'player', th: x.prompt?.th ?? '…', en: x.prompt?.en ?? '…', tone: 'thought', choice };
 };

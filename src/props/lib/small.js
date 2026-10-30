@@ -123,16 +123,26 @@ export function plasticChair(k, o = {}) {
   });
 }
 
-/** Round plastic stool. */
+/** Squat Thai plastic stool (frustum shell with four leg cut-outs). */
 export function plasticStool(k, o = {}) {
   const color = o.color ?? PAL.chairRed;
   k.at(o.p, o.r, o.s, () => {
-    k.add(mat('plastic'), G('stoolTop', () => cyl(0.15, 0.155, 0.035, 14, 0.01)), { p: [0, 0.42, 0], color, w: { dust: 0.3, grime: 0.2 } });
-    for (let i = 0; i < 4; i++) {
-      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-      k.add(mat('plastic'), G('stoolLeg', () => bbox(0.05, 0.43, 0.025, 0.008, 0.2)), { p: [Math.cos(a) * 0.14, 0, Math.sin(a) * 0.14], r: [Math.sin(a) * 0.12, -a, -Math.cos(a) * 0.12], color, w: { grime: 0.4, grimeH: 0.2 } });
-    }
-    k.add(mat('plastic'), G('stoolRing', () => torus(0.15, 0.012, 4, 16)), { p: [0, 0.14, 0], r: [Math.PI / 2, 0, 0], color });
+    const g = G('stoolShell', () => {
+      const prof = [[0.0, 0.43], [0.14, 0.43], [0.15, 0.415], [0.165, 0.4], [0.2, 0.02], [0.205, 0.0], [0.19, 0.0], [0.155, 0.39], [0.0, 0.39]];
+      return lathe(prof.reverse(), 24);
+    });
+    k.add(mat('plastic'), g, {
+      color, w: { dust: 0.35, grime: 0.35, grimeH: 0.2, vary: 0.15 },
+      colorFn: (p, n, c, lp) => {
+        // four tall arch-shaped cut-outs between the legs read as dark openings
+        const a = Math.atan2(lp.z, lp.x);
+        const u = Math.abs(Math.sin(a * 2));
+        if (lp.y > 0.05 && lp.y < 0.3 && u > 0.55 + (lp.y < 0.12 ? 0 : (lp.y - 0.12) * 1.2)) c.multiplyScalar(0.08);
+        // ring of little holes in the seat
+        const rr = Math.hypot(lp.x, lp.z);
+        if (lp.y > 0.42 && rr < 0.06 && Math.sin(a * 6) > 0.3) c.multiplyScalar(0.3);
+      },
+    });
   });
 }
 
@@ -463,18 +473,23 @@ export function wreath(k, o = {}) {
     // ring of flowers: torus with lumpy colour
     const fade = o.faded ?? 0.5;
     const base = new THREE.Color(o.color ?? 0xe8e4dc);
-    k.add(mat('flower'), G('wring:' + R, () => torus(R, 0.07, 7, 28)), {
-      p: [0, cy, 0], color: base, jitter: 0.015, jitterFreq: 25, w: { grime: 0, vary: 0.3 },
+    k.add(mat('flower'), G('wring:' + R, () => torus(R, 0.085, 8, 30)), {
+      p: [0, cy, 0], color: base, jitter: 0.03, jitterFreq: 30, w: { grime: 0, vary: 0.3 },
       colorFn: (p, n, c) => {
-        const v = noise.noise3D(p.x * 20, p.y * 20, p.z * 20 + (o.seed ?? 0));
-        if (v > 0.25) c.lerp(_cmari.set(o.accent ?? 0xc8a020), 0.7 * (1 - fade * 0.5));
-        else if (v < -0.4) c.lerp(_cmari.set(0x6a5a5a), fade * 0.6);
-        c.multiplyScalar(1 - fade * 0.25);
+        const v = noise.noise3D(p.x * 26, p.y * 26, p.z * 26 + (o.seed ?? 0));
+        const v2 = noise.noise3D(p.x * 9 + 3, p.y * 9, p.z * 9);
+        if (v > 0.3) c.lerp(_cmari.set(o.accent ?? 0xc8a020), 0.8 * (1 - fade * 0.4));
+        else if (v < -0.35) c.lerp(_cmari.set(v2 > 0 ? 0x7a4a9a : 0x2a5a2a), 0.7 * (1 - fade * 0.4));
+        if (v2 < -0.45) c.lerp(_cmari.set(0x5a4a3a), fade * 0.7); // wilted brown patches
+        c.multiplyScalar(1 - fade * 0.3);
       },
     });
-    // centre disc + ribbon sash
-    k.add(mat('flower'), G('wdisc:' + R, () => cyl(R * 0.75, R * 0.75, 0.02, 20, 0.004).rotateX(Math.PI / 2)), { p: [0, cy, -0.01], color: 0xd8d2c4, w: { vary: 0.2, grime: 0 } });
-    for (const sx of [-1, 1]) k.add(mat('cloth_static'), G('wsash', () => quad(0.09, 0.85).translate(0, -0.42, 0)), { p: [sx * 0.12, cy + 0.15, 0.03], r: [0, 0, sx * 0.08], color: o.ribbon ?? 0xd8d0c0, w: { grime: 0.2, vary: 0.2 }, uv: 'keep' });
+    // dark leafy backing disc + ribbon sash with printed name
+    k.add(mat('flower'), G('wdisc:' + R, () => cyl(R * 0.85, R * 0.85, 0.02, 20, 0.004).rotateX(Math.PI / 2)), { p: [0, cy, -0.03], color: 0x2a3a22, jitter: 0.01, jitterFreq: 30, w: { vary: 0.3, grime: 0 } });
+    for (const sx of [-1, 1]) k.add(mat('cloth_static'), G('wsash', () => quad(0.09, 0.85, 1, 6).translate(0, -0.42, 0)), {
+      p: [sx * 0.1, cy + 0.2, 0.05], r: [0.05, 0, sx * 0.12], color: o.ribbon ?? 0xd8d0c0, w: { grime: 0.25, vary: 0.25 }, uv: 'keep',
+      colorFn: (p, n, c, lp) => { if (Math.abs(lp.x) < 0.025 && lp.y < -0.1 && lp.y > -0.75 && Math.sin(lp.y * 120) > 0.2) c.multiplyScalar(0.25); },
+    });
   });
 }
 
@@ -496,7 +511,7 @@ export function helmet(k, o = {}) {
       return sp;
     });
     k.add(mat('plastic'), g, {
-      p: [0, 0.02, 0], color: o.color ?? 0xb8b0a0, w: { grime: 0.5, grimeH: 0.12, vary: 0.2 },
+      p: [0, 0.02, 0], color: o.color ?? 0x7a1a18, w: { grime: 0.5, grimeH: 0.12, vary: 0.2 },
       colorFn: o.cracked ? (p, n, c, lp) => { const v = Math.abs(lp.x * 1.3 + Math.sin(lp.z * 40) * 0.01 - lp.y * 0.4 + 0.02); if (v < 0.006) c.multiplyScalar(0.15); } : null,
     });
     k.add(mat('dark'), G('helmetliner', () => torus(0.148, 0.012, 5, 18).rotateX(Math.PI / 2).scale(1, 1, 1.15)), { p: [0, 0.02 + 0.15 * Math.cos(Math.PI * 0.62) * 1.05, 0], color: 0x1a1a1a });

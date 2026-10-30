@@ -433,6 +433,8 @@ export class Humanoid {
       h.gripW = damp(h.gripW, h.target ? h.grip : 0, 8, dt);
       if (h.gripW > 0.01) this._gripFingers(pose, s, h.gripW);
     }
+    const ag = this.accessories?.grips;
+    if (ag) for (const s of ['L', 'R']) if (ag[s] > 0) this._gripFingers(pose, s, ag[s] * (1 - this.ik.hand[s].gripW));
     // jaw
     this._faceJaw(pose, dt);
     // 4. FK
@@ -595,6 +597,17 @@ export class Humanoid {
       const slot = this.ik.hand[s];
       const has = slot.target ? this._targetWorld(slot.target, slot.pos) : null;
       slot.w = damp(slot.w, has ? slot.weight : 0, 1 / Math.max(0.05, slot.blend), dt);
+      const act = this.actions.ikOut[s];
+      if ((slot.w < 0.001 || !has) && act.w > 0.001) {
+        // action-driven target (rig space, target convention)
+        _q.copy(act.quat).multiply(HAND_FROM_TARGET);
+        const hs = this.P.handLen / 0.19;
+        _v.copy(act.pos).sub(_v2.set(0, 0.085 * hs, -0.024 * hs).applyQuaternion(_q));
+        const sg = s === 'R' ? 1 : -1;
+        _v3.copy(rig.rp[ARM[s].a]).add(_v2.set(sg * 0.35, -0.45, 0.25).applyQuaternion(rig.rq[BI.chest]));
+        solveTwoBone(rig, ARM[s], _v, _v3, act.w, _q, 1, 1);
+        continue;
+      }
       if (slot.w < 0.001 || !has) continue;
       const arm = ARM[s];
       // target rotation (world -> rig)
@@ -690,15 +703,15 @@ export class Humanoid {
 
   _faceJaw(pose, dt) {
     const F = this.faceState;
-    let target = 0;
-    if (F.talk) {
+    let target = this._actionJaw || 0;
+    if (F.talk || this._actionTalk) {
       F.talkT -= dt;
       if (F.talkT <= 0) {
         // syllable rhythm ~ 5-7 Hz with pauses
         F.talkT = 0.08 + Math.random() * 0.12;
         F.jawTarget = Math.random() < 0.15 ? 0.02 : (0.25 + Math.random() * 0.75) * F.talkAmp;
       }
-      target = F.jawTarget;
+      target = Math.max(target, F.jawTarget);
     }
     const ex = F.expr;
     target = Math.max(target, ex.surprise * 0.5, ex.fear * 0.25);
@@ -712,7 +725,10 @@ export class Humanoid {
     if (!m) return;
     const F = this.faceState;
     const ex = F.expr;
-    for (const k in ex) ex[k] = damp(ex[k], this.expression[k] || 0, 6, dt);
+    const ae = this._actionExpr;
+    for (const k in ex) ex[k] = damp(ex[k], Math.max(this.expression[k] || 0, ae ? ae[k] || 0 : 0), 6, dt);
+    // upper lids follow the eyes looking down
+    const lookDown = Math.max(0, -this.look.eyePitch) * 0.9;
     // blinking: random interval, faster when nervous; never for ghosts that "don't blink"
     const nerv = this.anim.nervous + ex.fear * 0.8;
     if (F.blinkEnabled && !this.spec.noBlink) {
@@ -732,7 +748,7 @@ export class Humanoid {
       if (u >= 1) F.blinking = 0;
     }
     const closed = clamp(this._eyesClosed ?? 0, 0, 1);
-    blink = Math.max(blink, closed);
+    blink = Math.max(blink, closed, lookDown);
     // cheek twitch (nervous / creepy)
     F.twitchT -= dt;
     if (F.twitchT <= 0) {

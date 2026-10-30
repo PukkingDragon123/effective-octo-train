@@ -121,16 +121,18 @@ function weave(w, h, threads, twill, seed) {
 function folds(w, h, seed, k, dir = 'v') {
   const n = w * h;
   const vert = dir === 'v';
-  const p1 = fbm(w, h, { cells: vert ? [1, 2] : [2, 1], octaves: 2, seed });
-  const p2 = fbm(w, h, { cells: vert ? [2, 3] : [3, 2], octaves: 2, seed: seed + 1 });
-  const p3 = fbm(w, h, { cells: 4, octaves: 2, seed: seed + 2 });
+  const p1 = fbm(w, h, { cells: vert ? [1, 2] : [2, 1], octaves: 1, seed });
+  const p2 = fbm(w, h, { cells: vert ? [2, 2] : [2, 2], octaves: 2, seed: seed + 1 });
+  const p3 = fbm(w, h, { cells: vert ? [3, 4] : [4, 3], octaves: 2, seed: seed + 2 });
   const out = new Float32Array(n);
   const T = Math.PI * 2;
   for (let y = 0, i = 0; y < h; y++) {
     for (let x = 0; x < w; x++, i++) {
       const u = vert ? x / w : y / h;
-      const v = 0.5 + 0.26 * Math.sin(T * (u * 3 + p1[i] * 0.7)) + 0.16 * Math.sin(T * (u * 7 + p2[i] * 0.9)) + 0.08 * Math.sin(T * (u * 15 + p3[i]));
-      out[i] = v;
+      // broad ridges, narrow creases
+      const a = Math.sin(T * (u * 3 + p1[i] * 0.45)), b = Math.sin(T * (u * 7 + p2[i] * 0.6)), c = Math.sin(T * (u * 13 + p3[i] * 0.5));
+      const sh = (q) => (q > 0 ? Math.sqrt(q) : -q * q);
+      out[i] = 0.55 + 0.24 * sh(a) + 0.14 * sh(b) + 0.05 * sh(c);
     }
   }
   return out;

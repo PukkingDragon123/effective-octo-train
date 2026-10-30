@@ -2,6 +2,7 @@
 import { h, enter, leave } from './dom.js';
 import { screen, titleLockup } from './common.js';
 import { keyHints, NAV_HINTS } from './glyphs.js';
+import * as NARRATIVE from '../game/data/index.js';
 
 const SECTIONS = [
   {
@@ -52,42 +53,89 @@ const SECTIONS = [
   },
 ];
 
+const TYPEFACES = SECTIONS.find((x) => x.en === 'Typefaces');
+const ASSETS = {
+  th: 'ทรัพยากรภายนอก', en: 'Third-party assets',
+  lines: [
+    { role: { th: 'โครงร่างมนุษย์และท่าทางพื้นฐาน', en: 'Base human meshes & animation clips' }, name: 'Quaternius', small: 'Universal Base Characters \u00b7 Universal Animation Library \u00b7 CC0 1.0' },
+  ],
+};
+const PROCEDURAL_NOTE = {
+  th: 'พื้นผิว โลก ฉาก ใบหน้า เสียง และดนตรีทั้งหมด สร้างขึ้นด้วยโค้ด',
+  en: 'Every texture, the world, its props, the faces, the sound and the music are generated in code.',
+};
+
+/** Credits sections from the narrative data (src/game/data/credits.js) when available. */
+function dataSections(full) {
+  const C = NARRATIVE.CREDITS;
+  if (!Array.isArray(C) || !C.length) return null;
+  const out = [];
+  for (const sec of C) {
+    if (sec.id === 'cast' && !full) continue; // the cast list spoils the ending
+    const lines = [];
+    for (const e of sec.entries || []) {
+      if (e.roleEN === 'Fonts') continue; // detailed in our Typefaces section
+      if (e.en && /procedurally generated/i.test(e.en)) {
+        lines.push({ note: PROCEDURAL_NOTE });
+        continue;
+      }
+      if (e.name != null) {
+        const m = /^(.*?)\s*[\u2014\u00b7]\s*(.*)$/.exec(String(e.name));
+        lines.push({ role: { th: e.roleTH || '', en: e.roleEN || '' }, name: m ? m[1] : e.name, small: m ? m[2] : '' });
+      } else if (e.th === e.en) lines.push({ title: e.en });
+      else lines.push({ note: { th: e.th, en: e.en } });
+    }
+    out.push({ th: sec.titleTH, en: sec.titleEN, lines });
+    if (sec.id === 'tech') out.push(TYPEFACES, ASSETS);
+  }
+  if (!out.includes(TYPEFACES)) out.push(TYPEFACES, ASSETS);
+  return out;
+}
+
 function line(l) {
+  if (l.note) return h('p', { class: 'dlb-cr-note', attrs: { lang: 'th' } }, l.note.th, l.note.en ? h('span', { class: 'en' }, l.note.en) : null);
+  if (l.title) return h('p', { class: 'dlb-cr-note', style: 'font-family:var(--f-title);letter-spacing:.3em;font-size:13px;text-transform:uppercase;color:var(--bone-3)' }, l.title);
   return h('div', { class: 'dlb-cr-line' },
     h('div', { class: 'role' }, h('span', { attrs: { lang: 'th' } }, l.role.th), h('span', { class: 'en' }, l.role.en)),
     h('span', { class: 'dot' }),
     h('div', { class: 'name' }, l.th ? h('span', { class: 'th', attrs: { lang: 'th' } }, l.th) : null, l.name, l.small ? h('small', null, l.small) : null));
 }
 
-/** Build the credits column. opts { full } (full = ending roll: cast + dedication) */
-export function buildCredits({ full = false } = {}) {
+/** Build the credits column. opts { full } (full = ending roll: cast + dedication), extra: [{th,en}] */
+export function buildCredits({ full = false, extra = null } = {}) {
+  const fromData = dataSections(full);
   const parts = [];
   parts.push(h('div', { class: 'dlb-cr-block' }, titleLockup({ align: 'center' })));
   parts.push(h('div', { class: 'dlb-cr-block dlb-cr-made' },
     h('div', { class: 'dlb-cr-made__cap' }, h('span', { attrs: { lang: 'th' } }, 'สร้างโดย'), h('span', { class: 'en' }, 'made by')),
     h('div', { class: 'dlb-cr-made__name' }, 'Pukking Dragon'),
     h('div', { class: 'dlb-cr-made__mark' })));
-  for (const s of SECTIONS) {
+  for (const s of fromData || SECTIONS) {
     if (s.full && !full) continue;
     parts.push(h('div', { class: 'dlb-cr-sec' },
       h('div', { class: 'dlb-cr-sec__h' }, h('span', { class: 'en' }, s.en), h('span', { class: 'th', attrs: { lang: 'th' } }, s.th)),
       s.lines.map(line)));
   }
-  parts.push(h('div', { class: 'dlb-cr-sec' },
+  if (!fromData) parts.push(h('div', { class: 'dlb-cr-sec' },
     h('p', { class: 'dlb-cr-note', attrs: { lang: 'th' } }, 'พื้นผิว โมเดล แอนิเมชัน เสียง และดนตรีทั้งหมดในเกมนี้ สร้างขึ้นด้วยโค้ดทั้งสิ้น',
       h('span', { class: 'en' }, 'All textures, models, animation, sound and music are procedurally generated in code. No photographs, no recordings.')),
     h('p', { class: 'dlb-cr-note', attrs: { lang: 'th' } }, 'ตัวละคร สถานที่ และเหตุการณ์ทั้งหมดเป็นเรื่องสมมุติ หากบังเอิญคล้ายผู้ใด ถือเป็นเรื่องเหนือธรรมชาติ',
       h('span', { class: 'en' }, 'All characters, places and events are fictional. Any resemblance is purely supernatural.'))));
+  if (extra && extra.length) {
+    parts.push(h('div', { class: 'dlb-cr-sec' }, extra.map((x) => h('p', { class: 'dlb-cr-dedic', attrs: { lang: 'th' } }, x.th, x.en ? h('span', { class: 'en' }, x.en) : null))));
+  }
   if (full) {
     parts.push(h('div', { class: 'dlb-cr-sec' },
       h('p', { class: 'dlb-cr-dedic', attrs: { lang: 'th' } }, 'แด่พ่อทุกคนที่ล้างรถทุกเช้า เผื่อลูกจะกลับบ้าน',
         h('span', { class: 'en' }, 'For every father who washed the car each morning, in case his child came home.'))));
   }
+  const closing = NARRATIVE.CREDITS_CLOSING;
   parts.push(h('div', { class: 'dlb-cr-sec', style: full ? 'margin-bottom:40vh' : '' },
     h('div', { class: 'dlb-cr-thanks', attrs: { lang: 'th' } }, 'ขอบคุณที่นั่งรถไปด้วยกันจนถึงเช้า',
       h('span', { class: 'en' }, 'Thank you for riding with us until morning.')),
     h('div', { class: 'dlb-hair is-center', style: 'margin-top:2.2em;width:120px' }),
-    h('div', { class: 'dlb-cr-note', style: 'margin-top:1.6em', attrs: { lang: 'th' } }, 'กลับบ้านดี ๆ นะ', h('span', { class: 'en' }, 'Get home safe.'))));
+    h('div', { class: 'dlb-cr-note', style: 'margin-top:1.6em', attrs: { lang: 'th' } }, 'กลับบ้านดี ๆ นะ', h('span', { class: 'en' }, 'Get home safe.')),
+    closing ? h('div', { class: 'dlb-cr-note', style: 'margin-top:2.4em;opacity:.7', attrs: { lang: 'th' } }, closing.th, h('span', { class: 'en' }, closing.en)) : null));
   return h('div', { class: 'dlb-roll' }, parts);
 }
 

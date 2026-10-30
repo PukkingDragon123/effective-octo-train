@@ -85,16 +85,16 @@ export function headPrims(P, F, spec) {
   // ---- cheekbones (zygoma body + arch), cheeks
   for (const sg of [-1, 1]) {
     const cb = F.cheekbone;
-    add(ellipsoid(f(sg * 0.048, 0.044, -0.056), [0.02 * fs * cb, 0.014 * fs, 0.02 * fs], R({ k: k(0.022), basis: basisFromEuler(0, sg * 0.55, sg * -0.25) })));
-    add(capsule(f(sg * 0.054, 0.045, -0.048), f(sg * 0.062, 0.043, -0.012), 0.0085 * fs, R({ k: k(0.02) })));
-    add(ellipsoid(f(sg * 0.034, 0.008, -0.06), [0.021 * fs * F.cheek, 0.024 * fs, 0.02 * fs * F.cheek], R({ k: k(0.026) })));
+    add(ellipsoid(f(sg * 0.046, 0.044, -0.056), [0.019 * fs * cb, 0.013 * fs, 0.019 * fs], R({ k: k(0.024), basis: basisFromEuler(0, sg * 0.55, sg * -0.25) })));
+    add(capsule(f(sg * 0.051, 0.045, -0.048), f(sg * 0.058, 0.043, -0.012), 0.0075 * fs, R({ k: k(0.022) })));
+    add(ellipsoid(f(sg * 0.032, 0.01, -0.06), [0.019 * fs * F.cheek, 0.023 * fs, 0.02 * fs * F.cheek], R({ k: k(0.03) })));
     if (F.old > 0.35) add(ellipsoid(f(sg * 0.042, -0.03, -0.05), [0.016 * fs, 0.016 * fs, 0.016 * fs], R({ k: k(0.022) }))); // jowls
   }
   // ---- mandible: ramus (TMJ -> gonion) + body (gonion -> chin) + chin (subtle, well blended)
   const jw = F.jaw;
   for (const sg of [-1, 1]) {
     const tmj = f(sg * 0.057, 0.034, -0.006);
-    const gon = f(sg * 0.046 * jw, -0.026, -0.008);
+    const gon = f(sg * 0.044 * jw, -0.026, -0.008);
     const chn = f(sg * 0.016, -0.05, -0.07);
     add(capsule(tmj, gon, 0.009 * hs, R({ k: k(0.024) })));
     add(capsule(gon, chn, 0.0085 * fs, R({ k: k(0.024) })));
@@ -106,13 +106,17 @@ export function headPrims(P, F, spec) {
   const br = F.brow;
   for (const sg of [-1, 1]) add(capsule(f(sg * 0.009, 0.077, -0.088), f(sg * 0.05, 0.08, -0.071), (0.006 + 0.004 * br) * fs, R({ k: k(0.013) })));
   add(ellipsoid(f(0, 0.07, -0.086), [0.011 * fs, 0.013 * fs, 0.009 * fs], R({ k: k(0.012) })));
-  // ---- eye sockets (carved to fit the eyeballs; lids are separate shells)
+  // ---- eyes: shallow orbit hollow, then a lid ball wrapping the eyeball, then the almond slit
   for (const sg of [-1, 1]) {
     const ex = sg * F.eyeX;
-    add(ellipsoid([ex, eY + 0.0015 * hs, F.eyeZ - 0.0055 * hs], [0.0178 * hs * F.eyeSize, 0.0125 * hs * F.eyeSize, 0.0135 * hs], SUB({ k: k(0.0065), basis: basisFromEuler(0, 0, sg * -F.eyeTilt) })));
-    // upper-lid fullness (East Asian: fuller lid, low crease) and the lower lid / tear trough
-    add(ellipsoid([ex + sg * 0.002 * hs, eY + 0.0118 * hs, F.eyeZ - 0.0095 * hs], [0.0168 * hs, 0.0052 * hs * (0.8 + 0.4 * F.epicanthic), 0.0072 * hs], R({ k: k(0.0055) })));
-    add(ellipsoid([ex, eY - 0.0142 * hs, F.eyeZ - 0.0078 * hs], [0.0158 * hs, 0.0045 * hs, 0.0068 * hs], R({ k: k(0.0055) })));
+    add(ellipsoid([ex, eY + 0.002 * hs, F.eyeZ - 0.0165 * hs], [0.0185 * hs * F.eyeSize, 0.014 * hs, 0.0085 * hs], SUB({ k: k(0.01) })));
+    const sl = eyeSlit(F, sg);
+    add(sphere(sl.c, sl.Rl, R({ k: k(0.0055) })));
+    // upper-lid fullness above the eye (East Asian: fuller lid, low or absent crease)
+    add(ellipsoid([ex + sg * 0.0015 * hs, eY + 0.0098 * hs, F.eyeZ - 0.0082 * hs], [0.0155 * hs, 0.0048 * hs * (0.8 + 0.4 * F.epicanthic), 0.0068 * hs], R({ k: k(0.0055) })));
+    // lower lid / tear trough
+    add(ellipsoid([ex, eY - 0.0115 * hs, F.eyeZ - 0.0072 * hs], [0.0145 * hs, 0.0032 * hs, 0.0058 * hs], R({ k: k(0.006) })));
+    add(custom(sl.sdf, sl.bbox, SUB({ k: k(0.0012) })));
   }
   // ---- nose: bridge, tip, alae, nostrils (lower bridge, broader alae)
   const nw = F.noseW, np = F.noseProj;
@@ -127,8 +131,8 @@ export function headPrims(P, F, spec) {
   // ---- lips (subtle volumes on the muzzle)
   const lf = F.lipFull;
   const mz = F.mouthZ;
-  add(ellipsoid([0, F.mouthY + 0.0052 * fs, mz + 0.0012 * hs], [F.cornerX * 0.97, 0.0048 * fs * lf, 0.0066 * fs], R({ k: k(0.006), basis: basisFromEuler(-0.35, 0, 0) })));
-  add(ellipsoid([0, F.mouthY - 0.006 * fs, mz + 0.0026 * fs], [F.cornerX * 0.84, 0.0056 * fs * lf, 0.0068 * fs], R({ k: k(0.006), basis: basisFromEuler(0.35, 0, 0) })));
+  add(ellipsoid([0, F.mouthY + 0.0052 * fs, mz + 0.0012 * hs], [F.cornerX * 0.97, 0.0053 * fs * lf, 0.007 * fs], R({ k: k(0.006), basis: basisFromEuler(-0.35, 0, 0) })));
+  add(ellipsoid([0, F.mouthY - 0.006 * fs, mz + 0.0026 * fs], [F.cornerX * 0.86, 0.006 * fs * lf, 0.0072 * fs], R({ k: k(0.006), basis: basisFromEuler(0.35, 0, 0) })));
   add(capsule([0, F.noseBaseY - 0.0015 * fs, mz + 0.0035 * fs], [0, F.mouthY + 0.0098 * fs, mz - 0.0005 * fs], 0.0015 * fs, SUB({ k: k(0.0026) }))); // philtrum
   add(ellipsoid([0, F.mouthY, mz - 0.0024 * fs], [F.cornerX * 0.97, 0.0014 * fs, 0.0074 * fs], SUB({ k: k(0.0022) }))); // lip line
   for (const sg of [-1, 1]) add(sphere([sg * F.cornerX * 1.03, F.mouthY + 0.0004, mz + 0.005 * fs], 0.0027 * fs, SUB({ k: k(0.0036) })));
@@ -198,80 +202,62 @@ function eyeball(F, sg, out) {
   for (let j = 0; j < H; j++) {
     for (let i = 0; i < W; i++) {
       const a = base + j * (W + 1) + i, b = a + 1, c2 = a + (W + 1), d = c2 + 1;
-      out.idx.push(a, c2, b, b, c2, d);
+      out.idx.push(a, b, c2, b, d, c2);
     }
   }
 }
 
-/** Eyelid shells (upper + lower) around one eye. Records blink/wide/squint deltas. */
-function eyelids(F, sg, out, uvFn) {
-  const R0 = F.eyeR;
+/**
+ * Eye-opening (palpebral fissure) geometry in arc-length coordinates on the lid sphere.
+ * Returns helpers to get the upper / lower margin elevation (radians) at an azimuth, and an SDF slit.
+ */
+export function eyeSlit(F, sg) {
+  const Re = F.eyeR, Rl = F.eyeR + 0.0017 * F.hs;
   const c = [sg * F.eyeX, F.eyeY, F.eyeZ];
-  const a0 = 1.28 * F.eyeSize; // half-width of the opening (azimuth)
-  const a1 = a0 + 0.45;
-  const tilt = F.eyeTilt * sg;
-  const upOpen = 0.43 * F.lidOpen * F.eyeSize, loOpen = -0.42 * F.eyeSize;
-  const NA = 16, NB = 7;
-  const tmpUV = [0, 0];
-  const lid = (upper) => {
-    const base = out.pos.length / 3;
-    for (let j = 0; j <= NB; j++) {
-      const t = j / NB; // 0 = margin, 1 = outer edge
-      for (let i = 0; i <= NA; i++) {
-        const a = -a1 + (2 * a1 * i) / NA;
-        const inside = clamp(1 - Math.abs(a) / a0, 0, 1);
-        const prof = Math.pow(Math.sin(inside * Math.PI * 0.5), upper ? 0.75 : 0.9);
-        // inner corner slightly lower (epicanthic), outer corner tilted up
-        const cornerTilt = (a * sg > 0 ? 1 : -1) * 0;
-        const mUp = upOpen * prof + tilt * (a / a0) * 0.5;
-        const mLo = loOpen * prof + tilt * (a / a0) * 0.5;
-        const margin = upper ? mUp : mLo;
-        const edge = upper ? 1.25 : -1.15;
-        const b = lerp(margin, edge, Math.pow(t, 1.25));
-        // radius: thin margin hugging the eye, flaring into the socket wall
-        const R = R0 * (1.05 + 0.02 * (1 - t) + 0.42 * t * t + (j === 0 ? -0.025 : 0)) * (upper ? 1.0 : 0.99);
-        const az = a * sg;
-        const nx = Math.sin(az) * Math.cos(b), ny = Math.sin(b), nz = -Math.cos(az) * Math.cos(b);
-        void cornerTilt;
-        const px = c[0] + nx * R, py = c[1] + ny * R, pz = c[2] + nz * R;
-        out.pos.push(px, py, pz);
-        out.nor.push(nx, ny, nz);
-        uvFn(px, py, pz, tmpUV);
-        out.uv.push(tmpUV[0], tmpUV[1]);
-        out.bone.push(BI.head);
-        out.kind.push(upper ? 2 : 3);
-        // morph deltas: blink (upper closes to the lower line), wide, squint
-        const w = Math.pow(1 - t, 1.6);
-        const closeB = lerp(margin, lerp(mLo, mUp, 0.18), 1) ;
-        const rot = (db) => {
-          const b2 = b + db;
-          return [c[0] + Math.sin(az) * Math.cos(b2) * R - px, c[1] + Math.sin(b2) * R - py, c[2] + -Math.cos(az) * Math.cos(b2) * R - pz];
-        };
-        if (upper) {
-          out.blink.push(...rot((closeB - margin) * w));
-          out.wide.push(...rot(0.22 * w * prof));
-          out.squint.push(...rot(-0.12 * w * prof));
-        } else {
-          out.blink.push(...rot(0.1 * w * prof));
-          out.wide.push(...rot(-0.06 * w * prof));
-          out.squint.push(...rot(0.2 * w * prof));
-        }
-        out.side.push(sg);
-        if (j === 0) (upper ? out.marginUp : out.marginLo).push([px, py, pz, sg]);
-      }
-    }
-    for (let j = 0; j < NB; j++) {
-      for (let i = 0; i < NA; i++) {
-        const a = base + j * (NA + 1) + i, b = a + 1, c2 = a + (NA + 1), d = c2 + 1;
-        // winding: outward normals (mirrors between the eyes)
-        const flip = sg > 0;
-        if (upper !== flip) out.idx.push(a, b, c2, b, d, c2);
-        else out.idx.push(a, c2, b, b, c2, d);
-      }
-    }
+  const es = F.eyeSize * F.hs;
+  const w = 0.0118 * es; // half width (arc length)
+  const hu = 0.0047 * es * F.lidOpen, hl = 0.0041 * es;
+  const ru = (w * w + hu * hu) / (2 * hu), cu = ru - hu;
+  const rl = (w * w + hl * hl) / (2 * hl), cl = rl - hl;
+  const peak = 0.0016 * F.hs; // upper-lid peak shifted toward the nose
+  const tilt = F.eyeTilt;
+  // local coords: a = azimuth (+ outward), b = elevation; arc lengths X = a*Rl, Y = b*Rl
+  const toLocal = (x, y, z, out) => {
+    const dx = (x - c[0]) * sg, dy = y - c[1], dz = z - c[2];
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    out[0] = Math.atan2(dx, -dz); // azimuth
+    out[1] = Math.asin(Math.max(-1, Math.min(1, dy / (r || 1)))); // elevation
+    out[2] = r;
+    return out;
   };
-  lid(true);
-  lid(false);
+  const upY = (X) => -cu + Math.sqrt(Math.max(0, ru * ru - (X + peak) * (X + peak))) + tilt * X;
+  const loY = (X) => cl - Math.sqrt(Math.max(0, rl * rl - X * X)) + tilt * X;
+  const tmp = [0, 0, 0];
+  const sdf = (x, y, z) => {
+    toLocal(x, y, z, tmp);
+    const X = tmp[0] * Rl, Y = tmp[1] * Rl;
+    const yy = Y - tilt * X;
+    const dA = Math.hypot(X + peak, yy + cu) - ru;
+    const dB = Math.hypot(X, yy - cl) - rl;
+    let d = Math.max(dA, dB);
+    d = Math.max(d, tmp[2] - (Rl + 0.004 * F.hs)); // only near the lid shell
+    d = Math.max(d, -Math.cos(tmp[0]) * Math.cos(tmp[1]) + 0.15); // only the front
+    return d;
+  };
+  const bbox = [c[0] - 0.025, c[1] - 0.02, c[2] - 0.025, c[0] + 0.025, c[1] + 0.02, c[2] + 0.01];
+  const margins = (n = 18) => {
+    const up = [], lo = [];
+    for (let i = 0; i <= n; i++) {
+      const X = -w + (2 * w * i) / n;
+      const a = X / Rl;
+      for (const [arr, Y] of [[up, upY(X)], [lo, loY(X)]]) {
+        const b = Y / Rl;
+        arr.push([c[0] + sg * Math.sin(a) * Math.cos(b) * Rl, c[1] + Math.sin(b) * Rl, c[2] - Math.cos(a) * Math.cos(b) * Rl, sg]);
+      }
+    }
+    return { up, lo };
+  };
+  return { c, Re, Rl, w, upY, loY, toLocal, sdf, bbox, margins };
 }
 
 // ---------------------------------------------------------------------------
@@ -292,7 +278,7 @@ export function buildHeadGeometry(spec, P, L, W, quality = 1) {
     const ear = smoothstep(0.06, 0.07, Math.abs(x)) * smoothstep(0.0, 0.03, y) * smoothstep(0.09, 0.07, y);
     return 1 + front * 22 + ear * 6;
   };
-  const md = meshPart({ prims, h: 0.0031 * hs, margin: 0.012, relax: 2, targetTris: Math.round(7600 * quality), detailFn, bounds: b, ao: { strength: 3.2, steps: [0.003, 0.006, 0.012, 0.024] } });
+  const md = meshPart({ prims, h: 0.0027 * hs, margin: 0.012, relax: 2, targetTris: Math.round(8600 * quality), detailFn, bounds: b, ao: { strength: 3.2, steps: [0.003, 0.006, 0.012, 0.024] } });
   const mesh = md.mesh;
   const n = mesh.count;
   const uvFn = makeUV(F);
@@ -309,12 +295,9 @@ export function buildHeadGeometry(spec, P, L, W, quality = 1) {
   }
   for (let i = 0; i < mesh.indices.length; i++) idx.push(mesh.indices[i]);
   const ao = Array.from(md.ao);
-  const extra = { pos: [], nor: [], uv: [], idx: [], bone: [], kind: [], blink: [], wide: [], squint: [], side: [], marginUp: [], marginLo: [] };
+  const extra = { pos: [], nor: [], uv: [], idx: [], bone: [], kind: [] };
   eyeball(F, -1, extra);
   eyeball(F, 1, extra);
-  const eyeEnd = extra.pos.length / 3;
-  eyelids(F, -1, extra, uvFn);
-  eyelids(F, 1, extra, uvFn);
   const base = n;
   for (let i = 0; i < extra.pos.length; i++) pos.push(extra.pos[i]);
   for (let i = 0; i < extra.nor.length; i++) nor.push(extra.nor[i]);
@@ -334,8 +317,6 @@ export function buildHeadGeometry(spec, P, L, W, quality = 1) {
     const k = kinds[v];
     if (k === 1) {
       w[extra.bone[v - base]] = 1;
-    } else if (k >= 2) {
-      w[BI.head] = 1;
     } else {
       W.torso(x, y + P.headY, z + P.headZ, w);
       // jaw: below the mouth line, in front of the jaw hinge, down to the chin/throat
@@ -415,18 +396,47 @@ export function buildHeadGeometry(spec, P, L, W, quality = 1) {
     M.squint[o + 1] += under * 0.0022 * hs;
     M.smile[o + 1] += under * 0.0016 * hs;
   }
-  // lids
-  for (let v = eyeEnd; v < extra.pos.length / 3; v++) {
-    const gi = base + v;
-    const li = v - eyeEnd;
-    const o = gi * 3;
-    const sg = extra.side[li];
+  // lids: rotate the skin around each eye centre so the slit closes (blink), opens (wide), narrows (squint)
+  const tmpL = [0, 0, 0];
+  for (const sg of [-1, 1]) {
+    const sl = eyeSlit(F, sg);
     const bk = sg < 0 ? M.blinkL : M.blinkR;
-    bk[o] = extra.blink[li * 3]; bk[o + 1] = extra.blink[li * 3 + 1]; bk[o + 2] = extra.blink[li * 3 + 2];
-    M.lidWide[o] = extra.wide[li * 3]; M.lidWide[o + 1] = extra.wide[li * 3 + 1]; M.lidWide[o + 2] = extra.wide[li * 3 + 2];
-    M.squint[o] = extra.squint[li * 3]; M.squint[o + 1] = extra.squint[li * 3 + 1]; M.squint[o + 2] = extra.squint[li * 3 + 2];
-    // smile pushes the lower lid up slightly
-    if (kinds[gi] === 3) { M.smile[o] += extra.squint[li * 3] * 0.4; M.smile[o + 1] += extra.squint[li * 3 + 1] * 0.4; M.smile[o + 2] += extra.squint[li * 3 + 2] * 0.4; }
+    for (let v = 0; v < n; v++) {
+      const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
+      if ((x - sl.c[0]) * sg < -0.03) continue;
+      sl.toLocal(x, y, z, tmpL);
+      const a = tmpL[0], b = tmpL[1], r = tmpL[2];
+      if (r > sl.Rl + 0.0075 * hs || Math.abs(a) > 1.35 || Math.cos(a) * Math.cos(b) < 0.05) continue;
+      const X = a * sl.Rl;
+      const xs = Math.min(1, Math.abs(X) / sl.w);
+      const bu = sl.upY(Math.max(-sl.w, Math.min(sl.w, X))) / sl.Rl;
+      const bl = sl.loY(Math.max(-sl.w, Math.min(sl.w, X))) / sl.Rl;
+      const mid = (bu + bl) * 0.5;
+      const radial = smoothstep(sl.Rl + 0.0075 * hs, sl.Rl + 0.002 * hs, r);
+      const lateral = smoothstep(1.3, 0.85, Math.abs(a)) * (1 - xs * xs * 0.6);
+      const o = v * 3;
+      const rot = (db, arr, wgt = 1) => {
+        const b2 = b + db;
+        arr[o] += (sg * Math.sin(a) * Math.cos(b2) * r + sl.c[0] - x) * wgt;
+        arr[o + 1] += (Math.sin(b2) * r + sl.c[1] - y) * wgt;
+        arr[o + 2] += (-Math.cos(a) * Math.cos(b2) * r + sl.c[2] - z) * wgt;
+      };
+      const closed = lerp(bl, bu, 0.22);
+      if (b >= mid) {
+        const wu = smoothstep(bu + 0.75, bu - 0.02, b) * radial * lateral;
+        if (wu <= 0) continue;
+        rot((closed - bu) * wu, bk);
+        rot(0.2 * wu, M.lidWide);
+        rot(-0.1 * wu, M.squint);
+      } else {
+        const wl = smoothstep(bl - 0.55, bl + 0.02, b) * radial * lateral;
+        if (wl <= 0) continue;
+        rot((closed - bl) * 0.25 * wl, bk);
+        rot(-0.06 * wl, M.lidWide);
+        rot(0.17 * wl, M.squint);
+        rot(0.07 * wl, M.smile);
+      }
+    }
   }
 
   // --- to rig space
@@ -458,5 +468,6 @@ export function buildHeadGeometry(spec, P, L, W, quality = 1) {
   g.userData.buildMs = performance.now() - t0;
   g.userData.tris = idx.length / 3;
   g.userData.rawTris = md.rawTris;
-  return { geometry: g, F, uvFn, lidMargins: { up: extra.marginUp, lo: extra.marginLo } };
+  const mL = eyeSlit(F, -1).margins(), mR = eyeSlit(F, 1).margins();
+  return { geometry: g, F, uvFn, lidMargins: { up: [...mL.up, ...mR.up], lo: [...mL.lo, ...mR.lo] } };
 }

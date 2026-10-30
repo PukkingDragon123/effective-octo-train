@@ -2,6 +2,7 @@
 // and slowly rotating proverb-like lines.
 import { h, enter, leave, clamp01 } from './dom.js';
 import { screen, titleLockup } from './common.js';
+import * as NARRATIVE from '../game/data/index.js';
 
 export const LOADING_LINES = [
   { th: 'ไม่ว่าจะได้ยินอะไรจากเบาะหลัง อย่าหันไปมอง', en: 'Whatever you hear from the back seat, don’t look.' },
@@ -53,6 +54,7 @@ export class Loading {
       this._startLines();
     }
     this.set(progress, th, en);
+    this.ui._refreshXhair?.();
   }
 
   set(progress, th, en) {
@@ -69,8 +71,9 @@ export class Loading {
 
   _startLines() {
     clearInterval(this._timer);
+    const lines = Array.isArray(NARRATIVE.LOADING_LINES) && NARRATIVE.LOADING_LINES.length ? NARRATIVE.LOADING_LINES.concat(LOADING_LINES.slice(0, 4)) : LOADING_LINES;
     const show = () => {
-      const l = LOADING_LINES[this._lineIdx % LOADING_LINES.length];
+      const l = lines[this._lineIdx % lines.length];
       this._lineIdx++;
       this.line.classList.add('is-out');
       setTimeout(() => {
@@ -79,7 +82,7 @@ export class Loading {
         this.line.classList.remove('is-out');
       }, this._lineIdx === 1 ? 2600 : 1500);
     };
-    this._lineIdx = Math.floor(Math.random() * LOADING_LINES.length);
+    this._lineIdx = Math.floor(Math.random() * lines.length);
     show();
     this._timer = setInterval(show, 7200);
   }
@@ -89,5 +92,6 @@ export class Loading {
     clearInterval(this._timer);
     this.ui._grain(-1, 'loading');
     await leave(this.el, 1700);
+    this.ui._refreshXhair?.();
   }
 }

@@ -141,7 +141,7 @@ export const HORROR_SFX = {
           sc.seg(1.3 + rng() * 0.5, {}, { ah: 0.08, av: 0.03, f0: 32, F1: 480, F2: 1000 });
           sc.rest(loop ? 0.6 : 0.2);
         }
-      }, { jitter: 0.2, shimmer: 0.4, breath: 0.5, drift: 0.5 });
+      }, { jitter: 0.2, shimmer: 0.4, breath: 0.5, drift: 0.5, presence: 11 });
     },
   },
   whisper: {
@@ -356,7 +356,7 @@ export const HORROR_SFX = {
           sc.rest(0.04 + rng() * 0.03);
         }
         sc.seg(0.3, { ah: 0.3, av: 0, F1: 600, F2: 1500 }, { ah: 0 });
-      }, { jitter: 0.02, shimmer: 0.1, breath: 0.45, formantScale: 1.3 });
+      }, { jitter: 0.02, shimmer: 0.1, breath: 0.45, formantScale: 1.3, presence: 4 });
     },
   },
   amulet_hum: {

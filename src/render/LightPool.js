@@ -524,6 +524,7 @@ class LightPool {
         l.beam.lookAt(_v); // lookAt points +Z at target for non-cameras -> flip below
         l.beam.rotateY(Math.PI);
         l.beam.userData.uniforms.uIntensity.value = l.beamBase * l.level * Math.min(1, l.intensity / 8);
+        l.beam.userData.uniforms.uGroundY.value = l.groundY ?? l.pos.y - (l.spec.height ?? 5);
       }
     }
     // --- fog in-scatter uniforms (4 nearest lamps) -----------------------------------------------

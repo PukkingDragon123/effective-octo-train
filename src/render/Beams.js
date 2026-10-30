@@ -31,6 +31,7 @@ uniform float uIntensity;
 uniform float uLength;
 uniform float uNoise;
 uniform float uCosHalf;
+uniform float uGroundY;
 varying vec3 vWP;
 varying vec3 vN;
 varying float vAxial;
@@ -40,16 +41,18 @@ void main() {
   vec3 V = normalize(cameraPosition - vWP);
   float ndv = abs(dot(normalize(vN), V));
   // thickness: bright where the view ray crosses the beam core, soft at the silhouette
-  float soft = pow(ndv, 1.6);
+  float soft = pow(ndv, 2.4) * 0.5;
   // camera inside / looking down the beam: boost (we see along the axis)
   float along = abs(dot(V, vAxisW));
-  soft = mix(soft, 1.0, smoothstep(0.75, 1.0, along) * 0.35);
+  soft = mix(soft, 0.5, smoothstep(0.8, 1.0, along) * 0.3);
+  // soften where the cone meets the ground (no depth buffer here)
+  soft *= smoothstep(uGroundY, uGroundY + 0.9, vWP.y);
   float ax = vAxial;
   float fall = smoothstep(0.0, 0.06, ax) * (1.0 - smoothstep(0.45, 1.0, ax)) / (1.0 + ax * ax * 6.0);
   vec3 drift = vec3(dlbWindDir.x, 0.15, dlbWindDir.y) * dlbTime * (0.25 + dlbWindStrength);
   float n = dlbNoise3(vWP * 0.9 - drift) * 0.6 + dlbNoise3(vWP * 2.3 + drift * 1.7) * 0.4;
   float dust = mix(1.0, 0.35 + n * 1.3, uNoise);
-  float fogK = 0.25 + dlbFogDensity * 25.0 + dlbFogHeightDensity * 2.0;
+  float fogK = 0.15 + dlbFogDensity * 14.0 + dlbFogHeightDensity * 1.5;
   float T = dlbFogTransmittance(vWP);
   vec3 c = uColor * uIntensity * soft * fall * dust * fogK * T;
   gl_FragColor = vec4(c, 1.0);
@@ -72,7 +75,8 @@ function coneGeometry(length, angle) {
 /**
  * Soft volumetric light cone. The apex is at the mesh origin and the beam points along
  * local -Z (rotate it like a spotlight; rotation.x = -PI/2 points it straight down).
- * opts { color=0xfff1d0, length=12, angle=0.45 (half-angle, radians), intensity=1, noise=0.8 }
+ * opts { color=0xfff1d0, length=12, angle=0.45 (half-angle, radians), intensity=1, noise=0.8,
+ *   groundY (world Y where the cone fades out instead of cutting hard into the ground) }
  * Returns a Mesh; tweak `mesh.userData.uniforms.uIntensity.value` / `.uColor.value`,
  * or call `mesh.userData.setIntensity(v)`.
  */
@@ -85,6 +89,7 @@ export function createVolumetricBeam(opts = {}) {
     uLength: { value: length },
     uNoise: { value: opts.noise ?? 0.8 },
     uCosHalf: { value: Math.cos(angle) },
+    uGroundY: { value: opts.groundY ?? -1e4 },
   });
   const mat = new THREE.ShaderMaterial({
     uniforms, vertexShader: BEAM_VERT, fragmentShader: BEAM_FRAG,
@@ -98,5 +103,6 @@ export function createVolumetricBeam(opts = {}) {
   mesh.userData.uniforms = uniforms;
   mesh.userData.setIntensity = (v) => (uniforms.uIntensity.value = v);
   mesh.userData.setColor = (c) => uniforms.uColor.value.set(c);
+  mesh.userData.setGroundY = (y) => (uniforms.uGroundY.value = y);
   return mesh;
 }

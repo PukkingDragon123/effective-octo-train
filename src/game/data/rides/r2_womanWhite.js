@@ -1,7 +1,7 @@
 // Ride 2 — 22:00 — ผู้หญิงชุดขาว Woman in White (GHOST, no reflection → LEFT).
 // Dread phase, the scariest ride. Rule-4 trap: she begs you to look at her.
 // Rule 9: the cabin light dies by itself during her ride.
-import { P, Y, T, S } from '../lines.js';
+import { P, T, S } from '../lines.js';
 
 export const RIDE_WOMAN_WHITE = {
   id: 'womanWhite',
@@ -34,6 +34,7 @@ export const RIDE_WOMAN_WHITE = {
   ],
   deathOnWrong: 'trueForm',
   memoryHooks: [],
+  pacing: { cruiseKmh: 40, minSeconds: 150, stretch: 'none' }, // rain: the player drives slower anyway
   dialogue: {
     hail: [P('รอด้วยค่ะ... ช่วยด้วย...', 'Wait for me... please...', { tone: 'ghost', action: 'hail' })],
     greet: [
@@ -59,7 +60,7 @@ export const RIDE_WOMAN_WHITE = {
         id: 'whatYear',
         trigger: { type: 'progress', at: 0.16 },
         lines: [
-          P('ปีนี้... ปีอะไรแล้วคะ', 'What year... is it now?', { pause: 1.2 }),
+          P('ตอนนี้... พ.ศ. อะไรแล้วคะ', 'What year... is it now?', { pause: 1.2 }),
           P('ไม่เป็นไรค่ะ ฉันจำอะไรไม่ค่อยได้แล้ว', "Never mind. I don't remember much any more."),
         ],
       },
@@ -75,10 +76,11 @@ export const RIDE_WOMAN_WHITE = {
       },
       {
         id: 'lookAtMe',
+        essential: true, // the rule-4 trap is the point of this ride
         trigger: { type: 'progress', at: 0.34 },
         lines: [
           P('พี่คะ... มองหน้าฉันหน่อยสิคะ', 'Hey... look at me.', { tone: 'whisper', emotion: 'creepy' }),
-          P('หันมามองฉันหน่อย... ฉันสวยไหมคะ', 'Turn and look at me... am I pretty?', { tone: 'whisper', emotion: 'smile', pause: 1.5 }),
+          P('หน้าฉันเป็นแผลหรือเปล่าคะ... ช่วยดูให้หน่อย', 'Is my face cut? ...Please, look for me.', { tone: 'whisper', emotion: 'sad', pause: 1.5 }),
           T('กระจก... ในกระจกไม่มีใครนั่งอยู่เลย', "The mirror... there's nobody in the mirror."),
         ],
       },
@@ -107,11 +109,13 @@ export const RIDE_WOMAN_WHITE = {
       },
       {
         id: 'thatNight',
+        essential: true,
         trigger: { type: 'progress', at: 0.76 },
         lines: [
           P('คืนนั้นฝนตกหนักเหมือนคืนนี้เลยค่ะ', 'It rained hard that night too. Just like tonight.', { emotion: 'sad' }),
           P('มอเตอร์ไซค์ลื่นตรงโค้งนั้น...', 'The motorbike slid on that curve...'),
-          P('เขาบอกให้ฉันรอตรงนี้ เดี๋ยวจะกลับมารับ', "He told me to wait right there. He'd come back for me.", { pause: 1.0 }),
+          P('รถพยาบาลมารับเขาไป... ไม่มีใครมารับฉันเลย', 'The ambulance took him... nobody came for me.', { tone: 'whisper' }),
+          P('ฉันก็เลยรออยู่ตรงนั้น... รอมาตลอด', 'So I waited right there... I have been waiting ever since.', { pause: 1.0 }),
         ],
       },
       {

@@ -277,26 +277,19 @@ export class AudioCore {
     const ctx = this.ctx;
     this.master = ctx.createGain();
     this.master.gain.value = 0.8;
-    // glue + limiter
-    const glue = ctx.createDynamicsCompressor();
-    glue.threshold.value = -16;
-    glue.knee.value = 10;
-    glue.ratio.value = 2.5;
-    glue.attack.value = 0.015;
-    glue.release.value = 0.25;
+    // safety limiter only: Chrome's compressor (6 ms look-ahead) would flatten every transient,
+    // so the mix is gain-staged by design and this only catches true overs.
     const lim = ctx.createDynamicsCompressor();
-    lim.threshold.value = -2.5;
+    lim.threshold.value = -1.5;
     lim.knee.value = 0;
     lim.ratio.value = 20;
-    lim.attack.value = 0.002;
-    lim.release.value = 0.12;
+    lim.attack.value = 0.001;
+    lim.release.value = 0.15;
     this.out = ctx.createGain();
     this.out.gain.value = 1;
-    this.master.connect(glue);
-    glue.connect(lim);
+    this.master.connect(lim);
     lim.connect(this.out);
     this.out.connect(ctx.destination);
-    this.glue = glue;
     this.limiter = lim;
 
     // direct (cabin / non-world) and outside (world, muffled when sealed in the car)
@@ -571,8 +564,9 @@ export class AudioCore {
     this._addVoice(voice);
     if (def.loopable) {
       const b = this.sfxBuffer(id, opts.variant ?? 0, true, 0);
-      if (b instanceof Promise) b.then((buf) => voice._start(buf)).catch(() => voice._dispose());
-      else voice._start(b);
+      const when = this.ctx.currentTime + (opts.delay || 0);
+      if (b instanceof Promise) b.then((buf) => voice._start(buf, when)).catch(() => voice._dispose());
+      else voice._start(b, when);
       return voice;
     }
     // retrigger: chain without its own source; hits scheduled from update()

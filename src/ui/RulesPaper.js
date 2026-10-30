@@ -7,6 +7,7 @@
 // Everything outside the torn page is left transparent (use alphaTest / transparent).
 import { makeRng, noise } from '../core/math.js';
 import { FONTS } from './fonts.js';
+import * as NARRATIVE from '../game/data/index.js';
 
 export const DEFAULT_RULES = [
   { id: 'r1', th: 'รับผู้โดยสารทุกคนที่โบกเรียก ไม่ว่าจะเป็นคนหรือไม่ใช่คน', en: 'Pick up everyone who hails you, human or not.' },
@@ -21,6 +22,13 @@ export const DEFAULT_RULES = [
   { id: 'r10', th: 'ผ่านศาลให้บีบแตรสองครั้ง ขอทางเจ้าที่', en: 'Honk twice when you pass a shrine, to ask the spirits for passage.' },
 ];
 export const HIDDEN_LINE = { th: 'กฎทุกข้อมีข้อยกเว้น ยกเว้นข้อสาม', en: 'Every rule has an exception, except rule three.' };
+// Fallback paper text (the narrative data's PAPER wins when present).
+const PAPER_DEFAULT = {
+  title: { th: 'กฎสำหรับคนขับกะดึก', en: 'Rules for the Night-Shift Driver' },
+  subtitle: { th: '(อ่านให้จำ อย่าทำหาย)', en: '(Learn them. Don\u2019t lose this.)' },
+  footer: { th: 'ขับดี ๆ นะ ไอ้หนุ่ม — กง', en: 'Drive carefully, young man. — Kong' },
+  forkSketch: { left: { th: 'ตาย', en: 'dead' }, right: { th: 'เป็น', en: 'living' } },
+};
 
 // Ah Kong's own corrections and emphasis (applied only when the text matches).
 const CROSSOUTS = { r3: { before: 'มอง', word: 'ดู' }, r5: { before: 'จอด', word: 'ชะลอ' }, r9: { before: 'เปิด', word: 'แตะ' } };
@@ -30,7 +38,7 @@ const W = 1024;
 const H = 1408;
 const INK = '#1d2650';
 const INK_EN = '#2a3566';
-const GRAPHITE = '#4a4c52';
+const GRAPHITE = '#3a3c42';
 
 const SEG_G = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('th', { granularity: 'grapheme' }) : null;
 const SEG_W = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('th', { granularity: 'word' }) : null;
@@ -243,12 +251,13 @@ function ruleTokens(rule) {
   return [{ t: th }];
 }
 
-function annotationText(a) {
-  if (a == null) return null;
-  if (typeof a === 'string') return a;
-  if (Array.isArray(a)) return a.join(' · ');
-  if (typeof a === 'object') return [a.th, a.en].filter(Boolean).join(' · ');
-  return String(a);
+/** Normalise an annotation (string | {th,en} | [..]) to {th, en}. */
+function noteOf(a) {
+  if (a == null || a === false || a === '') return null;
+  if (typeof a === 'string') return { th: a, en: '' };
+  if (Array.isArray(a)) return { th: a.map((x) => (typeof x === 'string' ? x : x.th)).filter(Boolean).join(' · '), en: '' };
+  if (typeof a === 'object' && (a.th || a.en)) return { th: a.th || '', en: a.en || '' };
+  return { th: String(a), en: '' };
 }
 
 function truncate(g, text, font, maxW) {
@@ -690,7 +699,7 @@ function dogEar(g, shape) {
 }
 
 // ----------------------------------------------------------------- doodle ----
-function forkDoodle(g, rng, x, y, s) {
+function forkDoodle(g, rng, x, y, s, labels = PAPER_DEFAULT.forkSketch) {
   // tiny map: the road forks at the shrine, arrows left/right
   const o = { width: 2.2, color: INK, alpha: 0.8, wave: 0.6 };
   handLine(g, rng, x, y + 70 * s, x, y + 22 * s, o);
@@ -705,8 +714,16 @@ function forkDoodle(g, rng, x, y, s) {
   handLine(g, rng, x - 9 * s, y + 10 * s, x, y + 2 * s, { ...o, width: 1.6 });
   handLine(g, rng, x, y + 2 * s, x + 9 * s, y + 10 * s, { ...o, width: 1.6 });
   const f = `500 ${Math.round(19 * s)}px ${FONTS.hand}`;
-  write(g, rng, 'ผี', x - 74 * s, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 3, alpha: 0.9 });
-  write(g, rng, 'คน', x + 50 * s, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 4, alpha: 0.9 });
+  const lt = labels.left?.th || 'ผี';
+  g.font = f;
+  write(g, rng, lt, x - 50 * s - g.measureText(lt).width, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 3, alpha: 0.9 });
+  write(g, rng, labels.right?.th || 'คน', x + 50 * s, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 4, alpha: 0.9 });
+  const fe = `400 ${Math.round(12 * s)}px ${FONTS.hand}`;
+  if (labels.left?.en) {
+    g.font = fe;
+    write(g, rng, labels.left.en, x - 50 * s - g.measureText(labels.left.en).width, y + 2 * s, { font: fe, size: 12 * s, color: INK_EN, seed: 6, alpha: 0.75 });
+  }
+  if (labels.right?.en) write(g, rng, labels.right.en, x + 50 * s, y + 2 * s, { font: fe, size: 12 * s, color: INK_EN, seed: 7, alpha: 0.75 });
   write(g, rng, 'ศาล', x + 16 * s, y + 24 * s, { font: `400 ${Math.round(14 * s)}px ${FONTS.hand}`, size: 14 * s, color: INK, seed: 5, alpha: 0.75 });
 }
 
@@ -717,7 +734,7 @@ function forkDoodle(g, rng, x, y, s) {
  * `revealed` rules (proven by experience) get the player's pencil tick in the margin.
  */
 export function drawRulesPaper(ctx, w, h, data = {}) {
-  const rules = data.rules && data.rules.length ? data.rules : DEFAULT_RULES;
+  const rules = data.rules && data.rules.length ? data.rules : NARRATIVE.RULES?.length ? NARRATIVE.RULES : DEFAULT_RULES;
   const ann = data.annotations || {};
   const revealed = new Set(data.revealed || []);
   const seed = data.seed ?? 7;
@@ -744,106 +761,161 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   pen.setTransform(sx, 0, 0, sy, 0, 0);
   const rng = makeRng(seed * 7919 + 13);
 
-  // ---- layout -------------------------------------------------------------
+  // ---- text sources ----------------------------------------------------------------
+  const paper = { ...PAPER_DEFAULT, ...(NARRATIVE.PAPER || {}), ...(data.paper || {}) };
+  const hidden = data.hiddenText || NARRATIVE.HIDDEN_LINE || HIDDEN_LINE;
+  const ruleIds = new Set(rules.map((r) => r.id));
+  const notes = [];
+  for (const k of Object.keys(ann)) {
+    if (ruleIds.has(k) || k === 'hidden') continue;
+    const n = noteOf(ann[k]);
+    if (n) notes.push(n);
+  }
+  const hiddenNote = noteOf(ann.hidden);
+  if (hiddenNote && !data.hiddenLine) notes.push(hiddenNote);
+
+  // ---- layout: rows on the printed lines -------------------------------------------
   const TOP = 214;
-  const SP = 40;
-  const LAST = Math.floor((shape.B - 30 - TOP) / SP); // last usable ruled-line index
   const X0 = 140;
   const XR = 984;
-  const ruleIds = new Set(rules.map((r) => r.id));
-  const passengerNotes = Object.keys(ann).filter((k) => !ruleIds.has(k)).map((k) => annotationText(ann[k])).filter(Boolean);
+  const capacity = Math.floor((shape.B - 34 - TOP) / 40) + 1;
   let thSize = 31;
   let enSize = 19.5;
-  let plan = null;
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const thFont = `500 ${thSize}px ${FONTS.hand}`;
-    const enFont = `400 ${enSize}px ${FONTS.hand}`;
-    const annFont = `italic 300 ${Math.round(enSize + 2)}px ${FONTS.hand}`;
-    let line = 0;
-    const items = [];
+  let pTh = 22;
+  let pEn = 15;
+  let rows = null;
+  let fonts = null;
+  for (let attempt = 0; attempt < 7; attempt++) {
+    fonts = {
+      th: `500 ${thSize}px ${FONTS.hand}`, en: `400 ${enSize}px ${FONTS.hand}`,
+      pTh: `italic 300 ${pTh}px ${FONTS.hand}`, pEn: `italic 300 ${pEn}px ${FONTS.hand}`,
+    };
+    const noteW = (n) => Math.max(n.th ? measure(ink, n.th, fonts.pTh) : 0, n.en ? measure(ink, n.en, fonts.pEn) : 0);
+    rows = [];
     for (const r of rules) {
-      const thLines = wrapTokens(ink, ruleTokens(r), thFont, XR - X0, 0.4);
-      const enLines = r.en ? wrapTokens(ink, [{ t: r.en }], enFont, XR - X0 - 24, 0.2) : [];
-      const a = annotationText(ann[r.id]);
-      let annInline = false;
-      if (a) {
-        const lastEnW = enLines.length ? measure(ink, enLines[enLines.length - 1].map((t) => t.t).join(''), enFont, 0.2) : 0;
-        const aw = measure(ink, a, annFont) + 40;
-        annInline = X0 + 24 + lastEnW + 30 + aw <= XR + 20;
+      const start = rows.length;
+      const thLines = wrapTokens(ink, ruleTokens(r), fonts.th, XR - X0, 0.4);
+      thLines.forEach((toks, j) => rows.push({
+        kind: 'th', r, toks, first: j === 0, last: j === thLines.length - 1,
+        w: toks.reduce((acc, t) => acc + measure(ink, t.t, fonts.th, 0.4) * (t.strike ? 1.05 : 1), 0) + (j ? 6 : 0),
+      }));
+      const enLines = r.en ? wrapTokens(ink, [{ t: r.en }], fonts.en, XR - X0 - 24, 0.2) : [];
+      for (const toks of enLines) {
+        const text = toks.map((t) => t.t).join('');
+        rows.push({ kind: 'en', r, text, w: 24 + measure(ink, text, fonts.en, 0.2) });
       }
-      const it = { r, thLines, enLines, line, ann: a, annInline };
-      line += thLines.length + enLines.length + (a && !annInline ? 1 : 0);
-      items.push(it);
+      const a = noteOf(ann[r.id]);
+      if (a) {
+        // squeeze the note in beside the translation or the last Thai line, else give it a row
+        const need = noteW(a) + 44;
+        let host = null;
+        for (let i = rows.length - 1; i >= start && !host; i--) if (!rows[i].ann && X0 + rows[i].w + need <= XR + 18) host = rows[i];
+        if (host) host.ann = a;
+        else rows.push({ kind: 'ann', r, ann: a });
+      }
     }
-    const tail = (data.hiddenLine ? 2 : 0) + passengerNotes.length + 2; // + signature
-    if (line + tail <= LAST + 1 || attempt === 7) {
-      plan = { items, used: line, thFont, enFont, annFont };
-      break;
+    if (data.hiddenLine) {
+      rows.push({ kind: 'hidden' });
+      rows.push({ kind: 'hiddenEn', ann: hiddenNote });
     }
-    thSize -= 1.5;
-    enSize -= 0.8;
+    // the player's free notes: two to a row when they are short
+    const half = (XR - X0) / 2 - 34;
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      const m = notes[i + 1];
+      if (m && noteW(n) <= half && noteW(m) <= half) {
+        rows.push({ kind: 'notes', items: [n, m] });
+        i++;
+      } else rows.push({ kind: 'notes', items: [n] });
+    }
+    if (rows.length + 1 <= capacity) break;
+    thSize -= 1.2;
+    enSize -= 0.7;
+    pTh = Math.max(18, pTh - 0.7);
+    pEn = Math.max(13, pEn - 0.4);
   }
+  // breathing room before the tail when there is space
+  let spare = capacity - 1 - rows.length;
+  const firstTail = rows.findIndex((r) => r.kind === 'hidden' || r.kind === 'notes');
+  if (spare > 0 && firstTail > 0) {
+    rows.splice(firstTail, 0, { kind: 'gap' });
+    spare--;
+  }
+  // pitch: the printed 40 px, or tighter when the page is crowded (notes ignore the lines)
+  const pitch = rows.length + 1 <= capacity ? 40 : (40 * (capacity - 1)) / rows.length;
+  const rowY = (i) => TOP + i * pitch - 7;
 
   // ---- header ---------------------------------------------------------------
   {
-    const hs = 56;
-    const r = write(ink, rng, 'กฎของรถคันนี้', 150, 132, { font: `600 ${hs}px ${FONTS.hand}`, size: hs, color: INK, seed: 1.3, slope: -0.012, wave: 1.2, heavy: false, alpha: 0.95, pressure: 0.92 });
-    handLine(ink, rng, 146, 146, r.x + 8, 141, { width: 2.6, alpha: 0.85 });
-    handLine(ink, rng, 160, 154, r.x - 18, 150, { width: 2, alpha: 0.7 });
-    write(ink, rng, 'rules of this car', r.x + 24, 130, { font: `400 21px ${FONTS.hand}`, size: 21, color: INK_EN, seed: 2.1, alpha: 0.8, wave: 0.8 });
-    // top-right: "learn them by heart!"
-    ink.save();
-    ink.translate(770, 100);
-    ink.rotate(-0.05);
-    const rr = write(ink, rng, 'อ่านให้ขึ้นใจ!!', 0, 0, { font: `500 30px ${FONTS.hand}`, size: 30, color: INK, seed: 5.2, alpha: 0.9 });
-    write(ink, rng, 'learn them by heart', 8, 28, { font: `400 17px ${FONTS.hand}`, size: 17, color: INK_EN, seed: 6.4, alpha: 0.75 });
-    handLine(ink, rng, -6, 8, rr.x + 4, 6, { width: 1.4, alpha: 0.6 });
-    ink.restore();
+    const hs = 52;
+    const r = write(ink, rng, paper.title.th, 150, 108, { font: `600 ${hs}px ${FONTS.hand}`, size: hs, color: INK, seed: 1.3, slope: -0.01, wave: 1.2, alpha: 0.95, pressure: 0.92 });
+    handLine(ink, rng, 146, 122, Math.min(r.x + 8, 740), 117, { width: 2.6, alpha: 0.85 });
+    handLine(ink, rng, 160, 130, Math.min(r.x - 18, 720), 126, { width: 2, alpha: 0.7 });
+    write(ink, rng, paper.title.en, 158, 158, { font: `400 21px ${FONTS.hand}`, size: 21, color: INK_EN, seed: 2.1, alpha: 0.8, wave: 0.8 });
+    if (paper.subtitle) {
+      ink.save();
+      ink.translate(Math.max(r.x + 36, 730), 80);
+      ink.rotate(-0.05);
+      write(ink, rng, paper.subtitle.th, 0, 0, { font: `500 23px ${FONTS.hand}`, size: 23, color: INK, seed: 5.2, alpha: 0.9 });
+      write(ink, rng, paper.subtitle.en, 4, 25, { font: `400 15px ${FONTS.hand}`, size: 15, color: INK_EN, seed: 6.4, alpha: 0.75 });
+      ink.restore();
+    }
   }
 
-  // ---- rules ------------------------------------------------------------------
-  const lineY = (i) => TOP + i * SP - 7;
-  const annO = { font: plan.annFont, size: enSize + 2, color: GRAPHITE, seed: 11, alpha: 0.9, skew: -0.18, rot: 0.07, jy: 2.6, wave: 2.4, sj: 0.1, track: -0.4, pressure: 0.8 };
-  for (const it of plan.items) {
-    const { r } = it;
-    const num = /^r(\d+)$/.exec(r.id || '') ? parseInt(r.id.slice(1), 10) : plan.items.indexOf(it) + 1;
-    let li = it.line;
-    const y0 = lineY(li);
-    const isThree = num === 3;
-    // margin number
-    const nr = write(ink, rng, `${num}.`, num >= 10 ? 58 : 72, y0, { font: `600 ${Math.round(thSize + 3)}px ${FONTS.hand}`, size: thSize, color: INK, seed: num * 1.7, alpha: 0.95, heavy: isThree });
-    if (isThree) {
-      // circled twice, hard
-      for (let k = 0; k < 2; k++) {
-        ink.save();
-        ink.strokeStyle = INK;
-        ink.globalAlpha = 0.75 - k * 0.2;
-        ink.lineWidth = 2.1 - k * 0.5;
-        ink.beginPath();
-        ink.ellipse(84 + k * 2, y0 - thSize * 0.32, 31 + k * 3, 22 + k * 2, -0.12 + k * 0.1, 0.3, Math.PI * 2 + 0.6);
-        ink.stroke();
-        ink.restore();
+  // ---- pencil note helper (Ton's hand: slanted, light, Thai over a small English line) ----
+  const pencil = (n, x, y, { arrow = 'left' } = {}) => {
+    const o = { font: fonts.pTh, size: pTh, color: GRAPHITE, seed: x * 0.01 + y * 0.003, alpha: 0.92, skew: -0.2, rot: 0.08, jy: 2.4, wave: 2.2, sj: 0.1, track: -0.4, pressure: 0.8 };
+    if (arrow === 'left') {
+      handLine(pen, rng, x - 34, y - 9, x - 9, y - 11, { width: 1.3, color: GRAPHITE, alpha: 0.75, wave: 0.4 });
+      handLine(pen, rng, x - 34, y - 9, x - 27, y - 15, { width: 1.3, color: GRAPHITE, alpha: 0.75, wave: 0.2 });
+      handLine(pen, rng, x - 34, y - 9, x - 27, y - 3, { width: 1.3, color: GRAPHITE, alpha: 0.75, wave: 0.2 });
+    } else if (arrow === 'hook') {
+      handLine(pen, rng, x - 40, y - 30, x - 40, y - 8, { width: 1.3, color: GRAPHITE, alpha: 0.75, wave: 0.2 });
+      handLine(pen, rng, x - 40, y - 8, x - 12, y - 8, { width: 1.3, color: GRAPHITE, alpha: 0.75, wave: 0.2 });
+    } else if (arrow === 'dash') {
+      handLine(pen, rng, x - 22, y - 8, x - 10, y - 8, { width: 2, color: GRAPHITE, alpha: 0.75, wave: 0.1 });
+    }
+    const twoTier = n.th && n.en;
+    const maxW = XR + 14 - x;
+    if (n.th) write(pen, rng, truncate(pen, n.th, fonts.pTh, maxW), x, twoTier ? y - 8 : y, o);
+    if (n.en) write(pen, rng, truncate(pen, n.en, fonts.pEn, maxW), x + 4, twoTier ? y + 8 : y, { ...o, font: fonts.pEn, size: pEn, alpha: 0.82, jy: 1.6 });
+  };
+
+  // ---- rows ---------------------------------------------------------------------
+  const emphasisFor = (id) => EMPHASIS[id] || [];
+  rows.forEach((row, i) => {
+    const y = rowY(i);
+    if (row.kind === 'th') {
+      const r = row.r;
+      const num = /^r(\d+)$/.exec(r.id || '') ? parseInt(r.id.slice(1), 10) : rules.indexOf(r) + 1;
+      const isThree = num === 3;
+      if (row.first) {
+        write(ink, rng, `${num}.`, num >= 10 ? 58 : 72, y, { font: `600 ${Math.round(thSize + 3)}px ${FONTS.hand}`, size: thSize, color: INK, seed: num * 1.7, alpha: 0.95, heavy: isThree });
+        if (isThree) {
+          for (let k = 0; k < 2; k++) {
+            ink.save();
+            ink.strokeStyle = INK;
+            ink.globalAlpha = 0.75 - k * 0.2;
+            ink.lineWidth = 2.1 - k * 0.5;
+            ink.beginPath();
+            ink.ellipse(84 + k * 2, y - thSize * 0.32, 31 + k * 3, 22 + k * 2, -0.12 + k * 0.1, 0.3, Math.PI * 2 + 0.6);
+            ink.stroke();
+            ink.restore();
+          }
+        }
+        if (revealed.has(r.id)) {
+          handLine(pen, rng, 30, y - 12, 38, y - 3, { width: 2.4, color: GRAPHITE, alpha: 0.85, wave: 0.3 });
+          handLine(pen, rng, 38, y - 3, 54, y - 26, { width: 2.2, color: GRAPHITE, alpha: 0.85, wave: 0.5 });
+        }
       }
-    }
-    if (revealed.has(r.id)) {
-      // the player's tick, in pencil, left of the number
-      handLine(pen, rng, 30, y0 - 12, 38, y0 - 3, { width: 2.4, color: GRAPHITE, alpha: 0.85, wave: 0.3 });
-      handLine(pen, rng, 38, y0 - 3, 54, y0 - 26, { width: 2.2, color: GRAPHITE, alpha: 0.85, wave: 0.5 });
-    }
-    void nr;
-    // Thai lines
-    const emph = EMPHASIS[r.id] || [];
-    for (const lineToks of it.thLines) {
-      const y = lineY(li);
-      let x = X0 + (li === it.line ? 0 : 6);
+      let x = X0 + (row.first ? 0 : 6);
       const slope = (rng() - 0.6) * 0.018;
-      for (const tok of lineToks) {
-        const o = { font: plan.thFont, size: thSize, color: INK, seed: li * 3.3 + 0.7, slope, blob: true, alpha: 0.96, heavy: isThree, track: 0.4 };
+      for (const tok of row.toks) {
+        const o = { font: fonts.th, size: thSize, color: INK, seed: i * 3.3 + 0.7, slope, blob: true, alpha: 0.96, heavy: isThree, track: 0.4 };
         if (tok.strike) x += 7;
         const res = write(ink, rng, tok.t, x, y, o);
         if (isThree) write(ink, rng, tok.t, x + 0.5, y + 0.4, { ...o, alpha: 0.35, heavy: false, blob: false });
         if (tok.strike) {
-          // scribbled out: tight zig-zag, two passes
           const yy = y - thSize * 0.3;
           for (let pass = 0; pass < 2; pass++) {
             ink.save();
@@ -865,7 +937,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
           }
           res.x += 5;
         } else {
-          for (const e of emph) {
+          for (const e of emphasisFor(r.id)) {
             let k = tok.t.indexOf(e.w);
             while (k >= 0) {
               const xa = res.xs.get(k) ?? x;
@@ -877,78 +949,45 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
         }
         x = res.x;
       }
-      if (isThree && li === it.line + it.thLines.length - 1) {
-        write(ink, rng, '!!', x + 10, y, { font: `600 ${Math.round(thSize + 4)}px ${FONTS.hand}`, size: thSize, color: INK, seed: 9, heavy: true });
+      if (isThree && row.last) x = write(ink, rng, '!!', x + 10, y, { font: `600 ${Math.round(thSize + 4)}px ${FONTS.hand}`, size: thSize, color: INK, seed: 9, heavy: true }).x;
+      if (row.ann) pencil(row.ann, Math.max(x + 52, XR + 4 - (Math.max(measure(pen, row.ann.th || '', fonts.pTh), measure(pen, row.ann.en || '', fonts.pEn)))), y - 2);
+    } else if (row.kind === 'en') {
+      const res = write(ink, rng, row.text, X0 + 24, y - 2, { font: fonts.en, size: enSize, color: INK_EN, seed: i * 2.1 + 5, alpha: 0.8, pressure: 0.78, jy: 1.2, wave: 1.0, rot: 0.04, track: 0.2 });
+      if (row.ann) {
+        const aw = Math.max(measure(pen, row.ann.th || '', fonts.pTh), measure(pen, row.ann.en || '', fonts.pEn));
+        pencil(row.ann, Math.max(res.x + 50, XR + 4 - aw), y - 2);
       }
-      li++;
+    } else if (row.kind === 'ann') {
+      pencil(row.ann, X0 + 96 + rng() * 30, y - 2, { arrow: 'hook' });
+    } else if (row.kind === 'hidden') {
+      // Ah Kong's faint pencil, pressed lightly: only legible up close / when wet
+      const hAlpha = 0.52 * (data.hiddenAlpha ?? 1);
+      write(pen, rng, hidden.th, X0 + 30, y, { font: `400 ${Math.round(thSize - 2)}px ${FONTS.hand}`, size: thSize - 2, color: '#5d5f66', seed: 21, alpha: hAlpha, pressure: 0.7, jy: 1, wave: 1, rot: 0.03, slope: -0.006 });
+    } else if (row.kind === 'hiddenEn') {
+      const hAlpha = 0.52 * (data.hiddenAlpha ?? 1);
+      const res = write(pen, rng, hidden.en, X0 + 54, y - 4, { font: `400 ${Math.round(enSize - 1)}px ${FONTS.hand}`, size: enSize - 1, color: '#5d5f66', seed: 22, alpha: hAlpha * 0.85, pressure: 0.7, jy: 1, wave: 0.8 });
+      if (row.ann) pencil(row.ann, Math.max(res.x + 50, 640), y - 2);
+    } else if (row.kind === 'notes') {
+      row.items.forEach((n, k) => pencil(n, X0 + 30 + k * ((XR - X0) / 2 + 10), y - 2, { arrow: 'dash' }));
     }
-    // English translation (smaller, lighter pressure)
-    let lastEnEnd = X0;
-    for (const lineToks of it.enLines) {
-      const y = lineY(li) - 2;
-      const res = write(ink, rng, lineToks.map((t) => t.t).join(''), X0 + 24, y, { font: plan.enFont, size: enSize, color: INK_EN, seed: li * 2.1 + 5, alpha: 0.78, pressure: 0.78, jy: 1.1, wave: 1.0, rot: 0.04, track: 0.2 });
-      lastEnEnd = res.x;
-      li++;
-    }
-    // the player's pencil note for this rule
-    if (it.ann) {
-      if (it.annInline) {
-        const y = lineY(li - 1) - 4;
-        const text = it.ann;
-        const aw = measure(pen, text, plan.annFont);
-        const ax = Math.max(lastEnEnd + 46, XR + 10 - aw);
-        handLine(pen, rng, ax - 32, y - 6, ax - 8, y - 8, { width: 1.3, color: GRAPHITE, alpha: 0.7, wave: 0.4 });
-        handLine(pen, rng, ax - 32, y - 6, ax - 25, y - 12, { width: 1.3, color: GRAPHITE, alpha: 0.7, wave: 0.2 });
-        handLine(pen, rng, ax - 32, y - 6, ax - 25, y, { width: 1.3, color: GRAPHITE, alpha: 0.7, wave: 0.2 });
-        write(pen, rng, text, ax, y, annO);
-      } else {
-        const y = lineY(li) - 4;
-        const text = truncate(pen, it.ann, plan.annFont, XR - X0 - 120);
-        const ax = X0 + 90 + rng() * 40;
-        handLine(pen, rng, ax - 40, y - 22, ax - 40, y - 6, { width: 1.3, color: GRAPHITE, alpha: 0.7, wave: 0.2 });
-        handLine(pen, rng, ax - 40, y - 6, ax - 12, y - 6, { width: 1.3, color: GRAPHITE, alpha: 0.7, wave: 0.2 });
-        write(pen, rng, text, ax, y, annO);
-        li++;
-      }
-    }
-  }
+  });
 
-  // ---- tail: hidden line, passenger notes, signature, doodle -------------------
-  let li = plan.used;
-  const freeLines = LAST - li;
-  if (data.hiddenLine) {
-    // Ah Kong's faint pencil line, pressed lightly: only legible up close / when wet
-    const y = lineY(li + 1);
-    const hx = X0 + 30;
-    const hAlpha = 0.5 * (data.hiddenAlpha ?? 1);
-    pen.save();
-    pen.translate(hx, y);
-    pen.rotate(-0.012);
-    write(pen, rng, HIDDEN_LINE.th, 0, 0, { font: `400 ${Math.round(thSize - 2)}px ${FONTS.hand}`, size: thSize - 2, color: '#5d5f66', seed: 21, alpha: hAlpha, pressure: 0.7, jy: 1, wave: 1, rot: 0.03 });
-    write(pen, rng, HIDDEN_LINE.en, 24, SP - 2, { font: `400 ${Math.round(enSize - 1)}px ${FONTS.hand}`, size: enSize - 1, color: '#5d5f66', seed: 22, alpha: hAlpha * 0.85, pressure: 0.7, jy: 1, wave: 0.8 });
-    pen.restore();
-    li += 2 + (freeLines > 6 ? 1 : 0);
-  }
-  if (passengerNotes.length) {
-    // the player's own list, in pencil, slanted
-    let y = lineY(li + 1);
-    for (const n of passengerNotes) {
-      if ((y - TOP) / SP > LAST + 0.5) break;
-      const text = truncate(pen, n, plan.annFont, 540);
-      handLine(pen, rng, X0 + 2, y - 8, X0 + 12, y - 8, { width: 2, color: GRAPHITE, alpha: 0.7, wave: 0.1 });
-      write(pen, rng, text, X0 + 24, y, { ...annO, seed: y * 0.01 });
-      y += SP;
-      li++;
-    }
-  }
-  // signature (bottom right)
+  // ---- signature (bottom right) and the little fork map ------------------------------
   {
-    const sy0 = Math.min(lineY(LAST) - 4, Math.max(lineY(li + 2), lineY(LAST - 1)));
+    const sigRow = Math.max(rows.length, capacity - 1);
+    const sy0 = Math.min(rowY(capacity - 1), rowY(sigRow));
+    const foot = paper.footer || PAPER_DEFAULT.footer;
+    const parts = String(foot.th || '').split('—');
+    const lineTh = parts.length > 1 ? parts[0].trim() : '';
+    const name = (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim() || 'อากง';
+    const roomRows = capacity - 1 - rows.length;
+    if (lineTh && roomRows >= 2) {
+      write(ink, rng, lineTh, 560, sy0 - 46, { font: `500 ${Math.round(thSize - 3)}px ${FONTS.hand}`, size: thSize - 3, color: INK, seed: 33, alpha: 0.9, slope: -0.02 });
+    }
     ink.save();
-    ink.translate(770, sy0);
+    ink.translate(800, sy0);
     ink.rotate(-0.06);
-    const r = write(ink, rng, '— อากง', 0, 0, { font: `600 38px ${FONTS.hand}`, size: 38, color: INK, seed: 31, alpha: 0.95, rot: 0.06 });
-    // flourish
+    const r = write(ink, rng, `— ${name}`, 0, 0, { font: `600 38px ${FONTS.hand}`, size: 38, color: INK, seed: 31, alpha: 0.95, rot: 0.06 });
     ink.strokeStyle = INK;
     ink.globalAlpha = 0.75;
     ink.lineWidth = 1.8;
@@ -958,8 +997,10 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
     ink.bezierCurveTo(r.x + 30, -26, r.x + 6, -20, r.x + 14, 4);
     ink.stroke();
     ink.restore();
-    // the little fork map, if the page has room
-    if (!passengerNotes.length && LAST - li >= 5) forkDoodle(ink, rng, 330, sy0 - 70, 1.45);
+    if (roomRows >= 5) {
+      const fs = paper.forkSketch || PAPER_DEFAULT.forkSketch;
+      forkDoodle(ink, rng, 330, Math.max(rowY(rows.length + 1) + 30, sy0 - 80), 1.4, fs);
+    }
   }
 
   // ---- texture the ink (ballpoint skips) and pencil (graphite grain) -------------
@@ -969,7 +1010,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   ink.fillRect(0, 0, w, h);
   pen.setTransform(1, 0, 0, 1, 0, 0);
   pen.globalCompositeOperation = 'destination-out';
-  pen.fillStyle = noisePattern(pen, 0.38, 5);
+  pen.fillStyle = noisePattern(pen, 0.27, 5);
   pen.fillRect(0, 0, w, h);
 
   // ---- composite onto the page --------------------------------------------------

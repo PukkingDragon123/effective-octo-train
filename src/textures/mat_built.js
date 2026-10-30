@@ -171,8 +171,8 @@ function woodLayer(w, h, seed, k, planks = 0) {
   const n = w * h;
   const rng = makeRng(seed);
   const wx = fbm(w, h, { cells: [3, 1], octaves: 2, seed: seed + 1 });
-  const g0 = fbm(w, h, { cells: [6, 1], octaves: 4, seed: seed + 2 });
-  const g1 = fbm(w, h, { cells: [24, 2], octaves: 2, seed: seed + 6 });
+  const g0 = fbm(w, h, { cells: [6, 1], octaves: 2, seed: seed + 2 });
+  const g1 = fbm(w, h, { cells: [24, 1], octaves: 1, seed: seed + 6 });
   const fineV = fbm(w, h, { cells: [90, 6], octaves: 2, seed: seed + 3 });
   const plankId = new Int32Array(n), gap = new Float32Array(n);
   const pw = planks ? w / planks : w;
@@ -200,7 +200,7 @@ function woodLayer(w, h, seed, k, planks = 0) {
           ky = Math.max(ky, Math.exp(-d2 * 2.5));
         }
       }
-      const ring = 0.5 + 0.5 * Math.sin(gx * 0.42 / k + g0[i] * 14 + g1[i] * 3);
+      const ring = 0.5 + 0.5 * Math.sin(gx * 0.42 / k + g0[i] * 9 + g1[i] * 2);
       const late = 0.5 + 0.5 * Math.sin(gx * 0.11 / k + g0[i] * 5);
       const gr = Math.pow(ring, 4) * (0.35 + 0.35 * late) + fineV[i] * 0.35 + Math.pow(late, 8) * 0.25;
       grain[i] = gr + ky * 0.8;
@@ -455,8 +455,8 @@ export function genGoldLeaf(S = 512) {
       seam[i] = 1 - sstep(0.5 * k, 2 * k, Math.min(ex, ey) + fine[i] * k);
     }
   }
-  gradientMap(img, field(n, (i) => 0.5 + (sid[i] - 0.5) * 0.12 + low[i] * 0.3 + fine[i] * 0.15), [[0, '#6b4a16'], [0.3, '#9a7224'], [0.55, '#c39a3c'], [0.78, '#ddb85a'], [1, '#f0d488']]);
-  tint(img, seam, '#e8c870', 0.18);
+  gradientMap(img, field(n, (i) => 0.5 + (sid[i] - 0.5) * 0.06 + low[i] * 0.3 + fine[i] * 0.15), [[0, '#6b4a16'], [0.3, '#9a7224'], [0.55, '#c39a3c'], [0.78, '#ddb85a'], [1, '#f0d488']]);
+  tint(img, seam, '#e8c870', 0.1);
   tint(img, smask(fbm(w, h, { cells: [8, 3], octaves: 3, seed: 1907 }), 0.2, 0.7, 0.4), '#fff0b0', 0.35); // burnish
   const bole = smask(wear, 0.32, 0.36);
   const boleImg = new Img(w, h);

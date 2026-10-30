@@ -41,6 +41,7 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
   const encIds = new Set(Object.keys(ENCOUNTERS));
   const memIds = new Set(MEMORIES.map((m) => m.id));
   const speakers = new Set(['passenger', 'player', ...Object.keys(CHARACTERS)]);
+  const choiceIds = new Set();
 
   const isStr = (s) => typeof s === 'string' && s.trim().length > 0;
   const checkHours = (path, h) => {
@@ -90,11 +91,24 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
       }
       if (c.defaultKey != null && !keys.has(c.defaultKey)) err(path, `defaultKey ${c.defaultKey} not an option`);
       if (c.timeout != null && !(c.timeout > 0)) err(path, 'bad choice timeout');
-      for (const [k, ls] of Object.entries(l.branches || {})) {
+      // src/game/Dialogue.js plays `line.choice.branches[key]` and records choices[choice.id || index]
+      if (l.branches) err(path, 'branches must live in line.choice.branches (Dialogue.js reads choice.branches)');
+      if (l.setOnPick) err(path, 'setOnPick must live in line.choice.setOnPick');
+      if (!ctx.noChoiceId && !isStr(c.id)) err(path, 'choice needs a stable id (Dialogue.play returns choices[id])');
+      if (isStr(c.id)) {
+        if (choiceIds.has(c.id)) err(path, `duplicate choice id ${c.id}`);
+        choiceIds.add(c.id);
+      }
+      for (const [k, ls] of Object.entries(c.branches || {})) {
         if (!keys.has(k)) err(path, `branch for unknown key ${k}`);
         checkLines(`${path}.branches.${k}`, ls, ctx);
       }
-      for (const k of Object.keys(l.setOnPick || {})) if (!keys.has(k)) err(path, `setOnPick unknown key ${k}`);
+      for (const [k, flags] of Object.entries(c.setOnPick || {})) {
+        if (!keys.has(k)) err(path, `setOnPick unknown key ${k}`);
+        const first = c.branches?.[k]?.[0];
+        if (first && !Object.keys(flags).every((f) => first.set && f in first.set)) err(path, `setOnPick.${k} not baked into the branch's first line`);
+      }
+      if (c.timeout && c.defaultKey !== c.options[c.options.length - 1].key) warn(path, 'timed choice: defaultKey should be the last (silent) option');
     }
   }
   function checkLines(path, arr, ctx = {}) {
@@ -146,6 +160,17 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
       if (!['sandals', 'shoes', 'barefoot'].includes(a.outfit?.shoes)) err(p, 'outfit.shoes');
       for (const acc of a.accessories || []) if (!ACCESSORIES.includes(acc)) err(p, `accessory ${acc}`);
       if (a.ghost && !GHOST_EYES.includes(a.ghost.eyes)) err(p, 'ghost.eyes');
+      // characters/Head.js treats these as MULTIPLIERS around 1 (f.eyeSize ?? 1); 0..1 values shrink the features.
+      for (const k of ['eyeSize', 'noseWidth', 'jaw', 'cheek']) {
+        const v = a.face?.[k];
+        if (v != null && !(v >= 0.8 && v <= 1.25)) err(p, `face.${k}=${v}: a multiplier around 1 (0.8..1.25) in characters/Head.js`);
+      }
+      for (const k of ['wrinkles', 'smile']) {
+        const v = a.face?.[k];
+        if (v != null && !(v >= 0 && v <= 1)) err(p, `face.${k} out of 0..1`);
+      }
+      // characters/Face.js only treats 'shaved' + 'monk-robe' as a monk (shaved brows, no stubble)
+      if (a.outfit?.type === 'monk-robe' && a.hair?.style !== 'shaved') err(p, "monks need hair.style 'shaved' (Face.js shaves the brows)");
     }
   }
 

@@ -136,7 +136,21 @@ class UI {
   }
 
   _onModalChange(open) {
+    this.xhair?.apply();
     bus.emit('ui:modal', { open });
+  }
+
+  /** Number of full-screen cards currently covering the view (loading, death, ending). */
+  _fullscreenCards() {
+    let n = 0;
+    if (this.loading?.el && !this.loading.el.hidden) n++;
+    if (this.death?.el) n++;
+    if (this.endingUI?.el) n++;
+    return n;
+  }
+
+  _refreshXhair() {
+    this.xhair?.apply();
   }
 
   /** True while any modal screen (menu, pause, settings, slots, credits, ending) owns input. */

@@ -113,7 +113,7 @@ export class TaxiControls {
           s.ignition = 'on';
           s.engineOn = true;
           this.anim.startTimer = 0;
-          t.physics.rpm = 1400;
+          t.physicsSim.rpm = 1400;
           bus.emit('taxi:engine', { on: true });
           emitValue = 'on';
           break;
@@ -492,7 +492,7 @@ export class TaxiControls {
     const t = this.taxi;
     const s = t.state;
     const P = t.parts;
-    const ph = t.physics;
+    const ph = t.physicsSim;
     const A = this.anim;
     if (s.horn) A.hornT = (A.hornT || 0) + dt;
     // key
@@ -592,9 +592,7 @@ export class TaxiControls {
     const a0 = big ? Math.PI * 0.75 : Math.PI * 0.8, a1 = big ? Math.PI * 2.25 : Math.PI * 1.2;
     const a = a0 + f * (a1 - a0);
     // canvas angle a measured clockwise from +x with y down; needle geometry points +y (three)
-    n.pivot.rotation.z = -a - Math.PI / 2 + Math.PI;
-    n.pivot.rotation.z = Math.PI / 2 - (Math.PI * 2 - a) - Math.PI;
-    n.pivot.rotation.z = -(a) - Math.PI / 2;
+    n.pivot.rotation.z = -a - Math.PI / 2;
   }
 
   gearPose(g) {
@@ -654,9 +652,9 @@ export class TaxiControls {
     const t = this.taxi;
     const s = t.state;
     const im = t.parts.im;
-    const kmh = Math.abs(t.physics.v) * 3.6;
+    const kmh = Math.abs(t.physicsSim.v) * 3.6;
     if (s.meterOn) {
-      const dist = (Math.abs(t.physics.v) * dt) / 1000;
+      const dist = (Math.abs(t.physicsSim.v) * dt) / 1000;
       this.fareDist += dist;
       this.fareTime += dt;
       const g = this.meterGlitch;

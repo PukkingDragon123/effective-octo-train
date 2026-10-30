@@ -262,15 +262,18 @@ class PostFX {
       // quarter-res blur for frosted / fogged glass
       this.matDown.uniforms.tSrc.value = this.copyRT.texture;
       this.matDown.uniforms.uTexel.value.set(1 / this._w, 1 / this._h).multiplyScalar(2);
-      this.matDown.uniforms.uKaris.value = 0;
+      this.matDown.uniforms.uKaris.value = 1;
+      this.matDown.uniforms.uClampMax.value = 30;
       this._pass(renderer, this.matDown, this.glassBlurA);
       const g = this.matGauss.uniforms;
-      g.tSrc.value = this.glassBlurA.texture;
-      g.uDir.value.set(1.5 / this.glassBlurA.width, 0);
-      this._pass(renderer, this.matGauss, this.glassBlurB);
-      g.tSrc.value = this.glassBlurB.texture;
-      g.uDir.value.set(0, 1.5 / this.glassBlurA.height);
-      this._pass(renderer, this.matGauss, this.glassBlurA);
+      for (let it = 0; it < 2; it++) {
+        g.tSrc.value = this.glassBlurA.texture;
+        g.uDir.value.set((1.2 + it) / this.glassBlurA.width, 0);
+        this._pass(renderer, this.matGauss, this.glassBlurB);
+        g.tSrc.value = this.glassBlurB.texture;
+        g.uDir.value.set(0, (1.2 + it) / this.glassBlurA.height);
+        this._pass(renderer, this.matGauss, this.glassBlurA);
+      }
       this.glassUniforms.tSceneColor.value = this.copyRT.texture;
       this.glassUniforms.tSceneBlur.value = this.glassBlurA.texture;
       const bg = scene.background;

@@ -313,7 +313,9 @@ export function textureStats() {
  *   'amulet_face', 'buddha_card', 'speed_sign' {kmh}, 'warning_sign' {th,en}, 'shop_sign' {th,en}
  * Common opts: { weather=1 (multiplier on the ageing: 0 = pristine, 1.5 = ruined) }.
  * Returned texture.userData: { kind, aspect (w/h), alpha (true when the shape is cut out by alpha),
+ *   shape ('rect'|'diamond'|'diamond_plate'|'circle'|'arrow'|'strip'|'sticker'|'tablet'),
  *   size:[metres w,h] suggested physical size, normalMap? (relief items like amulet_face) }.
+ * Shapes are drawn upright: use an axis-aligned quad of `aspect` with alphaTest (don't rotate diamonds 45°).
  */
 export function signTex(kind, opts = {}) {
   const key = 'sign:' + kind + ':' + JSON.stringify(opts);

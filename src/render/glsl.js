@@ -189,8 +189,9 @@ vec3 dlbApplyFog(vec3 col, vec3 wp, vec2 fragXY) {
   vec3 rv = wp - ro;
   float d = length(rv);
   vec3 rd = rv / max(d, 1e-4);
-  float n = 0.5 * dlbFogNoiseAt(ro + rd * min(d * 0.5, 7.0)) + 0.5 * dlbFogNoiseAt(ro + rd * min(d, 32.0));
-  float nm = mix(1.0, 0.18 + 1.65 * n * n, dlbFogNoise);
+  float n = 0.55 * dlbFogNoiseAt(ro + rd * min(d * 0.5, 7.0)) + 0.45 * dlbFogNoiseAt(ro + rd * min(d, 30.0));
+  float nn = smoothstep(0.22, 0.78, n);
+  float nm = mix(1.0, 0.3 + 1.4 * nn, dlbFogNoise);
   float od = dlbFogOptical(ro, rd, d) * nm;
   float T = exp(-od);
 #ifdef DLB_FOG_ADDITIVE

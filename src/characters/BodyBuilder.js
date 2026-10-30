@@ -135,7 +135,7 @@ export function neckPrims(P, dy, dz) {
   const o = (p) => [p[0], p[1] + dy, p[2] + dz];
   const out = [];
   const R = { k: 0.04 * s, region: 'neck', mat: 'skin', tag: 'neck' };
-  out.push(roundCone(o(P.neckBot), o(P.neckTop), P.neckR * 1.12, P.neckR, R));
+  out.push(roundCone(o(P.neckBot), o(P.neckTop), P.neckR * 1.1, P.neckR, R));
   for (const sg of [-1, 1]) {
     out.push(capsule(o([sg * 0.04 * s, P.headY + 0.012 * s, P.headZ + 0.02 * s]), o([sg * 0.012 * s, P.shoulderY + 0.0 * s, -0.03 * s]), 0.0115 * s, { ...R, k: 0.022 * s, tag: 'scm' }));
   }
@@ -728,7 +728,7 @@ export function buildBodyGeometry(spec, P, L, quality = 1) {
       if (y < P.shoulderY - 0.004 * s) return true;
       const t = clamp((y - P.neckBot[1]) / (P.neckTop[1] - P.neckBot[1]), 0, 1);
       const az = lerp(P.neckBot[2], P.neckTop[2], t);
-      const r = P.neckR * lerp(1.12, 1.0, t);
+      const r = P.neckR * lerp(1.1, 1.0, t);
       return Math.hypot(x, (z - az)) > r + 0.007 * s;
     },
   });

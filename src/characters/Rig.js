@@ -92,7 +92,7 @@ export function computeProportions(spec = {}) {
   P.armAngle = 0.82; // radians below horizontal in bind pose
   // radii
   const r = (base) => base * (H / 1.7);
-  P.neckR = r(lerp(fem ? 0.047 : 0.056, 0.042, child)) * (0.92 + 0.08 * fat) * (1 - 0.06 * old);
+  P.neckR = r(lerp(fem ? 0.046 : 0.0525, 0.041, child)) * (0.92 + 0.08 * fat) * (1 - 0.06 * old);
   P.upperArmR = r(fem ? 0.042 : 0.046) * (0.85 + 0.15 * muscle) * Math.pow(fat, 0.6) * (1 - 0.12 * child);
   P.forearmR = r(fem ? 0.034 : 0.039) * (0.88 + 0.12 * muscle) * Math.pow(fat, 0.35) * (1 - 0.08 * child);
   P.wristR = r(fem ? 0.024 : 0.027) * (1 - 0.05 * child);
@@ -343,9 +343,11 @@ export class Rig {
 
   /** Write the pose to the THREE bones. */
   apply(hipsPos) {
+    const sy = this.scaleY;
     for (let i = 0; i < BONE_COUNT; i++) {
       const b = this.bones[i];
       b.quaternion.copy(this.lq[i]);
+      if (sy) b.scale.set(1, sy[i], 1);
       if (i === 0) b.position.copy(hipsPos);
       else {
         const s = this.stretch[i];

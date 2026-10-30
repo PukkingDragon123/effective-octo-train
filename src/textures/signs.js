@@ -634,6 +634,16 @@ export const SIGN_KINDS = {
   shop_sign: { opts: '{th, en, foot}' },
 };
 
+/**
+ * Silhouette of each texture (all are drawn axis-aligned on the canvas; transparent outside the shape
+ * when userData.alpha): map onto an axis-aligned quad of userData.aspect with alphaTest — do NOT rotate
+ * the quad 45° for diamonds, the diamond is already drawn upright inside the square.
+ */
+export const SHAPES = {
+  curve_warning: 'diamond', speed_sign: 'circle', elephant_crossing: 'diamond_plate', fork_sign: 'arrow', couplet: 'strip',
+  sticker: 'sticker', amulet_face: 'tablet', km_marker: 'rect', village_sign: 'rect', warning_sign: 'rect', bus_stop_sign: 'rect',
+};
+
 /** Build the CanvasTexture for a sign kind. */
 export function drawSign(kind, opts = {}) {
   const fn = DESIGNS[kind];
@@ -652,6 +662,6 @@ export function drawSign(kind, opts = {}) {
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   t.anisotropy = 8;
-  t.userData = { kind, aspect: r.cv.w / r.cv.h, alpha: !!r.alpha, size: r.size, ...(r.extra || {}) };
+  t.userData = { kind, aspect: r.cv.w / r.cv.h, alpha: !!r.alpha, size: r.size, shape: SHAPES[kind] || 'rect', ...(r.extra || {}) };
   return t;
 }

@@ -8,6 +8,7 @@ import {
   createVolumetricBeam, applyWindShadows,
 } from '../render/index.js';
 import { makeRng, noise } from '../core/math.js';
+import { LAYERS } from '../core/layers.js';
 
 function leafClusterTexture(seed = 3, hue = 0) {
   const c = document.createElement('canvas');
@@ -379,6 +380,35 @@ export default async function ({ engine, cameraRig, params, settings }) {
   scene.add(eye);
   cameraRig.attach(eye, eye, { yaw: 0, pitch: 0 });
   sky.setShadowFocus(new THREE.Vector3(roadX(-20), 0, -20));
+
+  // glass-pass test: a rain-streaked pane on LAYERS.GLASS sampling the opaque scene
+  if (P('glass', '0') === '1') {
+    const gu = postfx.glassUniforms;
+    const pane = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.6, 0.8),
+      new THREE.ShaderMaterial({
+        uniforms: { ...gu, uTime: GLOBAL_UNIFORMS.uTime },
+        vertexShader: `varying vec2 vUv; varying vec4 vClip; void main(){ vUv = uv; vClip = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = vClip; }`,
+        fragmentShader: `uniform sampler2D tSceneColor; uniform sampler2D tSceneBlur; uniform vec2 uResolution; uniform float uTime; varying vec2 vUv; varying vec4 vClip;
+          float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+          void main(){
+            vec2 suv = gl_FragCoord.xy / uResolution;
+            vec2 cell = floor(vUv * vec2(40.0, 20.0)); vec2 f = fract(vUv * vec2(40.0, 20.0)) - 0.5;
+            float drop = step(0.82, h(cell)) * smoothstep(0.35, 0.1, length(f));
+            vec2 off = f * drop * 0.02;
+            float frost = smoothstep(0.2, 0.8, vUv.x);
+            vec3 sharp = texture2D(tSceneColor, suv + off).rgb;
+            vec3 blur = texture2D(tSceneBlur, suv + off).rgb;
+            vec3 c = mix(sharp, blur * 1.05 + 0.002, frost * (1.0 - drop));
+            gl_FragColor = vec4(c, 1.0);
+          }`,
+        depthWrite: false,
+      }),
+    );
+    pane.layers.set(LAYERS.GLASS);
+    pane.position.set(0, 0, -1.1);
+    engine.camera.add(pane);
+  }
 
   window.__render = { sky, lightPool, particles, postfx, settings, GLOBAL_UNIFORMS, lampHandles };
 }

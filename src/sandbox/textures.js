@@ -104,8 +104,9 @@ export default async function ({ engine, cameraRig, params, rendering }) {
       g.position.set(cx * cw, cy * ch, 0);
       const map = time(key, () => tex(key));
       const alpha = !!map.userData.alpha;
+      const blend = /^glass_dirt|^road_/.test(key);
       const isData = map.colorSpace !== THREE.SRGBColorSpace;
-      const quad = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, toneMapped: false, transparent: alpha, alphaTest: alpha ? 0.5 : 0, side: THREE.DoubleSide }));
+      const quad = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, toneMapped: false, transparent: alpha, alphaTest: alpha && !blend ? 0.5 : 0, side: THREE.DoubleSide }));
       quad.position.set(-0.52, 0.05, 0);
       g.add(quad);
       if (alpha) {

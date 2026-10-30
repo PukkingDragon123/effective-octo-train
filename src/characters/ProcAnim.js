@@ -100,6 +100,7 @@ export class Animator {
       case 'crawl': this.crawlPose(p, f); break;
       case 'hang': this.hangPose(p, f); break;
       case 'ceiling': this.crawlPose(p, f, true); break;
+      case 'sprint': this.gaitPose(p, f, 'sprint'); break;
       default: this.standPose(p, f);
     }
     // breathing on everything (chest + shoulders), stronger when nervous

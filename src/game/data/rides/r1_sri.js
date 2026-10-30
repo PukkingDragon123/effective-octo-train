@@ -1,7 +1,7 @@
 // Ride 1 — 21:00 — ป้าศรี Auntie Sri (HUMAN → RIGHT). Schema: ../SCHEMA.md "Passenger".
 // Dread phase. She teaches the clue language without knowing it (breath fog on the glass,
 // the car sinks when she sits, her reflection, coins) and tells the legend of ยายสปีด.
-import { P, Y, T, C } from '../lines.js';
+import { P, Y, C } from '../lines.js';
 
 export const RIDE_SRI = {
   id: 'sri',
@@ -30,6 +30,8 @@ export const RIDE_SRI = {
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: [],
+  // Long first ride (sala1 → fork ≈ 2.8 km): no stretching needed. See SCHEMA.md "Pacing".
+  pacing: { cruiseKmh: 45, minSeconds: 150, stretch: 'none' },
   dialogue: {
     hail: [P('แท็กซี่! แท็กซี่จ้ะ! จอดก่อน!', 'Taxi! Taxi, dear! Stop!', { tone: 'shout', action: 'hail' })],
     greet: [
@@ -57,13 +59,14 @@ export const RIDE_SRI = {
       },
       {
         id: 'yaiSpeedLegend',
+        essential: true, // the legend must be heard before ride 3's Yai Speed encounter
         trigger: { type: 'progress', at: 0.14 },
         lines: [
           P('รู้จักยายสปีดไหม', 'Ever heard of Yai Speed?'),
           C([
-            { key: 'no', th: 'ไม่ครับ', en: 'No.' },
             { key: 'yes', th: 'เคยได้ยินครับ', en: "I've heard the name." },
-          ], { timeout: 6, defaultKey: 'no', branches: { yes: [P('ได้ยินแค่ชื่อไม่พอหรอก ฟังป้าให้ดี', "Hearing the name isn't enough. Listen.")] } }),
+            { key: 'no', th: 'ไม่ครับ', en: 'No.' },
+          ], { id: 'sri_yaiSpeed', timeout: 6, defaultKey: 'no', branches: { yes: [P('ได้ยินแค่ชื่อไม่พอหรอก ฟังป้าให้ดี', "Hearing the name isn't enough. Listen.")] } }),
           P('ผียายแก่ ๆ วิ่งตามรถตอนกลางคืน', 'An old granny ghost. Chases cars at night.', { tone: 'whisper' }),
           P('ขับเร็วแค่ไหนแกก็วิ่งทัน ขาแกไม่เหมือนขาคน', "However fast you go, she keeps up. Her legs aren't human legs."),
           P('ถ้าเจอนะ ผ่อนคันเร่ง ปล่อยให้แกแซงไป', 'If you see her, ease off. Let her pass.'),
@@ -83,7 +86,7 @@ export const RIDE_SRI = {
         id: 'jasmine',
         trigger: { type: 'progress', at: 0.38 },
         lines: [
-          P('มาลัยมะลิพวกนี้ ป้าร้อยเองทั้งคืนเลยนะ', 'I strung all these jasmine garlands myself. All night.', { emotion: 'smile' }),
+          P('มาลัยมะลิพวกนี้ ป้าร้อยเองทั้งเย็นเลยนะ', 'I strung all these jasmine garlands myself. All evening.', { emotion: 'smile' }),
           P('พรุ่งนี้เช้าเอาไปขายที่ตลาด พวงละยี่สิบ', "Tomorrow morning they go to market. Twenty baht each."),
         ],
       },

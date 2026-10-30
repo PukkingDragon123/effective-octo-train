@@ -153,6 +153,26 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
   limited palettes, hand-made imperfections. Normal maps are generated from height.
 * `signTex(kind, opts)`: original fictional Thai designs (no real brands or logos).
 * `canvasTexture(w,h,draw,opts)`, `fontsReady()`.
+* Additions (textures module):
+  * Every surface has companions: `<key>_normal` (most), `<key>_rough` (asphalt, concrete, rust,
+    metal_painted, roof_corrugated, gold_leaf, red_lacquer, chrome_dirty, leather_seat, dash_plastic,
+    skin, fabric_silk, taxi_paint), `asphalt_height`, `water_ripple_height`. Data maps are NoColorSpace.
+    `TEXTURE_KEYS` lists everything. Extra keys: `gravel leaf_litter wood_planks cloth_normal
+    taxi_paint_green taxi_paint_yellow glass_dirt_windshield road_stencils`.
+  * `taxi_paint` is a near-white weathering layer to multiply with `material.color`; the
+    `_green` / `_yellow` variants are fully painted. Grime/mud collect toward v=0 (map v=0 to the sills).
+  * Foliage atlases are RGBA (alphaTest 0.5, colour bled under alpha); `FOLIAGE_ATLAS[key].cells[]` =
+    `{name, uv:[u0,v0,u1,v1], base, tip, tileU?, tileV?}` in three.js uv space (v up).
+  * `ROAD_MARKINGS.road_lines.strips[name] = {uv, centerU, color, lineWidth, dash}`: 0.5 m-wide strips,
+    12 m per v repeat (`centre_dashed_white centre_double_yellow edge_white centre_solid_yellow
+    edge_white_dashed edge_yellow centre_dashed_yellow worn_white`); `ROAD_MARKINGS.road_stencils.cells`
+    (ช้าลง / SLOW / arrows / zebra / stop line / chevrons). Use as alpha-blended decals.
+  * `SIGN_KINDS` (opts + gallery variants). `signTex` result `userData = {kind, aspect, alpha, size:[m,m], normalMap?}`;
+    `opts.weather` scales the ageing (0 pristine … 1.5 ruined).
+  * `await preloadTextures(keys?, onProgress?)` generates families in a Web Worker pool (parallel, off the
+    main thread); call it behind the loading screen **before** building the world. `preloadSigns(list)`,
+    `setTextureQuality(q)` (low/medium = half resolution), `textureStats()`, `isTextureReady(key)`.
+  * Sandboxes: `textures` (gallery: `mode=grid|key|atlas|signs|sign`), `textures-scene` (night road in context).
 
 ### world (`src/world/World.js`)
 * `new World(); await world.build({onProgress, quality})` → `world.group` (add to scene).
@@ -225,6 +245,32 @@ listed in `src/audio/index.js` (keep the list in sync).
 ### ui (`src/ui/index.js`)
 DOM overlay in `#ui`. Elegant and minimal, Thai+English typography; no persistent HUD.
 Full keyboard/gamepad navigation of menus.
+* `ui.init(root)` mounts (idempotent; any method lazily inits on `#ui`). Every screen is
+  driven by `src/ui/nav.js`: mouse, keyboard (arrows/WASD, Enter/Space/F, Esc/Backspace,
+  Q/E tabs, Del/X delete) and gamepad (d-pad/stick, A/B, LB/RB, X, Start).
+* While a **modal** screen is open (menu, pause, settings, slots, credits, confirm, ending)
+  the UI swallows its keys before core/Input, consumes every input action each frame
+  (order −99) and blocks canvas clicks; buttons still held when it closes are drained until
+  released. `bus 'ui:modal' {open}`; `ui.modalOpen`. Pointer lock is released on open; the
+  game re-requests it (e.g. `input.requestPointerLock()` inside `onResume`).
+* `choice()` is non-modal by default (driving continues; ←/→, 1–3, Enter, d-pad + A);
+  focus starts on `defaultKey`; `{modal:true}` for paused dialogue.
+* Extras beyond the stub: `confirm({th,en,subTh,subEn,yes,no,danger})`, `fade(on, secs)`,
+  `setDevice('keyboard'|'gamepad')`, `pauseVisible`, `showPause({..., time, th, en})`
+  (clock + ride shown top-right), `deathCard({..., sub, hold, keepBlack})`,
+  `ending({..., credits, keepBlack})` (defaults come from `ENDINGS[id]`: title, subtitle,
+  epilogue cards, creditsExtra), `subtitle({..., queue:true})`, `toast(th, en, {duration})`,
+  exports `glyph(token)`, `DEFAULT_RULES`, `HIDDEN_LINE`.
+* The crosshair is visible by default and auto-hides under menus / loading / death /
+  ending; `setCrosshair(false)` for cinematics.
+* `drawRulesPaper(ctx, w, h, data)`: await `loadFonts()` first. Outside the torn page is
+  **transparent** (use `transparent`/`alphaTest`, or pass `data.background`). Annotation
+  values may be strings or `{th, en}` (`PENCIL_NOTES`); keys that are not rule ids
+  (e.g. `p:sri`) become the player's notes list; key `hidden` sits beside the hidden line.
+  `revealed` rules get a pencil tick. Optional `hiddenAlpha` (0..1) fades the hidden line.
+  Base layer cached per size; ~100–200 ms per redraw on CPU.
+* Text sources: `GAME_TITLE.th`, `LOADING_LINES`, `PAPER`, `CREDITS*`, `DEATH_FOOTER`,
+  `ENDINGS` from `src/game/data` (with built-in fallbacks).
 
 ## Performance budgets (High preset, mid-range GPU, 1080p, 60 fps)
 * ≤ 450 draw calls in the forest; ≤ 2.5 M triangles; instanced foliage with LOD

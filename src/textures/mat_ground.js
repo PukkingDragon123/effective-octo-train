@@ -74,7 +74,7 @@ export function genAsphalt(S = 1024) {
   // cracks: long wandering cracks + alligator crazing in worn zones
   const C = new Float32Array(n);
   for (let c = 0; c < 6; c++) {
-    crack(C, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 70 + rng() * 90, step: 4 * k, wander: 1.1, width: (1.5 + rng() * 1.8) * k, branch: 0.06, val: 1, vary: 1 });
+    crack(C, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 90 + rng() * 110, step: 3 * k, wander: 1.35, width: (0.9 + rng() * 1.1) * k, branch: 0.1, val: 0.85, vary: 1 });
   }
   const al = worley(w >> 1, h >> 1, { cells: 20, seed: 15 });
   const alE = new Float32Array((w >> 1) * (h >> 1));
@@ -90,7 +90,7 @@ export function genAsphalt(S = 1024) {
   // tar snakes (black sealant overbands following a few cracks)
   const T = new Float32Array(n);
   for (let c = 0; c < 3; c++) {
-    crack(T, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 50 + rng() * 60, step: 9 * k, wander: 0.35, width: (5 + rng() * 3) * k, taper: 0.999, branch: 0.03, val: 1 });
+    crack(T, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 40 + rng() * 50, step: 9 * k, wander: 0.4, width: (3.5 + rng() * 2) * k, taper: 0.999, branch: 0.03, val: 1 });
   }
   const P = new Float32Array(n), seam = new Float32Array(n); // (repairs are left to world-scale decals)
   // oil / damp blotches
@@ -142,8 +142,8 @@ export function genAsphalt(S = 1024) {
   const Tm = smoothMask(Tb, 0.15, 0.5);
   tint(img, Tm, '#141516', 0.9);
   tint(img, seam, '#1a1b1c', 0.6);
-  const Cm = smoothMask(C, 0.12, 0.7);
-  tint(img, Cm, '#151617', 0.85);
+  const Cm = smoothMask(C, 0.12, 0.75);
+  tint(img, Cm, '#18191a', 0.72);
   // pale dust rim along cracks
   const Ce = blur(C, w, h, Math.max(1, Math.round(3 * k)), 1);
   for (let i = 0; i < n; i++) Ce[i] = sstep(0.04, 0.3, Ce[i]) * (1 - Cm[i]) * 0.3 * (0.4 + wear[i]);
@@ -460,9 +460,9 @@ export function genGravel(S = 512) {
   const img = new Img(w, h);
   const base = new Float32Array(n);
   for (let i = 0; i < n; i++) base[i] = 0.5 + low[i] * 0.4;
-  gradientMap(img, base, [[0, '#2f2a25'], [0.5, '#4a4038'], [1, '#6a5a4a']]);
+  gradientMap(img, base, [[0, '#2a2622'], [0.5, '#3e3630'], [1, '#544a40']]);
   const H = new Float32Array(n);
-  const cols = ['#6f6d68', '#85817a', '#5a5955', '#9a9488', '#76695c', '#80553e', '#4d4c4a', '#8d8a82'].map(rgb);
+  const cols = ['#5f5d58', '#6e6a64', '#504f4b', '#7a756c', '#665b50', '#6a4c3a', '#45443f', '#74716a'].map(rgb);
   const d = img.d;
   const wx = fbm(w, h, { cells: 16, octaves: 2, seed: 704 }), wy = fbm(w, h, { cells: 16, octaves: 2, seed: 705 });
   for (const [cells, sc, seed] of [[64, 0.8, 702], [30, 1, 701]]) {
@@ -477,7 +477,7 @@ export function genGravel(S = 512) {
       const m = sstep(0.03, 0.14, e) * (f1[i] < r * 1.6 ? 1 : 0);
       if (m <= 0) continue;
       const col = cols[(cT[c] * cols.length) | 0];
-      const lit = (0.72 + 0.45 * (1 - f1[i] / (r * 1.6))) * sc;
+      const lit = (0.8 + 0.3 * (1 - f1[i] / (r * 1.6))) * sc;
       const j = i * 4;
       d[j] += (col[0] * lit - d[j]) * m;
       d[j + 1] += (col[1] * lit - d[j + 1]) * m;

@@ -13,7 +13,9 @@ import { Music } from '../audio/Music.js';
 import { Ambience } from '../audio/Ambience.js';
 import { SOUNDS } from '../audio/Synth/registry.js';
 
-const SR = 32000;
+let SR = 32000;
+let TEST_HRTF = true;
+const D0 = 0.4; // start offset: Chrome's limiter needs a moment to settle in a fresh context
 const sharedCache = new Map();
 
 // ---------------------------------------------------------------- analysis
@@ -121,6 +123,7 @@ function offlineCore(dur, ch = 2) {
   core.cache = sharedCache;
   core.maxCacheBytes = 1e12;
   core.spatial.setListener(0, 1.6, 0);
+  if (!TEST_HRTF) core.spatial.hrtfCount = 1e9; // equal-power only (fast)
   core.setBusVolume('master', 0.8);
   return { ctx, core };
 }
@@ -129,11 +132,11 @@ async function renderSound(id, opts = {}) {
   const def = SOUNDS[id];
   const probe = offlineCore(0.1);
   const b = probe.core.sfxBuffer(id, opts.variant ?? 0, !!opts.loop);
-  const dur = Math.min(opts.loop ? 6 : 14, b.duration + 0.8);
+  const dur = Math.min(opts.loop ? 6 : 14, b.duration + 0.8) + D0;
   const { ctx, core } = offlineCore(dur);
   const spatial = !def.stereo && !def.stereoCenter && def.bus !== 'ui' && def.bus !== 'music';
-  if (opts.loop) core.loop(id, { variant: opts.variant ?? 0, ...(spatial ? { position: { x: 0.8, y: 1.6, z: -2 } } : {}) });
-  else core.play(id, { variant: opts.variant ?? 0, rate: 1, ...(spatial ? { position: { x: 0.8, y: 1.6, z: -2 } } : {}) });
+  if (opts.loop) core.loop(id, { variant: opts.variant ?? 0, delay: D0, ...(spatial ? { position: { x: 0.5, y: 1.6, z: -1.2 } } : {}) });
+  else core.play(id, { variant: opts.variant ?? 0, rate: 1, delay: D0, ...(spatial ? { position: { x: 0.5, y: 1.6, z: -1.2 } } : {}) });
   for (let t = 0.1; t < dur; t += 0.25) ctx.suspend(t).then(() => {
     core.update(0.25, null);
     ctx.resume();
@@ -181,15 +184,15 @@ async function renderMood(mood, dur = 18) {
 async function renderVoice(th, voice, dur = 8) {
   const { ctx, core } = offlineCore(dur);
   const b = core.task(`murmur:${th}:${JSON.stringify(voice)}`, 'murmur', { th, voice });
-  core.playBuffer(b, { bus: 'voice', position: { x: 0.4, y: 1.5, z: 0.8 }, muffle: false, ref: 1.1, reverb: voice.ghost ? 0.25 : 0.08 });
+  core.playBuffer(b, { delay: D0, bus: 'voice', position: { x: 0.4, y: 1.5, z: 0.8 }, muffle: false, ref: 1.1, reverb: voice.ghost ? 0.25 : 0.08 });
   return ctx.startRendering();
 }
 
 async function renderRadio(station, n = 0, ci = 1) {
   const probe = offlineCore(0.1);
   const b = probe.core.task(`radio:${station}:${n}:${ci}`, 'radioChunk', { station, n, ci });
-  const { ctx, core } = offlineCore(b.duration + 0.2);
-  core.playBuffer(b, { bus: 'radio', muffle: false, reverb: 0.05 });
+  const { ctx, core } = offlineCore(b.duration + 0.2 + D0);
+  core.playBuffer(b, { delay: D0, bus: 'radio', muffle: false, reverb: 0.05 });
   return ctx.startRendering();
 }
 
@@ -218,8 +221,9 @@ const VOICE_LINES = [
   ['murmur_whisper', 'ไม่ต้องหันมานะลูก ขับไปเถอะ', { gender: 'm', age: 55, whisper: true }],
 ];
 
-async function runTests(onRow) {
+async function runTests(onRow, group = 'all') {
   const rows = [];
+  const want = (g) => group === 'all' || group === g;
   const add = async (name, fn) => {
     const t0 = performance.now();
     try {
@@ -232,10 +236,14 @@ async function runTests(onRow) {
     }
     onRow?.(rows[rows.length - 1]);
   };
-  for (const id of SOUND_IDS) {
+  const half = Math.ceil(SOUND_IDS.length / 2);
+  for (let i = 0; i < SOUND_IDS.length; i++) {
+    const id = SOUND_IDS[i];
+    if (!want(i < half ? 'sfxA' : 'sfxB') && !want('sfx')) continue;
     await add(id, () => renderSound(id));
     if (SOUNDS[id].loopable) await add(id + '[loop]', () => renderSound(id, { loop: true }));
   }
+  if (!want('systems')) return rows;
   await add('indicator_tick[retrigger]', () => renderSound('indicator_tick', { loop: true }));
   for (const [rpm, load] of [[820, 0.05], [1500, 0.3], [2500, 0.8], [4000, 0.9], [6000, 1], [3000, 0]]) await add(`engine@${rpm}/${load}`, () => renderEngine(rpm, load, 'car', rpm / 60));
   for (const rpm of [1450, 4000, 7500]) await add(`bike@${rpm}`, () => renderEngine(rpm, 0.6, 'bike', rpm / 150));
@@ -474,7 +482,9 @@ export default async function ({ engine, cameraRig, params }) {
   // (the shot harness always adds test=1; use board=1 to screenshot the manual board instead)
   if (params.get('test') === '1' && params.get('board') !== '1') {
     const onRow = reportTable(root);
-    window.__audioTest = runTests(onRow).then((rows) => {
+    if (params.get('sr')) SR = Number(params.get('sr'));
+    if (params.get('hrtf') === '0') TEST_HRTF = false;
+    window.__audioTest = runTests(onRow, params.get('group') || 'all').then((rows) => {
       const bad = rows.filter((r) => r.error || r.nan || r.silent || r.clip > 20);
       window.__audioReport = { rows, bad: bad.map((r) => r.name), count: rows.length };
       return window.__audioReport;

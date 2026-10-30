@@ -10,6 +10,10 @@
 //     hair:{style,color}, outfit:{type, top, bottom, accent, shoes}, accessories:[], face:{...},
 //     ghost?:{ pale, eyes, wet, decay, bloodStains } } — null for voice-only speakers.
 // }
+// face: `wrinkles` and `smile` are 0..1; `eyeSize`, `noseWidth`, `jaw`, `cheek` are MULTIPLIERS
+// around 1 (characters/Head.js: `(f.eyeSize ?? 1) * jitter`), keep them within ~0.85..1.15.
+// `face.seed` drives the random facial structure: Ton and Somchai share one (family resemblance,
+// visible when Ton catches his own face in the mirror).
 // Colours are CSS hex strings. Ghost appearance params describe the *calm* look; gameplay
 // pushes them further (true form) through humanoid.setGhost().
 
@@ -25,7 +29,7 @@ export const CHARACTERS = {
       hair: { style: 'messy', color: '#1a1512' },
       outfit: { type: 'hoodie-jeans', top: '#3b4048', bottom: '#2a3140', accent: '#8a8f96', shoes: 'shoes' },
       accessories: [],
-      face: { seed: 2701, wrinkles: 0.05, smile: 0.0, eyeSize: 0.5, noseWidth: 0.5, jaw: 0.55, cheek: 0.4 },
+      face: { seed: 5601, wrinkles: 0.05, smile: 0.0, eyeSize: 1.0, noseWidth: 1.0, jaw: 1.02, cheek: 0.95 },
     },
   },
 
@@ -38,9 +42,10 @@ export const CHARACTERS = {
     appearance: {
       id: 'ahKong', sex: 'm', age: 78, height: 1.62, build: 'thin', skinTone: 0.32,
       hair: { style: 'gray-short', color: '#c9c4bb' },
-      outfit: { type: 'tank-sarong', top: '#e6e0d2', bottom: '#3a4a5e', accent: '#7a2a1e', shoes: 'sandals' },
+      // white singlet + loose black silk trousers: the classic Thai-Chinese อากง look
+      outfit: { type: 'tank-pants', top: '#e8e2d2', bottom: '#1d1e22', accent: '#7a2a1e', shoes: 'sandals' },
       accessories: ['cigarette', 'glasses'],
-      face: { seed: 7801, wrinkles: 0.85, smile: 0.25, eyeSize: 0.35, noseWidth: 0.55, jaw: 0.45, cheek: 0.3 },
+      face: { seed: 7801, wrinkles: 0.85, smile: 0.25, eyeSize: 0.9, noseWidth: 1.04, jaw: 0.98, cheek: 0.92 },
     },
   },
 
@@ -53,9 +58,10 @@ export const CHARACTERS = {
     appearance: {
       id: 'somchai', sex: 'm', age: 56, height: 1.68, build: 'average', skinTone: 0.62,
       hair: { style: 'short', color: '#2b2722' },
-      outfit: { type: 'taxi-uniform', top: '#b9a77e', bottom: '#2e2c28', accent: '#6f8a5a', shoes: 'sandals' },
+      // the faded pale-blue driver's shirt he wore every day, sun-bleached at the shoulders
+      outfit: { type: 'taxi-uniform', top: '#9fb1bd', bottom: '#2e2c28', accent: '#6f8a5a', shoes: 'sandals' },
       accessories: ['amulet-necklace'],
-      face: { seed: 5601, wrinkles: 0.5, smile: 0.35, eyeSize: 0.45, noseWidth: 0.6, jaw: 0.55, cheek: 0.5 },
+      face: { seed: 5601, wrinkles: 0.5, smile: 0.35, eyeSize: 0.98, noseWidth: 1.05, jaw: 1.05, cheek: 1.0 }, // same seed as Ton
       ghost: { pale: 0.35, eyes: 'normal', wet: 0.15, decay: 0.0, bloodStains: 0.0 },
       noBlink: true,
     },
@@ -72,7 +78,7 @@ export const CHARACTERS = {
       hair: { style: 'bun', color: '#2a2420' },
       outfit: { type: 'market-vendor', top: '#c96f4a', bottom: '#3d3550', accent: '#e9e2c8', shoes: 'sandals' },
       accessories: ['basket', 'shoulder-bag'],
-      face: { seed: 5801, wrinkles: 0.45, smile: 0.3, eyeSize: 0.55, noseWidth: 0.6, jaw: 0.45, cheek: 0.65 },
+      face: { seed: 5801, wrinkles: 0.45, smile: 0.3, eyeSize: 1.0, noseWidth: 1.06, jaw: 0.98, cheek: 1.08 },
     },
   },
 
@@ -87,7 +93,7 @@ export const CHARACTERS = {
       hair: { style: 'long', color: '#0c0b0b' },
       outfit: { type: 'dress', top: '#e7e5dc', bottom: '#e1dfd6', accent: '#2a2622', shoes: 'barefoot' },
       accessories: [],
-      face: { seed: 2402, wrinkles: 0.0, smile: 0.0, eyeSize: 0.6, noseWidth: 0.4, jaw: 0.35, cheek: 0.35 },
+      face: { seed: 2402, wrinkles: 0.0, smile: 0.0, eyeSize: 1.04, noseWidth: 0.94, jaw: 0.92, cheek: 0.93 },
       ghost: { pale: 0.85, eyes: 'normal', wet: 0.9, decay: 0.1, bloodStains: 0.05 },
       noBlink: true,
     },
@@ -102,9 +108,10 @@ export const CHARACTERS = {
     appearance: {
       id: 'piak', sex: 'm', age: 63, height: 1.64, build: 'thin', skinTone: 0.68,
       hair: { style: 'messy', color: '#6d6862' },
-      outfit: { type: 'farmer', top: '#5e6b4a', bottom: '#2d2b33', accent: '#a83a2c', shoes: 'sandals' },
+      // stained singlet + a faded red-check ผ้าขาวม้า sarong: every village's drunk uncle
+      outfit: { type: 'tank-sarong', top: '#d6d0bf', bottom: '#7a3434', accent: '#d9cfb8', shoes: 'sandals' },
       accessories: [],
-      face: { seed: 6303, wrinkles: 0.7, smile: 0.4, eyeSize: 0.4, noseWidth: 0.65, jaw: 0.5, cheek: 0.35 },
+      face: { seed: 6303, wrinkles: 0.7, smile: 0.4, eyeSize: 0.93, noseWidth: 1.08, jaw: 1.0, cheek: 0.9 },
     },
   },
 
@@ -116,10 +123,10 @@ export const CHARACTERS = {
     voice: { gender: 'm', age: 9, pitch: 1.42, rate: 0.95, ghost: 0.45, whisper: false },
     appearance: {
       id: 'boyM', sex: 'm', age: 9, height: 1.3, build: 'thin', skinTone: 0.5,
-      hair: { style: 'shaved', color: '#141210' },
+      hair: { style: 'short', color: '#141210' }, // the regulation schoolboy crop
       outfit: { type: 'school-uniform', top: '#f0eee6', bottom: '#2c3a5c', accent: '#2c3a5c', shoes: 'shoes' },
       accessories: ['lunchbox'],
-      face: { seed: 904, wrinkles: 0.0, smile: 0.15, eyeSize: 0.7, noseWidth: 0.4, jaw: 0.3, cheek: 0.6 },
+      face: { seed: 904, wrinkles: 0.0, smile: 0.15, eyeSize: 1.06, noseWidth: 0.94, jaw: 0.95, cheek: 1.06 },
       ghost: { pale: 0.55, eyes: 'normal', wet: 0.3, decay: 0.0, bloodStains: 0.15 },
     },
   },
@@ -135,7 +142,7 @@ export const CHARACTERS = {
       hair: { style: 'bun', color: '#110f0d' },
       outfit: { type: 'sabai', top: '#3f6b3a', bottom: '#4a3a24', accent: '#c9a54a', shoes: 'barefoot' },
       accessories: [],
-      face: { seed: 2605, wrinkles: 0.0, smile: 0.35, eyeSize: 0.55, noseWidth: 0.42, jaw: 0.35, cheek: 0.45 },
+      face: { seed: 2605, wrinkles: 0.0, smile: 0.35, eyeSize: 1.02, noseWidth: 0.95, jaw: 0.94, cheek: 0.98 },
       ghost: { pale: 0.45, eyes: 'normal', wet: 0.0, decay: 0.0, bloodStains: 0.0 },
       noBlink: true,
     },
@@ -149,10 +156,11 @@ export const CHARACTERS = {
     voice: { gender: 'm', age: 44, pitch: 0.86, rate: 0.85, ghost: 0, whisper: false },
     appearance: {
       id: 'monk', sex: 'm', age: 44, height: 1.7, build: 'thin', skinTone: 0.62,
-      hair: { style: 'bald', color: '#1a1714' },
-      outfit: { type: 'monk-robe', top: '#9c5a22', bottom: '#9c5a22', accent: '#7a4318', shoes: 'barefoot' },
+      hair: { style: 'shaved', color: '#1a1714' }, // 'shaved' + monk-robe = shaved brows too (characters/Face.js)
+      // forest monks dye their robes darker with jackfruit heartwood (สีกรัก)
+      outfit: { type: 'monk-robe', top: '#8a4c1c', bottom: '#844819', accent: '#6a3a14', shoes: 'barefoot' },
       accessories: ['umbrella', 'shoulder-bag'],
-      face: { seed: 4406, wrinkles: 0.3, smile: 0.45, eyeSize: 0.45, noseWidth: 0.55, jaw: 0.5, cheek: 0.4 },
+      face: { seed: 4406, wrinkles: 0.3, smile: 0.45, eyeSize: 0.96, noseWidth: 1.02, jaw: 1.0, cheek: 0.96 },
     },
   },
 
@@ -167,7 +175,7 @@ export const CHARACTERS = {
       hair: { style: 'pompadour', color: '#0f0d0c' },
       outfit: { type: 'singer', top: '#b8902e', bottom: '#1d1b22', accent: '#d8c27a', shoes: 'shoes' }, // sequinned stage jacket
       accessories: ['cigarette'],
-      face: { seed: 5007, wrinkles: 0.35, smile: 0.7, eyeSize: 0.5, noseWidth: 0.5, jaw: 0.55, cheek: 0.5 },
+      face: { seed: 5007, wrinkles: 0.35, smile: 0.7, eyeSize: 1.0, noseWidth: 1.0, jaw: 1.04, cheek: 1.0 },
       ghost: { pale: 0.6, eyes: 'normal', wet: 0.0, decay: 0.05, bloodStains: 0.0 },
       noBlink: true,
     },
@@ -184,7 +192,7 @@ export const CHARACTERS = {
       hair: { style: 'gray-short', color: '#d6d1c8' },
       outfit: { type: 'old-woman-sarong', top: '#d9cfb4', bottom: '#5a3a4a', accent: '#e8e2cf', shoes: 'sandals' },
       accessories: ['basket', 'garland'],
-      face: { seed: 8008, wrinkles: 0.95, smile: 0.55, eyeSize: 0.35, noseWidth: 0.55, jaw: 0.4, cheek: 0.35 },
+      face: { seed: 8008, wrinkles: 0.95, smile: 0.55, eyeSize: 0.92, noseWidth: 1.04, jaw: 0.95, cheek: 0.92 },
     },
   },
 
@@ -199,7 +207,7 @@ export const CHARACTERS = {
       hair: { style: 'ponytail', color: '#231e1a' },
       outfit: { type: 'tshirt-pants', top: '#6f8aa0', bottom: '#2a2a30', accent: '#c94a3a', shoes: 'sandals' },
       accessories: ['headscarf'],
-      face: { seed: 5509, wrinkles: 0.4, smile: 0.5, eyeSize: 0.45, noseWidth: 0.55, jaw: 0.45, cheek: 0.55 },
+      face: { seed: 5509, wrinkles: 0.4, smile: 0.5, eyeSize: 0.98, noseWidth: 1.04, jaw: 0.98, cheek: 1.04 },
     },
   },
 

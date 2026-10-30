@@ -26,10 +26,12 @@ export { createSala, createBusStop } from './sala.js';
 export { createShrineMaRuay, createLanternString } from './maruay.js';
 export { createGarage } from './garage.js';
 export {
-  createNoodleStall, createBridge,
-  createGuardrail, createBuddhaStatue, createForestTemple, createAccidentMemorial, createGhostGate, createVillageStop,
-  createSignPost, createConvexMirror, createPond, createDressing,
-} from './_stubs.js';
+  createNoodleStall, createBridge, createGuardrail, createSignPost, createConvexMirror, createAccidentMemorial, createGhostGate,
+  createVillageStop,
+} from './roadside.js';
+export { createBuddhaStatue, createForestTemple } from './temple.js';
+export { createPond } from './pond.js';
+export { createDressing } from './dressing.js';
 export { LIGHT_PRESETS, lightSpec, flickerValue } from './lib/lights.js';
 
 /**

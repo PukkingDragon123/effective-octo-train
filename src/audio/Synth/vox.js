@@ -12,7 +12,7 @@
 //   f0 Hz · av voicing amp · ah aspiration amp (noise through formants) · af frication amp
 //   ff frication centre Hz · fq frication Q · F1..F5 Hz · B1..B5 bandwidth Hz · tilt (0..1, darker source)
 //   oq open quotient (0.3 pressed .. 0.8 breathy) · sub (period-doubling roughness 0..1)
-import { TAU, clamp, rngFrom, SVF, Wander } from './dsp.js';
+import { TAU, clamp, rngFrom, SVF, Wander, Biquad } from './dsp.js';
 
 const KEYS = ['f0', 'av', 'ah', 'af', 'ff', 'fq', 'F1', 'F2', 'F3', 'F4', 'F5', 'B1', 'B2', 'B3', 'B4', 'B5', 'tilt', 'oq', 'sub', 'nas'];
 const DEFAULTS = {
@@ -96,7 +96,7 @@ export function renderVox(sr, score, opts = {}) {
   nasRes.set(270, 100);
   const fric = new SVF(sr, 4000, 1.5);
   const tiltLP = new SVF(sr, 3000, 0.5);
-  const aspHP = new SVF(sr, 400, 0.6);
+  const aspHP = new SVF(sr, whisper ? 1300 : 400, 0.6);
   const w = new Wander(rng, 3);
   const wSlow = new Wander(rng, 0.7);
   const P = { ...DEFAULTS };
@@ -169,6 +169,13 @@ export function renderVox(sr, score, opts = {}) {
     const yo = y - prevSrc * 0.6;
     prevSrc = y;
     out[i] = yo;
+  }
+  // presence: high-shelf lift (whispers / breaths live in 1.5-5 kHz, the cascade rolls that off)
+  const pres = opts.presence ?? (whisper ? 13 : 0);
+  if (pres) {
+    const hs = new Biquad(sr, 'highshelf', 1800, 0.7, pres);
+    const pk = new Biquad(sr, 'peak', 3200, 1.2, pres * 0.35);
+    for (let i = 0; i < n; i++) out[i] = pk.process(hs.process(out[i]));
   }
   if (!Number.isFinite(out[0])) out.fill(0);
   return out;

@@ -90,7 +90,7 @@ class Mirror {
     this.w = w;
     this.h = h;
     this.convex = opts.convex ?? 1;
-    this.far = opts.far ?? 160;
+    this.far = opts.far ?? 90;
     this.camera = new THREE.PerspectiveCamera();
     this.camera.matrixAutoUpdate = true;
     this.camera.layers.set(LAYERS.DEFAULT);
@@ -177,8 +177,8 @@ export class MirrorSystem {
       this.byId[id] = m;
     };
     add('mirror_rear', mounts.rear, { convex: 1, dirt: 0.35, round: 0.4 });
-    add('mirror_left', mounts.left, { convex: 0.55, dirt: 0.75, round: 0.35 });
-    add('mirror_right', mounts.right, { convex: 0.6, dirt: 0.7, round: 0.35 });
+    add('mirror_left', mounts.left, { convex: 0.55, dirt: 0.75, round: 0.35, far: 60 });
+    add('mirror_right', mounts.right, { convex: 0.6, dirt: 0.7, round: 0.35, far: 60 });
     this.rr = 0;
     this.enabled = true;
     this.hide = []; // objects hidden during mirror renders (e.g. glass in fallback mode)

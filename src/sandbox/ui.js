@@ -245,12 +245,34 @@ export default async function ({ params, saves }) {
       c.width = 1024;
       c.height = 1408;
       const t0 = performance.now();
+      const notesLevel = Number(params.get('notes') || 0);
+      const N = window.__game?.narrative || null;
+      void N;
+      const PN = {
+        r1: { th: 'ขับผ่าน = ถนนพับกลับมาที่เดิม', en: 'drove past = road folds back' },
+        r3: { th: 'ใช้กระจกได้ หันไม่ได้', en: 'mirrors OK. turning NOT' },
+        r4: { th: 'ดูกระจกก่อนทุกครั้ง', en: 'check the mirror first. always' },
+        r5: { th: 'เหยียบไว้ ห้ามแตะเบรก', en: 'keep your foot down. no brakes' },
+        r6: { th: 'เด็กขอ...ปิดเลย', en: 'the kid asked... just turn it off' },
+        r7: { th: 'เสียงเหมือนแม่ แต่ไม่ใช่แม่', en: "sounds like Mum. it isn't." },
+        r8: { th: 'กำพระแน่น ๆ หายใจช้า ๆ', en: 'grip the amulet. breathe slow' },
+        r9: { th: 'มืดก็ปล่อยให้มืด', en: 'if it goes dark, let it' },
+        r10: { th: 'ปี๊น ปี๊น — เจ้าที่ใจดีขึ้น', en: 'beep beep. the spirits ease off' },
+        hidden: { th: 'ข้อสาม... ไม่มีข้อยกเว้น', en: 'rule 3... no exceptions' },
+        'p:sri': { th: 'ป้าศรี = คน (หายใจขึ้นกระจก)', en: 'Auntie Sri = human (breath on glass)' },
+        'p:womanWhite': { th: 'ชุดขาว = ไม่มีเงา ห้ามมอง!', en: "white dress = no reflection. DON'T LOOK" },
+        'p:piak': { th: 'ลุงขี้เมา = คน แค่น่ากลัว', en: 'drunk uncle = human. just scary' },
+        'p:boyM': { th: 'เด็กนักเรียน = มีแต่ในกระจก', en: 'schoolboy = ONLY in the mirror' },
+        'p:nuan': { th: 'ชุดเขียว = เท้าไม่แตะพื้น', en: "green sabai = feet don't touch the floor" },
+        'p:monk': { th: 'หลวงพี่ = คน ขอเปิดวิทยุได้', en: 'monk = human. radio ON is fine' },
+      };
+      const keys = Object.keys(PN);
+      const pick = notesLevel >= 2 ? keys : notesLevel === 1 ? ['r3', 'r5', 'r7', 'p:sri', 'p:womanWhite'] : [];
+      const annotations = Object.fromEntries(pick.map((k) => [k, PN[k]]));
       ui.drawRulesPaper(c.getContext('2d'), 1024, 1408, {
         hiddenLine: params.get('hidden') === '1',
-        revealed: params.get('notes') === '1' ? ['r1', 'r3', 'r5', 'r6'] : [],
-        annotations: params.get('notes') === '1'
-          ? { r4: 'ผู้หญิงชุดขาว! อย่ามองหน้า', r5: 'เคาะ 3 ที ลุงหลับอยู่', r2: 'ข้างหลังซ้าย = ไม่มีเงา', woman_white: 'ชุดขาว = ผี (โรงพยาบาลปิดไป 20 ปีแล้ว)', boy_m: 'น้องเอ็ม มีแค่ในกระจก → ซ้าย' }
-          : {},
+        revealed: notesLevel ? ['r1', 'r3', 'r5', 'r6', 'r7'] : [],
+        annotations,
       });
       console.log('[ui sandbox] rules paper drawn in', Math.round(performance.now() - t0), 'ms');
       window.__paperMs = Math.round(performance.now() - t0);

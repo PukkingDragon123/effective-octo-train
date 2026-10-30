@@ -455,15 +455,26 @@ export function normalize(a, target = 0.89) {
   if (p > 1e-9) scale(a, target / p);
   return a;
 }
-/** Remove NaN/Inf and DC; returns a. */
-export function sanitize(a) {
-  let dc = 0;
-  for (let i = 0; i < a.length; i++) {
-    if (!Number.isFinite(a[i])) a[i] = 0;
-    dc += a[i];
+/** Remove NaN/Inf and DC (one-pole DC blocker ~6 Hz, run twice for loops so the state wraps); returns a. */
+export function sanitize(a, loop = false) {
+  for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) a[i] = 0;
+  const R = 0.9988;
+  let x1 = 0, y1 = 0;
+  if (loop) {
+    // prime the filter state with the buffer itself so the wrap point stays continuous
+    for (let i = 0; i < a.length; i++) {
+      const y = a[i] - x1 + R * y1;
+      x1 = a[i];
+      y1 = y;
+    }
   }
-  dc /= a.length || 1;
-  if (Math.abs(dc) > 1e-4) for (let i = 0; i < a.length; i++) a[i] -= dc;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = x - x1 + R * y1;
+    x1 = x;
+    y1 = y;
+    a[i] = y;
+  }
   return a;
 }
 export function fadeIn(a, sr, sec) {

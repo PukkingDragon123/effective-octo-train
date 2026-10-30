@@ -20,14 +20,21 @@ export class Crosshair {
       this.icon,
       this.label);
     ui.layer.appendChild(this.el);
-    this.visible = false;
+    this.visible = true; // what the game asked for (setCrosshair)
     this.target = null;
     this._icon = null;
+    this.apply();
   }
 
   setVisible(v) {
     this.visible = !!v;
-    this.el.classList.toggle('is-hidden', !this.visible);
+    this.apply();
+  }
+
+  /** Effective visibility: hidden under menus and full-screen cards whatever the game asked. */
+  apply() {
+    const blocked = this.ui.modalOpen || this.ui._fullscreenCards() > 0;
+    this.el.classList.toggle('is-hidden', !this.visible || blocked);
   }
 
   /** t = {id, labelEN, labelTH, icon} | null */

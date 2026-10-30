@@ -16,13 +16,13 @@ export function genWaterRipple(S = 512) {
   const rng = makeRng(4000);
   const H = fbm(w, h, { cells: 4, octaves: 4, seed: 4001 });
   for (let i = 0; i < n; i++) H[i] *= 0.15;
-  const rings = Math.round(90 * k * k);
+  const rings = Math.round(70 * k * k);
   for (let c = 0; c < rings; c++) {
     const cx = rng() * w, cy = rng() * h;
-    const R = (8 + rng() * 34) * k;
+    const R = (12 + rng() * 40) * k;
     const age = rng();
-    const amp = 0.5 * (1 - age);
-    const wl = (4 + rng() * 3) * k;
+    const amp = 0.9 * (1 - age * 0.8);
+    const wl = (5 + rng() * 4) * k;
     for (let y = Math.floor(cy - R); y <= cy + R; y++) {
       const wy = ((y % h) + h) % h;
       for (let x = Math.floor(cx - R); x <= cx + R; x++) {
@@ -35,7 +35,7 @@ export function genWaterRipple(S = 512) {
     }
   }
   return {
-    water_ripple: dataOut(normalMap(H, w, h, 2.2), w, h),
+    water_ripple: dataOut(normalMap(H, w, h, 5), w, h),
     water_ripple_height: dataOut(packBytes(w, h, field(n, (i) => H[i] * 0.5 + 0.5), null, null, null), w, h),
   };
 }

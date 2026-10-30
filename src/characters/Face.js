@@ -140,7 +140,7 @@ export function paintFace(ctx, size = 1024) {
     }
   }
   // ---- lips
-  const lipC = P.fem ? mix(skin, [0.72, 0.3, 0.3], 0.5) : mix(skin, [0.62, 0.32, 0.3], 0.38);
+  const lipC = P.fem ? mix(skin, [0.7, 0.28, 0.3], 0.55) : mix(skin, [0.6, 0.3, 0.28], 0.45);
   const lipC2 = ghost.pale ? mix(lipC, [0.55, 0.55, 0.6], ghost.pale * 0.8) : lipC;
   const cx = F.cornerX, my = F.mouthY, mz = F.mouthZ;
   const lipPath = (upper) => {
@@ -197,19 +197,19 @@ export function paintFace(ctx, size = 1024) {
   const browC = mix(hairC, [0.08, 0.06, 0.05], age > 70 ? 0.2 : 0.6);
   if (!monk) {
     for (const sg of [-1, 1]) {
-      const n = male ? 70 : 45;
+      const n = male ? 120 : 70;
       for (let i = 0; i < n; i++) {
         const t = rng();
         const x = sg * lerp(0.009, 0.052, t) * hs;
         const arch = Math.sin(t * Math.PI * 0.9) * 0.004 * hs * (P.fem ? 1.4 : 1);
-        const thick = (male ? 0.0042 : 0.0026) * hs * (1 - t * 0.55);
-        const y = F.browY + 0.004 * hs + arch + (rng() - 0.5) * thick;
+        const thick = (male ? 0.0058 : 0.0032) * hs * (1 - t * 0.6);
+        const y = F.browY - 0.0015 * hs + arch + (rng() - 0.5) * thick;
         const z = fz(x, y) - 0.002;
         const [ax, ay] = px(x, y, z);
         const len = S(0.005 * hs) * (0.6 + rng() * 0.6);
         const ang = (sg > 0 ? -0.35 - t * 0.6 : Math.PI + 0.35 + t * 0.6);
         g.strokeStyle = css(mul(browC, 0.8 + rng() * 0.4), 0.45 + rng() * 0.3);
-        g.lineWidth = Math.max(1, S(0.0007 * hs));
+        g.lineWidth = Math.max(1.2, S(0.0008 * hs));
         g.beginPath();
         g.moveTo(ax, ay);
         g.lineTo(ax + Math.cos(ang) * len, ay - Math.sin(ang) * len * 0.5);
@@ -320,6 +320,8 @@ export function paintFace(ctx, size = 1024) {
     g.closePath();
     g.fill();
     g.filter = 'none';
+    g.save();
+    g.clip();
     // hair strand strokes on the scalp
     if (!shaved) {
       for (let i = 0; i < 1400; i++) {
@@ -341,6 +343,7 @@ export function paintFace(ctx, size = 1024) {
       }
       g.globalAlpha = 1;
     }
+    g.restore();
   }
   // ---- ghost layers
   if (ghost.pale) {

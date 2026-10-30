@@ -3,6 +3,7 @@
 // game can reset the scene (21:00, the garage) underneath.
 import { h, sleep, enter } from './dom.js';
 import { screen } from './common.js';
+import * as NARRATIVE from '../game/data/index.js';
 
 export class DeathCard {
   constructor(ui) {
@@ -13,7 +14,7 @@ export class DeathCard {
   /** d {th, en, sub?: {th,en} | false, hold?: seconds text stays (default 4.2), keepBlack?: bool} */
   async show(d = {}) {
     if (this.el) this.el.remove();
-    const sub = d.sub === false ? null : d.sub || { th: 'คืนนี้ยังไม่จบ', en: 'the night begins again' };
+    const sub = d.sub === false ? null : d.sub || NARRATIVE.DEATH_FOOTER || { th: 'สามทุ่ม · อู่ กม.9', en: '21:00 · KM 9 Garage' };
     const el = screen('dlb-death',
       h('div', { class: 'dlb-death__bg' }),
       h('div', { class: 'dlb-death__veins' }),
@@ -25,6 +26,7 @@ export class DeathCard {
     this.el = el;
     this.ui.layer.appendChild(el);
     this.ui._grain(+1, 'death');
+    this.ui._refreshXhair?.();
     await enter(el); // opacity 0 -> 1 over 2.6 s (red-black bleed)
     await sleep(1500);
     el.classList.add('is-text');
@@ -40,6 +42,7 @@ export class DeathCard {
         setTimeout(() => {
           el.remove();
           if (this.el === el) this.el = null;
+          this.ui._refreshXhair?.();
         }, 1700);
       }, 450);
     }
@@ -54,6 +57,7 @@ export class DeathCard {
     setTimeout(() => {
       el.remove();
       if (this.el === el) this.el = null;
+      this.ui._refreshXhair?.();
     }, secs * 1000 + 100);
   }
 }

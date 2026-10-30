@@ -41,8 +41,8 @@ const TYPES = {
       vec3 jit = vec3(sin(t * 7.0 + aSeed2.x * 30.0), sin(t * 9.0 + aSeed2.y * 30.0), cos(t * 8.0 + aSeed2.z * 30.0)) * 0.12;
       wp = uOrigin + vec3(cos(a) * r, (aSeed2.w - 0.5) * uHeight + sin(t * 1.3 + aSeed.x * 9.0) * 0.25, sin(a) * r) + jit;
       float flap = abs(sin(t * 26.0 + aSeed.y * 50.0));
-      vec3 lit = dlbAmbient * 1.5 + uColor * uIntensity * 0.6 / (1.0 + dot(wp - uOrigin, wp - uOrigin)) + dlbLampLightAt(wp) * 0.2 + dlbHeadlightColor * dlbHeadlightAt(wp) * 0.4;
-      col = vec4(vec3(0.85, 0.78, 0.62) * lit, 0.92);
+      vec3 lit = pAmbient(wp) + uColor * uIntensity * 0.25 / (1.0 + 4.0 * dot(wp - uOrigin, wp - uOrigin)) + pDirect(wp);
+      col = vec4(vec3(0.85, 0.78, 0.62) * lit, 0.95);
       size = 0.05 + aSeed2.x * 0.03;
       rot = a;
       misc.x = flap;
@@ -55,8 +55,8 @@ const TYPES = {
       vec3 c = vec3(sin(t * 0.3 + aSeed.x * 6.0), sin(t * 0.21 + aSeed.y * 6.0) * 0.5, cos(t * 0.27 + aSeed.z * 6.0)) * uRadius;
       vec3 jit = vec3(sin(t * 13.0 + aSeed2.x * 40.0), sin(t * 11.0 + aSeed2.y * 40.0), sin(t * 17.0 + aSeed2.z * 40.0)) * 0.14;
       wp = uOrigin + c * (0.4 + aSeed.w * 0.6) + jit + vec3(0.0, uHeight, 0.0);
-      vec3 lit = dlbAmbient + dlbHeadlightColor * dlbHeadlightAt(wp) * 0.6 + dlbLampLightAt(wp) * 0.15;
-      col = vec4(vec3(0.08, 0.07, 0.06) + lit * 0.3, 0.85);
+      vec3 lit = pAmbient(wp) * 0.3 + pDirect(wp) * 0.4;
+      col = vec4(vec3(0.02, 0.018, 0.015) + lit * 0.4, 0.9);
       size = 0.012;
       shape = 0.0;
     `,
@@ -72,13 +72,13 @@ const TYPES = {
       wp = (uFrame * vec4(loc, 1.0)).xyz;
       vel = mat3(uFrame) * vec3(cos(t * 1.1 + aSeed2.y * 40.0), cos(t * 1.7 + aSeed2.w * 40.0) * 0.6, -sin(t * 0.9 + aSeed.w * 30.0)) * 1.3;
       float hl = dlbHeadlightAt(wp);
-      col = vec4(uColor * (hl * 3.0 + 0.02) * uIntensity, 1.0);
+      col = vec4(uColor * (hl * 18.0 + 0.02) * uIntensity, 1.0);
       size = 0.012 + aSeed2.z * 0.01;
       shape = 0.0;
     `,
   },
   rain: {
-    count: 2600, radius: 9, height: 8, blending: NORMAL, mode: STREAK, minPx: 0.9, color: 0xc8d4dc, cameraCentred: true, streak: 0.042,
+    count: 3200, radius: 10, height: 8, blending: NORMAL, mode: STREAK, minPx: 0.9, color: 0xc8d4dc, cameraCentred: true, streak: 0.042, lead: 0.55,
     intensityUniform: 'uRain',
     body: /* glsl */ `
       float speed = 8.5 + aSeed2.x * 3.0;
@@ -93,16 +93,16 @@ const TYPES = {
       rel.xz = mod(rel.xz, box.xz) - box.xz * 0.5;
       wp = vec3(uOrigin.x + rel.x, uOrigin.y - H * 0.35 + p0.y, uOrigin.z + rel.z);
       vel = vec3(wind.x, -speed, wind.y);
-      vec3 lit = dlbAmbient * 2.5 + dlbFogColor * 1.5 + dlbHeadlightColor * dlbHeadlightAt(wp) * 14.0 + dlbLampLightAt(wp) * 1.6 + dlbFlash * vec3(0.15);
+      vec3 lit = pAmbient(wp) * 1.4 + pDirect(wp) * 2.2 + dlbFlash * vec3(0.15);
       float dc = length(wp - cameraPosition);
       float fade = smoothstep(0.4, 1.6, dc) * (1.0 - smoothstep(uRadius * 0.6, uRadius, length(rel.xz)));
-      col = vec4(uColor * lit, (0.16 + aSeed2.y * 0.14) * fade);
+      col = vec4(uColor * lit, (0.22 + aSeed2.y * 0.2) * fade);
       size = 0.006 + aSeed2.z * 0.004;
       shape = 2.0;
     `,
   },
   splash: {
-    count: 500, radius: 10, height: 0, blending: NORMAL, mode: BILLBOARD, minPx: 1.0, color: 0xc8d4dc, cameraCentred: true, ground: true,
+    count: 500, radius: 9, height: 0, blending: NORMAL, mode: BILLBOARD, minPx: 1.0, color: 0xc8d4dc, cameraCentred: true, ground: true, lead: 0.6,
     intensityUniform: 'uRain',
     body: /* glsl */ `
       float life = 0.32 + aSeed2.x * 0.2;
@@ -111,7 +111,7 @@ const TYPES = {
       float age = fract(cyc);
       vec2 rp = vec2(dlbHash12(vec2(id, aSeed.x * 91.0)), dlbHash12(vec2(aSeed.z * 77.0, id))) * 2.0 - 1.0;
       wp = vec3(uOrigin.x + rp.x * uRadius, uGround + 0.04 + age * 0.06, uOrigin.z + rp.y * uRadius);
-      vec3 lit = dlbAmbient * 2.0 + dlbHeadlightColor * dlbHeadlightAt(wp) * 2.0 + dlbLampLightAt(wp) * 0.6;
+      vec3 lit = pAmbient(wp) * 1.2 + pDirect(wp) * 1.5;
       col = vec4(uColor * lit, (1.0 - age) * (1.0 - age) * 0.35 * smoothstep(1.0, 3.0, length(wp - cameraPosition)));
       size = 0.02 + age * 0.05;
       misc.x = age;
@@ -119,7 +119,7 @@ const TYPES = {
     `,
   },
   dust: {
-    count: 520, radius: 9, height: 4, blending: ADD, mode: BILLBOARD, minPx: 1.1, color: 0xfff2dc, cameraCentred: true,
+    count: 520, radius: 9, height: 4, blending: ADD, mode: BILLBOARD, minPx: 1.1, color: 0xfff2dc, cameraCentred: true, lead: 0.6,
     body: /* glsl */ `
       vec3 box = vec3(uRadius * 2.0, uHeight, uRadius * 2.0);
       vec3 drift = vec3(uWindV.x, 0.03, uWindV.y) * t * 0.35 + vec3(sin(t * 0.3 + aSeed2.x * 20.0), sin(t * 0.23 + aSeed2.y * 20.0), cos(t * 0.27 + aSeed2.z * 20.0)) * 0.35;
@@ -129,7 +129,7 @@ const TYPES = {
       wp = uOrigin + rel;
       wp.y = uOrigin.y + rel.y + 0.2;
       float hl = dlbHeadlightAt(wp);
-      vec3 lit = dlbHeadlightColor * hl * 1.6 + dlbLampLightAt(wp) * 0.4;
+      vec3 lit = dlbHeadlightColor * hl * 8.0 + dlbLampLightAt(wp) * 0.8;
       float tw = 0.6 + 0.4 * sin(t * (2.0 + aSeed2.w * 4.0) + aSeed.w * 30.0);
       col = vec4(uColor * lit * tw * uIntensity * 0.9, 1.0);
       size = 0.008 + aSeed2.z * 0.008;
@@ -137,7 +137,7 @@ const TYPES = {
     `,
   },
   pollen: {
-    count: 260, radius: 9, height: 3.5, blending: ADD, mode: BILLBOARD, minPx: 1.3, color: 0xfff0a8, cameraCentred: true,
+    count: 260, radius: 9, height: 3.5, blending: ADD, mode: BILLBOARD, minPx: 1.3, color: 0xfff0a8, cameraCentred: true, lead: 0.5,
     body: /* glsl */ `
       vec3 box = vec3(uRadius * 2.0, uHeight, uRadius * 2.0);
       vec3 drift = vec3(uWindV.x, 0.05, uWindV.y) * t * 0.5 + vec3(sin(t * 0.4 + aSeed2.x * 20.0), sin(t * 0.33 + aSeed2.y * 20.0), cos(t * 0.37 + aSeed2.z * 20.0)) * 0.5;
@@ -145,7 +145,7 @@ const TYPES = {
       rel = mod(rel, box) - box * 0.5;
       wp = uOrigin + rel;
       wp.y = uOrigin.y + rel.y + 0.4;
-      vec3 lit = dlbHeadlightColor * dlbHeadlightAt(wp) * 1.4 + dlbLampLightAt(wp) * 0.5 + dlbAmbient * 0.8 + dlbSunScatter * 2.0;
+      vec3 lit = pDirect(wp) * 1.3 + dlbAmbient * 0.8 + dlbSunScatter * 2.0;
       col = vec4(uColor * lit * uIntensity, 1.0);
       size = 0.012 + aSeed2.z * 0.012;
       shape = 0.0;
@@ -165,7 +165,7 @@ const TYPES = {
       size = 0.07 + aSeed2.z * 0.05;
       vec3 tint = mix(vec3(0.42, 0.33, 0.14), vec3(0.25, 0.33, 0.12), aSeed2.y);
       tint = mix(tint, vec3(0.5, 0.22, 0.1), step(0.82, aSeed2.w));
-      vec3 lit = dlbAmbient * 2.5 + dlbHeadlightColor * dlbHeadlightAt(wp) * 1.4 + dlbLampLightAt(wp) * 0.4 + dlbSunScatter * 3.0;
+      vec3 lit = pAmbient(wp) * 1.2 + pDirect(wp) + dlbSunScatter * 3.0;
       col = vec4(tint * uColor * 2.2 * lit, smoothstep(0.0, 0.05, ph) * (1.0 - smoothstep(0.95, 1.0, ph)));
       shape = 4.0;
     `,
@@ -180,8 +180,8 @@ const TYPES = {
       wp = uOrigin + vec3((aSeed.x - 0.5) * uRadius, hgt, (aSeed.z - 0.5) * uRadius) + curl + vec3(uWindV.x, 0.0, uWindV.y) * hgt * 0.6;
       size = 0.025 + age * 0.32;
       rot = aSeed2.z * 6.28 + t * 0.2 * (aSeed2.w - 0.5);
-      vec3 lit = dlbAmbient * 3.0 + dlbLampLightAt(wp) * 0.6 + dlbHeadlightColor * dlbHeadlightAt(wp) * 0.8;
-      col = vec4(uColor * lit, smoothstep(0.0, 0.08, age) * (1.0 - age) * (1.0 - age) * 0.32 * uIntensity);
+      vec3 lit = pAmbient(wp) * 1.5 + pDirect(wp) * 0.8;
+      col = vec4(uColor * lit, smoothstep(0.0, 0.08, age) * (1.0 - age) * (1.0 - age) * 0.55 * uIntensity);
       misc.x = aSeed2.y;
       shape = 5.0;
     `,
@@ -196,8 +196,8 @@ const TYPES = {
       wp = uOrigin + vec3((aSeed.x - 0.5) * uRadius, hgt, (aSeed.z - 0.5) * uRadius) + curl + vec3(uWindV.x, 0.0, uWindV.y) * hgt;
       size = 0.04 + age * 0.45;
       rot = aSeed2.z * 6.28 + t * 0.3 * (aSeed2.w - 0.5);
-      vec3 lit = dlbAmbient * 3.0 + dlbLampLightAt(wp) * 0.6 + dlbHeadlightColor * dlbHeadlightAt(wp) * 0.8;
-      col = vec4(uColor * lit, smoothstep(0.0, 0.05, age) * (1.0 - age) * 0.28 * uIntensity);
+      vec3 lit = pAmbient(wp) * 1.4 + pDirect(wp) * 0.8;
+      col = vec4(uColor * lit, smoothstep(0.0, 0.05, age) * (1.0 - age) * 0.45 * uIntensity);
       misc.x = aSeed2.y;
       shape = 5.0;
     `,
@@ -229,8 +229,8 @@ const TYPES = {
       vec3 wob = vec3(sin(t * 2.0 + aSeed.x * 20.0), 0.0, cos(t * 1.7 + aSeed.z * 20.0)) * 0.15 * age;
       wp = uOrigin + vec3((aSeed.x - 0.5) * uRadius, hgt, (aSeed.z - 0.5) * uRadius) + wob + vec3(uWindV.x, 0.0, uWindV.y) * hgt * 0.8;
       float fl = 0.6 + 0.4 * sin(t * 13.0 + aSeed2.y * 30.0);
-      col = vec4(uColor * (2.5 * (1.0 - age) * fl) * uIntensity, 1.0);
-      size = 0.012 + aSeed2.z * 0.01;
+      col = vec4(uColor * (7.0 * (1.0 - age) * fl) * uIntensity, 1.0);
+      size = 0.016 + aSeed2.z * 0.012;
       shape = 0.0;
     `,
   },
@@ -244,7 +244,7 @@ const TYPES = {
       rot = t * (1.0 + aSeed2.w * 2.0) + aSeed.w * 6.28;
       misc.y = t * (0.6 + aSeed2.x) + aSeed2.y * 6.28;
       size = 0.012 + aSeed2.z * 0.012;
-      vec3 lit = dlbAmbient * 3.0 + dlbLampLightAt(wp) * 0.5 + dlbHeadlightColor * dlbHeadlightAt(wp);
+      vec3 lit = pAmbient(wp) * 1.3 + pDirect(wp);
       col = vec4(uColor * lit, smoothstep(0.0, 0.05, ph) * (1.0 - smoothstep(0.9, 1.0, ph)) * 0.9);
       shape = 6.0;
     `,
@@ -260,8 +260,8 @@ const TYPES = {
       if (-y > uHeight) alive = 0.0;
       wp = uOrigin + vec3((aSeed.x * 2.0 - 1.0) * uRadius, y, (aSeed.z * 2.0 - 1.0) * uRadius * 0.15);
       vel = vec3(0.0, -9.8 * ft - 0.3, 0.0);
-      vec3 lit = dlbAmbient * 2.5 + dlbHeadlightColor * dlbHeadlightAt(wp) * 2.0 + dlbLampLightAt(wp) * 0.8;
-      col = vec4(uColor * lit, 0.55);
+      vec3 lit = pAmbient(wp) * 1.4 + pDirect(wp) * 2.0;
+      col = vec4(uColor * lit, 0.6);
       size = 0.01 + (tt < hang ? tt / hang * 0.008 : 0.006);
       shape = 2.0;
     `,
@@ -278,7 +278,7 @@ const TYPES = {
       rot = aSeed2.z * 6.28 + t * 0.03 * (aSeed2.w - 0.5);
       float dc = length(wp - cameraPosition);
       float fade = smoothstep(1.5, 6.0, dc) * (1.0 - smoothstep(uRadius * 0.55, uRadius, length(rel)));
-      vec3 lit = dlbFogTint(normalize(wp - cameraPosition)) * 1.25 + dlbAmbient * 0.25 + dlbHeadlightColor * dlbHeadlightAt(wp) * 0.5 + dlbLampLightAt(wp) * 0.5;
+      vec3 lit = dlbFogTint(normalize(wp - cameraPosition)) * 1.3 + dlbAmbient * 0.25 + pDirect(wp) * 0.6;
       col = vec4(lit * uColor, (0.05 + aSeed2.y * 0.05) * fade * uIntensity);
       misc.x = aSeed2.y;
       shape = 7.0;
@@ -313,6 +313,8 @@ varying vec2 vUv;
 varying vec4 vCol;
 varying vec4 vMisc;
 varying float vShape;
+vec3 pAmbient(vec3 p) { return dlbAmbient * 1.6 + dlbFogTint(normalize(p - cameraPosition)) * 0.9; }
+vec3 pDirect(vec3 p) { return dlbHeadlightColor * dlbHeadlightAt(p) * 6.0 + dlbLampLightAt(p) * 1.2; }
 void main() {
   float t = dlbTime;
   vec3 wp = uOrigin;
@@ -323,7 +325,9 @@ void main() {
   vec4 misc = vec4(0.0);
   float alive = 1.0;
   float shape = 0.0;
+  {
   ${def.body}
+  }
   if (aSeed2.w * 0.0 + fract(aSeed.w * 7.31 + aSeed.x * 3.17) > uCountFrac || alive <= 0.0 || uActive <= 0.001) {
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
     return;
@@ -505,7 +509,13 @@ class Emitter {
       u.uFrame.value.copy(this.follow.matrixWorld);
       if (this.offset.lengthSq() > 0) u.uFrame.value.multiply(_m.makeTranslation(this.offset.x, this.offset.y, this.offset.z));
     } else if (this.cameraCentred) {
-      this.position.copy(camera.position);
+      // centre the volume a little ahead of the camera so more of it is in view
+      camera.getWorldDirection(_fwd);
+      _fwd.y = 0;
+      const lead = this.def.lead ?? 0;
+      if (lead > 0 && _fwd.lengthSq() > 1e-6) _fwd.normalize().multiplyScalar(lead * this.uniforms.uRadius.value);
+      else _fwd.set(0, 0, 0);
+      this.position.copy(camera.position).add(_fwd);
     }
     u.uOrigin.value.copy(this.position);
     if (!this.follow) u.uFrame.value.makeTranslation(this.position.x, this.position.y, this.position.z);
@@ -530,6 +540,7 @@ class Emitter {
   }
 }
 const _m = new THREE.Matrix4();
+const _fwd = new THREE.Vector3();
 
 class Particles {
   constructor() {

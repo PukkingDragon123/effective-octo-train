@@ -19,7 +19,6 @@ import { setupPortalCamera } from './Mirrors.js';
 import { FONTS } from '../ui/fonts.js';
 
 const GLASS_VERT = /* glsl */ `
-attribute vec2 uv1;
 varying vec2 vUv;
 varying vec2 vM;
 varying vec3 vWP;
@@ -715,10 +714,12 @@ export class GlassSystem {
     const prevRT = renderer.getRenderTarget();
     const prevAuto = renderer.shadowMap.autoUpdate;
     renderer.shadowMap.autoUpdate = false;
+    for (const id of this.ids) this.panes[id].mesh.visible = false;
     renderer.setRenderTarget(this.reflectRT);
     renderer.clear();
     renderer.render(scene, this.reflectCam);
     renderer.setRenderTarget(prevRT);
+    for (const id of this.ids) this.panes[id].mesh.visible = true;
     renderer.shadowMap.autoUpdate = prevAuto;
   }
   dispose() {

@@ -1,7 +1,7 @@
 // Ride 5 — 01:00 — คุณนวล Khun Nuan (GHOST, นางตานี, no reflection, feet float → LEFT).
 // Surreal and calm. She speaks old-fashioned Thai (จ้ะ/จ๊ะ, พ่อหนุ่ม, เกวียน). Krasue drifts
 // through the banana trees; a voice outside calls Ton's name (rule 7) and she warns him.
-import { P, Y, T, S } from '../lines.js';
+import { P, Y, T } from '../lines.js';
 
 export const RIDE_NUAN = {
   id: 'nuan',
