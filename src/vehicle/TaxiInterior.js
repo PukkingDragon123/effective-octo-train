@@ -1048,18 +1048,19 @@ function headlinerHeightFn(ext) {
 
 function buildHeadlinerSag(group, ext, m) {
   const height = headlinerHeightFn(ext);
-  const W = 1.0, D = 0.6, cz = 0.72;
-  const pins = [[-0.42, 0.47], [0.12, 0.45], [0.44, 0.62], [-0.18, 0.98], [0.38, 0.97]];
+  const W = 1.0, D = 0.56, cz = 0.8;
+  const pins = [[-0.42, 0.56], [0.12, 0.54], [0.44, 0.7], [-0.18, 1.04], [0.38, 1.03]];
   const g = new THREE.PlaneGeometry(W, D, 20, 12);
   g.rotateX(Math.PI / 2); // faces down into the cabin; plane y -> z
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), z = p.getZ(i) + cz;
-    const u = x / W + 0.5, v = (z - (cz - D / 2)) / D;
+    const u = clamp(x / W + 0.5, 0, 1), v = clamp((z - (cz - D / 2)) / D, 0, 1);
+    const su = Math.max(0, Math.sin(Math.PI * u)), sv = Math.max(0, Math.sin(Math.PI * v));
     // a tired belly: deepest behind the middle, bubbly where the foam backing crumbled
-    let sag = 0.07 * Math.pow(Math.sin(Math.PI * u), 0.7) * Math.pow(Math.sin(Math.PI * v), 0.9);
+    let sag = 0.07 * Math.pow(su, 0.7) * Math.pow(sv, 0.9);
     sag *= 0.75 + 0.35 * (noise.noise2D(x * 6.0 + 3.1, z * 6.0) * 0.5 + 0.5);
-    sag += 0.006 * noise.noise2D(x * 22, z * 22) * Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
+    sag += 0.006 * noise.noise2D(x * 22, z * 22) * su * sv;
     for (const [px, pz] of pins) {
       const d2 = ((x - px) ** 2 + (z - pz) ** 2) / 0.0045;
       sag *= 1 - Math.exp(-d2) * 0.92;

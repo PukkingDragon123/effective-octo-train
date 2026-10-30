@@ -315,8 +315,8 @@ export default async function ({ engine, cameraRig, params, settings }) {
   // --- headlights ("taxi" just ahead of the camera) --------------------------------------------------
   const carZ = 8;
   const hlPos = new THREE.Vector3(roadX(carZ) - 1.5, 0.68, carZ - 3.35);
-  const look = new THREE.Vector3(roadX(carZ - 30) - 1.4, -2.2, carZ - 30);
-  const spot = new THREE.SpotLight(0xfff0d8, headlights ? 900 : 0, 70, 0.6, 0.85, 2);
+  const look = new THREE.Vector3(roadX(carZ - 30) - 1.4, -1.3, carZ - 30);
+  const spot = new THREE.SpotLight(0xfff0d8, headlights ? 1100 : 0, 75, 0.72, 1.0, 2);
   spot.position.copy(hlPos);
   spot.target.position.copy(look);
   spot.castShadow = true;

@@ -4,7 +4,7 @@
 import { makeRng } from '../core/math.js';
 import { fbm, worley, blur, crack, line, disc, warp, cellTable, upsample, facets } from './noise.js';
 import {
-  Img, ramp, gradientMap, strokes, shade, normalMap, grayBytes, colorOut, dataOut, tint, modulate, sstep, rgb, streaks, adjust,
+  Img, ramp, gradientMap, strokes, shade, normalMap, grayBytes, colorOut, dataOut, tint, modulate, sstep, rgb, streaks, adjust, smask, field, organic, quantile,
 } from './painter.js';
 
 const TAU = Math.PI * 2;
@@ -44,134 +44,109 @@ function patches(w, h, rng, count, sizeLo, sizeHi, edgeNoise, seed) {
 }
 
 // ---------------------------------------------------------------------------
-// ASPHALT — old, cracked, patched Thai rural road: worn grey binder, exposed aggregate,
-// tar-snake sealant, alligator cracking, oil, dust. (~6 m per tile works well.)
+// ASPHALT — surface material of an old Thai rural road (the world maps one tile to ~3.2 m and
+// draws the large-scale cracks, patches, potholes, ruts and markings in its own shader, so
+// this tile only carries what repeats well): fine weathered binder, exposed aggregate chips at
+// a believable 0.5–2 cm scale, ravelled voids, faint hairline crazing, dust in the low spots,
+// soft tonal drift and stippled brushwork.
 // ---------------------------------------------------------------------------
 export function genAsphalt(S = 1024) {
   const w = S, h = S, n = w * h, k = S / 1024;
   const rng = makeRng(101);
   const low = fbm(w, h, { cells: 3, octaves: 4, seed: 11 });
-  const mid = fbm(w, h, { cells: 12, octaves: 3, seed: 12 });
-  const grain = fbm(w, h, { cells: 180, octaves: 1, seed: 13 });
-  const ag = worley(w, h, { cells: Math.round(S / 9), seed: 14 });
-  const nc = ag.cx * ag.cy;
-  const selT = cellTable(nc, 3), colT = cellTable(nc, 7), sizeT = cellTable(nc, 9);
-
-  const H = new Float32Array(n);
-  const stone = new Float32Array(n);
-  const wear = new Float32Array(n);
+  const mid = fbm(w, h, { cells: 10, octaves: 3, seed: 12 });
+  const grain = fbm(w, h, { cells: 256, octaves: 1, seed: 13 });
+  const wx = fbm(w, h, { cells: 64, octaves: 1, seed: 19 }), wy = fbm(w, h, { cells: 64, octaves: 1, seed: 20 });
+  // fine aggregate (~1.2 cm cells) + sparse coarse chips (~3 cm)
+  const fineW = worley(w, h, { cells: Math.round(240 * k), seed: 14 });
+  const coarse = worley(w, h, { cells: Math.round(96 * k), seed: 15 });
+  const nf = fineW.cx * fineW.cy, nc = coarse.cx * coarse.cy;
+  const fSel = cellTable(nf, 3), fCol = cellTable(nf, 7), fSize = cellTable(nf, 9);
+  const cSel = cellTable(nc, 4), cCol = cellTable(nc, 8), cSize = cellTable(nc, 10);
+  const H = new Float32Array(n), stone = new Float32Array(n), sCol = new Float32Array(n), wear = new Float32Array(n), voids = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    const c = ag.id[i];
-    const r = 0.42 + sizeT[c] * 0.4;
-    const peb = 1 - ag.f1[i] / r;
-    const wr = sstep(-0.3, 0.5, low[i] * 0.8 + mid[i] * 0.5);
+    const wr = sstep(-0.35, 0.45, low[i] * 0.7 + mid[i] * 0.6);
     wear[i] = wr;
-    const s = peb > 0 ? sstep(0.0, 0.3, peb) * (0.3 + 0.7 * wr) * (selT[c] > 0.45 ? 0.75 : 0.12) : 0;
-    stone[i] = s;
-    H[i] = 0.5 + (peb > 0 ? peb * 0.14 : 0) * (0.35 + 0.65 * wr) + grain[i] * 0.04 + mid[i] * 0.05;
+    // fine chips: irregular (edge noise), more exposed where the binder is worn
+    const ff = fineW.f1[i] + wx[i] * 0.12;
+    const fc = fineW.id[i];
+    let st = 0, col = 0, hh = 0;
+    if (fSel[fc] < 0.32 + 0.4 * wr) {
+      // angular chip: Voronoi-cell polygon shrunk by a per-chip margin, corners softened by f1
+      const e = Math.min((fineW.f2[i] - fineW.f1[i]) * 2.4 - 0.2 + fSize[fc] * 0.25 + wx[i] * 0.1, 1.1 - ff * 1.5);
+      if (e > 0) {
+        st = sstep(0.0, 0.25, e) * (0.45 + 0.55 * wr);
+        col = fCol[fc];
+        hh = Math.sqrt(e) * 0.07;
+      }
+    } else if (fSel[fc] > 0.93) {
+      // ravelled void where a chip was plucked out
+      const e = (fineW.f2[i] - fineW.f1[i]) * 2.4 - 0.35 + wx[i] * 0.1;
+      if (e > 0) voids[i] = sstep(0.0, 0.3, e) * (0.4 + 0.6 * wr);
+    }
+    const cf = coarse.f1[i] + wy[i] * 0.1;
+    const cc = coarse.id[i];
+    if (cSel[cc] < 0.22) {
+      const e = Math.min((coarse.f2[i] - coarse.f1[i]) * 2.2 - 0.32 + cSize[cc] * 0.2 + wy[i] * 0.1, 1.0 - cf * 1.6);
+      if (e > 0) {
+        const s2 = sstep(0.0, 0.2, e) * (0.55 + 0.45 * wr);
+        if (s2 > st) {
+          st = s2;
+          col = cCol[cc] + 1;
+        }
+        hh = Math.max(hh, Math.sqrt(e) * 0.1);
+      }
+    }
+    stone[i] = st;
+    sCol[i] = col;
+    H[i] = 0.5 + hh + grain[i] * 0.015 + mid[i] * 0.03 - voids[i] * 0.06;
   }
-
-  // cracks: long wandering cracks + alligator crazing in worn zones
+  // faint hairline crazing in the most worn areas (big cracks come from the road shader)
   const C = new Float32Array(n);
-  for (let c = 0; c < 6; c++) {
-    crack(C, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 90 + rng() * 110, step: 3 * k, wander: 1.35, width: (0.9 + rng() * 1.1) * k, branch: 0.1, val: 0.85, vary: 1 });
+  for (let c = 0; c < 9; c++) {
+    crack(C, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 18 + rng() * 30, step: 4 * k, wander: 1.1, width: (0.55 + rng() * 0.4) * k, branch: 0.12, val: 0.6 + rng() * 0.4, vary: 1 });
   }
-  const al = worley(w >> 1, h >> 1, { cells: 20, seed: 15 });
-  const alE = new Float32Array((w >> 1) * (h >> 1));
-  for (let i = 0; i < alE.length; i++) alE[i] = al.f2[i] - al.f1[i];
-  const alEdge = upsample(alE, w >> 1, h >> 1, w, h);
-  const alMask = fbm(w, h, { cells: 4, octaves: 3, seed: 16 });
-  for (let i = 0; i < n; i++) {
-    const m = sstep(0.05, 0.35, alMask[i] + low[i] * 0.2);
-    const e = 1 - sstep(0.0, 0.035 + 0.02 * m, alEdge[i] + grain[i] * 0.012);
-    const v = e * (0.32 + 0.6 * m);
-    if (v > C[i]) C[i] = v;
-  }
-  // tar snakes (black sealant overbands following a few cracks)
-  const T = new Float32Array(n);
-  for (let c = 0; c < 3; c++) {
-    crack(T, w, h, rng, { x: rng() * w, y: rng() * h, angle: rng() * TAU, steps: 40 + rng() * 50, step: 9 * k, wander: 0.4, width: (3.5 + rng() * 2) * k, taper: 0.999, branch: 0.03, val: 1 });
-  }
-  const P = new Float32Array(n), seam = new Float32Array(n); // (repairs are left to world-scale decals)
-  // oil / damp blotches
-  const O = new Float32Array(n);
-  for (let c = 0; c < 18; c++) disc(O, w, h, rng() * w, rng() * h, (10 + rng() * 45) * k, 0.4 + rng() * 0.6, 'max');
-  const Ob = blur(O, w, h, Math.round(8 * k), 2);
-
+  const crazeM = smask(low, -0.1, 0.4);
+  for (let i = 0; i < n; i++) C[i] *= 0.35 + 0.65 * crazeM[i];
   // --- colour
   const img = new Img(w, h);
-  const f = new Float32Array(n);
-  for (let i = 0; i < n; i++) f[i] = 0.5 + mid[i] * 0.35 + grain[i] * 0.18 + low[i] * 0.12 + wear[i] * 0.1;
-  gradientMap(img, f, [[0, '#262729'], [0.35, '#333436'], [0.6, '#3f4042'], [0.85, '#4d4c4a'], [1, '#5a5753']]);
-  // cool/warm drift (bluish fresh binder vs dusty brown)
-  modulate(img, fbm(w, h, { cells: 5, octaves: 3, seed: 18 }), 0.08, 0.07);
-  const dust = new Float32Array(n);
-  for (let i = 0; i < n; i++) dust[i] = sstep(0.1, 0.9, low[i] * 0.6 + mid[i] * 0.6) * 0.5;
-  tint(img, dust, '#625e57', 0.35);
-  // aggregate stones (per-stone colour)
-  const stoneCols = ['#66676a', '#77746e', '#868076', '#5a5c60', '#958e81', '#727678', '#7d6e60'].map(rgb);
+  gradientMap(img, field(n, (i) => 0.5 + mid[i] * 0.3 + low[i] * 0.25 + grain[i] * 0.12 + wear[i] * 0.12), [
+    [0, '#26272a'], [0.35, '#303134'], [0.6, '#3a3b3d'], [0.85, '#46464a'], [1, '#525150'],
+  ]);
+  modulate(img, fbm(w, h, { cells: 4, octaves: 3, seed: 18 }), 0.07, 0.06); // cool fresh binder vs warm dusty
+  const stoneCols = ['#5f6063', '#6d6a64', '#7c766c', '#55585c', '#8a8378', '#696d70', '#76695c', '#8e8a82', '#5a564f'].map(rgb);
   const d = img.d;
   for (let i = 0; i < n; i++) {
     const s = stone[i];
     if (s <= 0.01) continue;
-    const c = stoneCols[(colT[ag.id[i]] * stoneCols.length) | 0];
-    const lit = 0.88 + 0.2 * (1 - ag.f1[i]);
+    const ci = sCol[i];
+    const c = stoneCols[((ci % 1) * stoneCols.length) | 0];
     const j = i * 4;
-    const a = s * 0.6;
-    d[j] += (c[0] * lit - d[j]) * a;
-    d[j + 1] += (c[1] * lit - d[j + 1]) * a;
-    d[j + 2] += (c[2] * lit - d[j + 2]) * a;
+    const a = s * (ci >= 1 ? 0.75 : 0.62);
+    d[j] += (c[0] - d[j]) * a;
+    d[j + 1] += (c[1] - d[j + 1]) * a;
+    d[j + 2] += (c[2] - d[j + 2]) * a;
   }
-  // repair patches: newer, darker, finer, with a cut seam
-  const Pm = new Float32Array(n);
-  for (let i = 0; i < n; i++) Pm[i] = P[i] * 0.7;
-  tint(img, Pm, '#2b2c2e', 0.8);
-  // brushwork: stipple + broad unifying strokes
-  strokes(img, { seed: 21, len: [8 * k, 18 * k], width: [3 * k, 7 * k], opacity: 0.45, coverage: 0.55, valueJitter: 0.07, warmJitter: 0.03, bristleAmt: 0.45, height: H, heightAmt: 0.02 });
-  strokes(img, { seed: 23, len: [24 * k, 60 * k], width: [8 * k, 16 * k], opacity: 0.2, coverage: 0.45, valueJitter: 0.06, warmJitter: 0.03, bristleAmt: 0.5 });
-  strokes(img, { seed: 22, len: [80 * k, 160 * k], width: [20 * k, 40 * k], opacity: 0.08, coverage: 0.3, angle: 0, angleJitter: 0.2, valueJitter: 0.04 });
-  // oil, tar, cracks on top
-  for (let i = 0; i < n; i++) {
-    const j = i * 4;
-    const o = Ob[i] * 0.45;
-    d[j] *= 1 - o * 0.55;
-    d[j + 1] *= 1 - o * 0.52;
-    d[j + 2] *= 1 - o * 0.46;
-  }
-  const Tb = blur(T, w, h, Math.max(1, Math.round(1.5 * k)), 1);
-  const Tm = smoothMask(Tb, 0.15, 0.5);
-  tint(img, Tm, '#141516', 0.9);
-  tint(img, seam, '#1a1b1c', 0.6);
-  const Cm = smoothMask(C, 0.12, 0.75);
-  tint(img, Cm, '#18191a', 0.72);
-  // pale dust rim along cracks
-  const Ce = blur(C, w, h, Math.max(1, Math.round(3 * k)), 1);
-  for (let i = 0; i < n; i++) Ce[i] = sstep(0.04, 0.3, Ce[i]) * (1 - Cm[i]) * 0.3 * (0.4 + wear[i]);
-  tint(img, Ce, '#77705f', 1);
-
-  for (let i = 0; i < n; i++) {
-    H[i] -= C[i] * 0.2 + seam[i] * 0.05;
-    H[i] += Tm[i] * 0.025;
-    H[i] += (0.5 + grain[i] * 0.02 - H[i]) * P[i] * 0.6;
-  }
-  shade(img, H, { strength: 0.16, bump: 6 * k, ao: 0.5, aoRadius: Math.round(3 * k), edge: 0.18 });
+  tint(img, voids, '#141517', 0.75);
+  // dust settled in the low, unworn areas; faint oil darkening
+  tint(img, field(n, (i) => sstep(0.1, 0.7, -low[i] * 0.6 + mid[i] * 0.5) * 0.45), '#5c5850', 0.35);
+  tint(img, smask(fbm(w, h, { cells: 5, octaves: 4, seed: 16 }), 0.3, 0.7, 0.35), '#1c1c1e', 0.4);
+  strokes(img, { seed: 21, len: [5 * k, 12 * k], width: [2 * k, 5 * k], opacity: 0.35, coverage: 0.5, valueJitter: 0.07, warmJitter: 0.03, bristleAmt: 0.45, height: H, heightAmt: 0.012 });
+  strokes(img, { seed: 23, len: [30 * k, 80 * k], width: [10 * k, 22 * k], opacity: 0.12, coverage: 0.35, valueJitter: 0.05, warmJitter: 0.025, bristleAmt: 0.5 });
+  const Cm = smask(C, 0.1, 0.7);
+  tint(img, Cm, '#141415', 0.6);
+  const Ce = blur(C, w, h, Math.max(1, Math.round(2 * k)), 1);
+  tint(img, field(n, (i) => sstep(0.03, 0.25, Ce[i]) * (1 - Cm[i]) * 0.3), '#6f6a5c', 1);
+  for (let i = 0; i < n; i++) H[i] -= C[i] * 0.06;
+  shade(img, H, { strength: 0.2, bump: 9 * k, ao: 0.5, aoRadius: Math.max(1, Math.round(2 * k)), edge: 0.25 });
   adjust(img, { saturation: 0.8 });
-
-  // roughness
   const R = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    let r = 0.9 - stone[i] * 0.12 + grain[i] * 0.04;
-    r += (0.74 - r) * P[i];
-    r += (0.42 - r) * Tm[i];
-    r += (0.55 - r) * Ob[i] * 0.6;
-    r += (0.98 - r) * Cm[i];
-    R[i] = r;
-  }
+  for (let i = 0; i < n; i++) R[i] = 0.9 - stone[i] * 0.16 + grain[i] * 0.04 + voids[i] * 0.06 + Cm[i] * 0.05 - wear[i] * 0.04;
   return {
     asphalt: colorOut(img),
-    asphalt_normal: dataOut(normalMap(H, w, h, 7 * k), w, h),
+    asphalt_normal: dataOut(normalMap(H, w, h, 6 * k), w, h),
     asphalt_rough: dataOut(grayBytes(R, w, h), w, h),
-    asphalt_height: dataOut(grayBytes(H, w, h, 0.25, 0.8), w, h),
+    asphalt_height: dataOut(grayBytes(H, w, h, 0.35, 0.7), w, h),
   };
 }
 
@@ -332,36 +307,47 @@ export function genSoil(S = 512) {
   const wx = fbm(w, h, { cells: 8, octaves: 2, seed: 509 }), wy = fbm(w, h, { cells: 8, octaves: 2, seed: 510 });
   const cf = warp(clod.f1, w, h, wx, wy, 6 * k);
   const fine = fbm(w, h, { cells: 90, octaves: 1, seed: 504 });
+  const crumbW = worley(w, h, { cells: Math.round(80 * k), seed: 512 });
+  const crumbE = warp(field(n, (i) => crumbW.f2[i] - crumbW.f1[i]), w, h, wx, wy, 5 * k);
   const H = new Float32Array(n);
   const f = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const dome = Math.max(0, 1 - cf[i] * 1.3);
-    H[i] = 0.5 + dome * 0.12 + low[i] * 0.06 + fine[i] * 0.04;
-    f[i] = 0.45 + dome * 0.3 + low[i] * 0.3 + fine[i] * 0.15;
+    const cr = Math.sqrt(Math.max(0, Math.min(1, crumbE[i] * 3 - 0.1)));
+    H[i] = 0.5 + dome * 0.12 + cr * 0.03 + low[i] * 0.06 + fine[i] * 0.025;
+    f[i] = 0.42 + dome * 0.28 + cr * 0.08 + low[i] * 0.3 + fine[i] * 0.12;
   }
   const img = new Img(w, h);
   gradientMap(img, f, [[0, '#1c150f'], [0.35, '#2e231a'], [0.6, '#403224'], [0.85, '#574530'], [1, '#6c5a43']]);
   const lat = smoothMask(fbm(w, h, { cells: 3, octaves: 3, seed: 505 }), 0.15, 0.6);
   for (let i = 0; i < n; i++) lat[i] *= 0.45;
   tint(img, lat, '#6b3c24', 0.35);
-  // pebbles (few, muted)
-  const peb = worley(w, h, { cells: Math.round(12 * k), seed: 506 });
+  // small half-buried stones: angular, earth-coloured, lit by the shared height shading
+  const peb = worley(w, h, { cells: Math.round(30 * k), seed: 506 });
   const pT = cellTable(peb.cx * peb.cy, 2), pS = cellTable(peb.cx * peb.cy, 3), pG = cellTable(peb.cx * peb.cy, 4);
   const d = img.d;
   for (let i = 0; i < n; i++) {
     const c = peb.id[i];
-    if (pT[c] > 0.35) continue;
-    const r = 0.14 + pS[c] * 0.16;
-    const m = 1 - sstep(r - 0.05, r, peb.f1[i]);
-    if (m <= 0) continue;
-    const g = 0.26 + pG[c] * 0.18;
-    const lit = 1 - (peb.f1[i] / r) * 0.45;
+    if (pT[c] > 0.16) continue;
+    const e = Math.min((peb.f2[i] - peb.f1[i]) * 2.0 - 0.45 + pS[c] * 0.3 + fine[i] * 0.12, 1 - peb.f1[i] * 1.6);
+    if (e <= 0) continue;
+    const m = sstep(0.0, 0.1, e) * (0.7 + 0.3 * pS[c]);
+    const g = 0.2 + pG[c] * 0.14 + fine[i] * 0.03;
     const j = i * 4;
-    d[j] += (g * 1.05 * lit - d[j]) * m * 0.9;
-    d[j + 1] += (g * 0.98 * lit - d[j + 1]) * m * 0.9;
-    d[j + 2] += (g * 0.88 * lit - d[j + 2]) * m * 0.9;
-    H[i] += m * (1 - peb.f1[i] / r) * 0.15;
+    d[j] += (g * 1.12 - d[j]) * m;
+    d[j + 1] += (g * 1.0 - d[j + 1]) * m;
+    d[j + 2] += (g * 0.82 - d[j + 2]) * m;
+    H[i] += Math.sqrt(Math.min(1, e * 3)) * 0.12 * m;
   }
+  // tiny leaf fragments and organic flecks
+  const rngF = makeRng(511);
+  const frag = new Float32Array(n), fragD = new Float32Array(n);
+  for (let c = 0; c < 180 * k * k; c++) {
+    const x = rngF() * w, y = rngF() * h, a = rngF() * TAU, L = (2 + rngF() * 5) * k;
+    line(rngF() < 0.6 ? frag : fragD, w, h, x, y, x + Math.cos(a) * L, y + Math.sin(a) * L, (1 + rngF() * 1.5) * k, 1, 'max');
+  }
+  tint(img, frag, '#5e4628', 0.55);
+  tint(img, fragD, '#17110b', 0.6);
   // twigs & rootlets
   const tw = new Float32Array(n);
   for (let c = 0; c < 18; c++) {
@@ -381,7 +367,7 @@ export function genSoil(S = 512) {
   const damp = smoothMask(fbm(w, h, { cells: 5, octaves: 3, seed: 508 }), 0.1, 0.5);
   for (let i = 0; i < n; i++) damp[i] *= 0.35;
   tint(img, damp, '#120d09', 0.55);
-  shade(img, H, { strength: 0.22, bump: 5 * k, ao: 0.6, aoRadius: 3, edge: 0.2 });
+  shade(img, H, { strength: 0.3, bump: 9 * k, ao: 0.65, aoRadius: 2, edge: 0.25 });
   return {
     soil: colorOut(img),
     soil_normal: dataOut(normalMap(H, w, h, 4 * k), w, h),
@@ -457,44 +443,51 @@ export function genRock(S = 512) {
 export function genGravel(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const low = fbm(w, h, { cells: 4, octaves: 4, seed: 703 });
+  const fine = fbm(w, h, { cells: 120, octaves: 1, seed: 707 });
   const img = new Img(w, h);
-  const base = new Float32Array(n);
-  for (let i = 0; i < n; i++) base[i] = 0.5 + low[i] * 0.4;
-  gradientMap(img, base, [[0, '#2a2622'], [0.5, '#3e3630'], [1, '#544a40']]);
+  // packed dust / laterite fines between the stones
+  gradientMap(img, field(n, (i) => 0.5 + low[i] * 0.4 + fine[i] * 0.15), [[0, '#2c2620'], [0.5, '#463b30'], [1, '#62533f']]);
+  tint(img, smask(fbm(w, h, { cells: 3, octaves: 3, seed: 708 }), 0.1, 0.5, 0.5), '#6a3e26', 0.35); // red laterite
   const H = new Float32Array(n);
-  const cols = ['#5f5d58', '#6e6a64', '#504f4b', '#7a756c', '#665b50', '#6a4c3a', '#45443f', '#74716a'].map(rgb);
+  const top = new Float32Array(n).fill(-1);
+  const cols = ['#5f5d58', '#6e6a64', '#545350', '#7a756c', '#68605a', '#6a4c3a', '#4c4a45', '#7c7870', '#8a8478', '#5d6062'].map(rgb);
   const d = img.d;
   const wx = fbm(w, h, { cells: 16, octaves: 2, seed: 704 }), wy = fbm(w, h, { cells: 16, octaves: 2, seed: 705 });
-  for (const [cells, sc, seed] of [[64, 0.8, 702], [30, 1, 701]]) {
+  // three layers: small, medium, a few larger stones lying on top (painter's algorithm by height)
+  for (const [cells, keep, lift, seed] of [[60, 0.75, 0.0, 702], [34, 0.6, 0.05, 701], [18, 0.22, 0.1, 709]]) {
     const W = worley(w, h, { cells: Math.round(cells * k), seed });
     const f1 = warp(W.f1, w, h, wx, wy, 3 * k), f2 = warp(W.f2, w, h, wx, wy, 3 * k);
     const id = warp(W.id, w, h, wx, wy, 3 * k, null, true);
-    const rT = cellTable(W.cx * W.cy, 1), cT = cellTable(W.cx * W.cy, 2);
+    const nc = W.cx * W.cy;
+    const rT = cellTable(nc, seed + 1), cT = cellTable(nc, seed + 2), sT = cellTable(nc, seed + 3);
     for (let i = 0; i < n; i++) {
       const c = id[i];
-      const r = 0.4 + rT[c] * 0.15;
-      const e = f2[i] - f1[i];
-      const m = sstep(0.03, 0.14, e) * (f1[i] < r * 1.6 ? 1 : 0);
-      if (m <= 0) continue;
+      if (sT[c] > keep) continue;
+      const e = Math.min((f2[i] - f1[i]) * 2.2 - 0.18 - rT[c] * 0.12, 1.05 - f1[i] * 1.4) + fine[i] * 0.05;
+      if (e <= 0) continue;
+      const dome = Math.sqrt(Math.min(1, e * 2.2));
+      const hh = lift + dome * (0.08 + rT[c] * 0.05);
+      if (hh <= top[i]) continue;
+      top[i] = hh;
+      const m = sstep(0.0, 0.08, e);
       const col = cols[(cT[c] * cols.length) | 0];
-      const lit = (0.8 + 0.3 * (1 - f1[i] / (r * 1.6))) * sc;
+      const v = 0.85 + fine[i] * 0.12 + (rT[c] - 0.5) * 0.2;
       const j = i * 4;
-      d[j] += (col[0] * lit - d[j]) * m;
-      d[j + 1] += (col[1] * lit - d[j + 1]) * m;
-      d[j + 2] += (col[2] * lit - d[j + 2]) * m;
-      const hh = m * (0.6 - f1[i]) * 0.5 * sc;
-      if (hh > H[i]) H[i] = hh;
+      d[j] += (col[0] * v - d[j]) * m;
+      d[j + 1] += (col[1] * v - d[j + 1]) * m;
+      d[j + 2] += (col[2] * v - d[j + 2]) * m;
+      H[i] = hh * m + H[i] * (1 - m);
     }
   }
-  const dust = smoothMask(low, 0.0, 0.6);
-  for (let i = 0; i < n; i++) dust[i] *= 0.4;
-  tint(img, dust, '#857762', 0.45);
-  strokes(img, { seed: 706, len: [4 * k, 9 * k], width: [2 * k, 4 * k], opacity: 0.35, coverage: 0.5, valueJitter: 0.08 });
-  shade(img, H, { strength: 0.3, bump: 8 * k, ao: 0.7, aoRadius: 2, edge: 0.3 });
+  const dust = smask(low, 0.0, 0.6);
+  for (let i = 0; i < n; i++) dust[i] *= 0.35;
+  tint(img, dust, '#857762', 0.4);
+  strokes(img, { seed: 706, len: [4 * k, 9 * k], width: [2 * k, 4 * k], opacity: 0.3, coverage: 0.5, valueJitter: 0.08 });
+  shade(img, H, { strength: 0.38, bump: 10 * k, ao: 0.75, aoRadius: Math.max(1, Math.round(2 * k)), edge: 0.3 });
   adjust(img, { saturation: 0.8 });
   return {
     gravel: colorOut(img),
-    gravel_normal: dataOut(normalMap(H, w, h, 6 * k), w, h),
+    gravel_normal: dataOut(normalMap(H, w, h, 7 * k), w, h),
   };
 }
 
@@ -504,65 +497,102 @@ export function genGravel(S = 512) {
 export function genLeafLitter(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const rng = makeRng(801);
-  const img = new Img(w, h, rgb('#1f1711'));
+  const img = new Img(w, h, rgb('#1d150f'));
   modulate(img, fbm(w, h, { cells: 4, octaves: 4, seed: 802 }), 0.35);
+  const nf = fbm(w, h, { cells: 40, octaves: 2, seed: 804 });
+  const nd = fbm(w, h, { cells: 9, octaves: 3, seed: 805 });
   const H = new Float32Array(n);
   const d = img.d;
-  const pal = ['#5a3a1e', '#6f4824', '#83582a', '#9a7034', '#3c2818', '#8a7a62', '#a8823a', '#6a6430', '#4f2f1a', '#77502c'].map(rgb);
-  const count = Math.round(300 * k * k);
+  const pal = ['#5a3a1e', '#6f4824', '#83582a', '#9a7034', '#3c2818', '#7d6a50', '#a8823a', '#6a6430', '#4f2f1a', '#77502c', '#8c4a22', '#2e2016'].map(rgb);
+  const decay = rgb('#2a1c12'), under = rgb('#a89478');
+  const count = Math.round(560 * k * k);
+  const col = [0, 0, 0];
   for (let c = 0; c < count; c++) {
     const x = rng() * w, y = rng() * h, a = rng() * TAU;
     const shape = rng();
-    const L = (10 + Math.pow(rng(), 1.5) * 22) * k;
-    const Wd = L * (shape < 0.5 ? 0.42 + rng() * 0.2 : shape < 0.85 ? 0.26 + rng() * 0.08 : 0.6);
-    const col = pal[(rng() * pal.length) | 0];
-    const bright = 0.75 + rng() * 0.4;
-    const curl = (rng() - 0.5) * 0.6;
+    const L = (9 + Math.pow(rng(), 1.5) * 22) * k;
+    const Wd = L * (shape < 0.5 ? 0.42 + rng() * 0.18 : shape < 0.85 ? 0.24 + rng() * 0.08 : 0.58);
+    const base = pal[(rng() * pal.length) | 0];
+    const bright = 0.78 + rng() * 0.36;
+    const curl = (rng() - 0.5) * 0.7;
     const holes = rng() < 0.3;
+    const flip = rng() < 0.1; // showing the paler underside
+    const rot = rng() * 0.6; // how decomposed
     const lift = 0.02 + (c / count) * 0.14;
     const ca = Math.cos(a), sa = Math.sin(a);
     const ext = L + 6 * k;
-    const sx = 2.5 * k, sy = 3.5 * k; // drop shadow offset
+    const sx = 2.2 * k, sy = 3 * k; // soft drop shadow offset
     for (let py = Math.floor(y - ext); py < y + ext; py++) {
       const wy = ((py % h) + h) % h;
       for (let px = Math.floor(x - ext); px < x + ext; px++) {
         const i = wy * w + (((px % w) + w) % w);
         const j = i * 4;
-        // shadow sample (shape evaluated at offset position)
         for (let pass = 0; pass < 2; pass++) {
           const rx = px - x - (pass === 0 ? sx : 0), ry = py - y - (pass === 0 ? sy : 0);
           const u = (rx * ca + ry * sa) / L;
           if (u <= -1 || u >= 1) continue;
           const v = (-rx * sa + ry * ca) / Wd - curl * u * u;
-          const prof = Math.sqrt(1 - u * u) * (1 - 0.35 * u) * (shape > 0.85 ? 1 + 0.25 * Math.cos(u * 3) : 1);
+          let prof = Math.sqrt(1 - u * u) * (1 - 0.3 * u);
+          if (u > 0.55) prof *= 1 - (u - 0.55) * 0.9; // pointed tip
+          if (shape > 0.85) prof *= 1 + 0.2 * Math.cos(u * 3);
+          prof *= 1 + nf[i] * 0.12; // ragged margin
           const av = Math.abs(v);
           if (av >= prof) continue;
           const e = av / prof;
           if (pass === 0) {
-            const s = 0.45 * (1 - e * e);
-            d[j] *= 1 - s;
-            d[j + 1] *= 1 - s;
-            d[j + 2] *= 1 - s;
+            const sh = 0.4 * (1 - e * e);
+            d[j] *= 1 - sh;
+            d[j + 1] *= 1 - sh;
+            d[j + 2] *= 1 - sh;
             continue;
           }
-          if (holes && Math.sin(u * 23 + v * 9) * Math.sin(u * 11 - v * 13) > 0.72) continue;
-          const vein = av < 0.06 ? 1.15 : Math.abs((((u * 5 + av * 2.4) % 1) + 1) % 1 - 0.5) < 0.05 ? 1.08 : 1;
-          const side = v > 0 ? 1.06 : 0.92; // folded along the midrib
-          const sh = (1 - 0.3 * e * e) * bright * vein * side * (1 - 0.15 * (u + 1) * 0.5);
+          if (holes && nf[i] + nd[i] * 0.5 > 0.5 - rot * 0.3) continue; // decay holes, ragged
+          // base colour, decay mottling toward dark brown, paler underside
+          const mot = sstep(-0.1, 0.5, nd[i] * 0.8 + nf[i] * 0.5 + rot - 0.2) * 0.7;
+          col[0] = base[0] + (decay[0] - base[0]) * mot;
+          col[1] = base[1] + (decay[1] - base[1]) * mot;
+          col[2] = base[2] + (decay[2] - base[2]) * mot;
+          if (flip) {
+            col[0] += (under[0] - col[0]) * 0.35;
+            col[1] += (under[1] - col[1]) * 0.35;
+            col[2] += (under[2] - col[2]) * 0.35;
+          }
+          // venation: midrib + pinnate laterals sweeping to the tip
+          const q = u * 5.5 - av * 2.2 / (prof + 0.2);
+          const lat = Math.abs(q - Math.round(q));
+          let vein = av < 0.05 ? 1.22 : lat < 0.06 && e < 0.85 ? 1.09 : 1;
+          if (flip) vein = av < 0.07 ? 1.15 : vein;
+          const side = v > 0 ? 1.07 : 0.9; // folded along the midrib
+          const sh = (1 - 0.32 * e * e) * bright * vein * side * (1 - 0.12 * (u + 1) * 0.5);
           d[j] = col[0] * sh;
           d[j + 1] = col[1] * sh;
           d[j + 2] = col[2] * sh;
-          H[i] = lift + (1 - e) * 0.025 + (v > 0 ? 0.004 : 0);
+          H[i] = lift + (1 - e) * 0.025 + (v > 0 ? 0.004 : 0) + (av < 0.05 ? 0.006 : 0);
         }
       }
     }
   }
+  // twigs and seed husks
+  const tw = new Float32Array(n);
+  for (let c = 0; c < 22 * k * k; c++) {
+    let x = rng() * w, y = rng() * h, a = rng() * TAU;
+    const steps = 3 + rng() * 6, wd = (0.8 + rng() * 1.2) * k;
+    for (let st = 0; st < steps; st++) {
+      const nx = x + Math.cos(a) * 6 * k, ny = y + Math.sin(a) * 6 * k;
+      line(tw, w, h, x, y, nx, ny, wd, 1, 'max');
+      x = nx;
+      y = ny;
+      a += (rng() - 0.5) * 0.6;
+    }
+  }
+  tint(img, tw, '#3a2a1a', 0.85);
+  for (let i = 0; i < n; i++) H[i] += tw[i] * 0.05;
   const sp = new Float32Array(n);
-  for (let c = 0; c < 160 * k * k; c++) disc(sp, w, h, rng() * w, rng() * h, (1 + rng() * 3) * k, 1, 'max', 0.5);
-  tint(img, sp, '#21170f', 0.55);
+  for (let c = 0; c < 120 * k * k; c++) disc(sp, w, h, rng() * w, rng() * h, (1 + rng() * 2.5) * k, 1, 'max', 0.5);
+  tint(img, sp, '#1d140d', 0.5);
   strokes(img, { seed: 803, len: [5 * k, 12 * k], width: [2 * k, 4 * k], opacity: 0.35, coverage: 0.6, valueJitter: 0.08 });
   shade(img, H, { strength: 0.25, bump: 10 * k, ao: 0.7, aoRadius: 3, edge: 0.15 });
-  adjust(img, { saturation: 0.85 });
+  adjust(img, { saturation: 0.82 });
   return {
     leaf_litter: colorOut(img),
     leaf_litter_normal: dataOut(normalMap(H, w, h, 8 * k), w, h),

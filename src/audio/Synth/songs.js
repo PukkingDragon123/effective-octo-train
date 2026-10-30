@@ -189,7 +189,7 @@ export function renderRadioChunk(plan, ci) {
     const { buffer } = renderMurmur(sr, plan.text, voice, 300 + plan.idx * 13 + plan.station);
     const out = alloc(sr, Math.max(ch.dur, buffer.length / sr + 0.5) + 2);
     const at = plan.kind === 'dj' ? 0.9 : 0.6;
-    mixInto(out, buffer, Math.floor(at * sr), plan.kind === 'dj' ? 0.95 : 0.85);
+    mixInto(out, buffer, Math.floor(at * sr), plan.kind === 'dj' ? 1.1 : 1.35);
     if (plan.kind === 'dj') {
       // station jingle: quick khim arpeggio
       [0, 4, 7, 12, 16].forEach((s, i) => mixInto(out, noteBuf('khim', mtof(67 + s), 0.85), Math.floor((0.05 + i * 0.09) * sr), 0.25));
@@ -285,7 +285,14 @@ export function renderRadioChunk(plan, ci) {
 }
 
 function finish(out) {
-  for (let i = 0; i < out.length; i++) out[i] = softClip(out[i] * 0.9) * 0.85;
+  // gentle broadcast-style limiting (no hard saturation on vocal onsets)
+  let env = 0;
+  for (let i = 0; i < out.length; i++) {
+    const a = Math.abs(out[i]);
+    env = a > env ? env + (a - env) * 0.02 : env * 0.9997;
+    const g = env > 0.6 ? 0.6 / env : 1;
+    out[i] = softClip(out[i] * g * 0.75) * 0.9;
+  }
   return out;
 }
 

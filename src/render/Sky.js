@@ -258,6 +258,8 @@ class Sky {
     /** degrees: compass direction of the sunrise (0 = -Z, 90 = +X). */
     this.sunAzimuth = 75;
     this.moonAzimuthOffset = 0;
+    /** 0 = new, 0.5 = full, 1 = new again (default: waxing gibbous). */
+    this.moonPhase = 0.62;
     /** 0..1 how much the height fog base follows the ground under the camera (vs world y = uFogHeight base). */
     this.fogFollow = 0.65;
     this.fogBaseY = 0;
@@ -449,7 +451,8 @@ class Sky {
     this.hemi.groundColor.copy(cur.hemiGround);
     this.hemi.intensity = cur.hemiI * (1 - rain * 0.25) + lightning * 1.5;
     this.moon.color.copy(cur.moonC);
-    this.moon.intensity = cur.moonI * (1 - rain * 0.6) * smoothstep(-3 * DEG, 8 * DEG, moonElev);
+    const phaseLight = 0.35 + 0.65 * Math.cos((this.moonPhase - 0.5) * Math.PI * 2) * 0.5 + 0.325;
+    this.moon.intensity = cur.moonI * (1 - rain * 0.6) * smoothstep(-3 * DEG, 8 * DEG, moonElev) * phaseLight;
     this.sun.color.copy(this.sunColor);
     this.sun.intensity = 4.2 * sunUp * (1 - rain * 0.7);
     const sunCasting = this.sun.intensity > 0.02 && settings.get('shadows');
@@ -469,6 +472,7 @@ class Sky {
     su.uMoonDirS.value.copy(this.moonDir);
     su.uMoonCol.value.copy(cur.moonC);
     su.uMoonI.value = (1 - rain * 0.7) * (1 - smoothstep(29.2, 29.8, h));
+    su.uMoonPhase.value = (this.moonPhase - 0.5) * Math.PI * 2;
     su.uMoonHalo.value = 1 + cur.surreal * 1.5 + cur.fogDensity * 10;
     su.uSunDirS.value.copy(this.sunDir);
     su.uSunCol.value.copy(this.sunColor);

@@ -290,7 +290,7 @@ export function createShrineMaRuay(opts = {}) {
   for (const x of colXs) for (const s of [-1, 1]) k.add(mat('gold'), G('bracket', () => tube(smoothPath([V(0, 0, 0), V(0.18, 0.08, 0), V(0.32, 0.25, 0)], 8), 0.035, 5, true)), { p: [x, y0 + 3.15, pzCol + 0.05], s: [s, 1, 1], color: 0xc89a40, w: false });
   // sign board: ศาลเจ้ามารวย (gold board under the porch roof)
   k.add(mat('lacquer'), bbox(2.7, 0.78, 0.1, 0.03, 0.3), { p: [0, y0 + 3.62, pzCol + 0.1], color: 0x5a0e0a, w: false });
-  k.add(signMat('shrine_board', { th: 'ศาลเจ้ามารวย' }, { emissive: 0x6a4410, emissiveIntensity: 0.35 }), G('mboard', () => quad(2.5, 0.62)), { p: [0, y0 + 4.01, pzCol + 0.156], color: 0xffffff, uv: 'keep', w: false });
+  k.add(signMat('shrine_board', { th: 'ศาลเจ้ามารวย' }, { emissive: 0x8a6020, emissiveIntensity: 0.75 }), G('mboard', () => quad(2.5, 0.62)), { p: [0, y0 + 4.01, pzCol + 0.156], color: 0xffffff, uv: 'keep', w: false });
   k.push([0, y0 + 3.62, pzCol - 0.3]);
   chineseRoof(k, { w: 7.4, d: 2.4, h: 0.8, color: 0xd8902a, ridge: 0xb82a18, edge: 0x2a7a4a });
   k.pop();
@@ -350,6 +350,12 @@ export function createShrineMaRuay(opts = {}) {
     }
     for (let i = 0; i < 3; i++) k.add(mat('paper'), G('gpaper', () => bbox(0.16, 0.06, 0.11, 0.002, 0.1)), { p: [-0.65 + i * 0.03, at + i * 0.06, az + 0.2], r: rng() * 0.3, color: 0xd8b040, w: false });
   });
+  // two big lanterns hanging inside the hall: the doorway glows red-gold from the road
+  for (const s of [-1, 1]) {
+    lantern(k, { p: [s * 1.5, y0 + WH - 0.1, hz + 0.6], s: 1.6, r: s });
+    k.add(mat('dark'), G('hallcord', () => cyl(0.005, 0.005, 0.12, 3, 0)), { p: [s * 1.5, y0 + WH - 0.12, hz + 0.6], color: 0x221410, w: false });
+  }
+  out.lights.push(lightSpec('lantern', anchor(group, 'hallLantern', 0, y0 + WH - 0.6, hz + 0.6), { intensity: 4, distance: 7 }));
   // red altar lamps (emissive) flanking the niche
   const red = glowMat('red');
   for (const s of [-1, 1]) {
@@ -432,7 +438,7 @@ export function createShrineMaRuay(opts = {}) {
   // a subset of lanterns become pooled lights
   out.lanternAnchors.forEach((a, i) => { if (i % 4 === 1) out.lights.push(lightSpec('lantern', a)); });
   // warm "golden shrine" fill from the forecourt (reference 2)
-  out.lights.unshift(lightSpec('shrine_gold', anchor(group, 'shrineGlow', 0, 2.4, pz0 + 1.4), { intensity: 26, distance: 16, pool: true, poolIntensity: 0.6, glow: { size: 1.4, color: 0xffb860, opacity: 0.35 } }));
+  out.lights.unshift(lightSpec('shrine_gold', anchor(group, 'shrineGlow', 0, 2.4, pz0 + 1.4), { intensity: 26, distance: 16, pool: true, poolIntensity: 0.6, priority: 4, glow: { size: 1.4, color: 0xffb860, opacity: 0.35 } }));
   // a warm lamp hidden under the porch roof lighting the facade, sign board and columns
   out.lights.push(lightSpec('shrine_gold', anchor(group, 'porchLamp', 0, y0 + 3.2, pzCol + 0.6), { intensity: 12, distance: 9, pool: false, glow: false, flicker: 'candle' }));
 
@@ -466,7 +472,7 @@ export function createShrineMaRuay(opts = {}) {
   deityHeadParts(hk);
   const head = hk.build({ name: 'deityHead' });
   head.position.copy(headWorld);
-  head.scale.setScalar(SS * 1.08);
+  head.scale.setScalar(SS * 1.14);
   head.name = 'statueHead';
   group.add(head);
   out.statueHead = head;

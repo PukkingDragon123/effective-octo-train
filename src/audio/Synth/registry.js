@@ -85,7 +85,17 @@ export function runTask(type, a) {
     case 'murmur': {
       const sr = a.sr || 24000;
       const r = renderMurmur(sr, a.th, a.voice || {}, a.seed);
-      return { channels: [sanitize(r.buffer)], sr, meta: { duration: r.duration } };
+      const b = sanitize(r.buffer);
+      // tame plosive spikes (crest > ~9 dB above the loudest syllable) so loudness can come up
+      const T = shortTermMax([b], sr) * 2.8;
+      for (let i = 0; i < b.length; i++) b[i] = Math.tanh(b[i] / T) * T;
+      // dialogue loudness: loudest 50 ms at -14 dBFS (whispers -19), peak capped
+      let pk = 0;
+      for (let i = 0; i < b.length; i++) pk = Math.max(pk, Math.abs(b[i]));
+      const tgt = Math.pow(10, (a.voice?.whisper ? -19 : -14) / 20);
+      const g = Math.min(tgt / Math.max(shortTermMax([b], sr), 1e-9), 0.95 / Math.max(pk, 1e-9));
+      for (let i = 0; i < b.length; i++) b[i] *= g;
+      return { channels: [b], sr, meta: { duration: r.duration } };
     }
     case 'sung': {
       const sr = a.sr || 24000;
@@ -100,7 +110,7 @@ export function runTask(type, a) {
       return { channels: [r.buffer], sr, meta: { baseRpm: r.baseRpm } };
     }
     case 'bed': {
-      const r = renderBed(a.kind, a.sr || DEFAULT_SR, a.seed || 1, a.opts || {});
+      const r = renderBed(a.kind, a.sr || DEFAULT_SR, a.seed || 1, { ...(a.opts || {}), sr: a.sr });
       return { channels: r.channels.map((c) => sanitize(c, true)), sr: r.sr };
     }
     case 'radioChunk': {

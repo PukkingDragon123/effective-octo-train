@@ -85,7 +85,11 @@ function katydids(sr, rng, dur) {
         ev[s + i] += x;
       }
     }
-    for (let i = 0; i < ev.length; i++) ev[i] = res.process(ev[i]);
+    const hp1 = new SVF(sr, 1400, 0.7);
+    for (let i = 0; i < ev.length; i++) {
+      hp1.process(res.process(ev[i]));
+      ev[i] = hp1.hp;
+    }
     normalize(ev, 1);
     for (let r = 0; r < reps; r++) place(Lc, Rc, ev, Math.floor((off + r * period) * sr), pan, 0.18 + rng() * 0.12);
   }
@@ -101,6 +105,7 @@ function cicadas(sr, rng, dur) {
     const rate = 160 + rng() * 260;
     const r1 = new Reson(sr, base, 0.008), r2 = new Reson(sr, base * 1.55, 0.005, 0.5);
     const w = new Wander(rng, 0.6);
+    const hpc = new SVF(sr, 2200, 0.7);
     let ph = rng();
     const g = 0.25 + rng() * 0.25;
     const gl = g * Math.sqrt(0.5 * (1 - pan)), gr = g * Math.sqrt(0.5 * (1 + pan));
@@ -114,7 +119,8 @@ function cicadas(sr, rng, dur) {
         x += 1;
       }
       const am = 0.55 + 0.45 * Math.sin((TAU * cyc * i) / n + c);
-      const y = (r1.process(x) + r2.process(x)) * am;
+      hpc.process(r1.process(x) + r2.process(x));
+      const y = hpc.hp * am;
       Lc[i] += y * gl;
       Rc[i] += y * gr;
     }
@@ -376,29 +382,31 @@ function nightTone(sr, rng, dur) {
   return [loopify(Lc, sr, 1), loopify(Rc, sr, 1)];
 }
 
+// [loop seconds, generator, sample rate (memory: beds stay in the cache all night)]
 const BEDS = {
-  crickets: [12, crickets],
-  katydids: [9, katydids],
-  cicadas: [10, cicadas],
-  frogs: [14, frogs],
-  rain_leaves: [7, rainLeaves],
-  rain_roof: [5, rainRoof],
-  wind_leaves: [9, windLeaves],
-  drips: [11, drips],
-  static: [4.2, staticNoise],
-  tyre_asphalt: [2.5, (sr, rng, d) => tyre(sr, rng, d, 'asphalt')],
-  tyre_gravel: [2.5, (sr, rng, d) => tyre(sr, rng, d, 'gravel')],
-  tyre_grass: [2.5, (sr, rng, d) => tyre(sr, rng, d, 'grass')],
-  noise_white: [2, (sr, rng, d) => noiseLoop(sr, rng, d, 'white')],
-  noise_pink: [2, (sr, rng, d) => noiseLoop(sr, rng, d, 'pink')],
-  dread_drone: [16, dreadDrone],
-  night_tone: [10, nightTone],
+  crickets: [12, crickets, 24000],
+  katydids: [9, katydids, 22050],
+  cicadas: [10, cicadas, 24000],
+  frogs: [14, frogs, 22050],
+  rain_leaves: [7, rainLeaves, 22050],
+  rain_roof: [5, rainRoof, 22050],
+  wind_leaves: [9, windLeaves, 22050],
+  drips: [11, drips, 22050],
+  static: [4.2, staticNoise, 16000],
+  tyre_asphalt: [2.5, (sr, rng, d) => tyre(sr, rng, d, 'asphalt'), 16000],
+  tyre_gravel: [2.5, (sr, rng, d) => tyre(sr, rng, d, 'gravel'), 22050],
+  tyre_grass: [2.5, (sr, rng, d) => tyre(sr, rng, d, 'grass'), 16000],
+  noise_white: [2, (sr, rng, d) => noiseLoop(sr, rng, d, 'white'), 22050],
+  noise_pink: [2, (sr, rng, d) => noiseLoop(sr, rng, d, 'pink'), 22050],
+  dread_drone: [16, dreadDrone, 11025],
+  night_tone: [10, nightTone, 11025],
 };
 export const BED_KINDS = Object.keys(BEDS);
 
-export function renderBed(kind, sr, seed = 1, opts = {}) {
+export function renderBed(kind, srReq, seed = 1, opts = {}) {
   const b = BEDS[kind];
   if (!b) throw new Error('unknown bed ' + kind);
+  const sr = opts.sr || b[2] || srReq;
   const rng = rngFrom(seed * 131 + kind.length);
   const ch = b[1](sr, rng, opts.dur || b[0]);
   // joint normalise

@@ -263,7 +263,7 @@ export class AudioCore {
     this.gen = opts.gen || new GenService({ sync: this.sync });
     this.cache = new Map(); // key -> AudioBuffer
     this.cacheBytes = 0;
-    this.maxCacheBytes = opts.maxCacheBytes ?? 72 * 1024 * 1024;
+    this.maxCacheBytes = opts.maxCacheBytes ?? 88 * 1024 * 1024;
     this.voices = [];
     this.cleanups = [];
     this.lastVariant = {};
@@ -527,8 +527,11 @@ export class AudioCore {
       const interval = opts.interval ?? 0.45;
       const handles = [];
       for (let i = 0; i < count; i++) handles.push(this.play(id, { ...opts, count: 0, delay: (opts.delay || 0) + i * interval * (1 + (Math.random() - 0.5) * 0.08) }));
-      const h = handles[0];
-      return { ...h, stop: (f) => handles.forEach((x) => x.stop(f)), setVolume: (v, r) => handles.forEach((x) => x.setVolume(v, r)), ended: handles[handles.length - 1].ended };
+      const each = (fn) => (...a) => handles.forEach((x) => x[fn](...a));
+      return {
+        stop: each('stop'), setVolume: each('setVolume'), setRate: each('setRate'), setParam: each('setParam'), setPosition: each('setPosition'),
+        ended: handles[handles.length - 1].ended, duration: 0, handles,
+      };
     }
     const v = this._pickVariant(id, def, opts);
     const voice = new Voice(this, id, def, { ...opts });

@@ -240,6 +240,34 @@ Anchors are `Object3D`s so they follow the prop. Props register their own lights
 scene. Factories also return `colliders: [{x,z,hx,hz,yaw}|{x,z,r}]` (local), which the
 world converts to world space.
 
+**Props implementation notes (props agent).** Full factory list + returned anchors are in the
+header of `src/props/index.js`. Integration rules for the world / gameplay:
+* **Facing:** every roadside prop's front is local **+Z**; `roadsideYaw(landmark.yaw, side)`
+  gives the yaw that turns it toward the road (`'L'` → yaw + π/2, `'R'` → yaw − π/2, `'C'` →
+  faces oncoming traffic). Poles/streetlights: place with yaw = travel yaw (wires run along ±Z,
+  lamp arm toward +X·`lampSide`, so on the LEFT edge +X is over the road). Bridge: deck along
+  local Z, top at y=0, place at the road centre with yaw = travel yaw (the world carves the creek;
+  piers go `depth` m down). Ghost gate: spans local X across the ghost road.
+* **Ma Ruay shrine:** origin = the fork point on the main road (layout `shrineMaRuay`, side C);
+  the building stands `setback` (14 m) ahead in the wedge, signposts at `noseZ` (−6 m). Keep the
+  branch roads outside `result.footprint`. `handSpawnAnchor` defaults to (−11, 0, −26): move it
+  onto the real ghost spline if needed. `statueHead` is a separate Group (swap/animate it for the
+  final reveal); `statueFaceAnchor` is a camera target.
+* **Lights:** factories do NOT auto-register lights (the prop isn't placed yet). After placing,
+  call `addPropLights(result)` (or create with `opts.lights === true`); emissive lamp meshes then
+  follow the pooled light's live flicker level. `disposeProp(result)` removes lights + geometry.
+* **Wires:** `connectPoles(poleA, poleB, {seed, messy})` wires two placed poles (pairs anchors by
+  kind, returns a world-space Object3D). `wireSpan.userData.sample(i, t, out)` = point on cable i.
+* **Raised floors:** `walkSurfaces` (local rects with a `y`, or ramps) for sala floor (0.16 m),
+  shrine platform (0.42 m), forest temple stairs/platform (1.2 m), garage floor.
+* **Pond:** water sits at y≈0.035 on flat ground inside a low rim: flatten terrain within
+  `radius·1.35`.
+* **LOD/perf:** offerings and clutter sit in a `THREE.LOD` child hidden beyond 30–45 m. Typical
+  draw calls: plain pole 5–7, streetlight 6, spirit house ~15 (8 beyond LOD), sala ~20,
+  garage ~40, shrine ~45 (hero pieces). All non-emissive materials are shared singletons with an
+  identical attribute layout, so props can be merged per chunk by material.
+* **Sandbox:** `?sandbox=props&item=<name|all>&hour=22&dist&yaw&h&ty&tx&tz&fov&fill&lights=0`.
+
 ### vehicle (`src/vehicle/index.js`)
 * `Taxi`: exterior and detailed interior, anchors (`TAXI_ANCHORS`), `state`, `physics`,
   `setControl()`, `openDoor()`, `getGazeTarget()`, `mirrors`, `glass`,

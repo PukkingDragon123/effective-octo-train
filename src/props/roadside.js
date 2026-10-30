@@ -667,6 +667,25 @@ export function createGhostGate(opts = {}) {
       },
     });
   }
+  // shorter strips from the lower tie beam + a few torn ones lying on the road
+  for (let i = 0; i < 14; i++) {
+    const x = -Wd / 2 + 0.6 + (i / 13) * (Wd - 1.2) + (rng() - 0.5) * 0.2;
+    const L = 0.35 + rng() * 0.6;
+    k.add(mat('cloth'), G(`strip2:${L.toFixed(1)}`, () => quad(0.06, L, 1, 4).translate(0, -L / 2, 0)), {
+      p: [x, Hh - 0.65, 0.12], r: [(rng() - 0.5) * 0.1, (rng() - 0.5) * 0.8, (rng() - 0.5) * 0.1], color: 0xd8d2c4, uv: 'keep', w: { vary: 0.3 },
+      deform: (p) => { p.z += Math.sin(p.y * 6 + x) * 0.03; },
+    });
+  }
+  for (let i = 0; i < 4; i++) k.add(mat('cloth_static'), G('stripfallen', () => quad(0.08, 0.9, 1, 4).rotateX(-Math.PI / 2)), { p: [(rng() - 0.5) * Wd * 0.7, 0.012, (rng() - 0.5) * 2.5], r: rng() * 6, color: 0xb8b2a4, uv: 'keep', w: { grime: 0.6, grimeH: 0.1 }, deform: (p) => { p.y += Math.max(0, Math.sin(p.z * 9)) * 0.015; } });
+  // yellow paper talismans pasted on the posts (red brush marks)
+  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+    k.add(mat('paper'), G('talisman', () => quad(0.09, 0.28, 1, 3)), {
+      p: [s * px - s * Math.sin(0.4 * (i - 1)) * 0.0, 2.0 + i * 0.36 + rng() * 0.1, 0.235], r: [0, (i - 1) * 0.35, (rng() - 0.5) * 0.15], color: 0xd8c060, uv: 'keep', w: { vary: 0.35, streak: 0.4 },
+      colorFn: (p, n, c, lp) => { if (Math.abs(lp.x + Math.sin(lp.y * 40) * 0.01) < 0.012 || Math.abs(lp.y - 0.09) < 0.008) c.set(0x8a1a12); },
+    });
+  }
+  // sacred threads crisscrossing between the posts
+  for (let i = 0; i < 2; i++) k.add(mat('cloth_static'), tube(sagCurve(V(-px + 0.2, Hh - 1.6 - i * 0.8, 0.22), V(px - 0.2, Hh - 1.0 - i * 1.1, 0.22), 0.4, 20), 0.005, 3), { color: 0xe8e4d8, w: false });
   // white paper lanterns hanging (dim)
   const nl = 4;
   for (let i = 0; i < nl; i++) {

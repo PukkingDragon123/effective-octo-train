@@ -184,6 +184,28 @@ export class EngineSound {
     this.intakeAM.connect(this.intakeLevel);
     this.intakeLevel.connect(this.out);
 
+    // dashboard / trim rattle: noise bursts gated by the rectified firing pulses
+    this.rattleBP = ctx.createBiquadFilter();
+    this.rattleBP.type = 'bandpass';
+    this.rattleBP.frequency.value = 2700;
+    this.rattleBP.Q.value = 2.2;
+    this.rattleAM = ctx.createGain();
+    this.rattleAM.gain.value = 0;
+    const rect = ctx.createWaveShaper();
+    const rc = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const x = (i / 255) * 2 - 1;
+      rc[i] = Math.max(0, Math.abs(x) - 0.25) * 2.2; // only the pulse peaks open the gate
+    }
+    rect.curve = rc;
+    this.sum.connect(rect);
+    rect.connect(this.rattleAM.gain);
+    this.rattleBP.connect(this.rattleAM);
+    this.rattleLevel = ctx.createGain();
+    this.rattleLevel.gain.value = 0;
+    this.rattleAM.connect(this.rattleLevel);
+    this.rattleLevel.connect(this.out);
+
     // gear whine
     this.whine = ctx.createOscillator();
     this.whine.type = 'triangle';
@@ -266,6 +288,12 @@ export class EngineSound {
         s2.start(ctx.currentTime, Math.random() * buf.duration);
         s2.connect(this.windBP);
         this.windSrc = s2;
+        const s3 = ctx.createBufferSource();
+        s3.buffer = buf;
+        s3.loop = true;
+        s3.playbackRate.value = 1.31;
+        s3.start(ctx.currentTime, Math.random() * buf.duration);
+        s3.connect(this.rattleBP);
       } else {
         const g = ctx.createGain();
         g.gain.value = 0;
@@ -385,9 +413,13 @@ export class EngineSound {
     // intake
     this.intakeBP.frequency.setTargetAtTime(250 + rpm * 0.18, now, tc);
     this.intakeLevel.gain.setTargetAtTime(this._onGain * (0.04 + 0.4 * ld * (0.3 + rpmN)), now, tc);
+    // rattles: worst at idle and around the cabin's resonance band (~1100-1500 rpm)
+    const resBand = smooth(950, 1150, rpm) * (1 - smooth(1450, 1700, rpm));
+    this.rattleLevel.gain.setTargetAtTime(this._onGain * this.volume * (idleness * 0.5 + resBand * 0.7) * 0.22, now, 0.08);
     // gear whine (strongest in low gears, under load or overrun)
     const g = this.gear;
-    const gi = g === 'R' ? 45 : typeof g === 'number' ? P.whine[g] || 0 : g === 'D' ? P.whine[Math.min(5, 1 + Math.floor(this.speed / 25))] : 0;
+    const gn = Number(g);
+    const gi = g === 'R' ? 45 : Number.isFinite(gn) && gn > 0 ? P.whine[Math.min(5, gn)] || 0 : g === 'D' ? P.whine[Math.min(5, 1 + Math.floor(this.speed / 25))] : 0;
     const wf = Math.max(30, this.speed * (gi || 10));
     this.whine.frequency.setTargetAtTime(wf, now, 0.05);
     const wg = gi ? smooth(2, 15, this.speed) * (0.006 + 0.01 * Math.abs(this._loadS)) * (g === 'R' ? 2.5 : 1) * this._onGain : 0;

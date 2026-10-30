@@ -236,7 +236,9 @@ const hsv = (h, s, v) => {
   return [c.r, c.g, c.b];
 };
 function jitterTint(rng, base, hj = 0.03, lj = 0.18) {
-  const c = new THREE.Color(base[0], base[1], base[2]);
+  // tints modulate the painted atlas colour: keep them bright (hue/value variation only)
+  const mx = Math.max(base[0], base[1], base[2]) || 1;
+  const c = new THREE.Color((base[0] / mx) * 0.92, (base[1] / mx) * 0.92, (base[2] / mx) * 0.92);
   const hslv = {};
   c.getHSL(hslv);
   c.setHSL((hslv.h + (rng() - 0.5) * hj + 1) % 1, Math.min(1, hslv.s * (0.85 + rng() * 0.3)), Math.min(1, hslv.l * (1 - lj / 2 + rng() * lj)));
@@ -330,7 +332,7 @@ function rainTree(rng, opts) {
     rFn: (i, ang, r, p) => r * (1 + Math.max(0, 0.9 - p.y) * 0.35 * (1 + 0.6 * Math.pow(Math.max(0, Math.cos(ang * 3 + 1)), 6))),
   });
   const top = trunk[trunk.length - 1];
-  const nL = 4 + Math.floor(rng() * 3);
+  const nL = 5 + Math.floor(rng() * 3);
   const crownR = (12 + rng() * 4) * sc;
   for (let l = 0; l < nL; l++) {
     const az = (l / nL) * TAU + rng() * 0.6;
@@ -342,23 +344,23 @@ function rainTree(rng, opts) {
     const limb = growPath(rng, { x: top.x * (y0 / H0), y: y0, z: top.z * (y0 / H0) }, d, len, R0 * (0.5 + rng() * 0.12), 0.1 * sc, 9, { tropism: -0.05, gravity: 0.35, outward: out, wobble: 0.12, taperPow: 0.8 });
     skel.branches.push({ pts: limb, level: 1, color: aoColor(tint, 0.75, 0, 8) });
     // sub branches
-    const nb = 4 + Math.floor(rng() * 3);
+    const nb = 6 + Math.floor(rng() * 3);
     for (let b = 0; b < nb; b++) {
-      const t = 0.3 + (b / nb) * 0.68 + rng() * 0.05;
+      const t = 0.22 + (b / nb) * 0.76 + rng() * 0.04;
       const q = pointOn(limb, t);
-      const bd = q.dir.clone().add(randPerp(rng, q.dir).multiplyScalar(0.9)).add(new THREE.Vector3(0, 0.55, 0)).normalize();
-      const bl = (4 + rng() * 3.5) * sc * (1.15 - t * 0.4);
-      const br = growPath(rng, q, bd, bl, Math.min(q.r * 0.7, 0.24 * sc), 0.035, 6, { tropism: 0.2, gravity: 0.25, wobble: 0.2 });
+      const bd = q.dir.clone().add(randPerp(rng, q.dir).multiplyScalar(1.0)).add(new THREE.Vector3(0, 0.6, 0)).normalize();
+      const bl = (4.5 + rng() * 3.5) * sc * (1.15 - t * 0.4);
+      const br = growPath(rng, q, bd, bl, Math.min(q.r * 0.7, 0.24 * sc), 0.035, 6, { tropism: 0.2, gravity: 0.3, wobble: 0.2 });
       skel.branches.push({ pts: br, level: 2, color: aoColor(tint, 0.85, 0, 8) });
-      const nt = 2 + Math.floor(rng() * 3);
+      const nt = 3 + Math.floor(rng() * 3);
       for (let k = 0; k < nt; k++) {
-        const q2 = pointOn(br, 0.45 + rng() * 0.5);
-        const td = q2.dir.clone().add(randPerp(rng, q2.dir).multiplyScalar(1.1)).add(new THREE.Vector3(0, 0.5, 0)).normalize();
-        const tw = growPath(rng, q2, td, (1.6 + rng() * 1.8) * sc, 0.035, 0.012, 3, { tropism: 0.3, wobble: 0.3 });
+        const q2 = pointOn(br, 0.3 + rng() * 0.68);
+        const td = q2.dir.clone().add(randPerp(rng, q2.dir).multiplyScalar(1.2)).add(new THREE.Vector3(0, 0.45, 0)).normalize();
+        const tw = growPath(rng, q2, td, (1.8 + rng() * 2) * sc, 0.035, 0.012, 3, { tropism: 0.25, gravity: 0.15, wobble: 0.3 });
         skel.branches.push({ pts: tw, level: 3, color: aoColor(tint, 0.9, 0, 8) });
-        leafSpray(rng, skel, tw, SLOT.rain, 3.0 * sc, 2, [0.42, 0.5, 0.26], { t0: 0.5, up: 0.8, spread: 0.7 });
+        leafSpray(rng, skel, tw, SLOT.rain, 3.6 * sc, 3, [0.42, 0.5, 0.26], { t0: 0.35, up: 0.7, spread: 0.8 });
       }
-      leafSpray(rng, skel, br, SLOT.rain, 3.2 * sc, 2, [0.4, 0.48, 0.25], { t0: 0.7, up: 0.9 });
+      leafSpray(rng, skel, br, SLOT.rain, 3.8 * sc, 3, [0.4, 0.48, 0.25], { t0: 0.55, up: 0.8 });
     }
     // epiphytes on the upper side of the limb
     for (let e = 0; e < 2 + Math.floor(rng() * 3); e++) {
@@ -400,24 +402,25 @@ function dipterocarp(rng, opts) {
     },
   });
   // crown
-  const nB = 6 + Math.floor(rng() * 4);
-  const crownW = (6.5 + rng() * 2.5) * sc;
+  const nB = 9 + Math.floor(rng() * 4);
+  const crownW = (8.5 + rng() * 3) * sc;
   for (let b = 0; b < nB; b++) {
-    const t = 0.66 + (b / nB) * 0.3;
+    const t = 0.6 + (b / nB) * 0.36;
     const q = pointOn(trunk, t);
     const az = rng() * TAU;
     const out = new THREE.Vector3(Math.cos(az), 0, Math.sin(az));
     const d = out.clone().multiplyScalar(0.8).add(new THREE.Vector3(0, 0.75 + rng() * 0.4, 0)).normalize();
     const br = growPath(rng, q, d, crownW * (0.7 + rng() * 0.45), q.r * 0.45, 0.05, 6, { tropism: 0.1, gravity: 0.25, outward: out, wobble: 0.15 });
     skel.branches.push({ pts: br, level: 1, color: aoColor(tint, 0.9, 0, 10) });
-    for (let s = 0; s < 3; s++) {
-      const q2 = pointOn(br, 0.4 + s * 0.2 + rng() * 0.1);
-      const sd = q2.dir.clone().add(randPerp(rng, q2.dir)).add(new THREE.Vector3(0, 0.5, 0)).normalize();
-      const sb = growPath(rng, q2, sd, (2.2 + rng() * 2.2) * sc, 0.06, 0.015, 3, { tropism: 0.2, wobble: 0.25 });
+    const slotB = rng() < 0.6 ? SLOT.broadA : SLOT.fig;
+    for (let s = 0; s < 4; s++) {
+      const q2 = pointOn(br, 0.3 + s * 0.17 + rng() * 0.1);
+      const sd = q2.dir.clone().add(randPerp(rng, q2.dir)).add(new THREE.Vector3(0, 0.45, 0)).normalize();
+      const sb = growPath(rng, q2, sd, (2.6 + rng() * 2.4) * sc, 0.07, 0.015, 3, { tropism: 0.15, gravity: 0.1, wobble: 0.25 });
       skel.branches.push({ pts: sb, level: 2, color: aoColor(tint, 0.9, 0, 10) });
-      leafSpray(rng, skel, sb, rng() < 0.5 ? SLOT.broadA : SLOT.fig, 2.7 * sc, 2, [0.36, 0.46, 0.22], { t0: 0.5, up: 0.7 });
+      leafSpray(rng, skel, sb, slotB, 3.3 * sc, 3, [0.36, 0.46, 0.22], { t0: 0.35, up: 0.6 });
     }
-    leafSpray(rng, skel, br, SLOT.broadA, 3.0 * sc, 2, [0.34, 0.44, 0.21], { t0: 0.75, up: 0.8 });
+    leafSpray(rng, skel, br, slotB, 3.5 * sc, 3, [0.34, 0.44, 0.21], { t0: 0.6, up: 0.7 });
   }
   // climbers spiralling up the trunk
   if (rng() < 0.7) {
@@ -447,14 +450,14 @@ function banyan(rng, opts) {
   const sc = opts.scale ?? 1;
   const Ht = (5 + rng() * 2.5) * sc;
   const tint = BARK_TINT(rng, [0.8, 0.78, 0.72]);
-  const nT = 6 + Math.floor(rng() * 4);
+  const nT = 7 + Math.floor(rng() * 4);
   const twist = (rng() - 0.5) * 1.6;
   for (let i = 0; i < nT; i++) {
     const a0 = (i / nT) * TAU + rng() * 0.5;
-    const rad = (0.35 + rng() * 0.9) * sc;
+    const rad = (0.25 + rng() * 0.55) * sc;
     const pts = [];
     const segs = 9;
-    const r = (0.14 + rng() * 0.28) * sc;
+    const r = (0.24 + rng() * 0.3) * sc;
     for (let k = 0; k <= segs; k++) {
       const t = k / segs;
       const a = a0 + twist * t;
@@ -463,24 +466,24 @@ function banyan(rng, opts) {
     }
     skel.branches.push({ pts, level: 0, mat: 'banyanBark', color: aoColor(tint, 0.5, 0, 3) });
   }
-  const crownR = (9 + rng() * 3) * sc;
-  const nL = 5 + Math.floor(rng() * 3);
+  const crownR = (10.5 + rng() * 3) * sc;
+  const nL = 6 + Math.floor(rng() * 3);
   for (let l = 0; l < nL; l++) {
     const az = (l / nL) * TAU + rng() * 0.5;
     const out = new THREE.Vector3(Math.cos(az), 0, Math.sin(az));
     const d = out.clone().add(new THREE.Vector3(0, 0.35 + rng() * 0.4, 0)).normalize();
     const limb = growPath(rng, { x: 0, y: Ht * (0.85 + rng() * 0.2), z: 0 }, d, crownR * (0.8 + rng() * 0.3), 0.36 * sc, 0.08, 8, { gravity: 0.2, tropism: 0.06, outward: out, wobble: 0.14 });
     skel.branches.push({ pts: limb, level: 1, mat: 'banyanBark', color: aoColor(tint, 0.8, 0, 8) });
-    for (let b = 0; b < 4; b++) {
-      const q = pointOn(limb, 0.35 + b * 0.18 + rng() * 0.08);
-      const bd = q.dir.clone().add(randPerp(rng, q.dir).multiplyScalar(0.8)).add(new THREE.Vector3(0, 0.6, 0)).normalize();
-      const br = growPath(rng, q, bd, (3 + rng() * 3) * sc, 0.12 * sc, 0.03, 5, { tropism: 0.2, wobble: 0.2 });
+    for (let b = 0; b < 6; b++) {
+      const q = pointOn(limb, 0.25 + b * 0.13 + rng() * 0.06);
+      const bd = q.dir.clone().add(randPerp(rng, q.dir).multiplyScalar(0.9)).add(new THREE.Vector3(0, 0.7, 0)).normalize();
+      const br = growPath(rng, q, bd, (3.5 + rng() * 3.5) * sc, 0.13 * sc, 0.03, 5, { tropism: 0.2, gravity: 0.15, wobble: 0.2 });
       skel.branches.push({ pts: br, level: 2, mat: 'banyanBark', color: aoColor(tint, 0.85, 0, 8) });
-      leafSpray(rng, skel, br, SLOT.fig, 2.6 * sc, 3, [0.3, 0.42, 0.2], { t0: 0.35, up: 0.6 });
+      leafSpray(rng, skel, br, SLOT.fig, 3.3 * sc, 5, [0.3, 0.42, 0.2], { t0: 0.2, up: 0.55, spread: 0.8 });
     }
-    leafSpray(rng, skel, limb, SLOT.fig, 2.8 * sc, 2, [0.28, 0.4, 0.19], { t0: 0.8, up: 0.6 });
+    leafSpray(rng, skel, limb, SLOT.fig, 3.5 * sc, 3, [0.28, 0.4, 0.19], { t0: 0.7, up: 0.6 });
     // aerial roots: thin straight tubes to the ground, some thick pillar roots
-    const nr = 2 + Math.floor(rng() * 4);
+    const nr = 2 + Math.floor(rng() * 3);
     for (let r = 0; r < nr; r++) {
       const q = pointOn(limb, 0.25 + rng() * 0.7);
       const thick = rng() < 0.25;

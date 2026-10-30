@@ -91,6 +91,7 @@ export class PauseMenu {
       menuItem(nav, { en: 'Settings', th: 'ตั้งค่า', onSelect: () => (handlers.onSettings ? handlers.onSettings() : ui.showSettings()) }),
       menuItem(nav, { en: 'Quit to Menu', th: 'กลับสู่เมนูหลัก', onSelect: quit }));
     let timeEl = null;
+    if (handlers.time == null && Number.isFinite(ui._hour) && handlers.showTime !== false) handlers = { ...handlers, time: ui._hour };
     if (handlers.time != null) {
       const hr = typeof handlers.time === 'number' ? handlers.time : parseClock(handlers.time);
       const t = typeof handlers.time === 'number' ? clockString(handlers.time) : handlers.time;

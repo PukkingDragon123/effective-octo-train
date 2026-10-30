@@ -106,7 +106,11 @@ class Player {
   note(inst, f, when, o = {}) {
     if (this.stopped) return false;
     const b = this.buf(inst, f, o.vel ?? 0.7, o.extra || null);
-    if (!b) return false;
+    if (!b) {
+      // long events (drones, pads, swells) must not vanish while the worker renders them: retry
+      if (o.env || o.retry) (this.retries ||= []).push({ inst, f, when, o, until: when + 4 });
+      return false;
+    }
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = b;
@@ -167,6 +171,22 @@ class Player {
     }
   }
   schedule(until) {
+    if (this.retries?.length) {
+      const now = this.ctx.currentTime;
+      const keep = [];
+      for (const r of this.retries) {
+        if (now > r.until || this.stopped) continue;
+        if (!this.buf(r.inst, r.f, r.o.vel ?? 0.7, r.o.extra || null)) {
+          keep.push(r);
+          continue;
+        }
+        const late = Math.max(0, now + 0.05 - r.when);
+        const o = { ...r.o, retry: false };
+        if (o.env) o.env = { ...o.env, dur: Math.max(1, (o.env.dur ?? 4) - late) };
+        this.note(r.inst, r.f, Math.max(r.when, now + 0.05), o);
+      }
+      this.retries = keep;
+    }
     let guard = 0;
     while (!this.stopped && this.nextT < until && guard++ < 64) this.step();
   }
@@ -279,7 +299,7 @@ class DreadPlayer extends Player {
       this.nextSub = t + rand(22, 40);
     }
     if (t >= this.nextCluster) {
-      this.note('strings', 98, t, { vel: 0.45, gain: 0.35, extra: { freqs: [98, 103.8, 146.8, 155.6], dur: 14, attack: 5, release: 6, cut: 900 }, send: 0.5, pan: rand(-0.5, 0.5) });
+      this.note('strings', 98, t, { vel: 0.45, gain: 0.35, retry: true, extra: { freqs: [98, 103.8, 146.8, 155.6], dur: 14, attack: 5, release: 6, cut: 900 }, send: 0.5, pan: rand(-0.5, 0.5) });
       this.nextCluster = t + rand(35, 70);
     }
     if (t >= this.nextGlass) {
@@ -322,7 +342,7 @@ class SurrealPlayer extends Player {
     const t = this.nextT;
     if (t >= this.nextPad) {
       const k = Math.floor((t - this.startT) / 14);
-      this.note('pad', 146.8, t, { vel: 0.45, gain: 0.35, extra: this._padExtra(k), send: 0.5, detune: -15 + Math.random() * 30 });
+      this.note('pad', 146.8, t, { vel: 0.45, gain: 0.35, extra: this._padExtra(k), send: 0.5, detune: -15 + Math.random() * 30, retry: true });
       this.buf('pad', 146.8, 0.45, this._padExtra(k + 1));
       this.nextPad = t + 14;
     }
@@ -383,7 +403,7 @@ class CalmPlayer extends Player {
     if (t >= this.nextChord) {
       const k = this.ci++;
       const ch = this.chords[k % 4];
-      this.note('pad', this.root / 2, t, { vel: 0.45, gain: 0.32, extra: this._pad(k), send: 0.4 });
+      this.note('pad', this.root / 2, t, { vel: 0.45, gain: 0.32, extra: this._pad(k), send: 0.4, retry: true });
       this.note('bass', (this.root / 4) * ET(ch[0] > -4 ? ch[0] : ch[0] + 12), t, { vel: 0.45, gain: 0.3, send: 0.15 });
       if (k % 2 === 1) {
         // khim broken chord
@@ -499,7 +519,7 @@ class DawnPlayer extends Player {
     if (t >= this.nextChord) {
       const k = this.ci++;
       const ch = this.prog[k % 8];
-      this.note('pad', this.root, t, { vel: 0.45, gain: 0.3, extra: this._pad(k), send: 0.45 });
+      this.note('pad', this.root, t, { vel: 0.45, gain: 0.3, extra: this._pad(k), send: 0.45, retry: true });
       if (this.elapsed > 8) this.note('strings', this.root * 2, t, { vel: 0.45, gain: 0.12 + 0.18 * I, extra: this._str(k), send: 0.5 });
       if (k % 4 === 0) this.note('bell', 783.99, t, { vel: 0.45, gain: 0.08 + 0.08 * I, send: 0.8, pan: 0.5 });
       if (this.elapsed > 14) {
@@ -595,6 +615,8 @@ class TensionPlayer extends Player {
     this.buf('tek', 1, 0.45);
     this.buf('bass', 41.2, 0.85);
     this.buf('bass', 43.65, 0.85);
+    this.buf('bass', 82.4, 0.85);
+    this.buf('bass', 87.3, 0.85);
     this.buf('strings', 196, 0.45, { freqs: [622, 659, 698, 932], dur: this.beat * 16, attack: this.beat * 12, release: 1.5, cut: 4000 });
   }
   step() {
@@ -604,7 +626,11 @@ class TensionPlayer extends Player {
     const b = this.beat;
     this.note('klong', 62, t, { vel: 0.85, gain: 0.55, send: 0.3 });
     this.note('klong', 62, t + b * 0.42, { vel: 0.45, gain: 0.35, send: 0.3 });
-    for (let i = 0; i < 4; i++) this.note('bass', i === 3 ? 43.65 : 41.2, t + i * b, { vel: 0.85, gain: 0.35 + 0.15 * I });
+    for (let i = 0; i < 4; i++) {
+      const f = i === 3 ? 43.65 : 41.2;
+      this.note('bass', f, t + i * b, { vel: 0.85, gain: 0.35 + 0.15 * I });
+      this.note('bass', f * 2, t + i * b + 0.004, { vel: 0.85, gain: 0.16 + 0.1 * I }); // audible on small speakers
+    }
     if (I > 0.2) for (let i = 0; i < 8; i++) this.note('tek', 1, t + i * b * 0.5, { vel: 0.45, gain: (0.05 + 0.08 * I) * (i % 2 ? 0.6 : 1), pan: 0.5, send: 0.2 });
     if (k % 4 === 0) this.note('strings', 196, t, { vel: 0.45, gain: 0.12 + 0.2 * I, extra: { freqs: [622, 659, 698, 932], dur: b * 16, attack: b * 12, release: 1.5, cut: 4000 }, send: 0.4 });
     this.barT += b * 4;

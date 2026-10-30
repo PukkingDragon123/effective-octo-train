@@ -171,8 +171,11 @@ function sampleHead(G, th, ph) {
 // Grip frame: origin at the grip point, +Y = up along the held object (or "hang" direction -Y), +Z forward.
 const heldCache = new Map();
 let _heldMat = null;
-export function heldMaterial() {
-  if (!_heldMat) _heldMat = paintedMaterial({ vertexColors: true, roughness: 0.78, brush: 0.55, wet: 0.35, puddles: 0, name: 'glb-held' });
+/** shared material for held props; fresh=true makes a per-character instance (fading) */
+export function heldMaterial(fresh = false) {
+  const mk = () => paintedMaterial({ vertexColors: true, roughness: 0.78, brush: 0.55, wet: 0.35, puddles: 0, name: 'glb-held' });
+  if (fresh) return mk();
+  if (!_heldMat) _heldMat = mk();
   return _heldMat;
 }
 export function heldGeometry(kind) {

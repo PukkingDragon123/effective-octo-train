@@ -3,7 +3,7 @@
 // height, normal / roughness map packing. Pure functions (no DOM) so generators can
 // later run inside a worker.
 import { makeRng } from '../core/math.js';
-import { blur, hash1 } from './noise.js';
+import { blur, hash1, fbm, warp } from './noise.js';
 
 /** Float RGBA image (values 0..1, sRGB-ish "paint" space). Row 0 = TOP of the image. */
 export class Img {
@@ -521,4 +521,45 @@ export function blotches(w, h, rng, count, rLo, rHi, raggedField, hard = 0.6) {
     }
   }
   return m;
+}
+
+/** Value of `field` at quantile q (0..1), from a strided subsample (deterministic). */
+export function quantile(f, q) {
+  const step = Math.max(1, Math.floor(f.length / 4096));
+  const s = [];
+  for (let i = 0; i < f.length; i += step) s.push(f[i]);
+  s.sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.max(0, Math.floor(q * s.length)))];
+}
+
+/**
+ * Organic patch mask (lichen, stains, moss colonies, peeled areas): domain-warped fBm
+ * thresholded at a quantile so `coverage` is the real covered fraction. Edges are ragged at
+ * several scales instead of the round discs of `blotches`.
+ * opts: seed, cells=5, coverage=0.2, soft=0.04 (edge width in field units), warp=0.5,
+ *   detail=0.35 (fine edge raggedness), bias (Float32Array added before thresholding, e.g. ridge tops)
+ * Returns { m: mask 0..1, rim: thin band just inside the edge, v: raw field }.
+ */
+export function organic(w, h, o = {}) {
+  const n = w * h;
+  const seed = o.seed ?? 1;
+  const cells = o.cells ?? 5;
+  const base = fbm(w, h, { cells, octaves: o.octaves ?? 4, seed, gain: 0.55 });
+  const wx = fbm(w, h, { cells: Math.max(1, Math.round(cells * 0.8)), octaves: 3, seed: seed + 1 });
+  const wy = fbm(w, h, { cells: Math.max(1, Math.round(cells * 0.8)), octaves: 3, seed: seed + 2 });
+  const v = warp(base, w, h, wx, wy, ((o.warp ?? 0.5) * w) / cells);
+  const det = fbm(w, h, { cells: cells * 8, octaves: 2, seed: seed + 3 });
+  const dAmt = o.detail ?? 0.35;
+  const bias = o.bias || null;
+  for (let i = 0; i < n; i++) v[i] += det[i] * dAmt * 0.25 + (bias ? bias[i] : 0);
+  const thr = quantile(v, 1 - (o.coverage ?? 0.2));
+  const soft = o.soft ?? 0.04;
+  const m = new Float32Array(n), rim = new Float32Array(n);
+  const rw = soft * 4;
+  for (let i = 0; i < n; i++) {
+    const d = v[i] - thr;
+    m[i] = sstep(-soft * 0.5, soft * 0.5, d);
+    rim[i] = m[i] * (1 - sstep(0, rw, d));
+  }
+  return { m, rim, v };
 }

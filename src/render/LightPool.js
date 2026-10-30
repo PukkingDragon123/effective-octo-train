@@ -13,6 +13,7 @@ import { settings } from '../core/Settings.js';
 import { createVolumetricBeam } from './Beams.js';
 
 const REAL_BY_PRESET = { low: 2, medium: 3, high: 4, ultra: 6 };
+const byDist = (a, b) => a.dist2 - b.dist2;
 const _v = new THREE.Vector3();
 const _c = new THREE.Color();
 
@@ -441,7 +442,7 @@ class LightPool {
       l.dist2 = l.pos.distanceToSquared(cam) / (1 + l.priority);
       if (l.on && l.visible && l.dist2 < maxD2) near.push(l);
     }
-    near.sort((a, b) => a.dist2 - b.dist2);
+    near.sort(byDist);
     // --- real light slots (crossfade) ------------------------------------------------
     for (const s of this.slots) {
       const want = s.lamp && near.indexOf(s.lamp) >= 0 && near.indexOf(s.lamp) < realN;
@@ -456,7 +457,8 @@ class LightPool {
     for (let i = 0; i < Math.min(realN, near.length); i++) {
       const l = near[i];
       if (l.slot) continue;
-      const free = this.slots.find((s) => !s.lamp);
+      let free = null;
+      for (const s of this.slots) if (!s.lamp) { free = s; break; }
       if (!free) break;
       free.lamp = l;
       free.fade = this._started ? 0 : 1;

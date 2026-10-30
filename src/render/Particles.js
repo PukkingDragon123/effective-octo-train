@@ -112,8 +112,8 @@ const TYPES = {
       vec2 rp = vec2(dlbHash12(vec2(id, aSeed.x * 91.0)), dlbHash12(vec2(aSeed.z * 77.0, id))) * 2.0 - 1.0;
       wp = vec3(uOrigin.x + rp.x * uRadius, uGround + 0.04 + age * 0.06, uOrigin.z + rp.y * uRadius);
       vec3 lit = pAmbient(wp) * 1.2 + pDirect(wp) * 1.5;
-      col = vec4(uColor * lit, (1.0 - age) * (1.0 - age) * 0.35 * smoothstep(1.0, 3.0, length(wp - cameraPosition)));
-      size = 0.02 + age * 0.05;
+      col = vec4(uColor * lit, (1.0 - age) * (1.0 - age) * 0.22 * smoothstep(2.0, 5.0, length(wp - cameraPosition)));
+      size = 0.015 + age * 0.035;
       misc.x = age;
       shape = 3.0;
     `,

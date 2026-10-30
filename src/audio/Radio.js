@@ -98,7 +98,11 @@ export class Radio {
   // ---- internals ----
   _emit() {
     const memory = this.on && this.station === 3 && this.song === 'father_song' ? 'm_song' : undefined;
-    bus.emit('audio:radio', { on: this.on, station: this.station, song: this.on ? this.song : null, title: this.on ? this.title : null, memory });
+    const ev = { on: this.on, station: this.station, song: this.on ? this.song : null, title: this.on ? this.title : null, memory };
+    const key = `${ev.on}|${ev.station}|${ev.song}|${memory}`;
+    if (key === this._lastEmit) return;
+    this._lastEmit = key;
+    bus.emit('audio:radio', ev);
   }
 
   _attachCore(core) {

@@ -279,11 +279,11 @@ export function createElectricPole(opts = {}) {
         const x = (i - (n - 1) / 2) * 0.55;
         const tz = -0.55;
         // tank with cooling fins, lid, bushings
-        k.add(mat('rust'), G('tank', () => cyl(0.23, 0.23, 0.82, 16, 0.02, 4)), {
+        k.add(mat('metal'), G('tank', () => cyl(0.23, 0.23, 0.82, 16, 0.02, 4)), {
           p: [x, 0, tz], color: 0x8a908a, w: { ground: 0, grime: 0.2, grimeH: 0.3, streak: 0.9, streakColor: 0x6a3a1a, vary: 0.2 },
           colorFn: (p, nn, cc, lp) => { if (Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 14)) > 0.8) cc.multiplyScalar(0.72); },
         });
-        k.add(mat('rust'), G('tlid', () => cyl(0.25, 0.25, 0.05, 16, 0.012)), { p: [x, 0.82, tz], color: 0x7a7e78, w: { streak: 0.5 } });
+        k.add(mat('metal'), G('tlid', () => cyl(0.25, 0.25, 0.05, 16, 0.012)), { p: [x, 0.82, tz], color: 0x7a7e78, w: { streak: 0.5 } });
         for (let b = 0; b < 2; b++) {
           k.add(mat('ceramic'), G('bushing', () => lathe([[0, 0], [0.04, 0], [0.04, 0.02], [0.055, 0.03], [0.03, 0.05], [0.05, 0.07], [0.03, 0.09], [0.045, 0.11], [0.02, 0.15], [0, 0.15]], 10)), { p: [x + (b ? 0.09 : -0.09), 0.86, tz + 0.02], color: 0x6a4030, w: false });
         }
@@ -467,7 +467,7 @@ export function createWireSpan(anchorsA, anchorsB, opts = {}) {
   obj.userData.sample = (i, t, out = new THREE.Vector3()) => sampleCable(cables[Math.max(0, Math.min(cables.length - 1, i))], t, out);
   return obj;
 }
-const DEFAULT_KINDS = ['hv', 'hv', 'lv', 'lv', 'lv', 'lv', 'tel', 'tel', 'tel'];
+const DEFAULT_KINDS = ['hv', 'hv', 'hv', 'hv', 'lv', 'lv', 'lv', 'lv', 'tel', 'tel', 'tel'];
 
 /** Point on a cable record at t (0..1). */
 export function sampleCable(c, t, out = new THREE.Vector3()) {
@@ -536,4 +536,27 @@ export function createStreetlight(opts = {}) {
 export function setLampOn(result, on) {
   for (const c of result.lampControllers || []) c.on = on;
   for (const h of result.lightHandles || []) h.setOn?.(on);
+}
+
+/**
+ * Convenience: wire two placed poles together (their objects must be in their final place;
+ * matrixWorld is updated here). Anchors are paired by kind (hv↔hv, lv↔lv, tel↔tel, in order),
+ * so poles with different cross-arm counts still connect sensibly.
+ * -> Object3D in WORLD space (add it to a scene-level group, not to a pole).
+ */
+export function connectPoles(poleA, poleB, opts = {}) {
+  poleA.object.updateWorldMatrix(true, false);
+  poleB.object.updateWorldMatrix(true, false);
+  const A = [], B = [], kinds = [];
+  for (const kind of ['hv', 'lv', 'tel']) {
+    const ia = poleA.wireKinds.map((k, i) => (k === kind ? i : -1)).filter((i) => i >= 0);
+    const ib = poleB.wireKinds.map((k, i) => (k === kind ? i : -1)).filter((i) => i >= 0);
+    const n = Math.min(ia.length, ib.length);
+    for (let j = 0; j < n; j++) {
+      A.push(poleA.wireAnchors[ia[j]].clone().applyMatrix4(poleA.object.matrixWorld));
+      B.push(poleB.wireAnchors[ib[j]].clone().applyMatrix4(poleB.object.matrixWorld));
+      kinds.push(kind);
+    }
+  }
+  return createWireSpan(A, B, { ...opts, kinds });
 }

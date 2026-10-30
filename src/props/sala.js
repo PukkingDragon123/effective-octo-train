@@ -115,7 +115,7 @@ export function createSala(opts = {}) {
   for (const [x, z] of pillars) {
     const lean = (rng() - 0.5) * 0.015;
     k.add(mat('plaster'), bbox(0.24, PH, 0.24, 0.025, 0.25), {
-      p: [x, FH, z], r: [lean, 0, lean], color: 0xe8e2d2, jitter: 0.004, jitterFreq: 5,
+      p: [x, FH, z], r: [lean, 0, lean], color: variant === 2 ? 0xbcb4a2 : 0xe0dacb, jitter: 0.004, jitterFreq: 5,
       w: { ground: FH, grime: 0.55, grimeH: 0.9, mossLow: 0.9 * age, mossH: 0.75, streak: 0.6 * age },
       colorFn: (p, n, c) => {
         // peeling paint patches revealing grey concrete
@@ -275,6 +275,17 @@ export function createSala(opts = {}) {
     }
   });
 
+  // ---- vines and dead leaves hanging from the eaves (more on the older sala) ----------------
+  const nVines = variant === 2 ? 22 : 9;
+  for (let i = 0; i < nVines; i++) {
+    const s = rng() < 0.5 ? -1 : 1;
+    const x = (rng() - 0.5) * (W + 0.8);
+    const z0 = s * (halfD - 0.05);
+    const y0e = roofY + 0.04;
+    const len = 0.4 + rng() * (variant === 2 ? 1.6 : 0.9);
+    k.add(mat('flower'), tube(smoothPath([V(x, y0e, z0), V(x + (rng() - 0.5) * 0.1, y0e - len * 0.5, z0 + s * 0.03), V(x + (rng() - 0.5) * 0.15, y0e - len, z0 + s * 0.02)], 6), (t) => 0.01 * (1 - t * 0.6), 3), { color: rng() < 0.4 ? 0x4a3a20 : 0x2e4a1e, w: false });
+    if (rng() < 0.6) k.add(mat('flower'), G('vleaf', () => blob(0.05, 0.03, 9, 6, 0.3).rotateX(Math.PI / 2)), { p: [x, y0e - len * (0.4 + rng() * 0.5), z0 + s * 0.04], r: [0, rng() * 6, rng()], color: 0x3a5a22, w: false });
+  }
   // ---- broken fluorescent fixture hanging from the tie beam -----------------------------
   k.push([0.3, roofY - 0.08, 0.05]);
   const fl = hangingFluorescent(k, group, { broken: variant === 2 || rng() < 0.5, dying: true, seed: seed + 3 });

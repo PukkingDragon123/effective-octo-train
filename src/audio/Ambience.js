@@ -188,7 +188,11 @@ export class Ambience {
 
   update(dt) {
     if (!this.core) return;
-    dt = Math.min(0.25, Math.max(0, dt));
+    // control-rate: ~10 Hz is plenty for beds and event rolls (fewer AudioParam events)
+    this._acc = (this._acc || 0) + Math.max(0, dt);
+    if (this._acc < 0.1) return;
+    dt = Math.min(0.25, this._acc);
+    this._acc = 0;
     const s = this.state;
     const h = s.hour;
     const now = this.core.ctx.currentTime;

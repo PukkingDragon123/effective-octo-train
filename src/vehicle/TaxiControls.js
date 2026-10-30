@@ -391,7 +391,20 @@ export class TaxiControls {
         this.set('gear', s.gear === drive ? idle : drive, { source: 'interact' });
       },
     });
-    add({ id: 'taxi.headlights', object: P.stalkLights, ...L('headlights'), enabled: inCar, onUse: () => this.set('headlights', 'cycle', { source: 'interact' }) });
+    // light stalk: twist the knob for the headlights, flick the arm for the indicator
+    const proxy = (parent, size, pos) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial());
+      m.layers.set(LAYERS.INTERACT);
+      m.position.set(...pos);
+      parent.add(m);
+      this._proxies.push(m);
+      return m;
+    };
+    this._proxies = this._proxies || [];
+    const knob = proxy(P.stalkLights, [0.05, 0.036, 0.036], [0.145, -0.011, 0.022]);
+    const arm = proxy(P.stalkLights, [0.1, 0.03, 0.03], [0.065, -0.005, 0.01]);
+    add({ id: 'taxi.headlights', object: knob, ...L('headlights'), enabled: inCar, onUse: () => this.set('headlights', 'cycle', { source: 'interact' }) });
+    add({ id: 'taxi.indicator', object: arm, ...L('indicator'), enabled: inCar, onUse: () => this.set('indicator', 'cycle', { source: 'interact' }) });
     add({ id: 'taxi.wipers', object: P.stalkWipers, ...L('wipers'), enabled: inCar, onUse: () => this.set('wipers', 'cycle', { source: 'interact' }) });
     add({ id: 'taxi.cabinLight', object: P.domeLens, ...L('cabinLight'), reach: 1.3, enabled: inCar, onUse: () => this.set('cabinLight', 'toggle', { source: 'interact' }) });
     add({ id: 'taxi.radio', object: P.radioKnobVol, ...L('radio'), enabled: inCar, onUse: () => this.set('radio', 'toggle', { source: 'interact' }) });
@@ -432,6 +445,7 @@ export class TaxiControls {
       proxy.layers.set(LAYERS.INTERACT);
       proxy.position.copy(t.ext.doors[id].outerHandle);
       t.ext.doors[id].inner.add(proxy);
+      (this._doorProxies = this._doorProxies || []).push(proxy);
       const it2 = add({ id: 'taxi.door.' + id + '.out', object: proxy, ...L('door_open'), reach: 1.6, enabled: () => !inCar(), onUse: () => this.set('door', { door: id, open: s.doors[id] > 0.5 ? 0 : 1 }, { source: 'interact' }) });
       it2._door = id;
     }
@@ -439,6 +453,7 @@ export class TaxiControls {
     trunkProxy.layers.set(LAYERS.INTERACT);
     trunkProxy.position.set(0, 0.95, 2.1);
     t.bodyInner.add(trunkProxy);
+    (this._doorProxies = this._doorProxies || []).push(trunkProxy);
     add({ id: 'taxi.trunk', object: trunkProxy, ...L('trunk'), reach: 1.8, enabled: () => !inCar(), onUse: () => this.set('trunk', 'toggle', { source: 'interact' }) });
     // glass: hold to wipe condensation where you look
     for (const id of t.glass.ids) {
@@ -467,6 +482,18 @@ export class TaxiControls {
   unregister() {
     for (const it of this.items) interact.unregister(it);
     this.items = [];
+    for (const p of this._proxies || []) {
+      p.removeFromParent();
+      p.geometry.dispose();
+      p.material.dispose();
+    }
+    this._proxies = [];
+    for (const p of this._doorProxies || []) {
+      p.removeFromParent();
+      p.geometry.dispose();
+      p.material.dispose();
+    }
+    this._doorProxies = [];
   }
 
   refreshLabel() {

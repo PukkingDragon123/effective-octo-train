@@ -1,0 +1,3261 @@
+{
+ "gecko": {
+  "files": [
+   "animal/gecko_1.mp3",
+   "animal/gecko_2.mp3",
+   "animal/gecko_3.mp3",
+   "animal/gecko_4.mp3",
+   "animal/gecko_5.mp3",
+   "animal/gecko_6.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://commons.wikimedia.org/wiki/File:Mating_call_of_a_male_Tokay_gecko_(Gekko_gecko).ogg",
+    "file": "https://upload.wikimedia.org/wikipedia/commons/9/91/Mating_call_of_a_male_Tokay_gecko_%28Gekko_gecko%29.ogg",
+    "author": "Richard Ling",
+    "license": "Public domain (PD-self)",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Mating_call_of_a_male_Tokay_gecko_(Gekko_gecko).ogg",
+    "title": "Mating call of a male Tokay gecko (Gekko gecko) — Bokeo, northern Laos"
+   },
+   {
+    "source": "https://freesound.org/people/Organuz/sounds/686626/",
+    "file": "https://cdn.freesound.org/previews/686/686626_8281041-hq.mp3",
+    "author": "Organuz",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Tookgeh Gecko"
+   },
+   {
+    "source": "https://freesound.org/people/vollkornbrot/sounds/149924/",
+    "file": "https://cdn.freesound.org/previews/149/149924_2661213-hq.mp3",
+    "author": "vollkornbrot",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "gecko.mp3"
+   },
+   {
+    "source": "https://freesound.org/people/lomboy/sounds/84688/",
+    "file": "https://cdn.freesound.org/previews/84/84688_1357424-hq.mp3",
+    "author": "lomboy",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "gecko.wav"
+   },
+   {
+    "source": "https://freesound.org/people/mopedmetzger/sounds/351301/",
+    "file": "https://cdn.freesound.org/previews/351/351301_4620503-hq.mp3",
+    "author": "mopedmetzger",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "gekko.mp3"
+   },
+   {
+    "source": "https://freesound.org/people/kevp888/sounds/587213/",
+    "file": "https://cdn.freesound.org/previews/587/587213_9034501-hq.mp3",
+    "author": "kevp888",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "210915-1876_PH_Tokay_gecko.wav"
+   }
+  ],
+  "notes": "Tokay gecko (ตุ๊กแก) full call sequences: throaty rattle intro then 3-11 'tuk-kae' calls. _1 Laos (Bokeo), _2 Thailand, _3 Indonesia, _4/_6 Philippines. Long (5-25 s): play as one spatial event; don't loop.",
+  "lufs": [
+   -17.1,
+   -18.9,
+   -17.3,
+   -16.9,
+   -18.9,
+   -16.8
+  ]
+ },
+ "owl": {
+  "files": [
+   "animal/owl_1.mp3",
+   "animal/owl_2.mp3",
+   "animal/owl_3.mp3",
+   "animal/owl_4.mp3",
+   "animal/owl_5.mp3",
+   "animal/owl_6.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/darthbaul/sounds/266898/",
+    "file": "https://cdn.freesound.org/previews/266/266898_4539217-hq.mp3",
+    "author": "darthbaul",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Scops owl's call in night silence"
+   },
+   {
+    "source": "https://freesound.org/people/SamuelGremaud/sounds/429185/",
+    "file": "https://cdn.freesound.org/previews/429/429185_8031303-hq.mp3",
+    "author": "SamuelGremaud",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "SCOPS OWL - 1"
+   },
+   {
+    "source": "https://freesound.org/people/roisin.gleeson/sounds/815912/",
+    "file": "https://cdn.freesound.org/previews/815/815912_12896641-hq.mp3",
+    "author": "roisin.gleeson",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "BIRDOwl_Boobook_Calls_v01"
+   },
+   {
+    "source": "https://freesound.org/people/Monkey%20Pants/sounds/409436/",
+    "file": "https://cdn.freesound.org/previews/409/409436_772539-hq.mp3",
+    "author": "Monkey Pants",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Boobook Owl / Mopoke"
+   }
+  ],
+  "notes": "Night owls: _1-_3 scops owl 'toink' series (close cousin of Thai oriental/collared scops owls), _4-_6 boobook/hawk-owl 'boo-book' double hoots (Ninox, same genus as Thailand's brown boobook).",
+  "lufs": [
+   -16.0,
+   -16.0,
+   -16.1,
+   -17.7,
+   -17.5,
+   -16.4
+  ]
+ },
+ "night_bird": {
+  "files": [
+   "animal/night_bird_1.mp3",
+   "animal/night_bird_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/shyamal/sounds/322577/",
+    "file": "https://cdn.freesound.org/previews/322/322577_315989-hq.mp3",
+    "author": "shyamal",
+    "license": "CC BY 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by/3.0/",
+    "title": "Unidentified night bird call"
+   }
+  ],
+  "notes": "Unidentified South-Asian night bird (India), sharp repeated calls; use sparingly in the deep-night forest.",
+  "lufs": [
+   -18.3,
+   -25.0
+  ]
+ },
+ "koel": {
+  "files": [
+   "animal/koel_1.mp3",
+   "animal/koel_2.mp3",
+   "animal/koel_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/ramblinglibrarian/sounds/460466/",
+    "file": "https://cdn.freesound.org/previews/460/460466_923357-hq.mp3",
+    "author": "ramblinglibrarian",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Koel-01-44k.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Pimnapat/sounds/839913/",
+    "file": "https://cdn.freesound.org/previews/839/839913_18275444-hq.mp3",
+    "author": "Pimnapat",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Asian Koel in Nature – Smartphone Recording (Wind & Traffic Background)"
+   }
+  ],
+  "notes": "Koel 'ko-el' rising calls (pre-dawn/dawn, 04-06). _1 Pacific koel (clean), _2/_3 Asian koel recorded in Thailand on a smartphone (high-passed to remove traffic rumble).",
+  "lufs": [
+   -16.2,
+   -16.0,
+   -16.0
+  ]
+ },
+ "rooster": {
+  "files": [
+   "animal/rooster_1.mp3",
+   "animal/rooster_2.mp3",
+   "animal/rooster_3.mp3",
+   "animal/rooster_4.mp3",
+   "animal/rooster_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/BenjaminNelan/sounds/435508/",
+    "file": "https://cdn.freesound.org/previews/435/435508_1196020-hq.mp3",
+    "author": "BenjaminNelan",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Rooster Crow 1"
+   },
+   {
+    "source": "https://freesound.org/people/Garuda1982/sounds/627335/",
+    "file": "https://cdn.freesound.org/previews/627/627335_2061858-hq.mp3",
+    "author": "Garuda1982",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "rooster crows in the village"
+   }
+  ],
+  "notes": "Rooster crows for dawn (05-06). _1 close, _2-_5 village rooster at distance.",
+  "lufs": [
+   -16.0,
+   -16.0,
+   -16.0,
+   -16.0,
+   -16.0
+  ]
+ },
+ "dog_bark": {
+  "files": [
+   "animal/dog_bark_1.mp3",
+   "animal/dog_bark_2.mp3",
+   "animal/dog_bark_3.mp3",
+   "animal/dog_bark_4.mp3",
+   "animal/dog_bark_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/rodrigocswm/sounds/449490/",
+    "file": "https://cdn.freesound.org/previews/449/449490_8667144-hq.mp3",
+    "author": "rodrigocswm",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Dog bark"
+   },
+   {
+    "source": "https://freesound.org/people/haulaway/sounds/630648/",
+    "file": "https://cdn.freesound.org/previews/630/630648_7228277-hq.mp3",
+    "author": "haulaway",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "single bark - small to medium dog"
+   },
+   {
+    "source": "https://freesound.org/people/Garuda1982/sounds/554599/",
+    "file": "https://cdn.freesound.org/previews/554/554599_2061858-hq.mp3",
+    "author": "Garuda1982",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "single dog barking medium sized dog sound effect"
+   }
+  ],
+  "notes": "Single close dog barks (medium soi dog). Chain with random gaps for bark bursts.",
+  "lufs": [
+   -18.2,
+   -18.0,
+   -18.9,
+   -17.8,
+   -17.8
+  ]
+ },
+ "dog_bark_far": {
+  "files": [
+   "animal/dog_bark_far_1.mp3",
+   "animal/dog_bark_far_2.mp3",
+   "animal/dog_bark_far_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/felix.blume/sounds/705299/",
+    "file": "https://cdn.freesound.org/previews/705/705299_1661766-hq.mp3",
+    "author": "felix.blume",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Dogs barking far with echo in a small village at night"
+   },
+   {
+    "source": "https://freesound.org/people/trafficarte/sounds/457062/",
+    "file": "https://cdn.freesound.org/previews/457/457062_9521010-hq.mp3",
+    "author": "trafficarte",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Dog barks to other dogs by night"
+   }
+  ],
+  "notes": "Distant village dogs barking at night with natural echo (already distant: no extra low-pass needed).",
+  "lufs": [
+   -16.2,
+   -16.9,
+   -19.4
+  ]
+ },
+ "dog_howl": {
+  "files": [
+   "animal/dog_howl_1.mp3",
+   "animal/dog_howl_2.mp3",
+   "animal/dog_howl_3.mp3",
+   "animal/dog_howl_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/felix.blume/sounds/463694/",
+    "file": "https://cdn.freesound.org/previews/463/463694_1661766-hq.mp3",
+    "author": "felix.blume",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Dog singing during the night (Brazil)"
+   }
+  ],
+  "notes": "Night dog 'singing'/howling. _4 is softer and more distant.",
+  "lufs": [
+   -16.0,
+   -16.0,
+   -16.0,
+   -16.0
+  ]
+ },
+ "dog_whine": {
+  "files": [
+   "animal/dog_whine_1.mp3",
+   "animal/dog_whine_2.mp3",
+   "animal/dog_whine_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/455745/",
+    "file": "https://cdn.freesound.org/previews/455/455745_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "dog small whine wants attention.flac"
+   },
+   {
+    "source": "https://freesound.org/people/jedg/sounds/505828/",
+    "file": "https://cdn.freesound.org/previews/505/505828_4024739-hq.mp3",
+    "author": "jedg",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "dog whine 2.wav"
+   },
+   {
+    "source": "https://freesound.org/people/oscaraudiogeek/sounds/360407/",
+    "file": "https://cdn.freesound.org/previews/360/360407_5117035-hq.mp3",
+    "author": "oscaraudiogeek",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Dog Scared Whining/grunt"
+   }
+  ],
+  "notes": "Dog whimper/whine (scared dog near the taxi).",
+  "lufs": [
+   -16.2,
+   -16.0,
+   -15.9
+  ]
+ },
+ "elephant_trumpet": {
+  "files": [
+   "animal/elephant_trumpet_1.mp3",
+   "animal/elephant_trumpet_2.mp3",
+   "animal/elephant_trumpet_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.9,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/D.jones/sounds/527845/",
+    "file": "https://cdn.freesound.org/previews/527/527845_11431915-hq.mp3",
+    "author": "D.jones",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Elephant Trumpets Growls.flac"
+   },
+   {
+    "source": "https://freesound.org/people/Danjocross/sounds/507467/",
+    "file": "https://cdn.freesound.org/previews/507/507467_2977885-hq.mp3",
+    "author": "Danjocross",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Angry Elephant.aiff"
+   },
+   {
+    "source": "https://freesound.org/people/ikbenraar/sounds/819668/",
+    "file": "https://cdn.freesound.org/previews/819/819668_754558-hq.mp3",
+    "author": "ikbenraar",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Elephant sound"
+   }
+  ],
+  "notes": "Elephant trumpets/growls (elephant family crossing at 04:00).",
+  "lufs": [
+   -15.9,
+   -16.0,
+   -16.0
+  ]
+ },
+ "elephant_rumble": {
+  "files": [
+   "animal/elephant_rumble.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/zachrau/sounds/818986/",
+    "file": "https://cdn.freesound.org/previews/818/818986_676927-hq.mp3",
+    "author": "zachrau",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Night in the Serengeti with elephant rumble"
+   }
+  ],
+  "notes": "Low elephant rumble in a night savanna bed (low-passed 1.2 kHz). Felt more than heard.",
+  "lufs": [
+   -16.2
+  ]
+ },
+ "frog_croak": {
+  "files": [
+   "animal/frog_croak_1.mp3",
+   "animal/frog_croak_2.mp3",
+   "animal/frog_croak_3.mp3",
+   "animal/frog_croak_4.mp3",
+   "animal/frog_croak_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/rubekolo/sounds/393513/",
+    "file": "https://cdn.freesound.org/previews/393/393513_4799592-hq.mp3",
+    "author": "rubekolo",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Toad Thailand CROAKING concert 3"
+   },
+   {
+    "source": "https://freesound.org/people/Selector/sounds/109439/",
+    "file": "https://cdn.freesound.org/previews/109/109439_270868-hq.mp3",
+    "author": "Selector",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "asian frog"
+   }
+  ],
+  "notes": "Single croaks: _1-_3 Thai toad (Thailand), _4/_5 Asian frog (Thailand).",
+  "lufs": [
+   -16.0,
+   -16.0,
+   -16.0,
+   -20.9,
+   -20.9
+  ]
+ },
+ "cicada_burst": {
+  "files": [
+   "animal/cicada_burst_1.mp3",
+   "animal/cicada_burst_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Cl%C3%A9ment_Baudet/sounds/840735/",
+    "file": "https://cdn.freesound.org/previews/840/840735_4140359-hq.mp3",
+    "author": "Clément_Baudet",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Thai cicada (Chiang Rai, Thailand)"
+   }
+  ],
+  "notes": "Thai cicada (Chiang Rai) swelling up then cutting off. One-shot, 10-21 s.",
+  "lufs": [
+   -16.0,
+   -16.0
+  ]
+ },
+ "mosquito_buzz": {
+  "files": [
+   "animal/mosquito_buzz.mp3"
+  ],
+  "loop": true,
+  "gain": 0.35,
+  "category": "animal",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/scottjodoin/sounds/435650/",
+    "file": "https://cdn.freesound.org/previews/435/435650_3998965-hq.mp3",
+    "author": "scottjodoin",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Single Mosquito Buzz"
+   }
+  ],
+  "notes": "Single mosquito whine near the ear, slow auto-pan baked in (stereo). Seamless 8 s loop.",
+  "loopSamples": [
+   352800
+  ],
+  "lufs": [
+   -20.0
+  ]
+ },
+ "footstep_asphalt": {
+  "files": [
+   "foley/footstep_asphalt_1.mp3",
+   "foley/footstep_asphalt_2.mp3",
+   "foley/footstep_asphalt_3.mp3",
+   "foley/footstep_asphalt_4.mp3",
+   "foley/footstep_asphalt_5.mp3",
+   "foley/footstep_asphalt_6.mp3",
+   "foley/footstep_asphalt_7.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/637556/",
+    "file": "https://cdn.freesound.org/previews/637/637556_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "footsteps shoes walk road asphalt hard.flac"
+   },
+   {
+    "source": "https://freesound.org/people/Rimmer/sounds/648336/",
+    "file": "https://cdn.freesound.org/previews/648/648336_11944544-hq.mp3",
+    "author": "Rimmer",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Walking asphalt.wav"
+   }
+  ],
+  "notes": "Shoe steps on hard asphalt road. Pick a random variant per step; vary rate +-5%.",
+  "lufs": [
+   -31.7,
+   -31.4,
+   -30.2,
+   -28.5,
+   -26.8,
+   -26.1,
+   -24.2
+  ]
+ },
+ "footstep_gravel": {
+  "files": [
+   "foley/footstep_gravel_1.mp3",
+   "foley/footstep_gravel_2.mp3",
+   "foley/footstep_gravel_3.mp3",
+   "foley/footstep_gravel_4.mp3",
+   "foley/footstep_gravel_5.mp3",
+   "foley/footstep_gravel_6.mp3",
+   "foley/footstep_gravel_7.mp3",
+   "foley/footstep_gravel_8.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/jedg/sounds/505831/",
+    "file": "https://cdn.freesound.org/previews/505/505831_4024739-hq.mp3",
+    "author": "jedg",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Footsteps outdoors gravel.wav"
+   },
+   {
+    "source": "https://freesound.org/people/simonjeffery13/sounds/750797/",
+    "file": "https://cdn.freesound.org/previews/750/750797_1326393-hq.mp3",
+    "author": "simonjeffery13",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Gravel Footsteps 1"
+   },
+   {
+    "source": "https://freesound.org/people/PotatokingXII/sounds/352870/",
+    "file": "https://cdn.freesound.org/previews/352/352870_4187409-hq.mp3",
+    "author": "PotatokingXII",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Footsteps Dirt Gravel"
+   }
+  ],
+  "notes": "Steps on gravel / dirt shoulder.",
+  "lufs": [
+   -21.1,
+   -22.8,
+   -22.0,
+   -18.3,
+   -26.3,
+   -23.4,
+   -20.0,
+   -27.3
+  ]
+ },
+ "footstep_grass": {
+  "files": [
+   "foley/footstep_grass_1.mp3",
+   "foley/footstep_grass_2.mp3",
+   "foley/footstep_grass_3.mp3",
+   "foley/footstep_grass_4.mp3",
+   "foley/footstep_grass_5.mp3",
+   "foley/footstep_grass_6.mp3",
+   "foley/footstep_grass_7.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/burbujafilms/sounds/392007/",
+    "file": "https://cdn.freesound.org/previews/392/392007_917043-hq.mp3",
+    "author": "burbujafilms",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "FOOTSTEPS DRY LEAVES.wav"
+   },
+   {
+    "source": "https://freesound.org/people/sillygrizzlies/sounds/635057/",
+    "file": "https://cdn.freesound.org/previews/635/635057_5756735-hq.mp3",
+    "author": "sillygrizzlies",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Stomping Footsteps on Grass"
+   }
+  ],
+  "notes": "Steps through dry leaves and grass (forest floor).",
+  "lufs": [
+   -26.9,
+   -26.9,
+   -27.2,
+   -22.6,
+   -22.7,
+   -21.0,
+   -21.7
+  ]
+ },
+ "footstep_wood": {
+  "files": [
+   "foley/footstep_wood_1.mp3",
+   "foley/footstep_wood_2.mp3",
+   "foley/footstep_wood_3.mp3",
+   "foley/footstep_wood_4.mp3",
+   "foley/footstep_wood_5.mp3",
+   "foley/footstep_wood_6.mp3",
+   "foley/footstep_wood_7.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/jedg/sounds/505832/",
+    "file": "https://cdn.freesound.org/previews/505/505832_4024739-hq.mp3",
+    "author": "jedg",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Footsteps indoors wood floor.wav"
+   },
+   {
+    "source": "https://freesound.org/people/florianreichelt/sounds/459970/",
+    "file": "https://cdn.freesound.org/previews/459/459970_6253486-hq.mp3",
+    "author": "florianreichelt",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Footsteps on hollow wood"
+   }
+  ],
+  "notes": "Steps on wooden floor / hollow wooden sala deck.",
+  "lufs": [
+   -20.0,
+   -20.7,
+   -18.2,
+   -18.0,
+   -23.5,
+   -22.8,
+   -21.7
+  ]
+ },
+ "footstep_concrete": {
+  "files": [
+   "foley/footstep_concrete_1.mp3",
+   "foley/footstep_concrete_2.mp3",
+   "foley/footstep_concrete_3.mp3",
+   "foley/footstep_concrete_4.mp3",
+   "foley/footstep_concrete_5.mp3",
+   "foley/footstep_concrete_6.mp3",
+   "foley/footstep_concrete_7.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/florianreichelt/sounds/459964/",
+    "file": "https://cdn.freesound.org/previews/459/459964_6253486-hq.mp3",
+    "author": "florianreichelt",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Footsteps on concrete"
+   },
+   {
+    "source": "https://freesound.org/people/SecureSubset/sounds/813622/",
+    "file": "https://cdn.freesound.org/previews/813/813622_16752880-hq.mp3",
+    "author": "SecureSubset",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Footsteps - Stone, Rock, Concrete, Cement"
+   }
+  ],
+  "notes": "Steps on concrete (garage, temple yard).",
+  "lufs": [
+   -25.2,
+   -25.0,
+   -26.7,
+   -28.9,
+   -23.6,
+   -23.6,
+   -26.4
+  ]
+ },
+ "footstep_puddle": {
+  "files": [
+   "foley/footstep_puddle_1.mp3",
+   "foley/footstep_puddle_2.mp3",
+   "foley/footstep_puddle_3.mp3",
+   "foley/footstep_puddle_4.mp3",
+   "foley/footstep_puddle_5.mp3",
+   "foley/footstep_puddle_6.mp3",
+   "foley/footstep_puddle_7.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/patchytherat/sounds/531566/",
+    "file": "https://cdn.freesound.org/previews/531/531566_5911297-hq.mp3",
+    "author": "patchytherat",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "puddle footsteps.wav"
+   },
+   {
+    "source": "https://freesound.org/people/NachtmahrTV/sounds/553238/",
+    "file": "https://cdn.freesound.org/previews/553/553238_5620304-hq.mp3",
+    "author": "NachtmahrTV",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Walking through puddle"
+   }
+  ],
+  "notes": "Wet steps / splashing through puddles.",
+  "lufs": [
+   -30.1,
+   -29.3,
+   -21.7,
+   -21.8,
+   -30.5,
+   -25.6,
+   -28.1
+  ]
+ },
+ "knock": {
+  "files": [
+   "foley/knock_1.mp3",
+   "foley/knock_2.mp3",
+   "foley/knock_3.mp3",
+   "foley/knock_4.mp3",
+   "foley/knock_5.mp3",
+   "foley/knock_6.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Herr%20M/sounds/127666/",
+    "file": "https://cdn.freesound.org/previews/127/127666_1497570-hq.mp3",
+    "author": "Herr M",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Klopfen Autoscheibe"
+   },
+   {
+    "source": "https://freesound.org/people/Gutek/sounds/109199/",
+    "file": "https://cdn.freesound.org/previews/109/109199_121632-hq.mp3",
+    "author": "Gutek",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car window knocking (inside).wav"
+   }
+  ],
+  "notes": "Single knuckle knocks on a car side window (_5/_6 recorded from inside the car). Use count/interval for knock patterns.",
+  "lufs": [
+   -22.4,
+   -23.4,
+   -22.8,
+   -23.0,
+   -26.4,
+   -24.9
+  ]
+ },
+ "knock_window_seq": {
+  "files": [
+   "foley/knock_window_seq_1.mp3",
+   "foley/knock_window_seq_2.mp3",
+   "foley/knock_window_seq_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Gutek/sounds/109199/",
+    "file": "https://cdn.freesound.org/previews/109/109199_121632-hq.mp3",
+    "author": "Gutek",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car window knocking (inside).wav"
+   },
+   {
+    "source": "https://freesound.org/people/Gutek/sounds/109203/",
+    "file": "https://cdn.freesound.org/previews/109/109203_121632-hq.mp3",
+    "author": "Gutek",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car window knocking (outside).wav"
+   }
+  ],
+  "notes": "Natural rapid knocking sequences on a car window; _1/_2 heard from inside, _3 from outside.",
+  "lufs": [
+   -21.6,
+   -22.2,
+   -27.1
+  ]
+ },
+ "knock_trunk": {
+  "files": [
+   "foley/knock_trunk_1.mp3",
+   "foley/knock_trunk_2.mp3",
+   "foley/knock_trunk_3.mp3",
+   "foley/knock_trunk_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/MarcelWagner/sounds/639658/",
+    "file": "https://cdn.freesound.org/previews/639/639658_11538612-hq.mp3",
+    "author": "MarcelWagner",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Knock on door metal"
+   }
+  ],
+  "notes": "Knuckle knocks on a thin metal panel (car boot / trunk lid). _4 has the longest ring.",
+  "lufs": [
+   -22.4,
+   -23.4,
+   -24.6,
+   -24.4
+  ]
+ },
+ "thump_roof": {
+  "files": [
+   "foley/thump_roof_1.mp3",
+   "foley/thump_roof_2.mp3",
+   "foley/thump_roof_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.9,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/j_soundeffects/sounds/636495/",
+    "file": "https://cdn.freesound.org/previews/636/636495_14030247-hq.mp3",
+    "author": "j_soundeffects",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Soft Impact Foley on Roof of 1990 Volvo 240 Sedan"
+   }
+  ],
+  "notes": "Soft heavy impact on the roof of an old sedan (Volvo 240). Play muffled from inside the cabin.",
+  "lufs": [
+   -24.5,
+   -24.4,
+   -26.1
+  ]
+ },
+ "scratch_glass": {
+  "files": [
+   "foley/scratch_glass_1.mp3",
+   "foley/scratch_glass_2.mp3",
+   "foley/scratch_glass_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/vero.marengere/sounds/482226/",
+    "file": "https://cdn.freesound.org/previews/482/482226_6605732-hq.mp3",
+    "author": "vero.marengere",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Scratching Window with Nails"
+   }
+  ],
+  "notes": "Fingernails scratching a window pane.",
+  "lufs": [
+   -16.1,
+   -17.3,
+   -17.1
+  ]
+ },
+ "paper_rustle": {
+  "files": [
+   "foley/paper_rustle_1.mp3",
+   "foley/paper_rustle_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/keweldog/sounds/181774/",
+    "file": "https://cdn.freesound.org/previews/181/181774_3153523-hq.mp3",
+    "author": "keweldog",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "rustling paper.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Mafon2/sounds/360646/",
+    "file": "https://cdn.freesound.org/previews/360/360646_1196472-hq.mp3",
+    "author": "Mafon2",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Paper drawn with rustle"
+   }
+  ],
+  "notes": "Paper rustling / handling.",
+  "lufs": [
+   -20.9,
+   -22.5
+  ]
+ },
+ "paper_unfold": {
+  "files": [
+   "foley/paper_unfold_1.mp3",
+   "foley/paper_unfold_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/coolernow123/sounds/547980/",
+    "file": "https://cdn.freesound.org/previews/547/547980_2891553-hq.mp3",
+    "author": "coolernow123",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Paper Unfolding Quickly"
+   }
+  ],
+  "notes": "Unfolding a sheet of paper (the handwritten rules).",
+  "lufs": [
+   -25.0,
+   -26.2
+  ]
+ },
+ "coins": {
+  "files": [
+   "foley/coins_1.mp3",
+   "foley/coins_2.mp3",
+   "foley/coins_3.mp3",
+   "foley/coins_4.mp3",
+   "foley/coins_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kinglseyzissou/sounds/435780/",
+    "file": "https://cdn.freesound.org/previews/435/435780_4379588-hq.mp3",
+    "author": "kinglseyzissou",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "coin drop into coins"
+   },
+   {
+    "source": "https://freesound.org/people/rightpurdy/sounds/243517/",
+    "file": "https://cdn.freesound.org/previews/243/243517_2426942-hq.mp3",
+    "author": "rightpurdy",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "change on table.mp3"
+   },
+   {
+    "source": "https://freesound.org/people/pfranzen/sounds/345290/",
+    "file": "https://cdn.freesound.org/previews/345/345290_3482490-hq.mp3",
+    "author": "pfranzen",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Handing someone a small pile of coins."
+   }
+  ],
+  "notes": "Coins: dropped into a pile, change put on a table, a small pile handed over (fare payment).",
+  "lufs": [
+   -26.4,
+   -27.8,
+   -30.2,
+   -18.1,
+   -16.0
+  ]
+ },
+ "lighter": {
+  "files": [
+   "foley/lighter_1.mp3",
+   "foley/lighter_2.mp3",
+   "foley/lighter_3.mp3",
+   "foley/lighter_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/637673/",
+    "file": "https://cdn.freesound.org/previews/637/637673_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "lighter disposable light ignite1.flac"
+   },
+   {
+    "source": "https://freesound.org/people/Poyekhali/sounds/238853/",
+    "file": "https://cdn.freesound.org/previews/238/238853_3146873-hq.mp3",
+    "author": "Poyekhali",
+    "license": "CC BY 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by/3.0/",
+    "title": "Disposable Lighter 1"
+   }
+  ],
+  "notes": "Cheap disposable flint lighter flicks / ignition.",
+  "lufs": [
+   -31.4,
+   -28.8,
+   -27.1,
+   -24.2
+  ]
+ },
+ "branch_crack": {
+  "files": [
+   "foley/branch_crack_1.mp3",
+   "foley/branch_crack_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/452570/",
+    "file": "https://cdn.freesound.org/previews/452/452570_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "branch breaking forest twig snap crunch.wav"
+   },
+   {
+    "source": "https://freesound.org/people/kyles/sounds/452109/",
+    "file": "https://cdn.freesound.org/previews/452/452109_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "branch break snap crunch nice.wav"
+   }
+  ],
+  "notes": "Twig/branch snapping in the forest.",
+  "lufs": [
+   -19.4,
+   -23.8
+  ]
+ },
+ "splash": {
+  "files": [
+   "foley/splash_1.mp3",
+   "foley/splash_2.mp3",
+   "foley/splash_3.mp3",
+   "foley/splash_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/vero.marengere/sounds/524524/",
+    "file": "https://cdn.freesound.org/previews/524/524524_6605732-hq.mp3",
+    "author": "vero.marengere",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Water Splash in Lake 05.wav"
+   }
+  ],
+  "notes": "Object/foot splashing into water (pond, flooded ditch).",
+  "lufs": [
+   -25.1,
+   -24.1,
+   -17.9,
+   -23.4
+  ]
+ },
+ "bush_scrape": {
+  "files": [
+   "foley/bush_scrape_1.mp3",
+   "foley/bush_scrape_2.mp3",
+   "foley/bush_scrape_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "foley",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/KALeigh0218/sounds/655928/",
+    "file": "https://cdn.freesound.org/previews/655/655928_13723562-hq.mp3",
+    "author": "KALeigh0218",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Rustling Bushes.wav"
+   },
+   {
+    "source": "https://freesound.org/people/nicholasolsen/sounds/178870/",
+    "file": "https://cdn.freesound.org/previews/178/178870_3326669-hq.mp3",
+    "author": "nicholasolsen",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Rustling Bushes"
+   },
+   {
+    "source": "https://freesound.org/people/sillygrizzlies/sounds/635053/",
+    "file": "https://cdn.freesound.org/previews/635/635053_5756735-hq.mp3",
+    "author": "sillygrizzlies",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Rustling Foliage in Forest"
+   }
+  ],
+  "notes": "Something moving through bushes / foliage rustle.",
+  "lufs": [
+   -22.9,
+   -16.3,
+   -18.2
+  ]
+ },
+ "door_open": {
+  "files": [
+   "car/door_open_1.mp3",
+   "car/door_open_2.mp3",
+   "car/door_open_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/simonjeffery13/sounds/349846/",
+    "file": "https://cdn.freesound.org/previews/349/349846_1326393-hq.mp3",
+    "author": "simonjeffery13",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car door open & close from inside"
+   },
+   {
+    "source": "https://freesound.org/people/NachtmahrTV/sounds/556690/",
+    "file": "https://cdn.freesound.org/previews/556/556690_5620304-hq.mp3",
+    "author": "NachtmahrTV",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car Door open and close 3.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Alex_hears_things/sounds/379916/",
+    "file": "https://cdn.freesound.org/previews/379/379916_2309965-hq.mp3",
+    "author": "Alex_hears_things",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Open & Close Car Door in Large Shed.wav"
+   }
+  ],
+  "notes": "Car door opening (latch + hinge). _1 from inside.",
+  "lufs": [
+   -24.7,
+   -23.5,
+   -17.7
+  ]
+ },
+ "door_close": {
+  "files": [
+   "car/door_close_1.mp3",
+   "car/door_close_2.mp3",
+   "car/door_close_3.mp3",
+   "car/door_close_4.mp3",
+   "car/door_close_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.9,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/450766/",
+    "file": "https://cdn.freesound.org/previews/450/450766_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "auto old station wagon ext door close slam sweet heavy rattle chunky various other side of car offmic duller.wav"
+   },
+   {
+    "source": "https://freesound.org/people/simonjeffery13/sounds/349846/",
+    "file": "https://cdn.freesound.org/previews/349/349846_1326393-hq.mp3",
+    "author": "simonjeffery13",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car door open & close from inside"
+   }
+  ],
+  "notes": "_1-_4 old station-wagon door slams with rattle (exterior); _5 door closed from inside the cabin.",
+  "lufs": [
+   -18.1,
+   -19.5,
+   -18.0,
+   -18.9,
+   -23.6
+  ]
+ },
+ "key_insert": {
+  "files": [
+   "car/key_insert_1.mp3",
+   "car/key_insert_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/joedeshon/sounds/117039/",
+    "file": "https://cdn.freesound.org/previews/117/117039_1218676-hq.mp3",
+    "author": "joedeshon",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "keys_inserted_into_ignition.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Caitlin_100/sounds/384402/",
+    "file": "https://cdn.freesound.org/previews/384/384402_5407590-hq.mp3",
+    "author": "Caitlin_100",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Keys in the ignition"
+   }
+  ],
+  "notes": "Key slid into the ignition barrel (keyring jingle).",
+  "lufs": [
+   -20.5,
+   -23.7
+  ]
+ },
+ "key_remove": {
+  "files": [
+   "car/key_remove.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/joedeshon/sounds/117040/",
+    "file": "https://cdn.freesound.org/previews/117/117040_1218676-hq.mp3",
+    "author": "joedeshon",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "keys_pulled_from_ignition.wav"
+   }
+  ],
+  "notes": "Keys pulled out of the ignition.",
+  "lufs": [
+   -22.5
+  ]
+ },
+ "ignition": {
+  "files": [
+   "car/ignition_1.mp3",
+   "car/ignition_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/jerry.berumen/sounds/511685/",
+    "file": "https://cdn.freesound.org/previews/511/511685_6753194-hq.mp3",
+    "author": "jerry.berumen",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "failed_car_start.wav"
+   }
+  ],
+  "notes": "Starter motor cranking (short burst) before the engine catches.",
+  "lufs": [
+   -16.0,
+   -16.2
+  ]
+ },
+ "engine_start": {
+  "files": [
+   "car/engine_start_1.mp3",
+   "car/engine_start_2.mp3",
+   "car/engine_start_3.mp3",
+   "car/engine_start_4.mp3",
+   "car/engine_start_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.9,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Dokuta_Gerovv/sounds/686742/",
+    "file": "https://cdn.freesound.org/previews/686/686742_11310256-hq.mp3",
+    "author": "Dokuta_Gerovv",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "car_engine_mini_cooper_1976.wav"
+   },
+   {
+    "source": "https://freesound.org/people/TRP/sounds/573177/",
+    "file": "https://cdn.freesound.org/previews/573/573177_97550-hq.mp3",
+    "author": "TRP",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Old car start idle revs pulls away rumble 180607.wav"
+   },
+   {
+    "source": "https://freesound.org/people/launemax/sounds/250009/",
+    "file": "https://cdn.freesound.org/previews/250/250009_389377-hq.mp3",
+    "author": "launemax",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "old car engine start and stop"
+   },
+   {
+    "source": "https://freesound.org/people/Stephane_Carreau/sounds/505560/",
+    "file": "https://cdn.freesound.org/previews/505/505560_3806437-hq.mp3",
+    "author": "Stephane_Carreau",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Car Toyota interior ignition key engine rev 1 mono.mp3"
+   },
+   {
+    "source": "https://freesound.org/people/Caitlin_100/sounds/384402/",
+    "file": "https://cdn.freesound.org/previews/384/384402_5407590-hq.mp3",
+    "author": "Caitlin_100",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Keys in the ignition"
+   }
+  ],
+  "notes": "Crank + catch + settle. _1 1976 Mini (old 4-cylinder), _2 old car, _3 old car, _4 Toyota from inside, _5 key turn + start from inside.",
+  "lufs": [
+   -16.6,
+   -16.0,
+   -18.5,
+   -17.4,
+   -18.8
+  ]
+ },
+ "engine_crank_fail": {
+  "files": [
+   "car/engine_crank_fail_1.mp3",
+   "car/engine_crank_fail_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/jerry.berumen/sounds/511685/",
+    "file": "https://cdn.freesound.org/previews/511/511685_6753194-hq.mp3",
+    "author": "jerry.berumen",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "failed_car_start.wav"
+   }
+  ],
+  "notes": "Starter cranks but the engine won't catch (horror beat: the taxi won't start).",
+  "lufs": [
+   -16.0,
+   -16.0
+  ]
+ },
+ "engine_off": {
+  "files": [
+   "car/engine_off.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/launemax/sounds/250009/",
+    "file": "https://cdn.freesound.org/previews/250/250009_389377-hq.mp3",
+    "author": "launemax",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "old car engine start and stop"
+   }
+  ],
+  "notes": "Engine switched off / dies (usable for engine_stall pitched down).",
+  "lufs": [
+   -17.9
+  ]
+ },
+ "engine_idle": {
+  "files": [
+   "car/engine_idle_1.mp3",
+   "car/engine_idle_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.7,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Dokuta_Gerovv/sounds/686742/",
+    "file": "https://cdn.freesound.org/previews/686/686742_11310256-hq.mp3",
+    "author": "Dokuta_Gerovv",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "car_engine_mini_cooper_1976.wav"
+   },
+   {
+    "source": "https://freesound.org/people/TRP/sounds/573177/",
+    "file": "https://cdn.freesound.org/previews/573/573177_97550-hq.mp3",
+    "author": "TRP",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Old car start idle revs pulls away rumble 180607.wav"
+   }
+  ],
+  "notes": "Old small 4-cylinder idling (exterior). Seamless loops; setRate ~0.9-1.3 for rough RPM changes.",
+  "loopSamples": [
+   330750,
+   352800
+  ],
+  "lufs": [
+   -20.0,
+   -20.0
+  ]
+ },
+ "engine_rev": {
+  "files": [
+   "car/engine_rev_1.mp3",
+   "car/engine_rev_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Dokuta_Gerovv/sounds/686742/",
+    "file": "https://cdn.freesound.org/previews/686/686742_11310256-hq.mp3",
+    "author": "Dokuta_Gerovv",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "car_engine_mini_cooper_1976.wav"
+   },
+   {
+    "source": "https://freesound.org/people/TRP/sounds/573177/",
+    "file": "https://cdn.freesound.org/previews/573/573177_97550-hq.mp3",
+    "author": "TRP",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Old car start idle revs pulls away rumble 180607.wav"
+   }
+  ],
+  "notes": "Old car revving (stationary).",
+  "lufs": [
+   -17.0,
+   -16.0
+  ]
+ },
+ "car_interior_cruise": {
+  "files": [
+   "car/car_interior_cruise.mp3"
+  ],
+  "loop": true,
+  "gain": 0.7,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/squareal/sounds/237374/",
+    "file": "https://cdn.freesound.org/previews/237/237374_1502374-hq.mp3",
+    "author": "squareal",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car Driving Interior"
+   }
+  ],
+  "notes": "Interior road/tyre/wind noise of a car cruising (no music). Bed under the procedural engine.",
+  "loopSamples": [
+   1323000
+  ],
+  "lufs": [
+   -23.0
+  ]
+ },
+ "handbrake_pull": {
+  "files": [
+   "car/handbrake_pull_1.mp3",
+   "car/handbrake_pull_2.mp3",
+   "car/handbrake_pull_3.mp3",
+   "car/handbrake_pull_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/greatsoundstube/sounds/629323/",
+    "file": "https://cdn.freesound.org/previews/629/629323_13885154-hq.mp3",
+    "author": "greatsoundstube",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "handbrake on.wav"
+   },
+   {
+    "source": "https://freesound.org/people/15HPanska_Ruttner_Jan/sounds/461678/",
+    "file": "https://cdn.freesound.org/previews/461/461678_9679617-hq.mp3",
+    "author": "15HPanska_Ruttner_Jan",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "06 Handbrake.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Tomlija/sounds/109489/",
+    "file": "https://cdn.freesound.org/previews/109/109489_1163166-hq.mp3",
+    "author": "Tomlija",
+    "license": "CC BY 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by/3.0/",
+    "title": "Rover 216 GSi handbrake moving up and down.aif"
+   }
+  ],
+  "notes": "Handbrake pulled up (ratchet). Replaces handbrake variant 0.",
+  "replaces": "handbrake:0",
+  "lufs": [
+   -18.3,
+   -16.2,
+   -18.5,
+   -20.6
+  ]
+ },
+ "handbrake_release": {
+  "files": [
+   "car/handbrake_release_1.mp3",
+   "car/handbrake_release_2.mp3",
+   "car/handbrake_release_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/dersuperanton/sounds/435844/",
+    "file": "https://cdn.freesound.org/previews/435/435844_1992856-hq.mp3",
+    "author": "dersuperanton",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Handbrake Release"
+   },
+   {
+    "source": "https://freesound.org/people/Tomlija/sounds/109489/",
+    "file": "https://cdn.freesound.org/previews/109/109489_1163166-hq.mp3",
+    "author": "Tomlija",
+    "license": "CC BY 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by/3.0/",
+    "title": "Rover 216 GSi handbrake moving up and down.aif"
+   }
+  ],
+  "notes": "Handbrake released. Replaces handbrake variant 1.",
+  "replaces": "handbrake:1",
+  "lufs": [
+   -30.9,
+   -26.9,
+   -26.1
+  ]
+ },
+ "indicator_tick": {
+  "files": [
+   "car/indicator_tick_1.mp3",
+   "car/indicator_tick_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/MPierluissi/sounds/446322/",
+    "file": "https://cdn.freesound.org/previews/446/446322_4986614-hq.mp3",
+    "author": "MPierluissi",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "VEHCar_NISSAN SENTRA-TURNING SIGNAL_MP.wav"
+   }
+  ],
+  "notes": "Indicator relay: _1 tick, _2 tock (variant 0/1).",
+  "lufs": [
+   -23.4,
+   -24.1
+  ]
+ },
+ "indicator_loop": {
+  "files": [
+   "car/indicator_loop.mp3"
+  ],
+  "loop": true,
+  "gain": 0.5,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/MPierluissi/sounds/446322/",
+    "file": "https://cdn.freesound.org/previews/446/446322_4986614-hq.mp3",
+    "author": "MPierluissi",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "VEHCar_NISSAN SENTRA-TURNING SIGNAL_MP.wav"
+   }
+  ],
+  "notes": "Flasher running: 8 clicks at 0.348 s (tick/tock), seamless.",
+  "loopSamples": [
+   122774
+  ],
+  "lufs": [
+   -34.5
+  ]
+ },
+ "wiper": {
+  "files": [
+   "car/wiper.mp3"
+  ],
+  "loop": true,
+  "gain": 0.6,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/NHumphrey/sounds/200975/",
+    "file": "https://cdn.freesound.org/previews/200/200975_3430035-hq.mp3",
+    "author": "NHumphrey",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Windshield Wipers On.wav"
+   }
+  ],
+  "notes": "Wipers sweeping (motor + blade), 6 sweeps of 1.7 s, seamless loop.",
+  "loopSamples": [
+   449820
+  ],
+  "lufs": [
+   -24.6
+  ]
+ },
+ "window_crank": {
+  "files": [
+   "car/window_crank_1.mp3",
+   "car/window_crank_2.mp3",
+   "car/window_crank_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/launemax/sounds/82560/",
+    "file": "https://cdn.freesound.org/previews/82/82560_389377-hq.mp3",
+    "author": "launemax",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "car - manual window lift"
+   }
+  ],
+  "notes": "Manual window winder cranked (old car).",
+  "lufs": [
+   -23.8,
+   -20.2,
+   -19.3
+  ]
+ },
+ "horn": {
+  "files": [
+   "car/horn_1.mp3",
+   "car/horn_2.mp3",
+   "car/horn_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/lonemonk/sounds/217138/",
+    "file": "https://cdn.freesound.org/previews/217/217138_230160-hq.mp3",
+    "author": "lonemonk",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "1964 Chrysler Horn Honk (Short)"
+   },
+   {
+    "source": "https://freesound.org/people/Poyekhali/sounds/239031/",
+    "file": "https://cdn.freesound.org/previews/239/239031_3146873-hq.mp3",
+    "author": "Poyekhali",
+    "license": "CC BY 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by/3.0/",
+    "title": "Horn 1"
+   },
+   {
+    "source": "https://freesound.org/people/LOVEBURD/sounds/329612/",
+    "file": "https://cdn.freesound.org/previews/329/329612_5735740-hq.mp3",
+    "author": "LOVEBURD",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "car horn.aif"
+   }
+  ],
+  "notes": "Short horn honks (_1 1964 Chrysler). No sustained recording: keep the synth for held horn.",
+  "lufs": [
+   -16.3,
+   -15.9,
+   -16.0
+  ]
+ },
+ "gear_shift": {
+  "files": [
+   "car/gear_shift_1.mp3",
+   "car/gear_shift_2.mp3",
+   "car/gear_shift_3.mp3",
+   "car/gear_shift_4.mp3",
+   "car/gear_shift_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/mincedbeats/sounds/630543/",
+    "file": "https://cdn.freesound.org/previews/630/630543_723858-hq.mp3",
+    "author": "mincedbeats",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Classic Car Ford Mustang Gear Stick.wav"
+   },
+   {
+    "source": "https://freesound.org/people/TurboTheSergal/sounds/523348/",
+    "file": "https://cdn.freesound.org/previews/523/523348_11603686-hq.mp3",
+    "author": "TurboTheSergal",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Gear Shifts.mp3"
+   }
+  ],
+  "notes": "Manual gear stick shifts (classic car).",
+  "lufs": [
+   -18.0,
+   -17.1,
+   -25.9,
+   -20.8,
+   -20.5
+  ]
+ },
+ "glovebox": {
+  "files": [
+   "car/glovebox_1.mp3",
+   "car/glovebox_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Yin_Yang_Jake007/sounds/415302/",
+    "file": "https://cdn.freesound.org/previews/415/415302_7919598-hq.mp3",
+    "author": "Yin_Yang_Jake007",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Glove Box Open and Close.mp3"
+   }
+  ],
+  "notes": "Glove compartment: _1 opening (latch + lid), _2 snapped shut.",
+  "lufs": [
+   -25.1,
+   -23.4
+  ]
+ },
+ "tyres_gravel": {
+  "files": [
+   "car/tyres_gravel.mp3"
+  ],
+  "loop": true,
+  "gain": 0.7,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/OBXJohn/sounds/251662/",
+    "file": "https://cdn.freesound.org/previews/251/251662_3719168-hq.mp3",
+    "author": "OBXJohn",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Tires on Gravel Road 2"
+   }
+  ],
+  "notes": "Tyres rolling on gravel road (exterior). Scale volume/rate with speed.",
+  "loopSamples": [
+   740592
+  ],
+  "lufs": [
+   -20.0
+  ]
+ },
+ "tyres_gravel_roll": {
+  "files": [
+   "car/tyres_gravel_roll_1.mp3",
+   "car/tyres_gravel_roll_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "car",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/UnplugTheFridge/sounds/529225/",
+    "file": "https://cdn.freesound.org/previews/529/529225_1138214-hq.mp3",
+    "author": "UnplugTheFridge",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Car Tires Start and Stop on Gravel Shoulder.wav"
+   }
+  ],
+  "notes": "Car rolling onto a gravel shoulder and stopping.",
+  "lufs": [
+   -17.1,
+   -21.6
+  ]
+ },
+ "motorbike_pass": {
+  "files": [
+   "bike/motorbike_pass_1.mp3",
+   "bike/motorbike_pass_2.mp3",
+   "bike/motorbike_pass_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "bike",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/timsippala/sounds/402960/",
+    "file": "https://cdn.freesound.org/previews/402/402960_7794234-hq.mp3",
+    "author": "timsippala",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "20170927-053438_motorbike_going_past_in_tropical_Vietnam.wav"
+   },
+   {
+    "source": "https://freesound.org/people/IENBA/sounds/828204/",
+    "file": "https://cdn.freesound.org/previews/828/828204_9616576-hq.mp3",
+    "author": "IENBA",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Small Motorbike Passing By"
+   }
+  ],
+  "notes": "Small motorbike passing by on a tropical rural road (_1/_2 Vietnam).",
+  "lufs": [
+   -18.3,
+   -18.9,
+   -16.1
+  ]
+ },
+ "bike_idle": {
+  "files": [
+   "bike/bike_idle_1.mp3",
+   "bike/bike_idle_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.7,
+  "category": "bike",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/craigsmith/sounds/675222/",
+    "file": "https://cdn.freesound.org/previews/675/675222_2524442-hq.mp3",
+    "author": "craigsmith",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "S06-29 Small motorcycle idles; the starts up & rides away.wav"
+   },
+   {
+    "source": "https://freesound.org/people/jonatantevaniemi/sounds/773004/",
+    "file": "https://cdn.freesound.org/previews/773/773004_16625906-hq.mp3",
+    "author": "jonatantevaniemi",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "honda-monkey-sound-9"
+   }
+  ],
+  "notes": "Small motorcycle idling (_2 Honda Monkey), seamless loops.",
+  "loopSamples": [
+   441000,
+   192041
+  ],
+  "lufs": [
+   -23.7,
+   -19.8
+  ]
+ },
+ "bike_ride_away": {
+  "files": [
+   "bike/bike_ride_away_1.mp3",
+   "bike/bike_ride_away_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "bike",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/craigsmith/sounds/675222/",
+    "file": "https://cdn.freesound.org/previews/675/675222_2524442-hq.mp3",
+    "author": "craigsmith",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "S06-29 Small motorcycle idles; the starts up & rides away.wav"
+   },
+   {
+    "source": "https://freesound.org/people/3bagbrew/sounds/574325/",
+    "file": "https://cdn.freesound.org/previews/574/574325_571436-hq.mp3",
+    "author": "3bagbrew",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Jerry Honda 125 slow follow & ride off.wav"
+   }
+  ],
+  "notes": "_1 small motorcycle revs and rides away; _2 Honda 125 approaches slowly and rides off.",
+  "lufs": [
+   -16.9,
+   -16.9
+  ]
+ },
+ "bell_temple": {
+  "files": [
+   "temple/bell_temple_1.mp3",
+   "temple/bell_temple_2.mp3",
+   "temple/bell_temple_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "temple",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/LG/sounds/462782/",
+    "file": "https://cdn.freesound.org/previews/462/462782_36188-hq.mp3",
+    "author": "LG",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "20180705 - Bell temple Sukhothai.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Qleq/sounds/681428/",
+    "file": "https://cdn.freesound.org/previews/681/681428_6763499-hq.mp3",
+    "author": "Qleq",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Thailand bells.wav"
+   }
+  ],
+  "notes": "Thai temple bells struck once: _1 Sukhothai (large bell), _2/_3 Thailand.",
+  "lufs": [
+   -16.7,
+   -17.6,
+   -17.1
+  ]
+ },
+ "gong": {
+  "files": [
+   "temple/gong_1.mp3",
+   "temple/gong_2.mp3",
+   "temple/gong_3.mp3",
+   "temple/gong_4.mp3",
+   "temple/gong_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "temple",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kerozenne/sounds/803159/",
+    "file": "https://cdn.freesound.org/previews/803/803159_16350347-hq.mp3",
+    "author": "kerozenne",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Temple Gong 2"
+   },
+   {
+    "source": "https://freesound.org/people/Veridiansunrise/sounds/350723/",
+    "file": "https://cdn.freesound.org/previews/350/350723_46808-hq.mp3",
+    "author": "Veridiansunrise",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Buddhist Golden Temple Gong"
+   }
+  ],
+  "notes": "Temple gong strikes with long resonance.",
+  "lufs": [
+   -17.1,
+   -16.0,
+   -16.0,
+   -16.1,
+   -15.9
+  ]
+ },
+ "alms_bowl": {
+  "files": [
+   "temple/alms_bowl_1.mp3",
+   "temple/alms_bowl_2.mp3",
+   "temple/alms_bowl_3.mp3",
+   "temple/alms_bowl_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "temple",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/itinerantmonk108/sounds/554179/",
+    "file": "https://cdn.freesound.org/previews/554/554179_2397507-hq.mp3",
+    "author": "itinerantmonk108",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "wooden spoon hitting bottom of steel bowl1.wav"
+   },
+   {
+    "source": "https://freesound.org/people/itinerantmonk108/sounds/719418/",
+    "file": "https://cdn.freesound.org/previews/719/719418_2397507-hq.mp3",
+    "author": "itinerantmonk108",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "metal bowl wooden spoon"
+   }
+  ],
+  "notes": "Wooden spoon / ladle tapping a steel bowl (monk's alms bowl, บาตร).",
+  "lufs": [
+   -16.0,
+   -16.5,
+   -16.6,
+   -16.5
+  ]
+ },
+ "wind_chime": {
+  "files": [
+   "temple/wind_chime_1.mp3",
+   "temple/wind_chime_2.mp3",
+   "temple/wind_chime_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "temple",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Anthousai/sounds/398496/",
+    "file": "https://cdn.freesound.org/previews/398/398496_5923045-hq.mp3",
+    "author": "Anthousai",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "wind chimes - single 04.wav"
+   },
+   {
+    "source": "https://freesound.org/people/giddster/sounds/437337/",
+    "file": "https://cdn.freesound.org/previews/437/437337_1738686-hq.mp3",
+    "author": "giddster",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Wind chimes 1"
+   }
+  ],
+  "notes": "Wind chimes (shrine eaves).",
+  "lufs": [
+   -17.5,
+   -16.2,
+   -16.0
+  ]
+ },
+ "wind_chime_loop": {
+  "files": [
+   "temple/wind_chime_loop.mp3"
+  ],
+  "loop": true,
+  "gain": 0.5,
+  "category": "temple",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/giddster/sounds/437337/",
+    "file": "https://cdn.freesound.org/previews/437/437337_1738686-hq.mp3",
+    "author": "giddster",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Wind chimes 1"
+   }
+  ],
+  "notes": "Wind chimes in a light breeze, seamless.",
+  "loopSamples": [
+   1323000
+  ],
+  "lufs": [
+   -23.0
+  ]
+ },
+ "monk_chant": {
+  "files": [
+   "temple/monk_chant_1.mp3",
+   "temple/monk_chant_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.6,
+  "category": "temple",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/177634/",
+    "file": "https://cdn.freesound.org/previews/177/177634_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Thailand chanting Thai Buddhist monks in small temple, prerecorded on PA but very convincing +some live monks chanting along periodically.flac"
+   },
+   {
+    "source": "https://freesound.org/people/Alex_hears_things/sounds/274835/",
+    "file": "https://cdn.freesound.org/previews/274/274835_2309965-hq.mp3",
+    "author": "Alex_hears_things",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Thai_Buddhist_Monk_Chant.wav"
+   }
+  ],
+  "notes": "Thai Buddhist monks chanting (_1 small temple in Thailand, _2 Thai monk chant, pseudo-stereo). Seamless loops.",
+  "loopSamples": [
+   1984500,
+   1323000
+  ],
+  "lufs": [
+   -23.0,
+   -23.0
+  ]
+ },
+ "fluorescent_hum": {
+  "files": [
+   "electric/fluorescent_hum_1.mp3",
+   "electric/fluorescent_hum_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.5,
+  "category": "electric",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/EverydaySounds/sounds/125064/",
+    "file": "https://cdn.freesound.org/previews/125/125064_2273054-hq.mp3",
+    "author": "EverydaySounds",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Faulty Fluorescent Light Starter & Hum.wav"
+   },
+   {
+    "source": "https://freesound.org/people/kyles/sounds/454098/",
+    "file": "https://cdn.freesound.org/previews/454/454098_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "neon tube fluorescent light hum cu2.flac"
+   }
+  ],
+  "notes": "Fluorescent tube hum/buzz at 50 Hz mains (100 Hz buzz). _2 pitched from 60 Hz to 50 Hz.",
+  "loopSamples": [
+   529200,
+   529199
+  ],
+  "lufs": [
+   -22.0,
+   -22.0
+  ]
+ },
+ "fluorescent_flicker": {
+  "files": [
+   "electric/fluorescent_flicker_1.mp3",
+   "electric/fluorescent_flicker_2.mp3",
+   "electric/fluorescent_flicker_3.mp3",
+   "electric/fluorescent_flicker_4.mp3",
+   "electric/fluorescent_flicker_5.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "electric",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/EverydaySounds/sounds/125064/",
+    "file": "https://cdn.freesound.org/previews/125/125064_2273054-hq.mp3",
+    "author": "EverydaySounds",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Faulty Fluorescent Light Starter & Hum.wav"
+   },
+   {
+    "source": "https://freesound.org/people/TRP/sounds/574100/",
+    "file": "https://cdn.freesound.org/previews/574/574100_97550-hq.mp3",
+    "author": "TRP",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Light switch fluorescent flickering electric bulb BANFF 190107.flac"
+   },
+   {
+    "source": "https://freesound.org/people/TemperMode/sounds/484157/",
+    "file": "https://cdn.freesound.org/previews/484/484157_1655334-hq.mp3",
+    "author": "TemperMode",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "fluorescent light flickering 1.wav"
+   }
+  ],
+  "notes": "Faulty tube starter clicks / flicker bursts (pair with the cabin-light-dies and streetlight events).",
+  "lufs": [
+   -16.0,
+   -24.4,
+   -27.5,
+   -23.4,
+   -21.7
+  ]
+ },
+ "transformer_hum": {
+  "files": [
+   "electric/transformer_hum_1.mp3",
+   "electric/transformer_hum_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.5,
+  "category": "electric",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Fedor_Ogon/sounds/649260/",
+    "file": "https://cdn.freesound.org/previews/649/649260_8111269-hq.mp3",
+    "author": "Fedor_Ogon",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "electric transformer.wav"
+   },
+   {
+    "source": "https://freesound.org/people/kyles/sounds/453445/",
+    "file": "https://cdn.freesound.org/previews/453/453445_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "hum electric transformer in large room2.flac"
+   }
+  ],
+  "notes": "Pole transformer hum (50 Hz family). _2 pitched from 60 Hz.",
+  "loopSamples": [
+   661500,
+   661499
+  ],
+  "lufs": [
+   -22.0,
+   -22.0
+  ]
+ },
+ "electric_buzz": {
+  "files": [
+   "electric/electric_buzz.mp3"
+  ],
+  "loop": true,
+  "gain": 0.5,
+  "category": "electric",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/ideaph/sounds/641208/",
+    "file": "https://cdn.freesound.org/previews/641/641208_1478305-hq.mp3",
+    "author": "ideaph",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "transformer at night.wav"
+   }
+  ],
+  "notes": "Harsh electrical buzz (transformer at night) pitched to 50 Hz mains.",
+  "loopSamples": [
+   661499
+  ],
+  "lufs": [
+   -22.0
+  ]
+ },
+ "electric_arc": {
+  "files": [
+   "electric/electric_arc.mp3"
+  ],
+  "loop": true,
+  "gain": 0.5,
+  "category": "electric",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/julianmateo_/sounds/522690/",
+    "file": "https://cdn.freesound.org/previews/522/522690_11584853-hq.mp3",
+    "author": "julianmateo_",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Electricity, Arcs, Sparks, long"
+   }
+  ],
+  "notes": "Continuous arcing / sparking wire (damaged line).",
+  "loopSamples": [
+   661500
+  ],
+  "lufs": [
+   -20.0
+  ]
+ },
+ "spark": {
+  "files": [
+   "electric/spark_1.mp3",
+   "electric/spark_2.mp3",
+   "electric/spark_3.mp3",
+   "electric/spark_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "electric",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/elliott.klein/sounds/189630/",
+    "file": "https://cdn.freesound.org/previews/189/189630_2816253-hq.mp3",
+    "author": "elliott.klein",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Spark"
+   },
+   {
+    "source": "https://freesound.org/people/szegvari/sounds/536793/",
+    "file": "https://cdn.freesound.org/previews/536/536793_2282212-hq.mp3",
+    "author": "szegvari",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Spark Electric SFX 200927_0054.wav"
+   }
+  ],
+  "notes": "Electric spark / short discharge.",
+  "lufs": [
+   -22.2,
+   -16.5,
+   -16.2,
+   -16.2
+  ]
+ },
+ "breath_neck": {
+  "files": [
+   "horror/breath_neck_1.mp3",
+   "horror/breath_neck_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.6,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/georgisound/sounds/369294/",
+    "file": "https://cdn.freesound.org/previews/369/369294_6790631-hq.mp3",
+    "author": "georgisound",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Creepy_Breathing.wav"
+   },
+   {
+    "source": "https://freesound.org/people/craigsmith/sounds/482827/",
+    "file": "https://cdn.freesound.org/previews/482/482827_2524442-hq.mp3",
+    "author": "craigsmith",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "R15-47-Heavy Breathing.wav"
+   }
+  ],
+  "notes": "Slow creepy breathing close to the ear (rule 8). Seamless loops; play near the head, low-passed slightly.",
+  "loopSamples": [
+   705600,
+   299880
+  ],
+  "lufs": [
+   -20.9,
+   -20.2
+  ]
+ },
+ "breath": {
+  "files": [
+   "horror/breath_1.mp3",
+   "horror/breath_2.mp3",
+   "horror/breath_3.mp3",
+   "horror/breath_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/zagor76/sounds/619900/",
+    "file": "https://cdn.freesound.org/previews/619/619900_766379-hq.mp3",
+    "author": "zagor76",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "breath"
+   }
+  ],
+  "notes": "Single close breaths (inhale/exhale).",
+  "lufs": [
+   -17.1,
+   -17.3,
+   -18.5,
+   -19.1
+  ]
+ },
+ "whisper": {
+  "files": [
+   "horror/whisper_1.mp3",
+   "horror/whisper_2.mp3",
+   "horror/whisper_3.mp3",
+   "horror/whisper_4.mp3",
+   "horror/whisper_5.mp3",
+   "horror/whisper_6.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/RaspberryTickle/sounds/234044/",
+    "file": "https://cdn.freesound.org/previews/234/234044_3795287-hq.mp3",
+    "author": "RaspberryTickle",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Creepy Whispering"
+   },
+   {
+    "source": "https://freesound.org/people/geoneo0/sounds/193818/",
+    "file": "https://cdn.freesound.org/previews/193/193818_2000738-hq.mp3",
+    "author": "geoneo0",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Four_Voices_Whispering_6_wEcho.wav"
+   },
+   {
+    "source": "https://freesound.org/people/EvaMusik/sounds/832742/",
+    "file": "https://cdn.freesound.org/previews/832/832742_16008573-hq.mp3",
+    "author": "EvaMusik",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Whisper1"
+   },
+   {
+    "source": "https://freesound.org/people/EvaMusik/sounds/832743/",
+    "file": "https://cdn.freesound.org/previews/832/832743_16008573-hq.mp3",
+    "author": "EvaMusik",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Whisper2"
+   },
+   {
+    "source": "https://freesound.org/people/EvaMusik/sounds/832744/",
+    "file": "https://cdn.freesound.org/previews/832/832744_16008573-hq.mp3",
+    "author": "EvaMusik",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Whisper3"
+   }
+  ],
+  "notes": "Whispers played REVERSED so no words are recognisable (ghostly, breathy). Short _4-_6 for quick hisses.",
+  "lufs": [
+   -16.1,
+   -17.1,
+   -16.6,
+   -32.0,
+   -24.9,
+   -23.2
+  ]
+ },
+ "heartbeat": {
+  "files": [
+   "horror/heartbeat_1.mp3",
+   "horror/heartbeat_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.8,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/patobottos/sounds/369017/",
+    "file": "https://cdn.freesound.org/previews/369/369017_881494-hq.mp3",
+    "author": "patobottos",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Heartbeats 61.wav"
+   },
+   {
+    "source": "https://freesound.org/people/loudernoises/sounds/332820/",
+    "file": "https://cdn.freesound.org/previews/332/332820_5859881-hq.mp3",
+    "author": "loudernoises",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "heartbeat-80bpm.wav"
+   }
+  ],
+  "notes": "Real heartbeat loops of exactly 8 beats: _1 = 60 bpm, _2 = 80 bpm. playbackRate = bpm/60 (_1) or bpm/80 (_2).",
+  "loopSamples": [
+   353682,
+   265482
+  ],
+  "lufs": [
+   -24.0,
+   -26.2
+  ]
+ },
+ "bone_crack": {
+  "files": [
+   "horror/bone_crack_1.mp3",
+   "horror/bone_crack_2.mp3",
+   "horror/bone_crack_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kleanthism/sounds/145363/",
+    "file": "https://cdn.freesound.org/previews/145/145363_2611120-hq.mp3",
+    "author": "kleanthism",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "KleAudio_CrackingBone2_msST.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Vinni_R/sounds/630594/",
+    "file": "https://cdn.freesound.org/previews/630/630594_8207611-hq.mp3",
+    "author": "Vinni_R",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "bone break_5.wav"
+   },
+   {
+    "source": "https://freesound.org/people/Grubzyy/sounds/422723/",
+    "file": "https://cdn.freesound.org/previews/422/422723_4253642-hq.mp3",
+    "author": "Grubzyy",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "S_Bone_Break.wav"
+   }
+  ],
+  "notes": "Bone cracks / breaks (twisted-neck reflection, Yai Speed's turning head).",
+  "lufs": [
+   -34.2,
+   -26.8,
+   -34.3
+  ]
+ },
+ "scream_far": {
+  "files": [
+   "horror/scream_far_1.mp3",
+   "horror/scream_far_2.mp3",
+   "horror/scream_far_3.mp3",
+   "horror/scream_far_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.5,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/tcrocker68/sounds/235595/",
+    "file": "https://cdn.freesound.org/previews/235/235595_3396115-hq.mp3",
+    "author": "tcrocker68",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Girl_Two_Screams.wav"
+   },
+   {
+    "source": "https://freesound.org/people/tcrocker68/sounds/235592/",
+    "file": "https://cdn.freesound.org/previews/235/235592_3396115-hq.mp3",
+    "author": "tcrocker68",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Girl_Scream.wav"
+   },
+   {
+    "source": "https://freesound.org/people/pushkin/sounds/241591/",
+    "file": "https://cdn.freesound.org/previews/241/241591_336074-hq.mp3",
+    "author": "pushkin",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "pandoramachineannalisaloefflerscreams_03.flac"
+   },
+   {
+    "source": "https://freesound.org/people/Archeos/sounds/261419/",
+    "file": "https://cdn.freesound.org/previews/261/261419_2826150-hq.mp3",
+    "author": "Archeos",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "WomanScream.wav"
+   }
+  ],
+  "notes": "Female screams processed to sound far away in the forest (band-limited + forest echo).",
+  "lufs": [
+   -16.0,
+   -16.0,
+   -16.0,
+   -16.0
+  ]
+ },
+ "scream_close": {
+  "files": [
+   "horror/scream_close_1.mp3",
+   "horror/scream_close_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Archeos/sounds/261419/",
+    "file": "https://cdn.freesound.org/previews/261/261419_2826150-hq.mp3",
+    "author": "Archeos",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "WomanScream.wav"
+   },
+   {
+    "source": "https://freesound.org/people/tcrocker68/sounds/235592/",
+    "file": "https://cdn.freesound.org/previews/235/235592_3396115-hq.mp3",
+    "author": "tcrocker68",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Girl_Scream.wav"
+   }
+  ],
+  "notes": "Close female scream of fear (unprocessed).",
+  "lufs": [
+   -16.0,
+   -16.0
+  ]
+ },
+ "giggle": {
+  "files": [
+   "horror/giggle.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://opengameart.org/content/ghostly-cackle-laugh-1",
+    "file": "https://opengameart.org/sites/default/files/ghostly_cackle_laugh_1.ogg",
+    "author": "Nocturnal_Vanguard (AuraVoice)",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Ghostly Cackle Laugh 1"
+   }
+  ],
+  "notes": "Ghostly female cackle/laugh.",
+  "lufs": [
+   -16.0
+  ]
+ },
+ "giant_hand_rumble": {
+  "files": [
+   "horror/giant_hand_rumble.mp3"
+  ],
+  "loop": true,
+  "gain": 0.8,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/lennartgreen/sounds/638914/",
+    "file": "https://cdn.freesound.org/previews/638/638914_3661618-hq.mp3",
+    "author": "lennartgreen",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Low Rumble - loopable ambiance"
+   }
+  ],
+  "notes": "Deep loopable rumble for the giant hand / something enormous moving. Seamless.",
+  "loopSamples": [
+   1764000
+  ],
+  "lufs": [
+   -20.0
+  ]
+ },
+ "rumble_rise": {
+  "files": [
+   "horror/rumble_rise.mp3"
+  ],
+  "loop": false,
+  "gain": 0.8,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/majortonic/sounds/473725/",
+    "file": "https://cdn.freesound.org/previews/473/473725_304651-hq.mp3",
+    "author": "majortonic",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "20190530_low_noise_rumble.wav"
+   }
+  ],
+  "notes": "Low noise rumble swelling up over 26 s (giant hand rising).",
+  "lufs": [
+   -19.4
+  ]
+ },
+ "drone_low": {
+  "files": [
+   "horror/drone_low.mp3"
+  ],
+  "loop": true,
+  "gain": 0.6,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/PRIM_ORDial/sounds/367480/",
+    "file": "https://cdn.freesound.org/previews/367/367480_5595738-hq.mp3",
+    "author": "PRIM_ORDial",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Deep Bass Drone.wav"
+   }
+  ],
+  "notes": "Deep bass drone bed (dread).",
+  "loopSamples": [
+   661500
+  ],
+  "lufs": [
+   -22.0
+  ]
+ },
+ "rumble_sub": {
+  "files": [
+   "horror/rumble_sub.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "horror",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/bassimat/sounds/853575/",
+    "file": "https://cdn.freesound.org/previews/853/853575_15636277-hq.mp3",
+    "author": "bassimat",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Low-frequency Drone, Deep Sub Bass Rumble, Slowly Shifting Metallic Resonance"
+   }
+  ],
+  "notes": "Slowly shifting sub-bass rumble (feel it on headphones).",
+  "lufs": [
+   -16.0
+  ]
+ },
+ "radio_static": {
+  "files": [
+   "radio/radio_static_1.mp3",
+   "radio/radio_static_2.mp3"
+  ],
+  "loop": true,
+  "gain": 0.4,
+  "category": "radio",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/penyasounds/sounds/730772/",
+    "file": "https://cdn.freesound.org/previews/730/730772_15862161-hq.mp3",
+    "author": "penyasounds",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Radio static"
+   },
+   {
+    "source": "https://freesound.org/people/carroll27/sounds/151903/",
+    "file": "https://cdn.freesound.org/previews/151/151903_2094213-hq.mp3",
+    "author": "carroll27",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Radio static.aif"
+   }
+  ],
+  "notes": "Radio static between stations (no broadcast content). Seamless loops.",
+  "loopSamples": [
+   882000,
+   65749
+  ],
+  "lufs": [
+   -22.0,
+   -22.0
+  ]
+ },
+ "ranat_note": {
+  "files": [
+   "music/ranat_note_1.mp3",
+   "music/ranat_note_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.7,
+  "category": "music",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/designerschoice/sounds/824978/",
+    "file": "https://cdn.freesound.org/previews/824/824978_6951162-hq.mp3",
+    "author": "designerschoice",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "MUSCTnprc-Blue Snowball Microphone, CU_Xylophone, Thai, Teakwood, Short, Comical Tune_Nicholas Judy_TDC"
+   },
+   {
+    "source": "https://freesound.org/people/designerschoice/sounds/824940/",
+    "file": "https://cdn.freesound.org/previews/824/824940_6951162-hq.mp3",
+    "author": "designerschoice",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "TOONMx-Blue Snowball Microphone, CU_Xylophone, Teakwood, Thai, Eye Blink_Nicholas Judy_TDC"
+   }
+  ],
+  "notes": "Thai teak xylophone (ranat-like) single strikes; repitch for melodies.",
+  "lufs": [
+   -21.1,
+   -26.2
+  ]
+ },
+ "khim_phrase": {
+  "files": [
+   "music/khim_phrase_1.mp3",
+   "music/khim_phrase_2.mp3",
+   "music/khim_phrase_3.mp3",
+   "music/khim_phrase_4.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "music",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/stomachache/sounds/263460/",
+    "file": "https://cdn.freesound.org/previews/263/263460_177850-hq.mp3",
+    "author": "stomachache",
+    "license": "CC BY 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by/3.0/",
+    "title": "Khim (Thai Stringed Instrument)"
+   }
+  ],
+  "notes": "Khim (Thai hammered dulcimer) short note groups.",
+  "lufs": [
+   -16.2,
+   -17.9,
+   -17.1,
+   -16.3
+  ]
+ },
+ "khaen_phrase": {
+  "files": [
+   "music/khaen_phrase_1.mp3",
+   "music/khaen_phrase_2.mp3",
+   "music/khaen_phrase_3.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "music",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/makenoisemusic/sounds/418136/",
+    "file": "https://cdn.freesound.org/previews/418/418136_7700251-hq.mp3",
+    "author": "makenoisemusic",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Khaen Symphony 2.wav"
+   }
+  ],
+  "notes": "Khaen (Isan bamboo mouth organ) phrases.",
+  "lufs": [
+   -16.0,
+   -16.1,
+   -16.0
+  ]
+ },
+ "ching": {
+  "files": [
+   "music/ching_1.mp3",
+   "music/ching_2.mp3"
+  ],
+  "loop": false,
+  "gain": 0.6,
+  "category": "music",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/SieuAmThanh/sounds/396611/",
+    "file": "https://cdn.freesound.org/previews/396/396611_7554526-hq.mp3",
+    "author": "SieuAmThanh",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Chhỉng02.wav"
+   },
+   {
+    "source": "https://freesound.org/people/SieuAmThanh/sounds/396612/",
+    "file": "https://cdn.freesound.org/previews/396/396612_7554526-hq.mp3",
+    "author": "SieuAmThanh",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Chhỉng01.wav"
+   }
+  ],
+  "notes": "Small hand cymbals (ching/chhing, Khmer-Thai) strikes.",
+  "lufs": [
+   -16.3,
+   -18.9
+  ]
+ },
+ "amb_forest_dense": {
+  "files": [
+   "amb/amb_forest_dense_1.mp3",
+   "amb/amb_forest_dense_2.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/fundamental_harmonics/sounds/437464/",
+    "file": "https://cdn.freesound.org/previews/437/437464_5350746-hq.mp3",
+    "author": "fundamental_harmonics",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Nan Doi Phu Kha Night 01.wav"
+   },
+   {
+    "source": "https://freesound.org/people/RTB45/sounds/253301/",
+    "file": "https://cdn.freesound.org/previews/253/253301_2409224-hq.mp3",
+    "author": "RTB45",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Borneo Jungle - Night"
+   }
+  ],
+  "notes": "Dense tropical night forest: katydids/crickets/cicadas. _1 Nan, Thailand; _2 Borneo.",
+  "loopSamples": [
+   1984500,
+   1984500
+  ],
+  "replaces": "bed:cicadas+katydids",
+  "lufs": [
+   -22.9,
+   -22.9
+  ]
+ },
+ "amb_forest_sparse": {
+  "files": [
+   "amb/amb_forest_sparse_1.mp3",
+   "amb/amb_forest_sparse_2.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/LG/sounds/345152/",
+    "file": "https://cdn.freesound.org/previews/345/345152_36188-hq.mp3",
+    "author": "LG",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "20140212 - Chiang Rai mountains at night 09.wav"
+   },
+   {
+    "source": "https://freesound.org/people/EpicWizard/sounds/335156/",
+    "file": "https://cdn.freesound.org/previews/335/335156_2291325-hq.mp3",
+    "author": "EpicWizard",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Night/Evening Ambience in Chiang Dao, Thailand"
+   }
+  ],
+  "notes": "Sparse night forest crickets. _1 Chiang Rai mountains ~midnight; _2 Chiang Dao evening (mono source, pseudo-stereo).",
+  "loopSamples": [
+   1764000,
+   1323000
+  ],
+  "replaces": "bed:crickets",
+  "lufs": [
+   -24.8,
+   -22.9
+  ]
+ },
+ "amb_forest_distant": {
+  "files": [
+   "amb/amb_forest_distant.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Skjor1/sounds/386474/",
+    "file": "https://cdn.freesound.org/previews/386/386474_1998557-hq.mp3",
+    "author": "Skjor1",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Jungle Night Ambience Southern Thailand"
+   }
+  ],
+  "notes": "Quiet, distant jungle night (Southern Thailand), soft rhythmic katydids.",
+  "loopSamples": [
+   1764000
+  ],
+  "replaces": "bed:night_tone",
+  "lufs": [
+   -22.8
+  ]
+ },
+ "amb_dusk_cicadas": {
+  "files": [
+   "amb/amb_dusk_cicadas.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Alexbuk/sounds/542281/",
+    "file": "https://cdn.freesound.org/previews/542/542281_1421481-hq.mp3",
+    "author": "Alexbuk",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "AMBRurl_18 30hrs ORTF Thailand Countryside Cicadas Frogs Wind Trees_Alex Boyesen.wav"
+   }
+  ],
+  "notes": "Thai countryside at 18:30: cicada chorus + frogs (good for 21:00 start).",
+  "loopSamples": [
+   1764000
+  ],
+  "replaces": "bed:cicadas",
+  "lufs": [
+   -23.0
+  ]
+ },
+ "amb_insects_close": {
+  "files": [
+   "amb/amb_insects_close.mp3"
+  ],
+  "loop": true,
+  "gain": 0.9,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/kyles/sounds/177687/",
+    "file": "https://cdn.freesound.org/previews/177/177687_612689-hq.mp3",
+    "author": "kyles",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Thailand jungle night heavy crickets1.flac"
+   }
+  ],
+  "notes": "Loud close crickets/katydids in Thai jungle (window down / standing on the roadside).",
+  "loopSamples": [
+   1323000
+  ],
+  "lufs": [
+   -23.0
+  ]
+ },
+ "amb_frogs": {
+  "files": [
+   "amb/amb_frogs.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/felix.blume/sounds/447540/",
+    "file": "https://cdn.freesound.org/previews/447/447540_1661766-hq.mp3",
+    "author": "felix.blume",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Toads and frogs during night in Thailand"
+   }
+  ],
+  "notes": "Toads and frogs chorus at night in Thailand (pond/rice field).",
+  "loopSamples": [
+   1984500
+  ],
+  "replaces": "bed:frogs",
+  "lufs": [
+   -23.0
+  ]
+ },
+ "amb_rain_light": {
+  "files": [
+   "amb/amb_rain_light.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/nyoz/sounds/615747/",
+    "file": "https://cdn.freesound.org/previews/615/615747_2355118-hq.mp3",
+    "author": "nyoz",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Tropical Rain - light in a forest with drop hitting the leaves"
+   }
+  ],
+  "notes": "Light tropical rain dripping on leaves.",
+  "loopSamples": [
+   1764000
+  ],
+  "replaces": "bed:rain_leaves (light)",
+  "lufs": [
+   -35.1
+  ]
+ },
+ "amb_rain_heavy": {
+  "files": [
+   "amb/amb_rain_heavy.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/LG/sounds/462775/",
+    "file": "https://cdn.freesound.org/previews/462/462775_36188-hq.mp3",
+    "author": "LG",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "20180616 - Tropical rain Thailand 01.wav"
+   }
+  ],
+  "notes": "Heavy tropical rain, Thailand.",
+  "loopSamples": [
+   1764000
+  ],
+  "replaces": "bed:rain_leaves (heavy)",
+  "lufs": [
+   -22.9
+  ]
+ },
+ "amb_rain_roof": {
+  "files": [
+   "amb/amb_rain_roof_1.mp3",
+   "amb/amb_rain_roof_2.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/Cinetony/sounds/672703/",
+    "file": "https://cdn.freesound.org/previews/672/672703_5985747-hq.mp3",
+    "author": "Cinetony",
+    "license": "CC0 1.0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Rain on the roof of car inside 5"
+   },
+   {
+    "source": "https://freesound.org/people/GeorgeHopkins/sounds/645848/",
+    "file": "https://cdn.freesound.org/previews/645/645848_1920058-hq.mp3",
+    "author": "GeorgeHopkins",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Heavy rain on car roof - close"
+   }
+  ],
+  "notes": "Rain on the car roof heard from inside: _1 moderate, _2 heavy and close.",
+  "loopSamples": [
+   1764000,
+   1764000
+  ],
+  "replaces": "bed:rain_roof",
+  "lufs": [
+   -23.0,
+   -22.9
+  ]
+ },
+ "amb_wind_trees": {
+  "files": [
+   "amb/amb_wind_trees.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/spoonbender/sounds/244942/",
+    "file": "https://cdn.freesound.org/previews/244/244942_263745-hq.mp3",
+    "author": "spoonbender",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Wind Through Trees 3b"
+   }
+  ],
+  "notes": "Wind through tree leaves.",
+  "loopSamples": [
+   1764000
+  ],
+  "replaces": "bed:wind_leaves",
+  "lufs": [
+   -24.0
+  ]
+ },
+ "birds_dawn": {
+  "files": [
+   "amb/birds_dawn.mp3"
+  ],
+  "loop": true,
+  "gain": 1.0,
+  "category": "amb",
+  "credits": [
+   {
+    "source": "https://freesound.org/people/LG/sounds/345139/",
+    "file": "https://cdn.freesound.org/previews/345/345139_36188-hq.mp3",
+    "author": "LG",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "20140212 - Chiang Rai early morning mountains.wav"
+   }
+  ],
+  "notes": "Early morning in the Chiang Rai mountains: birds waking, frogs/insects fading (05:00-06:00).",
+  "loopSamples": [
+   2205000
+  ],
+  "lufs": [
+   -23.0
+  ]
+ }
+}

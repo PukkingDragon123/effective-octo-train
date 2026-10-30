@@ -47,7 +47,7 @@ const DEFS = {
   moss: { map: 'moss', roughness: 1, uv: 1.2, shadows: false },
   leather: { map: 'leather_seat', roughness: 0.6, uv: 1.5 },
   flower: { map: null, roughness: 0.8, uv: 1.0, side: THREE.DoubleSide, translucency: 0.4, shadows: false },
-  glass: { map: null, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide, shadows: false, uvMode: 'keep' },
+  glass: { map: null, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide, shadows: false, uvMode: 'keep' },
   glass_bottle: { map: null, roughness: 0.12, transparent: true, opacity: 0.78, uv: 1.0, shadows: false },
   dark: { map: null, roughness: 0.9, uv: 1.0 }, // cables, black plastic, shadows inside
 };

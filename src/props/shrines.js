@@ -266,7 +266,7 @@ function buildChineseShrine(k, rng, age, opts, group, out) {
     k.add(mat('gold'), G('lotusHolder', () => lathe([[0, 0], [0.025, 0], [0.03, 0.02], [0.045, 0.04], [0.03, 0.045], [0, 0.04]], 10)), { p: [s * 0.2, deck + 0.04, 0.05], color: gold, w: false });
     k.add(lampMat, G('redbulb', () => sphere(0.026, 10, 8).scale(1, 1.3, 1)), { p: [s * 0.2, deck + 0.105, 0.05], color: 0xffffff, w: false });
     const a = anchor(group, 'redlamp' + s, s * 0.2, deck + 0.11, 0.05);
-    out.lights.push(lightSpec('altar', a, { intensity: 2.5, distance: 3 }));
+    out.lights.push(lightSpec('altar', a, { intensity: 1.0, distance: 2.5, glow: { size: 0.15, color: 0xff2a18, opacity: 0.6 } }));
   }
   // paper offerings stack + candles on the base
   for (const s of [-1, 1]) candle(k, { p: [s * 0.33, deck, 0.22], h: 0.15, rad: 0.018, color: 0xb81a14 });

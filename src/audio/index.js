@@ -164,7 +164,7 @@ export class AudioSystem {
     this._pending = [];
     this.ready = true;
     if (!this.offline && !this.core.sync) {
-      this.core.warm(WARM_FIRST, { variants: 2 }).then(() => this.ambience.warm()).then(() => this.core.warm(SOUND_IDS, { variants: 2, loops: true }));
+      this.core.warm(WARM_FIRST, { variants: 2 }).then(() => this.ambience.warm()).then(() => this.core.warm(SOUND_IDS, { variants: 1, loops: true }));
     }
     bus.emit('audio:ready', { sampleRate: ctx.sampleRate });
     return this;

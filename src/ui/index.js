@@ -97,6 +97,11 @@ class UI {
 
     bus.on('interact:target', (t) => this.xhair.setTarget(t));
     bus.on('subtitle', (line) => this.subtitle(line));
+    // remember the in-game hour so the pause screen can show the clock by default
+    bus.on('game:hour', (e) => {
+      const hr = typeof e === 'number' ? e : e?.hour;
+      if (Number.isFinite(hr)) this._hour = hr;
+    });
     settings.onChange(() => {
       this.subs.applySettings();
       this.xhair.applySettings();

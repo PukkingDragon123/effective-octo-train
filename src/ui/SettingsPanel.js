@@ -349,9 +349,9 @@ export class SettingsPanel {
   }
 
   _reference() {
-    this.body.appendChild(h('div', { class: 'dlb-ctlhead' }, h('span', null, ''), h('div', null, h('span', null, 'Keyboard'), h('span', { style: 'min-width:5.6em;text-align:right' }, 'Gamepad'))));
-    for (const g of CONTROL_GROUPS) {
-      this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'en' }, g.en), h('span', { class: 'th', attrs: { lang: 'th' } }, g.th)));
+    CONTROL_GROUPS.forEach((g, gi) => {
+      this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'en' }, g.en), h('span', { class: 'th', attrs: { lang: 'th' } }, g.th),
+        gi === 0 ? h('span', { class: 'dlb-group__cols' }, h('span', null, 'Keyboard'), h('span', null, 'Gamepad')) : null));
       for (const r of g.rows) {
         const { kb, pad } = controlRowGlyphs(r);
         const row = h('div', { class: 'dlb-row is-info is-ctl' }, ember(),
@@ -360,7 +360,7 @@ export class SettingsPanel {
         navItem(this.ui.nav, row, { kind: 'info' });
         this.body.appendChild(row);
       }
-    }
+    });
   }
 
   async _reset() {

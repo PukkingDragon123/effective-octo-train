@@ -359,9 +359,9 @@ function manualBoard(root, cameraRig) {
   };
   const btn = (parent, label, fn) => {
     const b = el('button', 'background:#1b2226;color:#e9dcc4;border:1px solid #3a464c;border-radius:3px;padding:3px 7px;font:11px monospace;cursor:pointer', parent, label);
-    b.onclick = () => {
+    b.onclick = (e) => {
       audio.init();
-      fn(b);
+      fn(b, e);
       status.textContent = `ctx ${audio.ctx?.state} · voices ${audio.core?.voices.length} · cache ${(audio.core?.cacheBytes / 1e6).toFixed(1)} MB`;
     };
     return b;
@@ -382,7 +382,7 @@ function manualBoard(root, cameraRig) {
     return { x: Math.cos(a) * d, y: 1.4, z: Math.sin(a) * d };
   };
   const sfx = section('one-shots (random position around you; shift-click = centred)');
-  for (const id of SOUND_IDS) btn(sfx, id, () => audio.play(id, { position: around() }));
+  for (const id of SOUND_IDS) btn(sfx, id, (b, e) => audio.play(id, e?.shiftKey ? {} : { position: around() }));
   const loops = section('loops (toggle)');
   const live = {};
   for (const id of SOUND_IDS.filter((i) => SOUNDS[i].loopable || SOUNDS[i].loopInterval)) {
