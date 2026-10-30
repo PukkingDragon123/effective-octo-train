@@ -39,13 +39,16 @@ const CSS = `
 .nv .hand{font-family:${FONTS.hand};color:#d8c79a}
 `;
 
+const condText = (c) => (c ? JSON.stringify(c).replace(/"/g, '').replace(/,/g, ', ') : '');
 function lineHTML(l) {
   if (!l) return '';
-  const who = l.speakerTH || (l.who === 'passenger' ? 'P' : l.who === 'player' ? (l.tone === 'thought' ? 'ต้น (คิด)' : 'ต้น') : (DATA.CHARACTERS[l.who]?.nameTH || l.who));
-  const extras = [l.tone && l.tone !== 'normal' && l.tone !== 'thought' ? l.tone : '', l.emotion, l.action ? '▸' + l.action : '', l.set ? 'set ' + Object.keys(l.set).join(',') : ''].filter(Boolean).join(' · ');
-  let html = `<div class="line ${l.tone || ''} ${l.choice ? 'choice' : ''}"><span class="who">${esc(who)}</span><span class="th">${esc(l.th)}</span> <span class="meta">${esc(extras)}</span><span class="en">${esc(l.en)}</span>`;
+  const who = l.speakerTH || (l.who === 'passenger' ? 'P' : l.who === 'player' ? (l.choice ? 'ต้น ↳' : l.tone === 'thought' ? 'ต้น (คิด)' : 'ต้น') : (DATA.CHARACTERS[l.who]?.nameTH || l.who));
+  const extras = [l.tone && l.tone !== 'normal' && l.tone !== 'thought' ? l.tone : '', l.emotion, l.action ? '▸' + l.action : '', l.set ? 'set ' + Object.entries(l.set).map(([k, v]) => `${k}=${v}`).join(',') : ''].filter(Boolean).join(' · ');
+  const iff = l.if ? `<span class="tag g">if ${esc(condText(l.if))}</span>` : '';
+  let html = `<div class="line ${l.tone || ''} ${l.choice ? 'choice' : ''}">${iff}<span class="who">${esc(who)}</span><span class="th">${esc(l.th)}</span> <span class="meta">${esc(extras)}</span>${l.en ? `<span class="en">${esc(l.en)}</span>` : ''}`;
   if (l.choice) {
-    html += '<div class="meta">choice' + (l.choice.id ? ` <b>${esc(l.choice.id)}</b>` : '') + ': ' + l.choice.options.map((o) => `[${esc(o.key)}] ${esc(o.th)} / ${esc(o.en)}`).join(' &nbsp; ') + (l.choice.timeout ? ` · ${l.choice.timeout}s, default ${esc(l.choice.defaultKey)}` : '') + '</div>';
+    html += '<div class="meta">reply' + (l.choice.id ? ` <b>${esc(l.choice.id)}</b>` : '') + (l.choice.timeout ? ` · ${l.choice.timeout}s → ${esc(l.choice.defaultKey)}` : '') + '</div>';
+    html += '<div>' + l.choice.options.map((o) => `<span class="tag ${o.if ? 'g' : ''}">[${esc(o.key)}] ${esc(o.th)}${o.if ? ' · if ' + esc(condText(o.if)) : ''}</span>`).join(' ') + '</div>';
     for (const [k, ls] of Object.entries(l.choice.branches || {})) html += `<div class="beat">→ ${esc(k)}</div>` + ls.map(lineHTML).join('');
   }
   return html + '</div>';
@@ -85,7 +88,7 @@ function summary(report) {
       <td>${esc(LANDMARK_NAMES[p.pickup]?.th || p.pickup)}<br><span class="meta">${esc(p.pickup)} · ${p.seat}</span></td>
       <td>${clueTags(p)}</td>
       <td>${p.specialRules.map((r) => `<span class="tag r">${r.rule}</span>`).join('')}<br><span class="meta">${p.encounters.map((e) => e.id).join(', ')}</span></td>
-      <td>${st.lines} / ${st.beats}b<br><span class="meta">${p.deathOnWrong}</span></td>
+      <td>${st.lines} / ${st.beats}b · ${st.replies}↳<br><span class="meta">${p.deathOnWrong}</span></td>
       <td class="meta">${pacingText(report.stats.pacing?.[p.id], p.pacing)}</td></tr>`;
   }).join('');
   const status = report.errors.length ? `<span class="bad">${report.errors.length} errors</span>` : '<span class="ok">schema OK</span>';
@@ -102,7 +105,7 @@ function summary(report) {
    <div><h2>Ah Kong's rules</h2><ol class="rules hand">${RULES.map((r) => `<li>${esc(r.th)} <span class="meta">— ${esc(r.en)}</span></li>`).join('')}</ol>
    <div class="hand" style="opacity:.8">(${esc(HIDDEN_LINE.th)}) <span class="meta">${esc(HIDDEN_LINE.en)}</span></div></div>
    <div><h2>Chapters</h2><table>${CHAPTERS.map((c) => `<tr><td>${c.time}</td><td>${esc(c.th)}</td><td class="meta">${esc(c.en)}</td></tr>`).join('')}</table>
-   <h2>Endings</h2><table>${Object.values(ENDINGS).map((e) => `<tr><td><b>${esc(e.titleTH)}</b></td><td>${esc(e.titleEN)}</td><td class="meta">${esc(e.kind)} — ${esc(e.condition)}</td></tr>`).join('')}</table></div>
+   <h2>Endings</h2><table>${DATA.ENDING_PRIORITY.map((id) => ENDINGS[id]).map((e) => `<tr><td><b>${esc(e.titleTH)}</b></td><td>${esc(e.titleEN)}</td><td class="meta">${esc(e.kind)} · ${esc(e.moment)} · ${esc(condText(e.when))}</td></tr>`).join('')}</table></div>
   </div>`;
 }
 
@@ -120,8 +123,9 @@ function ride(id) {
    <div class="meta">pacing: ${esc(JSON.stringify(p.pacing))} — ${pacingText(DATA_REPORT?.stats.pacing?.[p.id], p.pacing).replace('<br>', ' · ')}</div>`;
   html += '<div class="cols"><div>';
   html += sec('Hail', d.hail) + sec('Greet', d.greet) + sec('Destination', d.destination);
-  html += '<h2>Beats</h2>' + d.beats.map((b) => `<div class="beat">${b.essential ? '★' : '◆'} ${esc(b.id)} — ${esc(trigText(b.trigger))}${b.if ? ' if ' + esc(JSON.stringify(b.if)) : ''}</div>${linesHTML(b.lines)}`).join('');
+  html += '<h2>Beats</h2>' + d.beats.map((b) => `<div class="beat">${b.essential ? '★' : '◆'} ${esc(b.id)} — ${esc(trigText(b.trigger))}${b.if ? ' if ' + esc(condText(b.if)) : ''}</div>${linesHTML(b.lines)}`).join('');
   html += '</div><div>';
+  for (const [k, byLoop] of Object.entries(d.loopVariants || {})) for (const [n, ls] of Object.entries(byLoop)) html += sec(`Loop ≥ ${n} — ${k}`, ls);
   html += sec('Arrive — correct', d.arriveCorrect) + sec('Arrive — wrong fork', d.arriveWrong) + sec('Idle', d.idle) + sec('On look back', d.onLookBack) + sec('Face gaze warning', d.onFaceGazeWarn) + sec('On face gaze', d.onFaceGaze);
   if (p.finale) for (const [k, v] of Object.entries(p.finale)) html += sec('Finale — ' + k, Array.isArray(v) ? v : [v]);
   return html + '</div></div>';
@@ -132,12 +136,15 @@ function tutorial() {
   let h = '<h1>อากง — Ah Kong</h1><div class="cols"><div><h2>Motorbike intro (spur road)</h2>' + (DATA.INTRO_BIKE || []).map((b) => `<div class="beat">@${b.at} ${esc(b.id)}</div>` + linesHTML(b.lines)).join('') + '<h2>Garage intro</h2>' + linesHTML(INTRO_GARAGE);
   h += '<h2>Tutorial</h2>' + TUTORIAL_STEPS.map((s, i) => {
     const w = s.waitFor.auto ? `auto ${JSON.stringify(s.waitFor.auto)} / manual ${JSON.stringify(s.waitFor.manual)}` : JSON.stringify(s.waitFor);
-    const hint = s.hint.auto || s.hint;
-    return `<div class="beat">${i + 1}. ${esc(s.id)} <span class="meta">[${hint.keys.join(' ')}] ${esc(hint.th)} · ${esc(w)}</span></div>` + linesHTML(Array.isArray(s.lines) ? s.lines : s.lines.auto) + linesHTML(s.after);
+    const hint = s.hint?.auto || s.hint;
+    return `<div class="beat">${i + 1}. ${esc(s.id)} <span class="meta">${hint ? `[${hint.keys.join(' ')}] ${esc(hint.th)}` : '(no hint)'} · ${esc(w)}</span></div>` + linesHTML(Array.isArray(s.lines) ? s.lines : s.lines.auto) + linesHTML(s.after);
   }).join('');
   h += '</div><div><h2>Send-off</h2>' + linesHTML(SEND_OFF);
   h += '<h2>Restart (by loop)</h2>' + RESTART_LINES.map((r) => `<div class="beat">loop ≥ ${r.minLoop}</div>` + linesHTML(r.lines) + (r.variants || []).map((v, i) => `<div class="meta">variant ${i + 1}</div>` + linesHTML(v)).join('')).join('');
   h += '<h2>Time skip</h2>' + linesHTML([TIME_SKIP.offer, TIME_SKIP.choice, ...TIME_SKIP.accept, ...TIME_SKIP.decline]);
+  h += '<h2>Keys (every restart)</h2>' + linesHTML(DATA.RESTART_KEYS) + '<div class="meta">refused, then took the taxi:</div>' + linesHTML(DATA.REFUSE_RETURN);
+  h += '<h2>Loop staging</h2><table>' + Object.entries(DATA.LOOP_STAGING).map(([k, t]) => `<tr><td class="meta">${esc(k)}</td><td class="meta">${t.map((r) => `≥${r.minLoop}: ${esc(r.note || JSON.stringify(r).slice(0, 60))}`).join('<br>')}</td></tr>`).join('') + '</table>';
+  h += '<h2>Déjà vu</h2>' + DATA.DEJA_VU.map((d) => `<div class="beat">loop ${d.minLoop}–${d.maxLoop ?? '∞'} · ${esc(d.trigger)}</div>` + linesHTML(d.lines)).join('');
   h += '<h2>Death hints</h2>' + Object.entries(DEATH_HINTS).map(([k, ls]) => `<div class="beat">${k}</div>` + linesHTML(ls)).join('');
   h += '<h2>Radio cameo</h2>' + linesHTML(RADIO_CAMEO.lines) + '<h2>Shrine reveal</h2>' + linesHTML(SHRINE_REVEAL);
   return h + '</div></div>';
@@ -178,9 +185,9 @@ function radio() {
 
 function endingsView() {
   const { ENDINGS } = DATA;
-  return '<h1>Endings</h1>' + Object.values(ENDINGS).map((e) => `<h2>${esc(e.titleTH)} — ${esc(e.titleEN)} (${e.kind})</h2><div class="meta">${esc(e.condition)}</div>` +
-    e.scenes.map((s) => `<div class="beat">◆ ${esc(s.id)} — <span class="meta">${esc(s.note)}</span></div>` + linesHTML(s.lines)).join('') +
-    e.epilogue.map((t) => `<div class="line thought"><span class="th">${esc(t.th)}</span><span class="en">${esc(t.en)}</span></div>`).join('')).join('');
+  return '<h1>Endings</h1><div class="sub">resolveEnding(moment) tests them in this order</div>' + DATA.ENDING_PRIORITY.map((id) => ENDINGS[id]).map((e, i) => `<h2>${i + 1}. ${esc(e.titleTH)} — ${esc(e.titleEN)} (${e.kind})</h2><div class="meta"><b>${esc(e.moment)}</b> · when ${esc(condText(e.when))}</div><div class="meta">${esc(e.condition)}</div>` +
+    e.scenes.map((s) => `<div class="beat">◆ ${esc(s.id)}${s.if ? ' <span class="tag g">if ' + esc(condText(s.if)) + '</span>' : ''} — <span class="meta">${esc(s.note)}</span></div>` + linesHTML(s.lines)).join('') +
+    e.epilogue.map((t) => `<div class="line thought">${t.if ? '<span class="tag g">if ' + esc(condText(t.if)) + '</span>' : ''}<span class="th">${esc(t.th)}</span><span class="en">${esc(t.en)}</span></div>`).join('')).join('');
 }
 
 export default async function ({ engine, params }) {
