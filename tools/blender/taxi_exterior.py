@@ -434,6 +434,10 @@ class Ext:
         panels.update(hood=parts['hood'], trunk=parts['trunk'], bumper_f=parts['bumper_f'],
                       bumper_r=parts['bumper_r'], body=body, fuel_flap=flap)
         for nm, o in panels.items():
+            o.name = nm
+            o.data.name = nm
+            zone_materials(o)
+            vlib.dissolve_fragments(o, 0.2)
             add_skin_group(o)
             if nm.startswith('door'):
                 dfn = depth_fn_door
@@ -445,10 +449,9 @@ class Ext:
                 dfn = lambda co: 0.004
             else:
                 dfn = lambda co: 0.02
-            roll_edges(o, segs=3, normal_src=self.bvh, radius_fn=radius_fn, depth_fn=dfn,
+            roll_edges(o, segs=2, normal_src=self.bvh, radius_fn=radius_fn, depth_fn=dfn,
                        vsel=lambda co: not is_under(co))
             transfer_normals(o, self.master, vgroup='skin')
-            zone_materials(o)
             self.objs[nm] = o
         if 'bumper_f' in self.objs:
             # the bumper lower lip is unpainted black plastic in the references? keep paint, but
@@ -604,7 +607,7 @@ class Ext:
             p, i, d = kd.find(co)
             return d is not None and d < 0.03
         vg = o.vertex_groups.get('skin')
-        roll_edges(o, segs=3, normal_src=self.bvh, radius=0.002, depth=0.02, vsel=near)
+        roll_edges(o, segs=2, normal_src=self.bvh, radius=0.002, depth=0.02, vsel=near)
         # glass panes from the greenhouse surface, slightly larger than the opening
         ws = self._g_patch('glass_windshield', -cmax - 0.35, cmax + 0.35, 0.40, r_top_ws + 0.12, inset=0.004,
                            nu=40, nv=16)
@@ -619,7 +622,7 @@ class Ext:
         for nm, (P, Nn) in (('seal_ws', self.ws_loop), ('seal_rw', self.rw_loop)):
             prof = [(-0.004, -0.013), (0.0012, -0.012), (0.0032, -0.007), (0.0036, 0.0), (0.0028, 0.006),
                     (0.0005, 0.009), (-0.006, 0.0085), (-0.008, -0.004)]
-            path = resample(np.vstack([P, P[:1]]), 260)[:-1]
+            path = resample(np.vstack([P, P[:1]]), 90)[:-1]
             nn = self.normals_at(path)
             s = sweep(nm, path, prof, closed_path=True, closed_profile=True, normals=nn)
             # orient profile b axis outward of the hole: flip if needed
@@ -867,7 +870,7 @@ class Ext:
             else:
                 pts.append(P2[i])
         L = np.array(pts)
-        L = resample(L, max(8, int(sum(np.linalg.norm(np.diff(L, axis=0), axis=1)) / 0.012)))
+        L = resample(L, max(8, int(sum(np.linalg.norm(np.diff(L, axis=0), axis=1)) / 0.025)))
         path, nrm = [], []
         for y, z in L:
             loc, nn = self.surf_x(y, z, side)

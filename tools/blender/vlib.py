@@ -854,7 +854,7 @@ def boundary_loops(bm):
 
 
 def roll_edges(ob, radius=0.0015, depth=0.006, segs=3, mat_index=None, normal_src=None, select=None,
-               depth_fn=None, radius_fn=None, vsel=None):
+               depth_fn=None, radius_fn=None, vsel=None, lip=False):
     """Turn every open boundary of a sheet into a rounded rolled edge + flange
     going 'behind' the surface (along -normal). normal_src: BVHTree of a smooth
     master surface for stable normals. select(co)->bool limits which loops."""
@@ -911,7 +911,8 @@ def roll_edges(ob, radius=0.0015, depth=0.006, segs=3, mat_index=None, normal_sr
                 th = (math.pi / 2) * k / segs
                 ring.append(c + nrm[i] * (r * math.cos(th)) + out[i] * (r * math.sin(th)))
             ring.append(c + out[i] * r - nrm[i] * dpt)
-            ring.append(c + out[i] * (r * 0.2) - nrm[i] * (dpt + r * 0.8) - out[i] * r * 0.6)
+            if lip:
+                ring.append(c + out[i] * (r * 0.2) - nrm[i] * (dpt + r * 0.8) - out[i] * r * 0.6)
             rings.append([v] + [bm.verts.new(p) for p in ring])
         m = n if closed else n - 1
         for i in range(m):
@@ -1071,8 +1072,12 @@ def mat_by_pred(ob, name, pred):
 # ---------------------------------------------------------------------------------------
 def _select_only(objs, active=None):
     vl = bpy.context.view_layer
-    for o in vl.objects:
-        o.select_set(False)
+    for o in list(vl.objects):
+        if o is not None:
+            try:
+                o.select_set(False)
+            except Exception:
+                pass
     for o in objs:
         o.select_set(True)
     vl.objects.active = active or (objs[0] if objs else None)
@@ -1259,6 +1264,17 @@ def bake_masks(objs, atlases, size=2048, samples=48, out_dir=None, ao_dist=0.45,
     return out_imgs
 
 
+def dissolve_fragments(ob, angle_deg=0.2):
+    """Re-merge coplanar boolean fragments (keeps material borders and open boundaries)."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(angle_deg), use_dissolve_boundaries=False,
+                               verts=bm.verts, edges=bm.edges, delimit={'MATERIAL'})
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.update()
+
+
 def _soften(a, r=1):
     """Tiny box blur to hide bake sampling noise."""
     if r <= 0:
@@ -1281,6 +1297,7 @@ def empty(name, loc, parent=None, size=0.05):
     e.empty_display_type = 'PLAIN_AXES'
     e.empty_display_size = size
     link(e)
+    e.matrix_world = Matrix.Translation(Vector(loc))
     e.location = Vector(loc)
     if parent is not None:
         parent_keep(e, parent)
@@ -1288,6 +1305,7 @@ def empty(name, loc, parent=None, size=0.05):
 
 
 def parent_keep(child, parent):
+    bpy.context.view_layer.update()
     mw = child.matrix_world.copy()
     child.parent = parent
     child.matrix_parent_inverse = Matrix.Identity(4)
@@ -1388,6 +1406,17 @@ def inject_masks(path, atlas_files, mat_atlas, extras=None):
     js['buffers'][0]['byteLength'] = len(binc)
     if extras:
         js.setdefault('asset', {}).setdefault('extras', {}).update(extras)
+    write_glb(path, js, binc)
+
+
+def rename_anchor_nodes(path):
+    """Give every node tagged extras.anchor exactly that name (Blender cannot hold the
+    duplicate names 'hood' / 'trunk' used both by a pivot mesh and by an anchor empty)."""
+    js, binc = read_glb(path)
+    for n in js.get('nodes', []):
+        a = n.get('extras', {}).get('anchor')
+        if a:
+            n['name'] = a
     write_glb(path, js, binc)
 
 

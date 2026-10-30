@@ -181,8 +181,8 @@ class Parts:
         assign_mat(gb, 'plastic_black')
         parts = [gb]
         # vertical slats (dark mesh look)
-        for k in range(-15, 16):
-            s = (k / 15.5) * u_g
+        for k in range(-10, 11):
+            s = (k / 10.5) * u_g
             pts = []
             for t in np.linspace(tb_f(s) - 0.02, tt_f(s) + 0.02, 6):
                 loc, n = E.nearest(W(s, t))
@@ -218,9 +218,9 @@ class Parts:
         for t in np.linspace(tt_f(-u_g) + 0.03, tb_f(-u_g) - 0.04, n_side)[1:-1]:
             frame_pts.append((-u_g, t))
         P = np.array([np.array(E.nearest(W(s, t))[0]) - np.array(E.nearest(W(s, t))[1]) * 0.004 for s, t in frame_pts])
-        P = resample(np.vstack([P, P[:1]]), 160)[:-1]
+        P = resample(np.vstack([P, P[:1]]), 80)[:-1]
         nn = np.array([E.nearest(q)[1] for q in P])
-        frame = sweep('grille_frame', P, circle_profile(0.0048, 8, ry=0.0042), normals=nn, closed_path=True)
+        frame = sweep('grille_frame', P, circle_profile(0.0048, 6, ry=0.0042), normals=nn, closed_path=True)
         chrome = join(bars + [frame], name='grille_chrome')
         assign_mat(chrome, 'chrome')
         # fictional badge: chrome oval ring with a stylised rising-sun-over-road mark
@@ -271,11 +271,11 @@ class Parts:
     def badge(self, name, p, n, ts, tt, rx, ry):
         """Original fictional emblem: oval chrome ring around a stylised lotus bud."""
         ring_path = []
-        for k in range(64):
-            a = 2 * math.pi * k / 64
+        for k in range(48):
+            a = 2 * math.pi * k / 48
             ring_path.append(p + ts * rx * math.cos(a) + tt * ry * math.sin(a))
-        ring = sweep(name + '_ring', np.array(ring_path), circle_profile(0.0032, 8, rx=0.0026),
-                     normals=np.tile(n, (64, 1)), closed_path=True)
+        ring = sweep(name + '_ring', np.array(ring_path), circle_profile(0.0032, 6, rx=0.0026),
+                     normals=np.tile(n, (48, 1)), closed_path=True)
         # lotus bud: three petals (lens-shaped) made from lofted ovals
         petals = []
         for ang in (-35, 0, 35):
@@ -766,7 +766,7 @@ class Parts:
         rim = self.steel_wheel('rim')
         cap = self.hubcap('hubcap')
         brake = lathe('brake', [(0.0, -0.10), (0.13, -0.10), (0.135, -0.09), (0.135, -0.05), (0.12, -0.045),
-                                (0.06, -0.045), (0.05, -0.03), (0.0, -0.03)], segments=40, axis='X',
+                                (0.06, -0.045), (0.05, -0.03), (0.0, -0.03)], segments=28, axis='X',
                       mat=mat('metal_steel'))
         proto = join([tyre, rim, cap, brake], name='wheel_proto')
         for nm, (x, y) in (('wheel_fl', (-tb.TRACK_F / 2, tb.AXF)), ('wheel_fr', (tb.TRACK_F / 2, tb.AXF)),
@@ -784,13 +784,13 @@ class Parts:
         R, Wd = 0.2915, 0.178
         rim_r = 0.1805
         # half profile (lateral x, radius r) from inner bead to outer bead
-        P = [(-0.074, rim_r - 0.002), (-0.081, rim_r + 0.012), (-0.088, 0.215), (-0.0905, 0.245), (-0.0885, 0.265),
-             (-0.083, 0.278), (-0.076, 0.2855), (-0.066, 0.2895), (-0.050, R), (-0.042, R), (-0.040, R - 0.007),
+        P = [(-0.074, rim_r - 0.002), (-0.081, rim_r + 0.012), (-0.088, 0.215), (-0.0905, 0.250),
+             (-0.083, 0.278), (-0.070, 0.288), (-0.050, R), (-0.042, R), (-0.040, R - 0.007),
              (-0.034, R - 0.007), (-0.032, R), (-0.012, R), (-0.010, R - 0.007), (-0.004, R - 0.007), (-0.002, R),
              (0.002, R), (0.004, R - 0.007), (0.010, R - 0.007), (0.012, R), (0.032, R), (0.034, R - 0.007),
-             (0.040, R - 0.007), (0.042, R), (0.050, R), (0.066, 0.2895), (0.076, 0.2855), (0.083, 0.278),
-             (0.0885, 0.265), (0.0905, 0.245), (0.088, 0.215), (0.081, rim_r + 0.012), (0.074, rim_r - 0.002)]
-        segs = 132
+             (0.040, R - 0.007), (0.042, R), (0.050, R), (0.070, 0.288), (0.083, 0.278),
+             (0.0905, 0.250), (0.088, 0.215), (0.081, rim_r + 0.012), (0.074, rim_r - 0.002)]
+        segs = 84
         verts = []
         for i in range(segs):
             a = 2 * math.pi * i / segs
@@ -819,9 +819,9 @@ class Parts:
                 (0.150, -0.025), (0.150, 0.025), (0.168, 0.035), (0.172, 0.058), (0.181, 0.062), (0.186, 0.068),
                 (0.186, 0.074), (0.180, 0.078), (0.170, 0.072)]
         # lathe profile is (r, h): h along X
-        rim = lathe(name, [(r, h) for r, h in prof], segments=64, axis='X', mat=mat('paint_black'))
+        rim = lathe(name, [(r, h) for r, h in prof], segments=40, axis='X', mat=mat('paint_black'))
         disc = lathe(name + '_disc', [(0.150, 0.02), (0.13, 0.035), (0.09, 0.04), (0.06, 0.045), (0.035, 0.042),
-                                      (0.0, 0.042)], segments=48, axis='X', mat=mat('paint_black'))
+                                      (0.0, 0.042)], segments=32, axis='X', mat=mat('paint_black'))
         return join([rim, disc], name=name)
 
     def hubcap(self, name):
@@ -829,8 +829,7 @@ class Parts:
         prof = [(0.168, 0.066), (0.172, 0.070), (0.170, 0.076), (0.160, 0.080), (0.140, 0.083), (0.120, 0.087),
                 (0.100, 0.090), (0.080, 0.094), (0.062, 0.097), (0.050, 0.101), (0.046, 0.106), (0.040, 0.108),
                 (0.0, 0.110)]
-        cap = lathe(name, [(r, h) for r, h in prof], segments=80, axis='X', mat=mat('metal_steel'))
-        cap = vlib.duplicate(cap, name)
+        cap = lathe(name, [(r, h) for r, h in prof], segments=50, axis='X', mat=mat('metal_steel'))
         # vents: radial tapered prisms cut through the dish
         cutters = []
         for k in range(10):
@@ -846,14 +845,11 @@ class Parts:
         cc = join(cutters, name='ventcut')
         boolean(cap, cc, op='DIFFERENCE')
         delete(cc)
-        # rim lip thickness + vent flanges via solidify
-        add_solidify(cap, 0.003, offset=-1)
-        add_bevel(cap, 0.0012, 2, angle=35)
-        apply_modifiers(cap)
+        vlib.dissolve_fragments(cap, 0.2)
         set_sharp_by_angle(cap, 40)
         assign_mat(cap, 'metal_steel')
         # centre: a plain domed disc with a fine ring (no logo)
-        ring = lathe(name + '_ring', [(0.050, 0.1015), (0.052, 0.1035), (0.050, 0.1055)], segments=48, axis='X',
+        ring = lathe(name + '_ring', [(0.050, 0.1015), (0.052, 0.1035), (0.050, 0.1055)], segments=32, axis='X',
                      mat=mat('chrome'))
         return join([cap, ring], name=name)
 
@@ -907,8 +903,8 @@ class Parts:
                 Matrix.Rotation(math.pi / 2 - ang, 4, 'X')
             t.data.transform(Matrix.Translation((0, 0, 0)))
             # build in local: text in XY plane facing +Z -> rotate to face -Y (rear) or +Y (front)
-            R = Matrix.Rotation(-math.pi / 2 + ang, 4, 'X') if face_sign < 0 else \
-                Matrix.Rotation(math.pi / 2 - ang, 4, 'X') @ Matrix.Rotation(math.pi, 4, 'Z')
+            R = Matrix.Rotation(math.pi / 2 - ang, 4, 'X') if face_sign < 0 else \
+                Matrix.Rotation(-(math.pi / 2 - ang), 4, 'X') @ Matrix.Rotation(math.pi, 4, 'Z')
             t.data.transform(R)
             yoff = face_sign * (D / 2 - 0.011 + 0.0012)
             t.data.transform(Matrix.Translation((0, yc + yoff, zr + 0.055 + Hs * 0.5)))
@@ -950,7 +946,7 @@ class Parts:
         cu.align_x = 'CENTER'
         cu.align_y = 'CENTER'
         cu.extrude = depth
-        cu.resolution_u = 4
+        cu.resolution_u = 2
         ob = bpy.data.objects.new('txt', cu)
         vlib.link(ob)
         dg = bpy.context.evaluated_depsgraph_get()
