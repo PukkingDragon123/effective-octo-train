@@ -74,8 +74,9 @@ export class TaxiControls {
     this.fareTime = 0;
     this._busOff = bus.on('audio:radio', (d) => {
       if (!d || !taxi.isAudioOwner()) return;
-      if (typeof d.station === 'number') taxi.state.radioStation = d.station;
-      if (typeof d.on === 'boolean') taxi.state.radioOn = d.on;
+      // the dashboard switch is authoritative for on/off (audio may echo 'off' before it is
+      // initialised); follow the station / programme the audio radio actually plays
+      if (typeof d.station === 'number' && d.station > 0) taxi.state.radioStation = d.station;
       this.radioSong = d.song || '';
     });
   }

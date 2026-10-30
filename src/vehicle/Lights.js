@@ -155,13 +155,13 @@ export class TaxiLights {
     this.dome = dome;
     // instrument backlight spilling onto the wheel rim, the driver's hands and chest
     const dash = new THREE.PointLight(0x9cf0c0, 0, 1.25, 2);
-    dash.position.set(0.37, 0.87, -0.6);
+    dash.position.set(0.37, 0.93, -0.64); // under the binnacle hood, above the column shroud
     body.add(dash);
     this.dash = dash;
     // night-adapted eyes: a very faint cool fill that only exists while the camera is in the
     // cabin, so the dark interior stays readable (never counted in cabinBrightness)
     const fill = new THREE.PointLight(0x8094a8, 0, 2.6, 2);
-    fill.position.set(0.12, 1.18, -0.05);
+    fill.position.set(0.0, 1.18, -0.2);
     body.add(fill);
     this.fill = fill;
     this.fillLevel = 0;
@@ -244,10 +244,10 @@ export class TaxiLights {
     // dash backlight + gauges
     const dashT = elec * (lightsOn ? 1 : 0.55);
     this.dashLevel = damp(this.dashLevel, dashT, 6, dt);
-    this.dash.intensity = this.dashLevel * 0.3;
+    this.dash.intensity = this.dashLevel * 0.2;
     const inside = this.taxi.isCameraInside?.() ? 1 : 0;
     this.fillLevel = damp(this.fillLevel, inside * (1 - this.domeLevel * 0.8), 3, dt);
-    this.fill.intensity = this.fillLevel * 0.3;
+    this.fill.intensity = this.fillLevel * 0.42;
     const gIntensity = this.dashLevel * 1.15;
     for (const k in this.parts.im.gauges) this.parts.im.gauges[k].emissiveIntensity = gIntensity;
     this.parts.im.needle.emissiveIntensity = 0.15 + this.dashLevel * 1.4;

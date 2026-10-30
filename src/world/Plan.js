@@ -69,39 +69,69 @@ export function planLandmarks(road, layout) {
     if (fp.clear > 0) clearings.push({ x: pos.x, z: pos.z, r: fp.clear, key });
   }
 
-  // ---- the fork: shrine in the wedge between the ghost (left) and human (right) branches
+  // ---- the fork: ศาลเจ้ามารวย in the wedge between the ghost (left) and human (right) branches.
+  // Props contract: the prop origin is the fork point F on the main road; the building stands
+  // `setback` m ahead along local -Z, the two signposts at `noseZ`. The axis bisects the wedge
+  // and setback / noseZ are fitted so the footprint and the nose stay off both branch roads.
   const main = road.get('main');
   const ghost = road.get('ghost'), human = road.get('human');
   const L = main.length;
-  const F = main.points[main.points.length - 1];
+  const F = main.points[main.points.length - 1].clone();
   const travelF = main.yawAt(L);
-  let t = 8;
   const a = new THREE.Vector3(), b = new THREE.Vector3();
-  for (; t < 80; t += 0.5) {
-    ghost.pointAt(t, 0, a);
-    human.pointAt(t, 0, b);
-    if (a.distanceTo(b) - layout.roadWidth >= 13) break;
+  ghost.pointAt(34, 0, a);
+  human.pointAt(34, 0, b);
+  const mid = a.clone().add(b).multiplyScalar(0.5);
+  const axisYaw = Math.atan2(-(mid.x - F.x), -(mid.z - F.z)); // local -Z along the wedge bisector
+  const fw = { x: -Math.sin(axisYaw), z: -Math.cos(axisYaw) }; // world dir of local -Z
+  const rt = { x: Math.cos(axisYaw), z: -Math.sin(axisYaw) }; // world dir of local +X
+  const toWorld = (lx, lz, out = new THREE.Vector3()) => out.set(F.x + rt.x * lx - fw.x * lz, F.y, F.z + rt.z * lx - fw.z * lz);
+  const branchClear = (p) => {
+    let d = Infinity;
+    for (const sp of [ghost, human]) {
+      const pr = road.projectOnto(sp.id, p);
+      d = Math.min(d, pr.distance);
+    }
+    return d;
+  };
+  const q = new THREE.Vector3();
+  // nose: the two fork signposts (x = +-1.25) need both branch edges >= 1.6 m away
+  let noseT = 6;
+  for (; noseT < 60; noseT += 0.5) if (branchClear(toWorld(0, -noseT, q)) >= hw + 1.75) break;
+  // footprint (createShrineMaRuay defaults): x +-6.25, z in [-SB-11.2, -SB+6]
+  let SB = Math.max(10, noseT + 4);
+  for (; SB < 90; SB += 0.5) {
+    let ok = true;
+    for (let lz = -SB - 11.2; lz <= -SB + 6 && ok; lz += 1.4) {
+      for (let lx = -6.25; lx <= 6.25 && ok; lx += 1.25) if (branchClear(toWorld(lx, lz, q)) < hw + 0.7) ok = false;
+    }
+    if (ok) break;
   }
-  const front = t; // shrine front edge near here
-  ghost.pointAt(front + 5, 0, a);
-  human.pointAt(front + 5, 0, b);
-  const shrinePos = a.clone().add(b).multiplyScalar(0.5);
-  shrinePos.y = F.y;
+  const centreLocalZ = -SB - 4.1; // platform centre
+  const shrineCentre = toWorld(0, centreLocalZ);
+  const ghostHand = ghost.pointAt(Math.min(ghost.length * 0.4, SB + 14), 0);
+  const dxh = ghostHand.x - F.x, dzh = ghostHand.z - F.z;
+  const handLocal = [dxh * rt.x + dzh * rt.z, -(dxh * fw.x + dzh * fw.z)];
   const sm = landmarks.shrineMaRuay;
   if (sm) {
-    sm.pos.copy(shrinePos);
-    sm.yaw = travelF; // front (+Z) faces the oncoming main road
+    sm.pos.copy(F); // prop origin = the fork point (createShrineMaRuay contract)
+    sm.yaw = axisYaw;
     sm.travelYaw = travelF;
+    sm.centre = shrineCentre.clone();
+    sm.shrineOpts = { setback: SB, noseZ: -noseT, handSpawn: handLocal };
     sm.waitPos = main.pointAt(L - 6, -(hw + 0.75));
     sm.stopPos = main.pointAt(L - 14, layout.laneOffset);
     sm.stopPos.y += 0.025;
     sm.facing = travelF + Math.PI;
-    pads.push({ x: shrinePos.x, z: shrinePos.z, hx: 6, hz: 6, yaw: travelF, h: F.y - 0.02, blend: 4, kind: 'concrete' });
-    clearings.push({ x: shrinePos.x, z: shrinePos.z, r: 9, key: 'shrineMaRuay' });
+    const fc = toWorld(0, -SB - 2.6);
+    pads.push({ x: fc.x, z: fc.z, hx: 6.6, hz: 9.2, yaw: axisYaw, h: F.y - 0.02, blend: 4, kind: 'concrete' });
+    clearings.push({ x: fc.x, z: fc.z, r: 11.5, key: 'shrineMaRuay' });
+    const nose = toWorld(0, -noseT);
+    clearings.push({ x: nose.x, z: nose.z, r: 2.6, key: 'shrineNose' });
   }
   const fork = {
-    pos: shrinePos.clone(), yaw: travelF, ghostSplineId: 'ghost', humanSplineId: 'human', leftSplineId: 'ghost', rightSplineId: 'human',
-    decisionS: L - 2, mainS: L, splitS: front, shrine: null,
+    pos: shrineCentre.clone(), yaw: travelF, ghostSplineId: 'ghost', humanSplineId: 'human', leftSplineId: 'ghost', rightSplineId: 'human',
+    decisionS: L - 2, mainS: L, splitS: noseT, setback: SB, axisYaw, shrine: null,
     point: F.clone(),
   };
   return { landmarks, pads, clearings, fork };

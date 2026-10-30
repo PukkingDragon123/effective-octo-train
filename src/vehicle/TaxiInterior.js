@@ -60,6 +60,11 @@ function interiorMaterials() {
   m.pedalRubber = paintedMaterial({ color: 0x121212, map: T('rubber', [2, 2]), roughness: 0.9, name: 'int_pedal' });
   m.sticker = (key) => paintedMaterial({ map: VT.stickerTex(key), transparent: true, alphaTest: 0.05, roughness: 0.6, brush: 0.2, depthWrite: false, name: 'int_sticker_' + key });
   m.photo = paintedMaterial({ map: VT.childPhotoTex(), roughness: 0.7, brush: 0.2, side: THREE.DoubleSide, name: 'int_photo' });
+  // varnished wooden beads: polished, glossy highlights on every bead
+  m.beadWood = paintedMaterial({ map: VT.woodGrainTex(), color: 0xffffff, roughness: 0.28, metalness: 0.0, brush: 0.2, name: 'int_beadwood' });
+  // stitched seams on the fabric seats (alpha decal ribbons)
+  m.stitch = paintedMaterial({ map: VT.stitchTex(), transparent: true, alphaTest: 0.02, depthWrite: false, roughness: 0.85, brush: 0.1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, name: 'int_stitch' });
+  sharpen(m);
   sharedMats = m;
   return m;
 }
@@ -67,9 +72,10 @@ function interiorMaterials() {
 /** Per-instance emissive / dynamic materials. */
 function instanceMaterials() {
   const g = (kind) => paintedMaterial({ map: VT.gaugeTex(kind, false), emissiveMap: VT.gaugeTex(kind, true), emissive: 0x6dffb0, emissiveIntensity: 0, roughness: 0.5, brush: 0.1, name: 'int_gauge_' + kind });
-  const meter = new VT.DynamicCanvas(256, 96);
-  const radio = new VT.DynamicCanvas(256, 48);
-  const warn = new VT.DynamicCanvas(256, 32);
+  // supersampled: the LED digits and radio text are read up close all game
+  const meter = new VT.DynamicCanvas(256, 96, { scale: 3 });
+  const radio = new VT.DynamicCanvas(256, 48, { scale: 3 });
+  const warn = new VT.DynamicCanvas(256, 32, { scale: 2 });
   return {
     gauges: { speed: g('speed'), tacho: g('tacho'), fuel: g('fuel'), temp: g('temp') },
     needle: paintedMaterial({ color: 0xff5a22, emissive: 0xff4a10, emissiveIntensity: 0.2, roughness: 0.4, brush: 0.1, name: 'int_needle' }),
@@ -211,9 +217,90 @@ function seatShape(width, depth, height, opts = {}) {
   return g;
 }
 
+/** n+1 samples of fn(t), t in [0, 1]. */
+function linspace(n, fn) {
+  const out = [];
+  for (let i = 0; i <= n; i++) out.push(fn(i / n));
+  return out;
+}
+
+const _seamRay = new THREE.Raycaster();
+const _seamMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+/**
+ * A thin decal ribbon that hugs a surface: samples [{o, d}] are rays (origin, direction) cast
+ * onto `geo`; the ribbon runs through the hits, lifted 1.5 mm along the surface normal.
+ * uv.x = length / 4 cm (stitch spacing), uv.y across. Returns a BufferGeometry or null.
+ */
+function seamRibbon(geo, samples, width = 0.012) {
+  const mesh = new THREE.Mesh(geo, _seamMat);
+  mesh.updateMatrixWorld(true);
+  const P = [], N = [];
+  for (const { o, d } of samples) {
+    _seamRay.set(o, d.clone().normalize());
+    _seamRay.far = 1.0;
+    const h = _seamRay.intersectObject(mesh, false)[0];
+    if (!h || !h.face) continue;
+    const n = h.face.normal.clone();
+    if (n.dot(d) > 0) n.negate();
+    P.push(h.point.clone());
+    N.push(n.normalize());
+  }
+  if (P.length < 2) return null;
+  const pos = [], nrm = [], uv = [], idx = [];
+  let len = 0;
+  for (let i = 0; i < P.length; i++) {
+    if (i > 0) len += P[i].distanceTo(P[i - 1]);
+    const T = P[Math.min(P.length - 1, i + 1)].clone().sub(P[Math.max(0, i - 1)]).normalize();
+    const S = new THREE.Vector3().crossVectors(T, N[i]).normalize().multiplyScalar(width / 2);
+    const c = P[i].clone().addScaledVector(N[i], 0.0015);
+    const a = c.clone().add(S), b = c.clone().sub(S);
+    pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    nrm.push(N[i].x, N[i].y, N[i].z, N[i].x, N[i].y, N[i].z);
+    uv.push(len / 0.04, 1, len / 0.04, 0);
+    if (i > 0) {
+      const k = (i - 1) * 2;
+      idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  // face the ribbon toward the surface normal (flip the winding if needed)
+  const e1 = new THREE.Vector3(pos[3] - pos[0], pos[4] - pos[1], pos[5] - pos[2]);
+  const e2 = new THREE.Vector3(pos[6] - pos[0], pos[7] - pos[1], pos[8] - pos[2]);
+  if (new THREE.Vector3().crossVectors(e1, e2).dot(N[0]) < 0) {
+    const r = [];
+    for (let i = 0; i < idx.length; i += 3) r.push(idx[i], idx[i + 2], idx[i + 1]);
+    g.setIndex(r);
+  }
+  return g;
+}
+
+/** Max anisotropy on every map of a material set (crisp at grazing angles; the cabin is seen up close). */
+function sharpen(mats) {
+  const an = VT.maxAnisotropy();
+  for (const k in mats) {
+    const mt = mats[k];
+    if (!mt || !mt.isMaterial) continue;
+    for (const slot of ['map', 'normalMap', 'roughnessMap', 'emissiveMap']) {
+      const t = mt[slot];
+      if (t && t.isTexture && t.anisotropy < an) {
+        t.anisotropy = an;
+        t.needsUpdate = true;
+      }
+    }
+  }
+}
+
 /** Bead cover on a seat: instanced wooden beads following cushion + backrest surfaces. */
 function beadCover(m, seatPos, cushionTopFn, backFn, rows) {
-  const geo = new THREE.IcosahedronGeometry(1, 1);
+  // smooth bead with a little waist (turned wood), 112 tris
+  const geo = new THREE.SphereGeometry(1, 10, 7);
+  deform(geo, (v) => {
+    v.y *= 0.88;
+  });
   const pts = [];
   const rng = makeRng(31337);
   const r = 0.0105;
@@ -236,7 +323,7 @@ function beadCover(m, seatPos, cushionTopFn, backFn, rows) {
       pts.push([p.x, p.y + r * 0.3, p.z - r * 0.9, rng]);
     }
   }
-  const mesh = new THREE.InstancedMesh(geo, m.wood, pts.length);
+  const mesh = new THREE.InstancedMesh(geo, m.beadWood || m.wood, pts.length);
   const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const col = new THREE.Color();
   pts.forEach(([x, y, z], i) => {
@@ -271,6 +358,19 @@ function buildFrontSeat(mb, m, pos, driver) {
   back.translate(0, 0.31, 0.06);
   xform(back, [pos.x, by, bz], [backTilt, 0, 0]);
   mb.add(mat, boxUV(back, 0.25));
+  if (!driver) {
+    // stitched panel seams: two along the cushion, one across its rear, two up the backrest
+    const C = (x, z) => ({ o: new THREE.Vector3(x, pos.y + 0.3, z), d: new THREE.Vector3(0, -1, 0) });
+    const cz0 = pos.z - 0.12 - 0.2, cz1 = pos.z - 0.12 + 0.17;
+    for (const sx of [-0.11, 0.11]) mb.add('stitch', seamRibbon(cush, linspace(12, (t) => C(pos.x + sx, lerp(cz0, cz1, t)))));
+    mb.add('stitch', seamRibbon(cush, linspace(14, (t) => C(pos.x + lerp(-0.2, 0.2, t), cz1 - 0.02))));
+    const F = new THREE.Vector3(0, Math.sin(backTilt), -Math.cos(backTilt));
+    const B = (x, s) => {
+      const L = new THREE.Vector3(x, s, 0).applyAxisAngle(new THREE.Vector3(1, 0, 0), backTilt).add(new THREE.Vector3(pos.x, by, bz));
+      return { o: L.addScaledVector(F, 0.25), d: F.clone().negate() };
+    };
+    for (const sx of [-0.11, 0.11]) mb.add('stitch', seamRibbon(back, linspace(14, (t) => B(sx, lerp(0.06, 0.56, t)))));
+  }
   for (const sx of [-1, 1]) {
     const b = roundedBox(0.065, 0.48, 0.14, 0.03, 3);
     b.translate(0, 0.27, 0.05);
@@ -322,8 +422,18 @@ function buildRearBench(mb, m) {
   back.translate(0, 0.3, 0.06);
   xform(back, [0, y - 0.13, z + 0.15], [0.36, 0, 0]);
   mb.add('fabric', boxUV(back, 0.3));
-  for (const sx of [-0.23, 0.23]) {
-    mb.add('fabricDark', xform(new THREE.BoxGeometry(0.008, 0.006, 0.44), [sx, y - 0.062, z - 0.12], [0.08, 0, 0]));
+  // stitched seams dividing the bench into three seats (cushion + backrest) and a welt across the front
+  {
+    const C = (x, zz) => ({ o: new THREE.Vector3(x, y + 0.3, zz), d: new THREE.Vector3(0, -1, 0) });
+    for (const sx of [-0.23, 0.23]) mb.add('stitch', seamRibbon(cush, linspace(12, (t) => C(sx, lerp(z - 0.33, z + 0.1, t)))));
+    mb.add('stitch', seamRibbon(cush, linspace(30, (t) => C(lerp(-0.64, 0.64, t), z - 0.3))));
+    const bt = 0.36;
+    const F = new THREE.Vector3(0, Math.sin(bt), -Math.cos(bt));
+    const B = (x, s) => {
+      const L = new THREE.Vector3(x, s, 0).applyAxisAngle(new THREE.Vector3(1, 0, 0), bt).add(new THREE.Vector3(0, y - 0.13, z + 0.15));
+      return { o: L.addScaledVector(F, 0.25), d: F.clone().negate() };
+    };
+    for (const sx of [-0.23, 0.23]) mb.add('stitch', seamRibbon(back, linspace(14, (t) => B(sx, lerp(0.05, 0.55, t)))));
   }
   mb.add('carpet', xform(new THREE.BoxGeometry(1.36, 0.2, 0.42), [0, 0.3, z - 0.05]));
   for (const sx of [-0.4, 0.4]) {
@@ -997,7 +1107,7 @@ export function buildTaxiInterior(ext) {
 
   // ---- merge static stuff -------------------------------------------------------------------------
   const staticMeshes = mb.build({
-    dash: m.dash, dashMat: m.dashMat, plasticDark: m.plasticDark, plasticBeige: m.plasticBeige, black: blackMat(), chrome: m.chrome,
+    dash: m.dash, dashMat: m.dashMat, plasticDark: m.plasticDark, plasticBeige: m.plasticBeige, black: blackMat(), chrome: m.chrome, stitch: m.stitch,
     vinyl: m.vinyl, fabric: m.fabric, fabricDark: m.plasticDark, lace: m.lace, carpet: m.carpet, rubberMat: m.rubberMat, metal: m.metal,
   });
   for (const mesh of staticMeshes.children) mesh.receiveShadow = true;

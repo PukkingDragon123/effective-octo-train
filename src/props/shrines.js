@@ -245,8 +245,8 @@ function buildChineseShrine(k, rng, age, opts, group, out) {
   k.add(mat('lacquer'), bbox(0.6, 0.5, 0.42, 0.012, 0.15), { p: [0, deck, -0.08], color: red, w: { streak: 0.5 * age, grime: 0.2, ground: deck } });
   k.add(mat('dark'), bbox(0.42, 0.36, 0.02, 0.004, 0.1), { p: [0, deck + 0.05, 0.135], color: 0x200606, w: false });
   // gold board + couplets (signTex)
-  k.add(signMat('shrine_board', { th: 'เจ้าที่', small: true }), G('cboard', () => quad(0.4, 0.09)), { p: [0, deck + 0.46, 0.142], color: 0xffffff, w: false, uv: 'keep' });
-  for (const s of [-1, 1]) k.add(signMat('couplet', { text: s < 0 ? '福' : '安', side: s }), G('couplet', () => quad(0.06, 0.34)), { p: [s * 0.25, deck + 0.22, 0.142], color: 0xffffff, w: false, uv: 'keep' });
+  k.add(signMat('shrine_board', { th: 'เจ้าที่', cn: '土地公' }), G('cboard', () => quad(0.25, 0.097)), { p: [0, deck + 0.46, 0.142], color: 0xffffff, w: false, uv: 'keep' });
+  for (const s of [-1, 1]) k.add(signMat('couplet', { side: s < 0 ? 'left' : 'right' }), G('couplet', () => quad(0.064, 0.34)), { p: [s * 0.25, deck + 0.22, 0.142], color: 0xffffff, w: false, uv: 'keep' });
   k.add(mat('gold'), bbox(0.64, 0.03, 0.46, 0.006, 0.12), { p: [0, deck + 0.5, -0.08], color: gold });
   // curved glazed roof with upturned corners
   k.push([0, deck + 0.53, -0.08]);

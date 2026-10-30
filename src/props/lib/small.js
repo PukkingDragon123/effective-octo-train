@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { bevelBox, bbox, lathe, cyl, sphere, tube, torus, quad, smoothPath, blob, makeRng, noise } from './kit.js';
 import { mat, glowMat } from './materials.js';
 import { zebraGeo, dancerGeo } from './figures.js';
+import { addAsset, hasAsset } from './assets.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const gcache = new Map();
@@ -16,6 +17,40 @@ export function G(key, fn) {
     gcache.set(key, g);
   }
   return g;
+}
+
+/**
+ * Use a loaded CC0 model (lib/assets.js) instead of the procedural version, at the adder's own
+ * transform. Returns false (nothing added) when o.asset === false or the model isn't loaded.
+ */
+export function useAsset(k, id, o, extra = {}) {
+  if (o.asset === false || !hasAsset(id)) return false;
+  k.at(o.p, o.r, o.s, () => addAsset(k, id, extra));
+  return true;
+}
+
+// fork_sign plank silhouette in canvas pixels (768 x 256, arrow pointing right): src/textures/signs.js
+const FORK_PLANK = [[10, 40], [618, 30], [618, 6], [760, 132], [618, 248], [616, 222], [14, 212]];
+/**
+ * Wooden arrow plank carrying a 'fork_sign' face: the plank is extruded from the texture's own
+ * silhouette so the painted edge and the wood agree. o {p, r, w=1.1, h=w/2.97, dir=+1|-1 (arrow
+ * points to +X|-X), material (the sign material), color}. Face at z = +depth.
+ */
+export function forkPlank(k, signMaterial, o = {}) {
+  const w = o.w ?? 1.1, h = o.h ?? w / 2.97, dir = o.dir ?? 1, dep = 0.03;
+  const sh = new THREE.Shape();
+  FORK_PLANK.forEach(([px, py], i) => {
+    const x = (px / 768 - 0.5) * w * 0.985, y = (0.5 - py / 256) * h * 0.97;
+    if (i) sh.lineTo(x, y);
+    else sh.moveTo(x, y);
+  });
+  sh.closePath();
+  k.at(o.p, o.r, null, () => {
+    const g = new THREE.ExtrudeGeometry(sh, { depth: dep, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.003, bevelSegments: 1, curveSegments: 2 });
+    k.add(mat('wood'), g, { s: [dir, 1, 1], color: o.color ?? 0x7a6448, w: { moss: 0.5, streak: 0.5, grime: 0 } });
+    k.add(signMaterial, G(`plankface:${w.toFixed(3)}:${h.toFixed(3)}`, () => quad(w, h, 2, 1)), { p: [0, 0, dep + 0.0045], color: 0xffffff, uv: 'keep', w: { vary: 0.25, grime: 0 } });
+    for (const yy of [-0.25, 0.25]) k.add(mat('rust'), G('nail', () => cyl(0.006, 0.006, 0.01, 6, 0.001).rotateX(Math.PI / 2)), { p: [-dir * (w / 2 - 0.08), yy * h, dep + 0.008], color: 0x5a3a20, w: false });
+  });
 }
 
 // palettes (sRGB hex)
@@ -87,6 +122,7 @@ export function bottle(k, o = {}) {
 
 export function can(k, o = {}) {
   const h = o.h ?? 0.12, r = o.rad ?? 0.033;
+  if (o.rust && useAsset(k, 'can_rusted', o, { fit: { h }, color: 0xffffff, w: { grime: 0.3, grimeH: h * 0.4 } })) return;
   k.at(o.p, o.r, o.s, () => {
     k.add(mat(o.rust ? 'rust' : 'metal'), G(`can:${h}:${r}`, () => cyl(r, r, h, 12, 0.004, 2)), { color: o.color ?? 0xb0a080, w: { grime: 0.3, grimeH: h * 0.4, streak: 0.4 } });
     if (o.spout) k.add(mat('metal'), G('spout', () => cyl(0.008, 0.012, 0.05, 6, 0.001)), { p: [r * 0.5, h, 0], color: 0x888070 });
@@ -129,6 +165,7 @@ export function glassWater(k, o = {}) {
 export function plasticChair(k, o = {}) {
   const color = o.color ?? PAL.chairRed;
   const dusty = { grime: 0.35, grimeH: 0.25, dust: o.dust ?? 0.5, vary: 0.12 };
+  if (useAsset(k, 'plastic_monobloc_chair_01', o, { fit: { h: 0.86 }, color, w: dusty })) return;
   k.at(o.p, o.r, o.s, () => {
     const m = mat('plastic');
     // dished seat with a rolled front edge
@@ -409,6 +446,13 @@ export function tire(k, o = {}) {
     }
     return new THREE.LatheGeometry(prof, 22);
   });
+  // old_tyre model: stands on its tread, axle along Z, 0.6 m x 0.165 m
+  if (o.asset !== false && hasAsset('old_tyre')) {
+    const sc = R / 0.3, hw = 0.0825 * sc * (W / 0.19 > 1.1 ? 1.15 : 1);
+    const w = { grime: 0.25, dust: 0.45, vary: 0.2 };
+    k.at(o.p, o.r, o.s, () => addAsset(k, 'old_tyre', o.upright ? { r: Math.PI / 2, s: sc, color: 0xb8b4ae, w } : { p: [0, hw, -R], r: [Math.PI / 2, 0, 0], s: [sc, sc, W / 0.19 > 1.1 ? sc * 1.15 : sc], color: 0xb8b4ae, w }));
+    return;
+  }
   k.at(o.p, o.r, o.s, () => {
     k.add(mat('rubber'), g, {
       p: o.upright ? [0, R, 0] : [0, W * 0.5, 0], r: o.upright ? [0, 0, Math.PI / 2] : null, color: 0x2a2826, w: { grime: 0.2, dust: 0.4, vary: 0.2 },
@@ -419,6 +463,11 @@ export function tire(k, o = {}) {
 
 /** Oil drum (200 L) optionally rusty / blue. */
 export function oilDrum(k, o = {}) {
+  const dw = { grime: 0.5, grimeH: 0.3, streak: 0.5 };
+  // models: Barrel_01 = worn red fuel drum, barrel_03 = blue drum (picked by the requested colour)
+  const c = new THREE.Color(o.color ?? (o.rusty ? 0x7a3a1a : 0x2a4a6a));
+  const blue = c.b > c.r * 1.2;
+  if (useAsset(k, blue ? 'barrel_03' : 'Barrel_01', o, { fit: { h: 0.88 }, color: o.rusty ? 0xc8b8a8 : 0xe8e4dc, w: { ...dw, streak: o.rusty ? 0.8 : 0.5 } })) return;
   k.at(o.p, o.r, o.s, () => {
     k.add(mat(o.rusty ? 'rust' : 'metal'), G('drum', () => cyl(0.29, 0.29, 0.88, 18, 0.012, 6)), { color: o.color ?? 0x2a4a6a, w: { grime: 0.6, grimeH: 0.3, streak: 0.6 } });
     for (const y of [0.29, 0.59]) k.add(mat('metal'), G('drumring', () => torus(0.293, 0.009, 4, 22)), { p: [0, y, 0], r: [Math.PI / 2, 0, 0], color: o.color ?? 0x2a4a6a });
@@ -460,6 +509,7 @@ export function cone(k, o = {}) {
 }
 
 export function trashBag(k, o = {}) {
+  if (useAsset(k, 'trashbag', o, { fit: { h: 0.46 }, color: o.color != null && o.color !== 0x1a1c1c ? new THREE.Color(o.color).lerp(new THREE.Color(1, 1, 1), 0.4) : 0xd8d8d8, w: { grime: 0.2, vary: 0.2 } })) return;
   k.at(o.p, o.r, o.s, () => {
     k.add(mat('plastic'), G('trashbag', () => sphere(0.25, 12, 9).scale(1, 0.85, 0.9).translate(0, 0.2, 0)), { color: o.color ?? 0x1a1c1c, jitter: 0.04, jitterFreq: 6, w: { grime: 0.2, vary: 0.25 } });
     k.add(mat('plastic'), G('trashneck', () => cyl(0.02, 0.05, 0.14, 8, 0.01)), { p: [0, 0.38, 0], r: [0.3, 0, 0.2], color: o.color ?? 0x1a1c1c });
@@ -467,6 +517,9 @@ export function trashBag(k, o = {}) {
 }
 
 export function crate(k, o = {}) {
+  // models: plastic_crate_02 (0.51 x 0.25 x 0.41, tinted), wooden_crate_01 (0.83 x 0.35 x 0.41 -> scaled to 0.5 wide)
+  if (o.kind === 'plastic' && useAsset(k, 'plastic_crate_02', o, { fit: { h: 0.3 }, color: o.color ?? 0x2a6a3a, w: { grime: 0.35, grimeH: 0.15, dust: 0.4 } })) return;
+  if (o.kind !== 'plastic' && useAsset(k, 'wooden_crate_01', o, { fit: { w: 0.55 }, color: o.color != null ? new THREE.Color(o.color).lerp(new THREE.Color(1, 1, 1), 0.6) : 0xffffff, w: { grime: 0.4, grimeH: 0.15, moss: 0.2 } })) return;
   k.at(o.p, o.r, o.s, () => {
     if (o.kind === 'plastic') {
       const c = o.color ?? 0x2a6a3a;

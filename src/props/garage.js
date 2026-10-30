@@ -132,8 +132,10 @@ export function createGarage(opts = {}) {
   }
   k.add(mat('metal'), bbox(W + 0.3, 0.26, 0.18, 0.01, 0.4), { p: [0, HF - 0.1, zF - 0.1], color: 0x3a4a52, w: { grime: 0, streak: 0.7, streakColor: 0x6a3a1a } });
   // painted sign board on the fascia
-  k.add(mat('metal'), bbox(3.2, 0.8, 0.06, 0.01, 0.3), { p: [-0.6, HF + 0.12, zF + 0.0], color: 0xd8d0b8, w: { grime: 0, streak: 0.9, streakColor: 0x5a3a20 } });
-  k.add(signMat('garage_sign', { th: 'อู่ กม.9', en: 'KM 9 GARAGE' }), G('gsign', () => quad(3.0, 0.68)), { p: [-0.6, HF + 0.52, zF + 0.035], color: 0xe0d8c4, uv: 'keep', w: { vary: 0.25, grime: 0, streak: 0.4 } });
+  // garage_sign texture is 2.0 x 0.78 -> 2.5 x 0.975 face on a riveted steel board
+  k.add(mat('metal'), bbox(2.66, 1.1, 0.06, 0.01, 0.3), { p: [-0.6, HF + 0.02, zF + 0.0], color: 0xd8d0b8, w: { grime: 0, streak: 0.9, streakColor: 0x5a3a20 } });
+  for (const sx of [-1, 1]) for (const sy of [0.06, 1.04]) k.add(mat('rust'), G('rivet', () => sphere(0.012, 6, 4)), { p: [-0.6 + sx * 1.28, HF + 0.02 + sy, zF + 0.035], color: 0x6a4a30, w: false });
+  k.add(signMat('garage_sign', { th: 'อู่ กม.9', en: 'KM 9 GARAGE' }), G('gsign', () => quad(2.5, 0.975, 2, 1)), { p: [-0.6, HF + 0.57, zF + 0.035], color: 0xe0d8c4, uv: 'keep', w: { vary: 0.25, grime: 0, streak: 0.4 } });
   // accordion folding gate bunched on the left
   for (let i = 0; i < 9; i++) {
     k.add(mat('metal'), G('gatebar', () => bbox(0.03, HF - 0.3, 0.03, 0.004, 0.4)), { p: [xL + 0.32 + i * 0.045, 0.02, zF - 0.05 + (i % 2) * 0.05], color: 0x4a5a5a, w: { grime: 0.6, streak: 0.6 } });
@@ -208,7 +210,7 @@ export function createGarage(opts = {}) {
     for (let i = 0; i < 3; i++) k.add(mat('galv'), G('wrenchB', () => bevelBox(0.025, 0.008, 0.2, 0.004, 0.1)), { p: [bx - 0.7 + i * 0.07, 0.9, bz + 0.1], r: rng() * 1.5, color: 0xa0a098, w: false });
   });
   // calendar (signTex) + framed painting + family photo on the back wall
-  k.add(signMat('calendar', { year: 2537 }), G('calendarq', () => quad(0.5, 0.75, 2, 3)), { p: [0.9, 1.75, zB + 0.11], r: [0, 0, 0.02], color: 0xe0d8c8, uv: 'keep', w: { vary: 0.3, grime: 0 }, deform: (p) => { p.z += Math.max(0, -p.y - 0.2) * 0.12; } });
+  k.add(signMat('calendar', { year: 2537 }), G('calendarq', () => quad(0.5, 0.708, 2, 3)), { p: [0.9, 1.75, zB + 0.11], r: [0, 0, 0.02], color: 0xe0d8c8, uv: 'keep', w: { vary: 0.3, grime: 0 }, deform: (p) => { p.z += Math.max(0, -p.y - 0.2) * 0.12; } });
   out.calendarAnchor = anchor(group, 'calendar', 0.9, 1.75, zB + 0.13);
   // ornate gold frame + abstract flame painting (reference 5)
   k.at([xL + 0.11, 1.75, 0.6], Math.PI / 2, null, () => {
@@ -229,7 +231,7 @@ export function createGarage(opts = {}) {
   });
   // notices + a little graffiti/tally marks
   k.add(texMat('notice3', () => noticeTex(3), { decal: true }), G('noticeq', () => quad(0.21, 0.29)), { p: [1.5, 1.6, zB + 0.11], r: [0, 0, -0.05], color: 0xffffff, uv: 'keep', w: false });
-  k.add(signMat('poster', { variant: 1 }), G('gposter', () => quad(0.45, 0.62)), { p: [xR - 0.11, 2.05, -1.6], r: [0, -Math.PI / 2, 0.03], color: 0xc8c0b0, uv: 'keep', w: { vary: 0.35, grime: 0 } });
+  k.add(signMat('poster', { variant: 1 }), G('gposter', () => quad(0.45, 0.643)), { p: [xR - 0.11, 2.05, -1.6], r: [0, -Math.PI / 2, 0.03], color: 0xc8c0b0, uv: 'keep', w: { vary: 0.35, grime: 0 } });
 
   // ---- Chinese wall altar high on the back wall, glowing red -----------------------------
   const ax = -0.15, ay = 2.15, az = zB + 0.3;
@@ -240,7 +242,8 @@ export function createGarage(opts = {}) {
     k.add(mat('dark'), bbox(0.36, 0.34, 0.02, 0.004, 0.1), { p: [0, 0.08, 0.06], color: 0x2a0604, w: false });
     k.add(mat('gold'), G('altarTopG', () => bevelBox(0.58, 0.06, 0.3, 0.01, 0.1)), { p: [0, 0.55, -0.06], color: 0xd8a848, w: false, deform: (p) => { p.y += Math.pow(Math.abs(p.x) / 0.29, 4) * 0.04; } });
     k.add(mat('gold'), dancerGeo(), { p: [0, 0.09, 0.0], s: 0.95, color: 0xe0b860, w: false });
-    k.add(signMat('couplet', { text: 'ฟ้าดินคุ้มครอง', side: 0 }), G('acouplet', () => quad(0.3, 0.06)), { p: [0, 0.46, 0.065], color: 0xffffff, uv: 'keep', w: false });
+    // red paper couplets on the wall either side of the altar (texture aspect 0.3:1.6)
+    for (const s of [-1, 1]) k.add(signMat('couplet', { side: s < 0 ? 'left' : 'right' }), G('acouplet', () => quad(0.08, 0.427, 1, 3)), { p: [s * 0.42, 0.2, -0.185], r: [0, 0, s * 0.02], color: 0xffffff, uv: 'keep', w: { vary: 0.2, grime: 0 } });
     incensePot(k, { p: [0, 0.04, 0.12], rad: 0.045, metal: true, color: 0xb08a40, sticks: 9, seed: 3, lit: 0.6 });
     fruitPlate(k, { p: [0.22, 0.04, 0.1], kind: 'orange', s: 0.55, seed: 4 });
     teacup(k, { p: [-0.15, 0.04, 0.12] });

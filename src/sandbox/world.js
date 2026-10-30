@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { World } from '../world/World.js';
 import { sky, postfx, GLOBAL_UNIFORMS } from '../render/index.js';
 import { LAYOUT } from '../world/layout.js';
+import { preloadTextures } from '../textures/index.js';
 
 export default async function (ctx) {
   const { engine, cameraRig, params, settings } = ctx;
@@ -17,10 +18,13 @@ export default async function (ctx) {
   const lmKey = params.get('lm');
   if (params.get('density')) settings.set('foliageDensity', num('density', 1));
 
+  const tp = performance.now();
+  if (params.get('preload') !== '0') await preloadTextures();
+  const preloadMs = performance.now() - tp;
   const world = new World();
   const t0 = performance.now();
   await world.build({ forest: params.get('forest') !== '0', props: params.get('props') !== '0', onProgress: () => {} });
-  console.log(`[world] build ${(performance.now() - t0).toFixed(0)} ms`);
+  console.log(`[world] preload ${preloadMs.toFixed(0)} ms, build ${(performance.now() - t0).toFixed(0)} ms ${JSON.stringify(world.buildTimes)} props ${JSON.stringify(world.placement?.stats || {})}`);
   engine.scene.add(world.group);
   window.__world = world;
 
@@ -100,6 +104,9 @@ export default async function (ctx) {
   world.update(0.016, eye.position);
   window.__worldInfo = () => ({
     buildMs: Math.round(world.buildMs),
+    preloadMs: Math.round(preloadMs),
+    times: world.buildTimes,
+    props: world.placement?.stats,
     mainLength: Math.round(world.road.length('main')),
     landmarks: Object.keys(world.landmarks).length,
     forest: world.forest?.stats?.(),

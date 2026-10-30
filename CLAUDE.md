@@ -28,7 +28,7 @@ World placement truth: `src/world/layout.js`.
 - Test visually: `node tools/shot.mjs --sandbox=<name> --out=.shots/<name>.png` then
   Read the PNG. Fix every console error it prints. `.shots/` is gitignored.
 - Reference images supplied with the brief (view them with Read):
-  `/tmp/claude-0/-home-user-effective-octo-train/a0910a86-1464-533c-bd6b-3f5c3909f33b/scratchpad/refs/1.jpg … 5.jpg`
+  `/tmp/claude-0/-home-user-effective-octo-train/a0910a86-1464-533c-bd6b-3f5c3909f33b/scratchpad/refs/1.jpg … 6.jpg`
   (1 mossy Thai pavilion/well by day; 2 golden shrine in night mist seen from a car;
   3 night forest drive, masked passenger in the rearview mirror; 4 woman in white by a
   delineator-lit guardrail; 5 cluttered lived-in Thai room, a mood reference for Ah Kong's garage).

@@ -125,6 +125,13 @@ export function buildHairGeometry(t, look) {
     if (hasHat && ph > 0.25) tk *= 0.35;
     return Math.max(0.0025, tk) + (wet > 0.3 ? -0.002 : 0);
   };
+  // the shell thins out to the scalp at the hairline (no helmet step)
+  const edgeK = (f) => 0.25 + 0.75 * (1 - smoothstep(0.62, 1, f));
+  const thickAt0 = thickAt;
+  const thickAtE = (th, ph, k, f) => thickAt0(th, ph, k) * edgeK(f);
+  void thickAtE;
+  {
+  };
   const pt = (th, ph, off, out = new THREE.Vector3()) => out.copy(dirOf(th, ph, _d)).multiplyScalar(sampleR(G, th, ph) + off).add(C);
   // ---- shell grid: columns θ (seam at the back), rows from crown (k=1 at top) to hairline
   const cols = [];
@@ -140,7 +147,7 @@ export function buildHairGeometry(t, look) {
     for (let k = 0; k <= K; k++) {
       const f = k / K; // 0 = top, 1 = hairline
       const ph = lerp(topPh, ph0, Math.pow(f, 0.85));
-      const p = pt(th, ph, thickAt(th, ph, 1 - f));
+      const p = pt(th, ph, thickAt0(th, ph, 1 - f) * edgeK(f));
       col.push({ p, ph, idx: addV(p, j / J, f * 0.6, [[iHead, 1]]) });
     }
     grid.push(col);

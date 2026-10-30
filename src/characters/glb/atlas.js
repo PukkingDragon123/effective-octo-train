@@ -21,7 +21,7 @@ export function getAtlas(look, key, size = 1024) {
   const map = new THREE.CanvasTexture(color);
   map.flipY = false;
   map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 4;
+  map.anisotropy = 8;
   const mt = new THREE.CanvasTexture(mask);
   mt.flipY = false;
   mt.colorSpace = THREE.NoColorSpace;
@@ -39,10 +39,11 @@ const ROUGH = { skin: 0.55, jersey: 0.92, plain: 0.85, twill: 0.88, linen: 0.9, 
 export function paintAtlas(look, S = 1024) {
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
+  const MSZ = Math.min(S, 1024);
   const mk = document.createElement('canvas');
-  mk.width = mk.height = S;
+  mk.width = mk.height = MSZ;
   const P = new Painter(cv, S, look.seed);
-  const M = new Painter(mk, S, look.seed);
+  const M = new Painter(mk, MSZ, look.seed);
   M.g.fillStyle = `rgb(0,${Math.round(ROUGH.skin * 255)},0)`;
   M.g.fillRect(0, 0, 1024, 1024);
   const r = makeRng(look.seed * 7 + 3);
@@ -69,18 +70,18 @@ export function paintAtlas(look, S = 1024) {
   const mg = M.g;
   mg.save();
   mg.setTransform(1, 0, 0, 1, 0, 0);
-  const md = mg.getImageData(0, 0, S, S);
-  const k = S / MS;
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+  const md = mg.getImageData(0, 0, MSZ, MSZ);
+  const k = MSZ / MS;
+  for (let y = 0; y < MSZ; y++) for (let x = 0; x < MSZ; x++) {
     const i = ((y / k | 0) * MS + (x / k | 0)) * 4;
     const d = Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
     const v = d < 18 ? 255 : d < 40 ? Math.round((255 * (40 - d)) / 22) : 0;
-    const j = (y * S + x) * 4;
+    const j = (y * MSZ + x) * 4;
     md.data[j] = v;
     md.data[j + 3] = 255;
   }
   // the face region is always skin (face texture), the hair region never
-  for (let y = 400 * S / 1024 | 0; y < 720 * S / 1024; y++) for (let x = 0; x < 320 * S / 1024; x++) md.data[(y * S + x) * 4] = 255;
+  for (let y = 400 * MSZ / 1024 | 0; y < 720 * MSZ / 1024; y++) for (let x = 0; x < 320 * MSZ / 1024; x++) md.data[(y * MSZ + x) * 4] = 255;
   mg.putImageData(md, 0, 0);
   mg.restore();
   return { color: cv, mask: mk };
@@ -425,6 +426,11 @@ function paintTop(c) {
   // hem
   if (!tucked && !o.dress) { P.band(T, tHem - 0.022, tHem, shade(col, 0.86), 1); P.line(T, [[0, tHem - 0.018], [1, tHem - 0.018]], shade(col, 0.66), 1, 0.6, [3, 2]); }
   else if (tucked) for (let i = 0; i < 10; i++) P.line(T, [[i / 10 + 0.02, tHem - 0.06], [i / 10 + 0.04, tHem]], shade(col, 0.72), 1.4, 0.4);
+  // seams with stitching (side seams, shoulder seams)
+  if (!o.robe && !o.sabai) {
+    for (const ss of [0.25, 0.75]) { P.line(T, [[ss, 0.12], [ss, tHem]], shade(col, 0.72), 1.1, 0.7); P.line(T, [[ss + 0.006, 0.12], [ss + 0.006, tHem]], shade(col, 1.15), 0.5, 0.5, [2, 2]); }
+    if (tSleeve > 0) { P.line(A, [[0, 0.02], [1, 0.02]], shade(col, 0.72), 1, 0.6); P.line(A, [[0.25, 0], [0.25, tSleeve]], shade(col, 0.75), 0.8, 0.5, [2, 2]); }
+  }
   // folds / AO on the top: armpits, chest pull, back
   P.blob(T, 0.25, torsoT(1.34), 0.06, 0.07, shadeHex(col, 0.55), 0.4);
   P.blob(T, 0.75, torsoT(1.34), 0.06, 0.07, shadeHex(col, 0.55), 0.4);
@@ -561,9 +567,9 @@ function paintHair(c) {
   // roots darker near the crown parting, sheen bands, painterly strands
   P.blob(H, 0.5, 0.0, 0.6, 0.15, shadeHex(hc, 0.6), 0.5);
   const hi = lum(hc) < 0.2 ? mix(hc, '#8a7f74', 0.45) : mix(hc, '#ffffff', 0.25);
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 1400; i++) {
     const s = P.rng(), t = P.rng();
-    P.line(H, [[s, t], [s + (P.rng() - 0.5) * 0.01, Math.min(1, t + 0.05 + P.rng() * 0.12)]], P.rng() < 0.5 ? hi : shadeHex(hc, 0.7), 1 + P.rng() * 1.5, 0.25);
+    P.line(H, [[s, t], [s + (P.rng() - 0.5) * 0.008, Math.min(1, t + 0.04 + P.rng() * 0.14)]], P.rng() < 0.45 ? hi : shadeHex(hc, 0.62), 0.35 + P.rng() * 0.6, 0.3 + P.rng() * 0.3);
   }
   P.band(H, 0.18, 0.24, hi, 0.18);
   if (look.old > 0.2 && lum(hc) < 0.3) for (let i = 0; i < 120 * look.old; i++) { const s = P.rng(), t = P.rng() * 0.6; P.line(H, [[s, t], [s, t + 0.06]], '#b8b2a8', 1, 0.5); }

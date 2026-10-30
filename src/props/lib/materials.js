@@ -6,12 +6,29 @@ import * as THREE from 'three';
 import { paintedMaterial, foliageMaterial } from '../../render/index.js';
 import { tex, signTex, canvasTexture, FONTS } from '../../textures/index.js';
 import { makeRng } from '../../core/math.js';
+import { settings } from '../../core/Settings.js';
 
 const cache = new Map();
 
-function safeTex(key) {
+/** Texture size for hero prop surfaces (crisp close-ups on foot): 1024 on high/ultra, else 512. */
+function hiSize() {
+  let q = 'high';
   try {
-    return tex(key);
+    q = settings.get('graphicsPreset') || 'high';
+  } catch (e) {
+    /* settings not ready */
+  }
+  return q === 'low' || q === 'medium' ? 512 : 1024;
+}
+
+function safeTex(key, hi = false) {
+  try {
+    const t = hi ? tex(key, { size: hiSize() }) : tex(key);
+    if (t && hi && t.anisotropy < 8) {
+      t.anisotropy = 8;
+      t.needsUpdate = true;
+    }
+    return t;
   } catch (e) {
     return null;
   }
@@ -19,27 +36,27 @@ function safeTex(key) {
 
 // key -> definition. uv = texture repeats per metre (box-projected UVs).
 const DEFS = {
-  concrete: { map: 'concrete', normalMap: 'concrete_normal', roughness: 0.95, uv: 0.55, moss: 0.25, dirt: 0.5 },
-  concrete_moss: { map: 'concrete_moss', normalMap: 'concrete_normal', roughness: 0.96, uv: 0.5, moss: 0.6, dirt: 0.5 },
-  plaster: { map: 'paint_peel_white', normalMap: 'concrete_normal', roughness: 0.92, uv: 0.55, dirt: 0.5, moss: 0.2 },
-  paint_red: { map: 'paint_peel_red', roughness: 0.8, uv: 0.7, dirt: 0.4 },
-  stone: { map: 'rock', normalMap: 'rock_normal', roughness: 0.95, uv: 0.6, moss: 0.4, dirt: 0.4 },
+  concrete: { map: 'concrete', normalMap: 'concrete_normal', roughnessMap: 'concrete_rough', hi: true, roughness: 1, uv: 0.55, moss: 0.25, dirt: 0.5 },
+  concrete_moss: { map: 'concrete_moss', normalMap: 'concrete_moss_normal', hi: true, roughness: 0.96, uv: 0.5, moss: 0.6, dirt: 0.5 },
+  plaster: { map: 'paint_peel_white', normalMap: 'paint_peel_white_normal', hi: true, roughness: 0.92, uv: 0.55, dirt: 0.5, moss: 0.2 },
+  paint_red: { map: 'paint_peel_red', normalMap: 'paint_peel_red_normal', hi: true, roughness: 0.8, uv: 0.7, dirt: 0.4 },
+  stone: { map: 'rock', normalMap: 'rock_normal', hi: true, roughness: 0.95, uv: 0.6, moss: 0.4, dirt: 0.4 },
   brick: { map: 'concrete_moss', normalMap: 'rock_normal', roughness: 0.95, uv: 0.8, moss: 0.4, dirt: 0.5 },
-  metal: { map: 'metal_painted', roughness: 0.62, metalness: 0.3, uv: 1.0, dirt: 0.4 },
-  rust: { map: 'rust', roughness: 0.85, metalness: 0.35, uv: 1.2, dirt: 0.3 },
-  galv: { map: 'chrome_dirty', roughness: 0.5, metalness: 0.65, uv: 1.0, dirt: 0.3 },
-  wood: { map: 'wood_old', roughness: 0.9, uv: 0.9, dirt: 0.4, moss: 0.2 },
-  lacquer: { map: 'red_lacquer', roughness: 0.45, uv: 0.8, dirt: 0.3 },
-  gold: { map: 'gold_leaf', roughness: 0.38, metalness: 0.8, uv: 1.5, dirt: 0.2 },
+  metal: { map: 'metal_painted', normalMap: 'metal_painted_normal', roughnessMap: 'metal_painted_rough', hi: true, roughness: 1, metalness: 0.3, uv: 1.0, dirt: 0.4 },
+  rust: { map: 'rust', normalMap: 'rust_normal', roughnessMap: 'rust_rough', hi: true, roughness: 1, metalness: 0.35, uv: 1.2, dirt: 0.3 },
+  galv: { map: 'chrome_dirty', normalMap: 'chrome_dirty_normal', roughnessMap: 'chrome_dirty_rough', roughness: 0.85, metalness: 0.65, uv: 1.0, dirt: 0.3 },
+  wood: { map: 'wood_old', normalMap: 'wood_old_normal', hi: true, roughness: 0.9, uv: 0.9, dirt: 0.4, moss: 0.2 },
+  lacquer: { map: 'red_lacquer', normalMap: 'red_lacquer_normal', roughnessMap: 'red_lacquer_rough', hi: true, roughness: 0.75, uv: 0.8, dirt: 0.3 },
+  gold: { map: 'gold_leaf', normalMap: 'gold_leaf_normal', roughnessMap: 'gold_leaf_rough', hi: true, roughness: 0.7, metalness: 0.8, uv: 1.5, dirt: 0.2 },
   bronze: { map: 'chrome_dirty', roughness: 0.55, metalness: 0.75, uv: 1.2, dirt: 0.3 },
-  tiles: { map: 'roof_tiles', roughness: 0.7, uv: 0.55, moss: 0.5, dirt: 0.3 },
-  corrugated: { map: 'roof_corrugated', roughness: 0.72, metalness: 0.35, uv: 0.5, dirt: 0.3 },
+  tiles: { map: 'roof_tiles', normalMap: 'roof_tiles_normal', hi: true, roughness: 0.7, uv: 0.55, moss: 0.5, dirt: 0.3 },
+  corrugated: { map: 'roof_corrugated', normalMap: 'roof_corrugated_normal', roughnessMap: 'roof_corrugated_rough', hi: true, roughness: 1, metalness: 0.35, uv: 0.5, dirt: 0.3 },
   plastic: { map: 'brush_noise', roughness: 0.55, uv: 2.0, brush: 0.4 },
-  rubber: { map: 'rubber', roughness: 0.92, uv: 1.5 },
+  rubber: { map: 'rubber', normalMap: 'rubber_normal', roughness: 0.92, uv: 1.5 },
   ceramic: { map: null, roughness: 0.28, uv: 1.0, brush: 0.3 },
   statue: { map: 'brush_noise', roughness: 0.6, uv: 1.5, brush: 0.5 },
-  cloth: { map: 'fabric_cotton', roughness: 1, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.6, shadows: false },
-  cloth_static: { map: 'fabric_cotton', roughness: 1, uv: 1.5, side: THREE.DoubleSide },
+  cloth: { map: 'fabric_cotton', normalMap: 'fabric_cotton_normal', roughness: 1, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.6, shadows: false },
+  cloth_static: { map: 'fabric_cotton', normalMap: 'fabric_cotton_normal', roughness: 1, uv: 1.5, side: THREE.DoubleSide },
   silk: { map: 'fabric_silk', roughness: 0.55, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.4, shadows: false },
   paper: { map: 'lantern_paper', roughness: 0.9, uv: 1.0, side: THREE.DoubleSide },
   ash: { map: 'incense_ash', roughness: 1, uv: 3.0 },
@@ -76,8 +93,9 @@ export function mat(key) {
     translucency: d.translucency ?? 0,
     name: 'props_' + key,
   };
-  if (d.map) o.map = safeTex(d.map);
-  if (d.normalMap) o.normalMap = safeTex(d.normalMap);
+  if (d.map) o.map = safeTex(d.map, d.hi);
+  if (d.normalMap) o.normalMap = safeTex(d.normalMap, d.hi);
+  if (d.roughnessMap) o.roughnessMap = safeTex(d.roughnessMap, d.hi);
   m = paintedMaterial(o);
   m.userData.uvScale = d.uv ?? 1;
   m.userData.uvMode = d.uvMode ?? 'box';
@@ -145,7 +163,9 @@ export function signMat(kind, opts = {}, extra = {}) {
   } catch (e) {
     t = null;
   }
-  m = paintedMaterial({ color: 0xffffff, map: t, vertexColors: true, roughness: extra.roughness ?? 0.75, brush: 0.35, transparent: !!extra.transparent, alphaTest: extra.alphaTest ?? 0, side: extra.side, name: 'props_sign_' + kind });
+  // cut-out shapes (diamonds, discs, arrow planks, strips) carry alpha: alpha-test them
+  const alpha = !!t?.userData?.alpha;
+  m = paintedMaterial({ color: 0xffffff, map: t, vertexColors: true, roughness: extra.roughness ?? 0.75, brush: extra.brush ?? 0.2, transparent: !!extra.transparent, alphaTest: extra.alphaTest ?? (alpha ? 0.5 : 0), side: extra.side, name: 'props_sign_' + kind });
   if (extra.emissive) {
     m.emissive = new THREE.Color(extra.emissive);
     m.emissiveMap = t;
@@ -155,6 +175,32 @@ export function signMat(kind, opts = {}, extra = {}) {
   m.userData.shadows = false;
   cache.set(ck, m);
   return m;
+}
+
+/**
+ * Physical layout of a signTex kind: { aspect (w/h), size:[w,h] m, shape, alpha } (texture userData).
+ * Shapes are drawn upright on the canvas: map them on an axis-aligned quad of this aspect.
+ */
+export function signInfo(kind, opts = {}) {
+  try {
+    const u = signTex(kind, opts).userData || {};
+    const size = u.size || [1, 1 / (u.aspect || 1)];
+    return { aspect: u.aspect || size[0] / size[1], size, shape: u.shape || 'rect', alpha: !!u.alpha };
+  } catch (e) {
+    return { aspect: 1, size: [1, 1], shape: 'rect', alpha: false };
+  }
+}
+
+/**
+ * Upright sign quad sized from the texture: pass {w} or {h} (the other follows the aspect);
+ * neither -> the texture's suggested physical size. -> { geo, w, h, info }
+ */
+export function signQuadSize(kind, opts = {}, { w, h } = {}) {
+  const info = signInfo(kind, opts);
+  if (w && !h) h = w / info.aspect;
+  else if (h && !w) w = h * info.aspect;
+  else if (!w && !h) [w, h] = info.size;
+  return { w, h, info };
 }
 
 /** Material from a local canvas texture (decals, painting, photos...). */

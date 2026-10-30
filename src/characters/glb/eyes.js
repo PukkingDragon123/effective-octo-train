@@ -73,7 +73,7 @@ export function eyeTexture(style = 'normal', iris = '#3a2416') {
   const tex = new THREE.CanvasTexture(cv);
   tex.flipY = false;
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   texCache.set(key, tex);
   return tex;
 }

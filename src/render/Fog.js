@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { DLB_COMMON, DLB_GLOBALS_PARS, DLB_FOG_COMMON, DLB_HEADLIGHT_FN } from './glsl.js';
 import { injectGlobals } from './uniforms.js';
+import { captureCaps, crispMaterialTextures } from './caps.js';
 
 let chunksInstalled = false;
 let protoInstalled = false;
@@ -62,8 +63,11 @@ export function installFogChunks() {
 // ---------------------------------------------------------------------------
 const userObc = new WeakMap();
 
-function defaultObc(shader) {
+function defaultObc(shader, renderer) {
   injectGlobals(shader.uniforms);
+  // crisp textures: max anisotropic filtering on everything a material samples
+  captureCaps(renderer);
+  if (this && this.isMaterial) crispMaterialTextures(this);
   // `this` is the material when three calls material.onBeforeCompile(...)
   if (this && this.blending === THREE.AdditiveBlending && this.fog) {
     shader.fragmentShader = '#define DLB_FOG_ADDITIVE\n' + shader.fragmentShader;

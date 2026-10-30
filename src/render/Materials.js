@@ -9,6 +9,7 @@
 //  * foliage translucency (back-lit glow), skin wrap lighting / fake SSS, ghost pallor
 import * as THREE from 'three';
 import { brushTexture, neutralTexture, glowTexture } from './noiseTex.js';
+import { crispTexture } from './caps.js';
 
 const WIND_MODES = { none: 0, trunk: 1, branch: 2, leaf: 3, grass: 4, vine: 5, cloth: 6 };
 
@@ -356,6 +357,7 @@ function triplanarTexture(key, uniform) {
       const t = mod.tex(key);
       if (t) {
         t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        crispTexture(t);
         _triTexCache.set(key, t);
         uniform.value = t;
       }
@@ -393,6 +395,9 @@ function baseMaterial(opts) {
     m.normalScale = typeof s === 'number' ? new THREE.Vector2(s, s) : s;
   }
   if (opts.depthWrite !== undefined) m.depthWrite = opts.depthWrite;
+  // alpha-tested cards (leaves, grass, hair) get alpha-to-coverage: crisp, anti-aliased
+  // cut-outs in the MSAA scene target instead of jagged / shimmering alpha-test edges.
+  m.alphaToCoverage = opts.alphaToCoverage ?? ((opts.alphaTest ?? 0) > 0 && !opts.transparent);
   if (opts.envMapIntensity !== undefined) m.envMapIntensity = opts.envMapIntensity;
   if (opts.name) m.name = opts.name;
   return m;
@@ -408,7 +413,9 @@ function baseMaterial(opts) {
  *   instanced=false, flatShading=false, name }
  * Extra opts: roughnessMap, aoMap, normalScale, envMapIntensity, puddles=1 (0 disables puddles),
  *   dirtHeight=0.5 (m), mossColor, dirtColor, windHeightScale=1 (1/m multiplier for wind
- *   height response, e.g. 0.5 for 2x taller trees), flutter=1, skin=false, sss=0.6, pale=0.
+ *   height response, e.g. 0.5 for 2x taller trees), flutter=1, skin=false, sss=0.6, pale=0,
+ *   alphaToCoverage (default: on when alphaTest > 0 and not transparent).
+ * Every texture a painted material samples gets max anisotropic filtering at compile time.
  */
 export function paintedMaterial(opts = {}) {
   const m = baseMaterial(opts);

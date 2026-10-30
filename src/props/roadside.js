@@ -2,12 +2,12 @@
 // accident memorial, ghost (mist) gate, village stop.
 import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, sweep, smoothPath, sagCurve, blob, makeRng, noise } from './lib/kit.js';
-import { mat, glowMat, signMat, texMat, photoTex, nightEnvTex, stainTex, crackTex, noticeTex } from './lib/materials.js';
+import { mat, glowMat, signMat, signInfo, texMat, photoTex, nightEnvTex, stainTex, crackTex, noticeTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { paintedMaterial } from '../render/index.js';
 import {
   G, PAL, bottle, can, cup, bowl, plate, plasticChair, plasticStool, foldTable, candle, incensePot, garland, flowerString, fruitPlate, zebras,
-  dancers, wreath, shoes, helmet, hangingBulb, lantern, crate, trashBag, coil, mossCap,
+  dancers, wreath, shoes, helmet, hangingBulb, lantern, crate, trashBag, coil, mossCap, forkPlank, useAsset,
 } from './lib/small.js';
 import { brokenScooter } from './dressing.js';
 import { chineseRoof, thaiRoofTier } from './shrines.js';
@@ -63,7 +63,7 @@ export function createNoodleStall(opts = {}) {
     k.add(mat('wood'), bbox(1.7, 0.72, 0.72, 0.015, 0.25), { p: [0, 0.12, 0], color: 0x7a3a24, w: { grime: 0.6, grimeH: 0.4, ground: 0.12, streak: 0.4 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && (Math.abs(lp.y - 0.36) < 0.02 || Math.abs(lp.x) < 0.01)) c.multiplyScalar(0.4); } });
     k.add(mat('galv'), bbox(1.78, 0.03, 0.78, 0.006, 0.3), { p: [0, 0.84, 0], color: 0xc0c0b8, w: { grime: 0, dust: 0.2 } });
     // painted boat-noodle sign on the front panel
-    k.add(signMat('shop_sign', { th: 'ก๋วยเตี๋ยวเรือ ป้าเล็ก', en: "Auntie Lek's Boat Noodles" }), G('cartsign', () => quad(1.5, 0.42)), { p: [0, 0.45, 0.365], color: 0xe0d4b8, uv: 'keep', w: { vary: 0.25, grime: 0.2, grimeH: 0.2, ground: 0.24 } });
+    k.add(signMat('shop_sign', { th: 'ก๋วยเตี๋ยวเรือ ป้าเล็ก', en: "Auntie Lek's Boat Noodles" }), G('cartsign', () => quad(1.34, 0.42)), { p: [0, 0.45, 0.365], color: 0xe0d4b8, uv: 'keep', w: { vary: 0.25, grime: 0.2, grimeH: 0.2, ground: 0.24 } });
     // wheels (two bicycle-like + a small front castor)
     for (const sx of [-1, 1]) {
       k.add(mat('rubber'), G('cartwheel', () => torus(0.26, 0.022, 5, 22).rotateY(Math.PI / 2)), { p: [sx * 0.6, 0.27, -0.42], color: 0x1a1a1a, w: false });
@@ -231,8 +231,10 @@ export function createBridge(opts = {}) {
   // moss cushions on the kerbs
   for (const s of [-1, 1]) for (let i = 0; i < 7; i++) mossCap(k, 0.45, 0.6 + rng() * 2.5, { p: [s * W / 2, 0.17, -L / 2 + rng() * L], seed: i * 3 + s * 11 });
   // name plate on the first end post
-  k.add(signMat('shop_sign', { th: 'สะพานห้วยเงียบ', en: 'Huai Ngiap Bridge' }), G('bridgeplate', () => quad(0.28, 0.5)), { p: [-(W / 2 + 0.12), 0.75, L / 2 + 0.165], color: 0xc8c0a8, uv: 'keep', w: { vary: 0.3 } });
-  out.nameAnchor = anchor(group, 'name', -(W / 2 + 0.12), 0.75, L / 2 + 0.2);
+  // name plaque on the first end post, facing the oncoming traffic (+Z)
+  k.add(mat('concrete'), G('bplaque', () => bbox(0.74, 0.27, 0.06, 0.01, 0.2)), { p: [-(W / 2 + 0.12), 1.06, L / 2 + 0.17], r: [-0.08, 0, 0], color: 0x9a968a, w: { moss: 0.6, streak: 0.6 } });
+  k.add(signMat('shop_sign', { th: 'สะพานห้วยเงียบ', en: 'Huai Ngiap Bridge' }), G('bridgeplate', () => quad(0.68, 0.213)), { p: [-(W / 2 + 0.12), 1.195, L / 2 + 0.2 + 0.012], r: [-0.08, 0, 0], color: 0xc8c0a8, uv: 'keep', w: { vary: 0.3, streak: 0.4 } });
+  out.nameAnchor = anchor(group, 'name', -(W / 2 + 0.12), 1.2, L / 2 + 0.25);
   // piers + abutments
   for (const z of [-L / 6, L / 6]) {
     k.add(mat('concrete'), bbox(W - 0.6, Dp, 0.7, 0.05, 0.5), { p: [0, -Dp - 0.6, z], color: 0x8a867a, w: { ground: -Dp - 0.6, mossLow: 0.9, mossH: 1.2, moss: 0.6, streak: 0.9, grime: 0.7, grimeH: 0.8 } });
@@ -388,15 +390,23 @@ const _rustC = new THREE.Color(0x7a4220);
 // ===========================================================================
 // Sign posts
 // ===========================================================================
-const SIGN_SHAPES = {
-  km_marker: 'stone', curve_warning: 'diamond', elephant_crossing: 'diamond', warning_sign: 'diamond', speed_sign: 'circle',
-  bus_stop_sign: 'circle', village_sign: 'wide', temple_sign: 'wide', fork_sign: 'arrow', shop_sign: 'board', garage_sign: 'board',
-  shrine_board: 'board', noodle_menu: 'board', poster: 'board', calendar: 'board',
+// Mounting style per kind. The FACE always comes from signTex's userData (aspect, size, shape,
+// alpha): an upright, axis-aligned quad with alpha-test. Diamonds are drawn upright inside the
+// texture (transparent corners), so the quad is never rotated 45 degrees; only the steel backing
+// plate behind it is a rotated square.
+const SIGN_MOUNT = {
+  km_marker: 'stone', fork_sign: 'arrow', bus_stop_sign: 'plate', warning_sign: 'wide2',
+  village_sign: 'wide2', temple_sign: 'wide2', shop_sign: 'wide2', garage_sign: 'wide2', shrine_board: 'wide2',
+  noodle_menu: 'board', poster: 'board', calendar: 'board',
 };
+// fork_sign plank silhouette in canvas pixels (768 x 256, arrow pointing right), from src/textures/signs.js
+
 /**
- * Any signTex kind on a proper post/plate. kind: see SIGN_SHAPES (others -> 'board').
- * opts: passed to signTex (km, dir, th, en, kmh, side ...) + {seed, bent=auto, age=0.7}
- * -> { object, signAnchor, colliders }
+ * Any signTex kind on a proper post/plate. Mounting by kind (see SIGN_MOUNT; diamonds/circles
+ * on a galvanised pipe, wide boards on two posts, KM stone, arrow plank, notice board).
+ * opts: passed to signTex (km, dir, th, en, kmh, side ...) + {seed, bent=auto, age=0.7,
+ *   scale=1 (multiplies the texture's suggested physical size), height (bottom of the face, m)}
+ * -> { object, signAnchor (face centre, just in front), colliders, faceSize:[w,h] }
  */
 export function createSignPost(kind, opts = {}) {
   const seed = opts.seed ?? 1;
@@ -405,80 +415,131 @@ export function createSignPost(kind, opts = {}) {
   group.name = 'sign_' + kind;
   const age = opts.age ?? 0.7;
   const k = new Kit(seed, { grime: 0.5 * age, grimeH: 0.5, mossLow: 0.8 * age, mossH: 0.45, streak: 0.5 * age, vary: 0.2 });
-  const shape = SIGN_SHAPES[kind] || 'board';
   const texOpts = { ...opts };
-  delete texOpts.seed;
-  delete texOpts.bent;
-  delete texOpts.age;
+  for (const key of ['seed', 'bent', 'age', 'scale', 'height', 'lights']) delete texOpts[key];
   const sm = signMat(kind, texOpts);
+  const info = signInfo(kind, texOpts);
+  const sc = opts.scale ?? 1;
+  let fw = info.size[0] * sc, fh = info.size[1] * sc;
+  const shape = info.shape;
+  const mount = SIGN_MOUNT[kind] || (shape === 'diamond' || shape === 'diamond_plate' || shape === 'circle' ? 'pipe' : shape === 'arrow' ? 'arrow' : fw >= 1.1 ? 'wide2' : 'board');
   const out = { object: group, colliders: [] };
   const bent = opts.bent ?? rng() < 0.3;
-  const lean = bent ? [(rng() - 0.5) * 0.12, 0, (rng() - 0.5) * 0.12] : [(rng() - 0.5) * 0.02, 0, (rng() - 0.5) * 0.02];
-  const pipe = (x, h) => {
-    k.add(mat('galv'), cyl(0.03, 0.03, h, 8, 0.004, 3), { p: [x, 0, 0], r: lean, color: 0x9a9a94, w: { grime: 0.6, streak: 0.6 } });
-    k.add(mat('concrete'), G('footing', () => cyl(0.1, 0.12, 0.08, 8, 0.01)), { p: [x, -0.04, 0], color: 0x8a867a, w: { mossLow: 0.9 } });
+  const lean = bent ? [(rng() - 0.5) * 0.1, 0, (rng() - 0.5) * 0.1] : [(rng() - 0.5) * 0.02, 0, (rng() - 0.5) * 0.02];
+  const faceW = { vary: 0.22, grime: 0.15, grimeH: 0.12, streak: 0.25, mossLow: 0 };
+  const face = (w, h, p, extra = {}) => k.add(sm, G(`signface:${w.toFixed(3)}:${h.toFixed(3)}`, () => quad(w, h, 2, 2)), { p, color: 0xffffff, uv: 'keep', w: faceW, ...extra });
+  const pipe = (x, h, r = 0.03) => {
+    k.add(mat('galv'), cyl(r, r, h, 10, 0.004, 3), { p: [x, 0, 0], r: lean, color: 0x9a9a94, w: { grime: 0.6, streak: 0.6 } });
+    k.add(mat('plastic'), G('pipecap:' + r, () => new THREE.SphereGeometry(r * 1.05, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2)), { p: [x - lean[2] * h, h, lean[0] * h], color: 0x2a2a2a, w: false });
+    k.add(mat('concrete'), G('footing', () => cyl(0.1, 0.12, 0.08, 10, 0.01)), { p: [x, -0.04, 0], color: 0x8a867a, w: { mossLow: 0.9 } });
+  };
+  // U-bolt clamp + bracket holding a plate to a pipe (behind the plate at z<0)
+  const clamp = (x, y, z) => {
+    k.add(mat('galv'), G('sbracket', () => bbox(0.1, 0.045, 0.035, 0.005, 0.05)), { p: [x, y - 0.022, z - 0.03], color: 0x7a7a72, w: { streak: 0.5 } });
+    k.add(mat('galv'), G('ubolt', () => torus(0.034, 0.005, 4, 10, Math.PI).rotateX(Math.PI / 2)), { p: [x, y, z - 0.05], r: [0, Math.PI, 0], color: 0x8a8a80, w: { streak: 0.5 } });
+    for (const sx of [-1, 1]) k.add(mat('galv'), G('boltnut', () => cyl(0.009, 0.009, 0.012, 6, 0.001).rotateX(Math.PI / 2)), { p: [x + sx * 0.034, y, z + 0.004], color: 0x6a6a64, w: false });
   };
   let sy = 0;
-  if (shape === 'stone') {
-    // Thai KM stone: rounded-top concrete post with painted face
+  if (mount === 'stone') {
+    // Thai KM stone: rounded-top concrete post, red cap, painted face both sides
+    const sw = Math.max(0.34, fw * 0.8);
     const sh = new THREE.Shape();
-    sh.moveTo(-0.17, 0);
-    sh.lineTo(0.17, 0);
-    sh.lineTo(0.17, 0.62);
-    sh.absarc(0, 0.62, 0.17, 0, Math.PI, false);
-    sh.lineTo(-0.17, 0);
-    k.add(mat('concrete'), G('kmstone', () => extrude(sh, 0.16, 0.015)), { p: [0, 0.0, 0], r: lean, color: 0xd8d4c8, w: { grime: 0.7, grimeH: 0.35, mossLow: 0.9, mossH: 0.3, streak: 0.4 }, colorFn: (p, n, c, lp) => { if (lp.y > 0.6) c.lerp(_kmTop, 0.85); } });
-    k.add(sm, G('kmface', () => quad(0.3, 0.42)), { p: [0, 0.4, 0.096], r: lean, color: 0xffffff, uv: 'keep', w: { grime: 0.4, grimeH: 0.15, ground: 0.2, vary: 0.25 } });
-    k.add(sm, G('kmface', () => quad(0.3, 0.42)), { p: [0, 0.4, -0.096], r: [lean[0], Math.PI, lean[2]], color: 0xffffff, uv: 'keep', w: { grime: 0.4, grimeH: 0.15, ground: 0.2, vary: 0.25 } });
-    sy = 0.45;
-    out.colliders.push({ x: 0, z: 0, hx: 0.18, hz: 0.1, yaw: 0 });
-  } else if (shape === 'diamond' || shape === 'circle') {
-    const h = 2.3;
-    pipe(0, h + 0.1);
-    const top = V(lean[2] * -h, h, lean[0] * h);
-    sy = h - 0.4;
-    k.at([top.x, sy, top.z], [lean[0], 0, lean[2] + (bent ? (rng() - 0.5) * 0.2 : 0)], null, () => {
-      if (shape === 'diamond') {
-        k.add(mat('metal'), G('diamondback', () => bbox(0.62, 0.62, 0.02, 0.03, 0.1).translate(0, -0.31, 0).rotateZ(Math.PI / 4)), { p: [0, 0, -0.012], color: 0x7a7a74, w: { streak: 0.6 } });
-        k.add(sm, G('diamondface', () => quad(0.6, 0.6).rotateZ(Math.PI / 4)), { p: [0, 0, 0.0], color: 0xffffff, uv: 'keep', w: { vary: 0.25 }, deform: (p) => { p.z += Math.max(0, p.x * 0.6 - 0.15) * (bent ? 0.08 : 0); } });
+    sh.moveTo(-sw / 2, 0);
+    sh.lineTo(sw / 2, 0);
+    sh.lineTo(sw / 2, 0.62);
+    sh.absarc(0, 0.62, sw / 2, 0, Math.PI, false);
+    sh.lineTo(-sw / 2, 0);
+    k.add(mat('concrete'), G('kmstone:' + sw.toFixed(2), () => extrude(sh, 0.16, 0.015)), { p: [0, -0.06, -0.08], r: lean, color: 0xd8d4c8, w: { grime: 0.7, grimeH: 0.35, mossLow: 0.9, mossH: 0.3, streak: 0.4 }, colorFn: (p, n, c, lp) => { if (lp.y > 0.6) c.lerp(_kmTop, 0.85); } });
+    const qw = sw - 0.05, qh = qw / info.aspect;
+    sy = 0.06 + qh / 2 + 0.02;
+    for (const side of [1, -1]) face(qw, qh, [0, sy, side * 0.0965], { r: [lean[0], side > 0 ? 0 : Math.PI, lean[2]], w: { ...faceW, grime: 0.35, grimeH: 0.2, ground: 0.0 } });
+    fw = qw; fh = qh;
+    out.colliders.push({ x: 0, z: 0, hx: sw / 2 + 0.01, hz: 0.1, yaw: 0 });
+  } else if (mount === 'pipe') {
+    const bottom = opts.height ?? 1.75;
+    const top = bottom + fh;
+    pipe(0, top + 0.06);
+    sy = bottom + fh / 2;
+    const tx = -lean[2] * sy, tz = lean[0] * sy;
+    const tilt = bent ? (rng() - 0.5) * 0.2 : 0;
+    k.at([tx, sy, tz + 0.045], [lean[0], 0, lean[2] + tilt], null, () => {
+      const plate = { color: 0x8a8a84, w: { streak: 0.6, grime: 0.2, vary: 0.25 } };
+      if (shape === 'circle') {
+        const r = Math.min(fw, fh) * 0.49;
+        k.add(mat('metal'), G('discback:' + r.toFixed(3), () => cyl(r * 0.985, r * 0.985, 0.012, 32, 0.003).rotateX(Math.PI / 2)), { p: [0, 0, -0.009], ...plate });
       } else {
-        k.add(mat('metal'), G('circleback', () => cyl(0.31, 0.31, 0.02, 24, 0.004).rotateX(Math.PI / 2)), { p: [0, 0, -0.012], color: 0x7a7a74, w: { streak: 0.6 } });
-        k.add(sm, G('circleface', () => new THREE.CircleGeometry(0.3, 24)), { p: [0, 0, 0.0], color: 0xffffff, uv: 'keep', w: { vary: 0.25 } });
+        // diamond plate (+ sub plate for 'diamond_plate'): square side = half-diagonal * sqrt2
+        const sq = fw;
+        const dy = shape === 'diamond_plate' ? fh / 2 - sq / 2 : 0;
+        const side = (sq * 0.49 * 2) / Math.SQRT2 * 0.985;
+        k.add(mat('metal'), G('diamondback:' + side.toFixed(3), () => bevelBox(side, side, 0.012, 0.012, 0.2).rotateZ(Math.PI / 4)), { p: [0, dy, -0.009], ...plate });
+        if (shape === 'diamond_plate') {
+          const pw = fw * (432 / 512), ph = fw * (160 / 512), py = -fh / 2 + fw * (80 / 512) + fw * (20 / 512);
+          k.add(mat('metal'), G(`subplate:${pw.toFixed(3)}`, () => bevelBox(pw * 0.985, ph * 0.98, 0.012, 0.01, 0.2)), { p: [0, py, -0.009], ...plate });
+          clamp(0, py, -0.016);
+        }
       }
-      k.add(mat('galv'), G('sbracket', () => bbox(0.08, 0.05, 0.05, 0.005, 0.05)), { p: [0, 0.2, -0.04], color: 0x6a6a64 });
-      k.add(mat('galv'), G('sbracket', () => bbox(0.08, 0.05, 0.05, 0.005, 0.05)), { p: [0, -0.25, -0.04], color: 0x6a6a64 });
+      face(fw, fh, [0, 0, 0.0], { deform: bent ? (p) => { p.z += Math.max(0, p.x / fw - 0.15) * 0.06; } : null });
+      clamp(0, shape === 'diamond_plate' ? fh / 2 - fw / 2 + fw * 0.22 : fh * 0.28, -0.016);
+      if (shape !== 'diamond_plate') clamp(0, -fh * 0.28, -0.016);
     });
     out.colliders.push({ x: 0, z: 0, r: 0.06 });
-  } else if (shape === 'wide') {
-    const w = 2.1, hp = 0.95, h = 2.4;
+  } else if (mount === 'plate') {
+    // rectangular steel plate (rounded corners in the texture) on one pipe
+    const bottom = opts.height ?? 1.7;
+    pipe(0, bottom + fh + 0.08);
+    sy = bottom + fh / 2;
+    k.at([-lean[2] * sy, sy, lean[0] * sy + 0.045], [lean[0], 0, lean[2]], null, () => {
+      k.add(mat('metal'), G(`rplate:${fw.toFixed(3)}:${fh.toFixed(3)}`, () => bevelBox(fw - 0.03, fh - 0.03, 0.012, 0.012, 0.2)), { p: [0, 0, -0.009], color: 0x8a8a84, w: { streak: 0.6 } });
+      face(fw, fh, [0, 0, 0]);
+      clamp(0, fh * 0.3, -0.016);
+      clamp(0, -fh * 0.3, -0.016);
+    });
+    out.colliders.push({ x: 0, z: 0, r: 0.06 });
+  } else if (mount === 'wide2') {
+    // wide board on two posts (galvanised pipes; old wood for the temple)
+    const bottom = opts.height ?? (fh > 0.6 ? 1.45 : 1.6);
+    const h = bottom + fh + 0.1;
+    const px = fw / 2 - Math.min(0.22, fw * 0.14);
+    const wooden = kind === 'temple_sign' || kind === 'shrine_board';
     for (const s of [-1, 1]) {
-      if (kind === 'temple_sign') k.add(mat('wood'), bbox(0.12, h, 0.12, 0.015, 0.3), { p: [s * (w / 2 - 0.15), 0, 0], color: 0x6a5440, w: { mossLow: 0.9 } });
-      else pipe(s * (w / 2 - 0.15), h);
-      out.colliders.push({ x: s * (w / 2 - 0.15), z: 0, r: 0.07 });
+      if (wooden) k.add(mat('wood'), bbox(0.12, h, 0.12, 0.015, 0.3), { p: [s * px, 0, -0.08], color: 0x6a5440, w: { mossLow: 0.9 } });
+      else {
+        k.at([s * px, 0, -0.06], null, null, () => pipe(0, h, 0.035));
+      }
+      out.colliders.push({ x: s * px, z: -0.07, r: 0.07 });
     }
-    sy = h - hp / 2 - 0.05;
-    k.add(mat('metal'), bbox(w, hp, 0.03, 0.01, 0.3), { p: [0, sy - hp / 2, -0.02], color: 0x6a6a64, w: { streak: 0.7 } });
-    k.add(sm, G('wideface:' + w, () => quad(w - 0.04, hp - 0.04, 2, 2)), { p: [0, sy, 0.0], color: 0xffffff, uv: 'keep', w: { vary: 0.3, streak: 0.4 } });
-  } else if (shape === 'arrow') {
-    k.add(mat('wood'), bbox(0.11, 2.2, 0.11, 0.015, 0.3), { r: lean, color: 0x6a5440, w: { mossLow: 0.9, streak: 0.5 } });
-    const dir = opts.side === 'right' ? 1 : -1;
-    const sh = new THREE.Shape();
-    sh.moveTo(0, -0.14); sh.lineTo(0.75, -0.14); sh.lineTo(0.92, 0); sh.lineTo(0.75, 0.14); sh.lineTo(0, 0.14); sh.closePath();
-    sy = 1.8;
-    k.add(mat('wood'), G('arrowb', () => extrude(sh, 0.03, 0.005)), { p: [dir * 0.05, sy, 0.07], s: [dir, 1, 1], color: 0x8a7458, w: { moss: 0.4 } });
-    k.add(sm, G('arrowface2', () => quad(0.7, 0.22)), { p: [dir * 0.45, sy, 0.088], color: 0xffffff, uv: 'keep', w: { vary: 0.3 } });
+    sy = bottom + fh / 2;
+    if (wooden) {
+      k.add(mat('wood'), bbox(fw + 0.1, fh + 0.1, 0.05, 0.012, 0.3), { p: [0, sy - fh / 2 - 0.05, -0.02], color: 0x5a4430, w: { streak: 0.6, moss: 0.4 } });
+      k.add(mat('wood'), G(`wroof:${fw.toFixed(2)}`, () => bevelBox(fw + 0.3, 0.04, 0.24, 0.01, 0.2)), { p: [0, sy + fh / 2 + 0.08, 0.0], r: [0.12, 0, 0], color: 0x4a3828, w: { moss: 0.9 } });
+    } else {
+      k.add(mat('metal'), G(`wback:${fw.toFixed(2)}:${fh.toFixed(2)}`, () => bevelBox(fw - 0.04, fh - 0.04, 0.02, 0.012, 0.25)), { p: [0, sy, -0.014], color: 0x6a6a64, w: { streak: 0.7 } });
+      for (const s of [-1, 1]) for (const yy of [-0.3, 0.3]) k.add(mat('galv'), G('wclamp', () => bbox(0.09, 0.05, 0.05, 0.005, 0.1)), { p: [s * px, sy + yy * fh, -0.045], color: 0x7a7a72 });
+    }
+    face(fw, fh, [0, sy, wooden ? 0.008 : 0.0]);
+  } else if (mount === 'arrow') {
+    // hand-painted wooden arrow plank: thickness extruded from the texture's own silhouette
+    k.add(mat('wood'), bbox(0.11, 2.3, 0.11, 0.015, 0.3), { r: lean, color: 0x6a5440, w: { mossLow: 0.9, streak: 0.5 } });
+    k.add(mat('wood'), G('postcap', () => cyl(0.0, 0.085, 0.07, 4, 0).rotateY(Math.PI / 4)), { p: [-lean[2] * 2.3, 2.3, lean[0] * 2.3], color: 0x5a4430, w: { moss: 0.8 } });
+    const dir = (opts.side ?? 'left') === 'left' ? -1 : 1;
+    sy = opts.height ?? 1.85;
+    forkPlank(k, sm, { p: [dir * (fw / 2 - 0.12) - lean[2] * sy, sy, 0.065 + lean[0] * sy], w: fw, h: fh, dir });
     out.colliders.push({ x: 0, z: 0, r: 0.08 });
   } else {
-    // board on a single post (or an A-frame stand for menus / posters)
-    const w = 0.9, hb = 0.65;
-    k.add(mat('wood'), bbox(0.1, 1.9, 0.1, 0.012, 0.3), { r: lean, color: 0x6a5440, w: { mossLow: 0.9 } });
-    sy = 1.55;
-    k.add(mat('wood'), bbox(w + 0.06, hb + 0.06, 0.03, 0.008, 0.2), { p: [0, sy - hb / 2 - 0.03, 0.05], color: 0x5a4430, w: false });
-    k.add(sm, G('boardface', () => quad(w, hb)), { p: [0, sy, 0.068], color: 0xffffff, uv: 'keep', w: { vary: 0.3, streak: 0.4 } });
-    out.colliders.push({ x: 0, z: 0, r: 0.08 });
+    // notice board: wooden frame on a single post, face sized by the texture aspect
+    const maxW = 0.8;
+    if (fw > maxW) { fh *= maxW / fw; fw = maxW; }
+    sy = (opts.height ?? 1.15) + fh / 2;
+    k.add(mat('wood'), bbox(0.1, sy + fh / 2 + 0.12, 0.1, 0.012, 0.3), { r: lean, p: [0, 0, -0.06], color: 0x6a5440, w: { mossLow: 0.9 } });
+    k.add(mat('wood'), G(`bframe:${fw.toFixed(2)}:${fh.toFixed(2)}`, () => bbox(fw + 0.08, fh + 0.08, 0.03, 0.008, 0.2)), { p: [0, sy - fh / 2 - 0.04, 0.0], color: 0x5a4430, w: { streak: 0.4 } });
+    face(fw, fh, [0, sy, 0.018]);
+    for (const [x, y] of [[-1, 1], [1, 1]]) k.add(mat('rust'), G('tack', () => cyl(0.008, 0.008, 0.006, 6, 0.001).rotateX(Math.PI / 2)), { p: [x * (fw / 2 - 0.03), sy + y * (fh / 2 - 0.03), 0.022], color: 0x8a6a40, w: false });
+    out.colliders.push({ x: 0, z: -0.06, r: 0.08 });
   }
   group.add(k.build({ name: 'sign_' + kind }));
-  out.signAnchor = anchor(group, 'sign', 0, sy, 0.1);
+  out.signAnchor = anchor(group, 'sign', 0, sy, 0.12);
+  out.faceSize = [fw, fh];
   return out;
 }
 const _kmTop = new THREE.Color(0xc0302a);
@@ -732,7 +793,7 @@ export function createVillageStop(opts = {}) {
     out.colliders.push({ x: sx0 + s * 1.2, z: -0.3, r: 0.1 });
   }
   k.add(mat('metal'), bbox(2.7, 1.05, 0.04, 0.01, 0.3), { p: [sx0, 1.35, -0.32], color: 0x6a6a64, w: { streak: 0.6 } });
-  k.add(signMat('village_sign', { th: 'บ้านห้วยทราย', en: 'Ban Huai Sai' }), G('vsign', () => quad(2.62, 0.98, 2, 2)), { p: [sx0, 1.87, -0.295], color: 0xffffff, uv: 'keep', w: { vary: 0.3, streak: 0.4 } });
+  k.add(signMat('village_sign', { th: 'บ้านห้วยทราย', en: 'Ban Huai Sai' }), G('vsign', () => quad(2.52, 0.98, 2, 2)), { p: [sx0, 1.87, -0.295], color: 0xffffff, uv: 'keep', w: { vary: 0.3, streak: 0.4 } });
   // tiny shelter: concrete bench + tin roof on 4 pipes
   const shx = 1.6;
   for (const s of [-1, 1]) for (const z of [-0.5, 0.4]) k.add(mat('galv'), G('vshpost', () => cyl(0.03, 0.03, 2.25, 6, 0.003)), { p: [shx + s * 0.9, 0, z], color: 0x8a8a84, w: { grime: 0.6, streak: 0.6 } });

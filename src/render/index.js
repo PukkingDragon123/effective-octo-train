@@ -4,7 +4,9 @@
 //   uniforms.js   GLOBAL_UNIFORMS (+ dlb* aliases injected into every material)
 //   Fog.js        ShaderChunk overrides (height fog, noise mist, headlight/lamp scattering)
 //   Materials.js  paintedMaterial / foliageMaterial / skinMaterial (+ wind shadow helpers)
-//   PostFX.js     scene RT -> glass -> painterly -> bloom -> shafts -> grade (Painterly.js, PostShaders.js)
+//   PostFX.js     scene RT -> glass -> painterly -> bloom -> shafts -> grade -> CAS sharpen/output
+//                 (Painterly.js, PostShaders.js)
+//   caps.js       renderer caps, max-anisotropy helpers (applied to every material at compile)
 //   Sky.js        sky dome, time of day, lights, weather, grade targets
 //   LightPool.js  pooled real lights + glows + ground pools + flicker; Beams.js volumetric cones
 //   Particles.js  GPU instanced particle emitters
@@ -18,6 +20,7 @@ import { lightPool } from './LightPool.js';
 import { particles } from './Particles.js';
 import { createVolumetricBeam } from './Beams.js';
 import { brushTexture, canvasTexture, glowTexture } from './noiseTex.js';
+import { RENDER_CAPS, captureCaps, crispTexture, crispMaterialTextures } from './caps.js';
 import { bus } from '../core/Events.js';
 import { settings } from '../core/Settings.js';
 
@@ -26,6 +29,7 @@ export {
   paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug,
   postfx, sky, lightPool, particles, createVolumetricBeam,
   brushTexture, canvasTexture, glowTexture,
+  RENDER_CAPS, crispTexture, crispMaterialTextures,
 };
 
 const _dir = new THREE.Vector3();
@@ -56,6 +60,7 @@ export function installRendering(engine) {
   installFogChunks();
   installMaterialInjection();
   const { renderer, scene } = engine;
+  captureCaps(renderer); // max anisotropy for every material texture (see caps.js)
   // fog defines must be active for every built-in material: values are driven by Sky
   scene.fog = new THREE.FogExp2(GLOBAL_UNIFORMS.uFogColor.value.getHex(), GLOBAL_UNIFORMS.uFogDensity.value);
   scene.background = null; // the sky dome covers everything

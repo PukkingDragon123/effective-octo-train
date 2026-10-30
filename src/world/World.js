@@ -28,7 +28,13 @@ export class World {
     this.terrain = null;
     this.forest = null;
     this.placement = null;
+    this.layout = LAYOUT;
     this.roadPieces = [];
+    /** Object3D of the cracked helmet at the Hundred Corpses Curve memorial (memory m_helmet). */
+    this.memorialHelmet = null;
+    /** Object3D on the counter of Auntie Lek's noodle stall (memory m_noodle). */
+    this.noodleCounter = null;
+    this.buildTimes = {};
     this.drawDistance = settings.get('drawDistance') ?? 150;
     this.density = settings.get('foliageDensity') ?? 1;
     this._pr = null;
@@ -40,6 +46,12 @@ export class World {
   async build(opts = {}) {
     const prog = (f, th, en) => opts.onProgress?.(f, { th, en });
     const t0 = performance.now();
+    let tl = t0;
+    const lap = (k) => {
+      const n = performance.now();
+      this.buildTimes[k] = Math.round(n - tl);
+      tl = n;
+    };
     prog(0.01, 'กำลังวางเส้นทาง…', 'Laying out the roads…');
     // ---- roads ------------------------------------------------------------------------
     const gen = generateRoadLayout(LAYOUT);
@@ -61,12 +73,19 @@ export class World {
       { kind: 'junction', a: { id: 'spur', s: this.road.length('spur') }, b: { id: 'main', s: sJ } },
     );
     this.features = gen.meta.features.map((f) => ({ ...f }));
+    lap('roadgen');
     await yieldFrame();
 
     // ---- plan landmarks (pads / clearings needed by terrain & forest) --------------------
     const plan = planLandmarks(this.road, LAYOUT);
     this.plan = plan;
     this.fork = plan.fork;
+    const { Placement } = await import('./Placement.js');
+    if (opts.props !== false) {
+      this.placement = new Placement(this);
+      this.placement.plan(plan); // dressing positions -> terrain pads + forest clearings
+    }
+    lap('plan');
 
     // ---- terrain ------------------------------------------------------------------------
     prog(0.05, 'กำลังปั้นภูเขา…', 'Shaping the hills…');
@@ -80,12 +99,18 @@ export class World {
       const c = main.pointAt(sa, -(W.halfWidth + 26));
       this.terrain.addMod(c.x, c.z, 42, -10 * (LAYOUT.elevationRange / 18));
     }
-    const pond = plan.landmarks.hiddenPond;
-    if (pond) this.terrain.addPond(pond.pos.x, pond.pos.z, 6.5, 1.3);
     this.terrain.prepare();
+    // hidden pond: the prop's water sits on flat ground inside a low rim -> flatten (radius * 1.4)
+    const pond = plan.landmarks.hiddenPond;
+    if (pond) {
+      const hp = this.terrain.heightRaw(pond.pos.x, pond.pos.z);
+      this.terrain.addPad({ x: pond.pos.x, z: pond.pos.z, hx: 8.6, hz: 8.6, yaw: pond.yaw, h: hp, blend: 5, kind: 'dirt' });
+      this.terrain.addPond(pond.pos.x, pond.pos.z, 6.5, 0); // wet mud + keeps trees out of the water
+    }
     await yieldFrame();
     await this.terrain.build((f) => prog(0.06 + f * 0.3, 'กำลังปั้นภูเขา…', 'Shaping the hills…'));
     this.group.add(this.terrain.group);
+    lap('terrain');
 
     // ---- road surfaces & water ---------------------------------------------------------------
     prog(0.37, 'กำลังราดยางมะตอย…', 'Paving the old road…');
@@ -96,6 +121,7 @@ export class World {
     this.waterMaterial = createWaterMaterial();
     const creek = this.terrain.buildCreekWater(this.waterMaterial);
     if (creek) this.group.add(creek);
+    lap('roads');
     await yieldFrame();
 
     // ---- landmark ground heights ---------------------------------------------------------------
@@ -112,16 +138,18 @@ export class World {
       this.forest = new Forest(this, { density: this.density });
       await this.forest.build((f, th, en) => prog(0.4 + f * 0.4, th || 'กำลังปลูกป่า…', en || 'Growing the forest…'));
       this.group.add(this.forest.group);
+      lap('forest');
     }
 
     // ---- props & landmarks ---------------------------------------------------------------------
-    if (opts.props !== false) {
-      const { Placement } = await import('./Placement.js');
-      this.placement = new Placement(this);
+    if (this.placement) {
       await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'));
       this.group.add(this.placement.group);
-      if (this.landmarks.shrineMaRuay) this.fork.shrine = this.landmarks.shrineMaRuay.prop;
+      const sm = this.landmarks.shrineMaRuay;
+      if (sm) this.fork.shrine = sm.prop;
+      lap('props');
     }
+    this.group.updateMatrixWorld(true);
 
     this._settingsOff = settings.onChange(({ key }) => {
       if (key === 'foliageDensity' || key === 'graphicsPreset' || key === '*') this.setDensity(settings.get('foliageDensity') ?? 1);

@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, sagCurve, blob, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
-import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap } from './lib/small.js';
+import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap, forkPlank } from './lib/small.js';
 import { deityHeadGeo, deityBodyGeo, lionGeo } from './lib/figures.js';
 import { chineseRoof } from './shrines.js';
 
@@ -160,18 +160,9 @@ function forkSignpost(k, p, side, rng) {
     const lean = [(rng() - 0.5) * 0.06, 0, side * 0.04];
     k.add(mat('wood'), bbox(0.12, 2.3, 0.12, 0.015, 0.3), { r: lean, color: 0x6a5440, jitter: 0.004, jitterFreq: 8, w: { grime: 0.6, grimeH: 0.6, mossLow: 0.8, mossH: 0.5, streak: 0.6 } });
     k.add(mat('wood'), G('postcap', () => cyl(0.0, 0.09, 0.08, 4, 0).rotateY(Math.PI / 4)), { p: [lean[2] * -2.3, 2.3, 0], color: 0x5a4430, w: { moss: 0.8 } });
-    // arrow board
-    const sh = new THREE.Shape();
-    const L = 0.95, H = 0.3;
-    sh.moveTo(0, -H / 2);
-    sh.lineTo(L - 0.2, -H / 2);
-    sh.lineTo(L, 0);
-    sh.lineTo(L - 0.2, H / 2);
-    sh.lineTo(0, H / 2);
-    sh.closePath();
-    k.add(mat('wood'), G('arrowboard', () => extrude(sh, 0.035, 0.006)), { p: [side * 0.05 - lean[2] * 1.8, 1.82, 0.08], s: [side, 1, 1], r: [0, 0, side * -0.03], color: 0x8a7458, w: { grime: 0, streak: 0.5, moss: 0.4, vary: 0.3 } });
-    // painted face (signTex fork_sign) on the board
-    k.add(signMat('fork_sign', { side: side < 0 ? 'left' : 'right' }), G('arrowface', () => quad(0.72, 0.24)), { p: [side * (0.05 + 0.4) - lean[2] * 1.8, 1.82, 0.1], r: [0, 0, side * -0.03], color: 0xd0c4a8, uv: 'keep', w: { vary: 0.35, grime: 0 } });
+    // hand-painted arrow plank (wood extruded from the sign texture's own silhouette)
+    const pw = 1.0;
+    forkPlank(k, signMat('fork_sign', { side: side < 0 ? 'left' : 'right' }), { p: [side * (pw / 2 - 0.02) - lean[2] * 1.82, 1.82, 0.065], r: [0, 0, side * -0.03], w: pw, dir: side, color: 0x7a6448 });
     // nails, a faded ribbon tied to the post
     k.add(mat('cloth_static'), G('postribbon', () => cyl(0.068, 0.068, 0.06, 8, 0, 1, false)), { p: [0, 1.25, 0], color: side < 0 ? 0xe8e4dc : 0xc83a2a, w: { vary: 0.3 } });
     k.add(mat('cloth'), G('postribbonTail', () => quad(0.04, 0.4, 1, 4).translate(0, -0.2, 0)), { p: [0.04, 1.25, 0.07], r: [0.1, 0.3, 0.1], color: side < 0 ? 0xe8e4dc : 0xc83a2a, uv: 'keep', w: false });
@@ -284,13 +275,15 @@ export function createShrineMaRuay(opts = {}) {
     out.colliders.push({ x, z: pzCol, r: 0.26 });
   }
   // inner couplets on the two central columns (vertical boards)
-  for (const s of [-1, 1]) k.add(signMat('couplet', { text: s < 0 ? 'มีเมตตา' : 'ย่อมร่มเย็น', side: s }), G('mcouplet', () => quad(0.26, 1.9)), { p: [s * 1.1, y0 + 1.75, pzCol + 0.175], color: 0xe8d8b0, uv: 'keep', w: { vary: 0.3, grime: 0 } });
+  // red couplet boards (Chinese characters, as on real Thai-Chinese shrines), texture aspect 0.3:1.6
+  for (const s of [-1, 1]) k.add(signMat('couplet', { side: s < 0 ? 'left' : 'right' }), G('mcouplet', () => quad(0.3, 1.6, 1, 2)), { p: [s * 1.1, y0 + 1.75, pzCol + 0.175], color: 0xe8d8b0, uv: 'keep', w: { vary: 0.3, grime: 0 } });
   // porch beam, brackets + porch roof
   k.add(mat('lacquer'), bbox(6.6, 0.3, 0.26, 0.02, 0.4), { p: [0, y0 + 3.45, pzCol], color: 0x7a1610, w: { streak: 0.6, grime: 0 }, colorFn: (p, n, c, lp) => { if (Math.abs(lp.y - 0.15) < 0.05) c.lerp(_gold, 0.9); } });
   for (const x of colXs) for (const s of [-1, 1]) k.add(mat('gold'), G('bracket', () => tube(smoothPath([V(0, 0, 0), V(0.18, 0.08, 0), V(0.32, 0.25, 0)], 8), 0.035, 5, true)), { p: [x, y0 + 3.15, pzCol + 0.05], s: [s, 1, 1], color: 0xc89a40, w: false });
   // sign board: ศาลเจ้ามารวย (gold board under the porch roof)
-  k.add(mat('lacquer'), bbox(2.7, 0.78, 0.1, 0.03, 0.3), { p: [0, y0 + 3.62, pzCol + 0.1], color: 0x5a0e0a, w: false });
-  k.add(signMat('shrine_board', { th: 'ศาลเจ้ามารวย' }, { emissive: 0x8a6020, emissiveIntensity: 0.75 }), G('mboard', () => quad(2.5, 0.62)), { p: [0, y0 + 4.01, pzCol + 0.156], color: 0xffffff, uv: 'keep', w: false });
+  // (shrine_board texture aspect 1.6:0.62 -> 2.2 x 0.853 face on a 2.4 x 0.98 lacquer board)
+  k.add(mat('lacquer'), bbox(2.4, 0.98, 0.1, 0.03, 0.3), { p: [0, y0 + 3.55, pzCol + 0.1], color: 0x5a0e0a, w: false });
+  k.add(signMat('shrine_board', { th: 'ศาลเจ้ามารวย' }, { emissive: 0x8a6020, emissiveIntensity: 0.75 }), G('mboard', () => quad(2.2, 0.853)), { p: [0, y0 + 4.04, pzCol + 0.156], color: 0xffffff, uv: 'keep', w: false });
   k.push([0, y0 + 3.62, pzCol - 0.3]);
   chineseRoof(k, { w: 7.4, d: 2.4, h: 0.8, color: 0xd8902a, ridge: 0xb82a18, edge: 0x2a7a4a });
   k.pop();

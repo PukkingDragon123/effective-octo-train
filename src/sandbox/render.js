@@ -1,6 +1,6 @@
 // Render module test scene: a wet forest road at night with lamps, a headlight beam,
 // trees, grass, particles. URL params:
-//   hour=21..30  rain=0..1  painterly=0..1  quality=low|medium|high  fog=0..1
+//   hour=21..30  rain=0..1  painterly=0..1  sharpen=0..1  quality=low|medium|high|ultra  fog=0..1
 //   cam=road|lamp|side|up  headlights=0|1  t=seconds of simulated time before capture
 import * as THREE from 'three';
 import {
@@ -138,6 +138,8 @@ export default async function ({ engine, cameraRig, params, settings }) {
   const quality = P('quality', null);
   if (quality) settings.set('graphicsPreset', quality);
   if (paint !== null) settings.set('painterly', parseFloat(paint));
+  const sharpen = P('sharpen', null);
+  if (sharpen !== null) settings.set('sharpen', parseFloat(sharpen));
   const camMode = P('cam', 'road');
   const headlights = P('headlights', parseFloat(P('hour', 21.5)) >= 29.4 ? '0' : '1') !== '0';
 

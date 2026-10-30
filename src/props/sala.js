@@ -295,7 +295,7 @@ export function createSala(opts = {}) {
   out.lightSpec = lightSpec('dying', out.lampAnchor);
   out.lights.push(out.lightSpec);
   // name plate on the front beam
-  k.add(signMat('shop_sign', { th: variant === 1 ? 'ศาลาพักร้อน' : 'ศาลาริมทาง', en: '' }), G('salaplate', () => quad(1.1, 0.26)), { p: [0, by + 0.0, pz + 0.105], color: 0xc8bca0, uv: 'keep', w: { grime: 0, streak: 0.5, vary: 0.3 } });
+  k.add(signMat('shop_sign', { th: variant === 1 ? 'ศาลาพักร้อน' : 'ศาลาริมทาง', en: '' }), G('salaplate', () => quad(0.96, 0.3)), { p: [0, by + 0.0, pz + 0.105], color: 0xc8bca0, uv: 'keep', w: { grime: 0, streak: 0.5, vary: 0.3 } });
 
   group.add(k.build({ name: 'sala' + variant, detailDistance: 40 }));
   out.waitSpot = anchor(group, 'wait', 0.3, 0, D / 2 + 0.9, 0);
@@ -344,7 +344,7 @@ export function createBusStop(opts = {}) {
   for (const z of [-D / 2, D / 2]) k.add(mat('metal'), bbox(W + 0.1, 0.08, 0.06, 0.006, 0.3), { p: [0, H - 0.2 + (z > 0 ? -0.12 : 0.12), z], color: paint, w: { grime: 0, streak: 0.7 } });
   // back: ad lightbox (broken glass, faded poster) + perforated side panels
   k.add(mat('metal'), bbox(1.5, 1.4, 0.12, 0.01, 0.3), { p: [0.55, 0.45, -D / 2], color: 0x8a9496, w: { ground: 0.1, grime: 0.6, streak: 0.8 } });
-  k.add(signMat('poster', { variant: 2 }), G('adposter', () => quad(1.3, 1.2)), { p: [0.55, 1.15, -D / 2 + 0.065], color: 0xb8b0a0, uv: 'keep', w: { grime: 0.2, vary: 0.4 } });
+  k.add(signMat('poster', { variant: 2 }), G('adposter', () => quad(0.84, 1.2)), { p: [0.55, 1.15, -D / 2 + 0.065], color: 0xb8b0a0, uv: 'keep', w: { grime: 0.2, vary: 0.4 } });
   // shattered glass shards left in the frame
   for (let i = 0; i < 3; i++) {
     const sh = new THREE.Shape();
@@ -362,7 +362,7 @@ export function createBusStop(opts = {}) {
     });
   }
   // stop name panel along the front beam
-  k.add(signMat('bus_stop_sign', { th: 'ป้ายรถประจำทาง', panel: true }), G('bspanel', () => quad(1.6, 0.22)), { p: [-0.5, H - 0.42, D / 2 + 0.04], color: 0xc8c4b8, uv: 'keep', w: { vary: 0.3, grime: 0 } });
+  k.add(signMat('shop_sign', { th: 'ป้ายรถประจำทาง', en: 'BUS STOP' }), G('bspanel', () => quad(1.3, 0.408)), { p: [-0.5, H - 0.36, D / 2 + 0.045], color: 0xc8c4b8, uv: 'keep', w: { vary: 0.3, grime: 0 } });
   // bench: steel frame + 3 slats (one missing)
   const by = 0.5;
   for (const x of [-1.1, 0, 1.1]) k.add(mat('metal'), G('bleg', () => bbox(0.05, by - 0.1, 0.35, 0.005, 0.2)), { p: [x, 0.1, -D / 2 + 0.38], color: 0x4a4a46, w: { ground: 0.1, grime: 0.7, streak: 0.5 } });
@@ -375,8 +375,12 @@ export function createBusStop(opts = {}) {
   for (let i = 0; i < 3; i++) out.seats.push(anchor(group, 'seat' + i, -0.8 + i * 0.8, by + 0.03, -D / 2 + 0.37));
   // round bus stop sign on its own pole
   k.add(mat('galv'), cyl(0.03, 0.03, 2.6, 8, 0.004), { p: [W / 2 + 0.6, 0, D / 2 + 0.2], r: [0.04, 0, 0.06], color: 0x9a9a94, w: { grime: 0.6, streak: 0.4 } });
-  k.add(signMat('bus_stop_sign', {}), G('bsign', () => new THREE.CircleGeometry(0.28, 24)), { p: [W / 2 + 0.6 + 0.15, 2.45, D / 2 + 0.3], r: [0.04, 0.2, 0.06], color: 0xd8d0c0, uv: 'keep', w: { vary: 0.3, grime: 0 } });
-  k.add(mat('metal'), G('bsignback', () => cyl(0.285, 0.285, 0.015, 24, 0.003).rotateX(Math.PI / 2)), { p: [W / 2 + 0.6 + 0.15 - 0.003, 2.45, D / 2 + 0.3 - 0.016], r: [0.04, 0.2, 0.06], color: 0x6a6a64 });
+  // bus_stop_sign is an upright rounded-rect plate (texture 0.5 x 0.62, alpha corners)
+  k.at([W / 2 + 0.6 + 0.12, 2.2, D / 2 + 0.3], [0.04, 0.2, 0.06], null, () => {
+    k.add(mat('metal'), G('bsignback', () => bevelBox(0.47, 0.59, 0.012, 0.01, 0.2)), { p: [0, 0, -0.01], color: 0x6a6a64, w: { streak: 0.6 } });
+    k.add(signMat('bus_stop_sign', {}), G('bsign', () => quad(0.5, 0.62)), { color: 0xd8d0c0, uv: 'keep', w: { vary: 0.3, grime: 0 } });
+    for (const y of [-0.18, 0.18]) k.add(mat('galv'), G('bsclamp', () => bbox(0.1, 0.04, 0.03, 0.004, 0.05)), { p: [-0.12, y - 0.02, -0.03], color: 0x7a7a72 });
+  });
   // dead tube under the roof front beam (flickers rarely)
   k.push([-0.3, H - 0.32, D / 2 - 0.12]);
   const fl = hangingFluorescent(k, group, { broken: false, dying: true, chain: 0.02, seed: seed + 5, noDiffuser: true });

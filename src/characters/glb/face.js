@@ -17,7 +17,7 @@ export function getFaceTexture(look, t, key, S = 1024) {
   const tex = new THREE.CanvasTexture(cv);
   tex.flipY = false;
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   e = { tex, refs: 1, key: k, canvas: cv };
   cache.set(k, e);
   return e;
@@ -90,6 +90,24 @@ export function paintFace(look, t, S = 1024) {
     blob(X(sd * 0.078), Y(ey - 0.012), M(0.006), M(0.02), deep, 0.35);
     stroke([[X(sd * 0.074), Y(ey + 0.005)], [X(sd * 0.079), Y(ey - 0.01)], [X(sd * 0.074), Y(ey - 0.028)]], C(0.7, 0.4), M(0.0015));
   }
+  // ---- soften the broad form layer only (features below stay crisp)
+  {
+    const soft = document.createElement('canvas');
+    soft.width = soft.height = S;
+    const sg2 = soft.getContext('2d');
+    sg2.filter = `blur(${(S / 1024) * 3}px)`;
+    sg2.drawImage(cv, 0, 0);
+    g.globalAlpha = 0.7;
+    g.drawImage(soft, 0, 0);
+    g.globalAlpha = 1;
+  }
+  // fine skin grain / pores (native resolution) + faint blemishes and freckles
+  pat(noiseTile(5, 32, 61), 0.1, 'overlay', S / 1024);
+  for (let i = 0; i < 260; i++) {
+    const x = X(r.range(-0.07, 0.07)), y = Y(ey + r.range(-0.1, 0.07));
+    g.fillStyle = r() < 0.5 ? C(0.86, 0.12 + r() * 0.1, 6, -6, -6) : C(1.08, 0.08, 10, 6, 4);
+    g.beginPath(); g.arc(x, y, M(0.0002 + r() * 0.0005), 0, Math.PI * 2); g.fill();
+  }
   // ---- eyelids, creases, under-eye
   const eyeW = 0.0128 * (look.face.eyeSize ?? 1);
   const crease = male ? r.range(0.2, 0.7) : r.range(0.4, 0.95);
@@ -121,7 +139,7 @@ export function paintFace(look, t, S = 1024) {
   for (const sd of [-1, 1]) {
     const by = ey + 0.017 + r.range(-0.0015, 0.0015);
     const arch = r.range(0.0015, 0.0035) + (male ? 0 : 0.001);
-    const n = 70 + (male ? 50 : 0);
+    const n = 190 + (male ? 140 : 0);
     for (let i = 0; i < n; i++) {
       const u = r(); // 0 inner .. 1 outer
       const xm = sd * (ex - 0.014 + u * 0.03);
@@ -129,8 +147,8 @@ export function paintFace(look, t, S = 1024) {
       const len = M(0.003 + r() * 0.003);
       const a = -Math.PI / 2 * (1 - u) * 0.6 + (sd > 0 ? -0.15 : Math.PI + 0.15) + (r() - 0.5) * 0.3;
       const x0 = X(xm), y0 = Y(ym);
-      g.strokeStyle = css(...hexToRgb(browCol), browA * (0.25 + r() * 0.35) * (u < 0.15 ? 0.6 : 1));
-      g.lineWidth = M(0.0005 + r() * 0.0005);
+      g.strokeStyle = css(...hexToRgb(browCol), browA * (0.35 + r() * 0.5) * (u < 0.15 ? 0.55 : 1));
+      g.lineWidth = M(0.00022 + r() * 0.0003);
       g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + Math.cos(a) * len, y0 + Math.sin(a) * len * 0.5); g.stroke();
     }
   }
@@ -166,6 +184,19 @@ export function paintFace(look, t, S = 1024) {
   g.fill();
   g.restore();
   blob(mx0, Y(mouthY - loTh * 0.7), M(lipW * 0.4), M(0.0016), C(1.25, 1, 20, 14, 12), 0.22);
+  // vermilion border (light rim above the upper lip) and fine vertical lip lines
+  {
+    const rim = [];
+    for (let i = 0; i <= 24; i++) { const u = i / 24 * 2 - 1; const bow = Math.abs(u) < 0.18 ? 0.62 + Math.abs(u) * 1.2 : 1.05 - (Math.abs(u) - 0.18) * 0.9; rim.push([X(u * lipW), Y(mouthY + upTh * Math.max(0.05, bow) + 0.0004)]); }
+    stroke(rim, C(1.18, 0.35, 16, 12, 10), M(0.0006));
+    g.save(); g.globalAlpha = 0.18; g.strokeStyle = css(90, 40, 36, 1); g.lineWidth = M(0.00018);
+    for (let i = 0; i < 46; i++) {
+      const u = (i / 45) * 2 - 1, x = X(u * lipW * 0.85);
+      const up = r() < 0.5;
+      g.beginPath(); g.moveTo(x, Y(mouthY + (up ? 0.0008 : -0.0008))); g.lineTo(x + M(0.0002) * (r() - 0.5), Y(mouthY + (up ? upTh * 0.7 : -loTh * 0.9) * (1 - u * u))); g.stroke();
+    }
+    g.restore();
+  }
   // mouth line (deepest at the corners)
   const ml = [];
   for (let i = 0; i <= 16; i++) { const u = i / 16 * 2 - 1; ml.push([X(u * lipW * 1.02), Y(mouthY + 0.0004 * (1 - u * u) - Math.abs(u) ** 3 * 0.0006 + look.face.smile * 0.0012 * u * u)]); }
@@ -266,16 +297,6 @@ export function paintFace(look, t, S = 1024) {
   }
   // inside the eye apertures (only seen at the very edges while blinking): moist pink
   for (const sd of [-1, 1]) blob(X(sd * ex), Y(ey), M(0.012), M(0.004), css(170, 110, 100, 1), 0.35);
-  // ---- final soften (painterly)
-  const soft = document.createElement('canvas');
-  soft.width = soft.height = S;
-  const sg2 = soft.getContext('2d');
-  sg2.filter = `blur(${(S / 1024) * 1.2}px)`;
-  sg2.drawImage(cv, 0, 0);
-  g.globalAlpha = 0.6;
-  g.drawImage(soft, 0, 0);
-  g.globalAlpha = 1;
-  pat(noiseTile(5, 16, 61), 0.08, 'overlay', S / 1024);
   void strandTile; void shadeHex;
   return cv;
 }

@@ -39,6 +39,16 @@ export function sharedMaterials() {
   m.plate = paintedMaterial({ map: plateTexture(), roughness: 0.55, brush: 0.3, name: 'taxi_plate' });
   m.cowl = paintedMaterial({ color: 0x151515, roughness: 0.75, map: T('rubber', [6, 2]), name: 'taxi_cowl' });
   m.trunkInside = paintedMaterial({ color: 0x2a2620, roughness: 0.98, map: T('carpet', [3, 3]), side: THREE.BackSide, name: 'taxi_trunkin' });
+  const an = VT.maxAnisotropy();
+  for (const k in m) {
+    for (const slot of ['map', 'normalMap', 'roughnessMap']) {
+      const t = m[k][slot];
+      if (t && t.isTexture && t.anisotropy < an) {
+        t.anisotropy = an;
+        t.needsUpdate = true;
+      }
+    }
+  }
   shared = m;
   return m;
 }
@@ -59,10 +69,10 @@ export function lensMaterials() {
   const tl = VT.taillightTex();
   const tail = paintedMaterial({ map: tl, emissiveMap: tl, emissive: 0xff2a1a, emissiveIntensity: 0, roughness: 0.25, brush: 0.15, name: 'taxi_tail' });
   const reverse = paintedMaterial({ map: tl, emissiveMap: tl, emissive: 0xfff4e6, emissiveIntensity: 0, roughness: 0.25, brush: 0.15, name: 'taxi_reverse' });
-  const indL = paintedMaterial({ map: tl, emissiveMap: tl, emissive: 0xffa21e, emissiveIntensity: 0, roughness: 0.25, brush: 0.15, name: 'taxi_indL' });
-  const indR = indL.clone();
-  indR.name = 'taxi_indR';
-  indR.userData = { ...indL.userData };
+  // separate materials (clone() would drop the painted shader patch)
+  const ind = (name) => paintedMaterial({ map: tl, emissiveMap: tl, emissive: 0xffa21e, emissiveIntensity: 0, roughness: 0.25, brush: 0.15, name });
+  const indL = ind('taxi_indL');
+  const indR = ind('taxi_indR');
   const roofSign = paintedMaterial({ map: VT.roofSignTex(), emissiveMap: VT.roofSignTex(), emissive: 0xfff2d8, emissiveIntensity: 0, roughness: 0.4, brush: 0.2, name: 'taxi_roofsign' });
   const vacant = paintedMaterial({ map: VT.vacantTex(), emissiveMap: VT.vacantTex(), emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.3, brush: 0.1, name: 'taxi_vacant' });
   return { head, tail, reverse, indL, indR, roofSign, vacant };

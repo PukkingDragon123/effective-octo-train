@@ -433,11 +433,6 @@ void main() {
 }
 `;
 
-const _quad = (() => {
-  const g = new THREE.PlaneGeometry(1, 1);
-  return g;
-})();
-
 class Emitter {
   constructor(sys, type, opts) {
     const def = TYPES[type];
@@ -460,10 +455,13 @@ class Emitter {
       s1[i] = rng();
       s2[i] = rng();
     }
+    // own quad buffers per emitter: disposing one emitter must not free GL buffers that
+    // other emitters still use
+    const quad = new THREE.PlaneGeometry(1, 1);
     const g = new THREE.InstancedBufferGeometry();
-    g.index = _quad.index;
-    g.setAttribute('position', _quad.getAttribute('position'));
-    g.setAttribute('uv', _quad.getAttribute('uv'));
+    g.index = quad.index;
+    g.setAttribute('position', quad.getAttribute('position'));
+    g.setAttribute('uv', quad.getAttribute('uv'));
     g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(s1, 4));
     g.setAttribute('aSeed2', new THREE.InstancedBufferAttribute(s2, 4));
     g.instanceCount = this.capacity;

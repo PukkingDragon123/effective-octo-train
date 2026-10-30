@@ -85,7 +85,7 @@ export class HumanoidGLB {
     const U = (this.U = makeCharUniforms(t));
     U.uFat.value = (look.build - 0.42) * 0.05;
     const akey = atlasKey(look);
-    this._atlas = getAtlas(look, akey, 1024);
+    this._atlas = getAtlas(look, akey, look.quality >= 0.75 ? 2048 : 1024);
     this._faceTex = getFaceTexture(look, t, akey, 1024);
     U.uFaceMap.value = this._faceTex.tex;
     U.uMaskMap.value = this._atlas.mask;

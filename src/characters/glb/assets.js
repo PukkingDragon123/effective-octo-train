@@ -240,12 +240,45 @@ async function loadTemplate(sex, anims) {
   }
   computeRestWorld(t);
   t.boneInverses = names.map((_, i) => new THREE.Matrix4().compose(t.Gp[i], t.Gq[i], new THREE.Vector3(1, 1, 1)).invert());
+  // the face above the jaw belongs to the skull: move neck weights to the Head bone there
+  // (otherwise any head/neck bend lets the lid skin drift off the head-rigid eyeballs)
+  for (const k of ['body_hi', 'body_lo']) skullWeights(t.geos[k], t);
   // face-detail subdivision of the hi body (eyes, mouth, nose region)
   t.geos.body_hi = subdivideRegion(t.geos.body_hi, (p) => faceWeight(t, p), 2);
   // ---- clips
   t.clips = retargetClips(anims, t);
   return t;
 }
+
+function skullWeights(g, t) {
+  const pos = g.attributes.position, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+  const iH = t.index.Head, iN = t.index.neck_01;
+  const hy = t.Gp[iH].y, hz = t.Gp[iH].z;
+  for (let v = 0; v < pos.count; v++) {
+    const y = pos.getY(v), z = pos.getZ(v);
+    // front of the face: from just under the mouth up; back of the skull: above the head joint
+    const f = z > hz + 0.03 ? smooth(t.face.chinY - 0.005, t.face.mouth.y - 0.004, y) : smooth(hy + 0.0, hy + 0.04, y);
+    if (f <= 0) continue;
+    let wN = 0, kH = -1;
+    for (let k = 0; k < 4; k++) { const b = si.getComponent(v, k); if (b === iN) wN += sw.getComponent(v, k); if (b === iH) kH = k; }
+    if (wN <= 0) continue;
+    const move = wN * f;
+    for (let k = 0; k < 4; k++) if (si.getComponent(v, k) === iN) sw.setComponent(v, k, sw.getComponent(v, k) * (1 - f));
+    if (kH >= 0) sw.setComponent(v, kH, sw.getComponent(v, kH) + move);
+    else {
+      // replace the smallest influence with the Head bone
+      let km = 0;
+      for (let k = 1; k < 4; k++) if (sw.getComponent(v, k) < sw.getComponent(v, km)) km = k;
+      const lost = sw.getComponent(v, km);
+      si.setComponent(v, km, iH);
+      sw.setComponent(v, km, move + lost * 0);
+    }
+    let s = 0;
+    for (let k = 0; k < 4; k++) s += sw.getComponent(v, k);
+    for (let k = 0; k < 4; k++) sw.setComponent(v, k, sw.getComponent(v, k) / (s || 1));
+  }
+}
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 function computeRestWorld(t) {
   const n = t.names.length;
@@ -297,30 +330,30 @@ function measureFace(t) {
     eyeSurfaceZ: castZ(e.x, e.y),
     profile: [],
   };
-  // vertical profile at x=0 from chin to brow: find nose tip (max z) and mouth (concavity below nose)
+  // vertical profiles (x = 0 and 1 cm off-centre) below the eyes
   const prof = [];
-  for (let y = e.y + 0.05; y > e.y - 0.13; y -= 0.002) prof.push([y, castZ(0, y), castZ(0.012, y)]);
+  for (let y = e.y - 0.02; y > e.y - 0.14; y -= 0.0015) prof.push([y, castZ(0.0005, y), castZ(0.01, y)]);
   t.face.profile = prof;
   let nose = prof[0];
-  for (const r of prof) if (r[0] < e.y - 0.01 && r[0] > e.y - 0.07 && r[1] > nose[1]) nose = r;
+  for (const r of prof) if (r[0] < e.y - 0.02 && r[0] > e.y - 0.07 && r[1] > nose[1]) nose = r;
   t.face.noseTip = new THREE.Vector3(0, nose[0], nose[1]);
-  // lips: the most forward point between nose base and chin, mouth line = deepest crease between lips
-  const below = prof.filter((r) => r[0] < nose[0] - 0.012 && r[0] > nose[0] - 0.075);
-  let lipTop = null, lipBot = null;
-  // upper lip = first local max of z below the nose base, lower lip = next local max
-  const maxima = [];
-  for (let i = 1; i < below.length - 1; i++) if (below[i][1] >= below[i - 1][1] && below[i][1] >= below[i + 1][1]) maxima.push(below[i]);
-  if (maxima.length >= 2) { lipTop = maxima[0]; lipBot = maxima[1]; }
-  else if (maxima.length === 1) { lipTop = maxima[0]; lipBot = [maxima[0][0] - 0.01, maxima[0][1]]; }
-  else { lipTop = [nose[0] - 0.022, nose[1] - 0.012]; lipBot = [nose[0] - 0.034, nose[1] - 0.016]; }
-  let crease = lipTop;
-  for (const r of below) if (r[0] < lipTop[0] && r[0] > lipBot[0] && r[1] < crease[1]) crease = r;
-  if (crease === lipTop) crease = [(lipTop[0] + lipBot[0]) / 2, Math.min(lipTop[1], lipBot[1])];
-  t.face.mouth = new THREE.Vector3(0, crease[0], Math.max(lipTop[1], lipBot[1]));
+  // subnasal: first local minimum below the tip; upper lip: next local maximum
+  const below = prof.filter((r) => r[0] < nose[0] - 0.004);
+  let i = 1;
+  while (i < below.length - 1 && !(below[i][1] <= below[i - 1][1] && below[i][1] <= below[i + 1][1])) i++;
+  while (i < below.length - 1 && !(below[i][1] >= below[i - 1][1] && below[i][1] >= below[i + 1][1])) i++;
+  const lipTop = below[Math.min(i, below.length - 1)];
+  // mouth line: deepest crease (centre + off-centre profiles) 2..16 mm under the upper lip
+  let crease = null;
+  for (const r of below) if (r[0] < lipTop[0] - 0.002 && r[0] > lipTop[0] - 0.016 && (!crease || r[1] + r[2] < crease[1] + crease[2])) crease = r;
+  if (!crease) crease = [lipTop[0] - 0.008, lipTop[1] - 0.004, 0];
+  t.face.mouth = new THREE.Vector3(0, crease[0], lipTop[1]);
   t.face.lipTop = lipTop[0];
-  t.face.lipBot = lipBot[0];
-  // chin: lowest point with z > mouth z - 0.03 near x=0
-  t.face.chinY = t.face.mouth.y - 0.045;
+  // chin: where the front surface falls away under the jaw
+  let chinY = crease[0] - 0.045;
+  for (const r of below) if (r[0] < crease[0] - 0.02 && r[1] < lipTop[1] - 0.03) { chinY = r[0] + 0.01; break; }
+  t.face.chinY = chinY;
+  t.face.lipBot = crease[0] - 0.006;
 }
 
 /** Load and prepare the GLB character assets once. Resolves to TEMPLATES ({m, f}). */

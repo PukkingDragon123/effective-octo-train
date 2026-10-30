@@ -17,6 +17,9 @@ import { clamp, lerp } from '../core/math.js';
 import { glassDirtTex, makeCanvas, toTexture } from './VehicleTextures.js';
 import { setupPortalCamera } from './Mirrors.js';
 import { FONTS } from '../ui/fonts.js';
+import { DIM, belt } from './TaxiBody.js';
+
+const _plane = new THREE.Plane();
 
 const GLASS_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -54,6 +57,8 @@ uniform vec3 uTint;
 uniform float uSeed;
 uniform vec3 uFogCol;
 uniform float uFogDen;
+uniform vec4 uClip;
+uniform float uClipOn;
 varying vec2 vUv;
 varying vec2 vM;
 varying vec3 vWP;
@@ -124,6 +129,8 @@ vec4 runners(vec2 uv, float t, float amount, float seed) {
 }
 
 void main() {
+  // door glass: the part wound down inside the door (below the belt line) is never visible
+  if (uClipOn > 0.5 && dot(uClip.xyz, vWP) + uClip.w < 0.0) discard;
   vec4 mask = texture2D(tMask, vM);
   float rainCov = clamp(uRain * mask.r, 0.0, 1.0);
   // flow-aligned frame: drops travel along uFlow
@@ -298,7 +305,17 @@ class Pane {
       uSeed: { value: (id.charCodeAt(0) * 7 + id.length * 13) % 97 },
       uFogCol: GLOBAL_UNIFORMS.uFogColor,
       uFogDen: GLOBAL_UNIFORMS.uFogDensity,
+      uClip: { value: new THREE.Vector4() },
+      uClipOn: { value: 0 },
     };
+    // body-space clip plane at the belt line for the winding door glass (normal up, slight slope)
+    this.clip = null;
+    if (spec.slide) {
+      const slope = (DIM.belt1 - DIM.belt0) / (DIM.zParcel - DIM.zCowl);
+      const n = new THREE.Vector3(0, 1, -slope).normalize();
+      this.clip = new THREE.Plane().setFromNormalAndCoplanarPoint(n, new THREE.Vector3(0, belt(0) + 0.002, 0));
+      this.uniforms.uClipOn.value = 1;
+    }
     this.material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
       vertexShader: GLASS_VERT,
@@ -677,6 +694,17 @@ export class GlassSystem {
         p.material.transparent = !has;
         p.material.depthWrite = has;
         p.material.needsUpdate = true;
+      }
+    }
+    // belt-line clip planes follow the body (doors only rotate about vertical hinges)
+    const body = this.taxi.bodyInner;
+    if (body) {
+      body.updateWorldMatrix(true, false);
+      for (const id of this.ids) {
+        const p = this.panes[id];
+        if (!p.clip) continue;
+        _plane.copy(p.clip).applyMatrix4(body.matrixWorld);
+        p.uniforms.uClip.value.set(_plane.normal.x, _plane.normal.y, _plane.normal.z, _plane.constant);
       }
     }
     this._sweepWipers(dt);

@@ -155,7 +155,9 @@ export class Painter {
     if (w <= 0 || h <= 0) return;
     g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
     const p = g.createPattern(tileCv, 'repeat');
-    p.setTransform(new DOMMatrix().translate(x, y).rotate(rot).scale(scale, scale));
+    // pattern texels map ~1:1 to canvas pixels at any atlas resolution (crisp weave / grain)
+    const ns = scale * (ATLAS / this.S) * (this.S > ATLAS ? 1.4 : 1);
+    p.setTransform(new DOMMatrix().translate(x, y).rotate(rot).scale(ns, ns));
     g.globalCompositeOperation = mode; g.globalAlpha = alpha; g.fillStyle = p; g.fillRect(x, y, w, h);
     g.restore();
   }

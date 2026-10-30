@@ -279,12 +279,19 @@ comes from hand-painted texture brushwork, fine modelled detail and colour gradi
   dipterocarps, banyans with aerial roots and strangler figs), bamboo clumps, banana
   plants, ferns, tall grass, hanging vines, branches over the road. You can't see far
   past the headlights.
+* **Trees like reference 6** (`refs/6.jpg`): slender multi-stem trunks forking low, long
+  reaching branches, dense masses of small, individually readable leaves, pale green where
+  the headlights hit and near-black behind. Foliage mixes **3D branches with hand-painted 2D
+  leaf-cluster cards** (crisp alpha, translucency, per-card flutter) and **2D painted
+  silhouette flats** layered in the fog like a stage set. **Banana plants** are a hero
+  species: big torn, ribbed, drooping blades, dead hanging leaves, and banana flowers.
+  Falling leaves, spores and insects drift through the headlight beams.
 * Thai details everywhere: spirit houses (ศาลพระภูมิ) with red soda bottles, zebra
   figurines and garlands; Thai-Chinese shrines; sacred trees wrapped in tri-coloured
   cloth (ผ้าสามสี); KM markers; convex traffic mirrors at curves; tangled electrical
   wires on crooked concrete poles; old faded signs; ศาลา with cracked benches, dusty
   plastic chairs and old posters.
-* References: `docs/references.md` (the five images the brief came with: mossy
+* References: `docs/references.md` (the images supplied with the brief: mossy
   pavilion and well; golden shrine in night mist from a car; night forest drive with a
   masked passenger in the mirror; woman in white beside a delineator-lit guardrail;
   a cluttered lived-in Thai room for Ah Kong's garage).

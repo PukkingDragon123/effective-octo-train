@@ -4,6 +4,26 @@
 import * as THREE from 'three';
 import { makeRng, noise, clamp, lerp } from '../core/math.js';
 import { FONTS } from '../ui/fonts.js';
+import { engine } from '../core/Engine.js';
+
+/** Highest anisotropic filtering level the GPU offers (vehicle textures are seen at grazing angles). */
+export function maxAnisotropy() {
+  try {
+    return Math.max(4, engine.renderer?.capabilities?.getMaxAnisotropy?.() || 8);
+  } catch (e) {
+    return 8;
+  }
+}
+/** Supersampling factor for small painted details the player looks at all game (gauges, stickers, meter). */
+export const HI = 2;
+/** Canvas of w*k x h*k pixels whose 2D context is pre-scaled, so painters keep drawing in w x h units. */
+export function hiCanvas(w, h, k = HI) {
+  const c = makeCanvas(Math.round(w * k), Math.round(h * k));
+  const g = c.getContext('2d');
+  g.setTransform(k, 0, 0, k, 0, 0);
+  g.imageSmoothingQuality = 'high';
+  return [c, g];
+}
 
 export const PAINT = {
   green: [46, 104, 64],
@@ -28,7 +48,7 @@ export function toTexture(c, opts = {}) {
   const t = new THREE.CanvasTexture(c);
   if (opts.srgb !== false) t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = opts.wrap ?? THREE.ClampToEdgeWrapping;
-  t.anisotropy = opts.anisotropy ?? 4;
+  t.anisotropy = opts.anisotropy ?? maxAnisotropy();
   if (opts.repeat) t.repeat.set(opts.repeat[0], opts.repeat[1]);
   if (opts.nearest) t.magFilter = THREE.NearestFilter;
   t.needsUpdate = true;
@@ -588,8 +608,7 @@ function cached(key, fn) {
 export function headlightTex() {
   return cached('headlight', () => {
     const w = 256, h = 96;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(w, h);
     const grd = g.createRadialGradient(w * 0.5, h * 0.5, 4, w * 0.5, h * 0.5, w * 0.55);
     grd.addColorStop(0, '#f4f0e4');
     grd.addColorStop(0.35, '#b8b6ae');
@@ -674,8 +693,7 @@ export function taillightMaskTex() {
 export function roofSignTex() {
   return cached('roofsign', () => {
     const w = 512, h = 128;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(w, h);
     const grd = g.createLinearGradient(0, 0, 0, h);
     grd.addColorStop(0, '#f6efd2');
     grd.addColorStop(1, '#e6d9ae');
@@ -701,8 +719,7 @@ export function roofSignTex() {
 export function vacantTex() {
   return cached('vacant', () => {
     const w = 256, h = 128;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(w, h);
     g.fillStyle = '#2a0504';
     g.fillRect(0, 0, w, h);
     const grd = g.createRadialGradient(w / 2, h / 2, 5, w / 2, h / 2, w * 0.6);
@@ -723,8 +740,7 @@ export function vacantTex() {
 export function gaugeTex(kind, lit = false) {
   return cached(`gauge:${kind}:${lit}`, () => {
     const S = 256;
-    const c = makeCanvas(S, S);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(S, S);
     const cx = S / 2, cy = S / 2, R = S * 0.47;
     if (lit) {
       g.fillStyle = '#000';
@@ -823,8 +839,7 @@ export function gaugeTex(kind, lit = false) {
 export function radioFaceTex() {
   return cached('radioFace', () => {
     const w = 512, h = 144;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(w, h);
     const grd = g.createLinearGradient(0, 0, 0, h);
     grd.addColorStop(0, '#3a3b3d');
     grd.addColorStop(1, '#1c1d1f');
@@ -877,8 +892,12 @@ export function radioFaceTex() {
 
 /** A dynamic canvas texture with a redraw(fn) helper. */
 export class DynamicCanvas {
+  /** opts.scale: supersampling (the draw callback still receives w x h logical units). */
   constructor(w, h, opts = {}) {
-    this.canvas = makeCanvas(w, h);
+    this.w = w;
+    this.h = h;
+    this.scale = opts.scale ?? 1;
+    this.canvas = makeCanvas(Math.round(w * this.scale), Math.round(h * this.scale));
     this.g = this.canvas.getContext('2d');
     this.texture = toTexture(this.canvas, opts);
     this.key = '';
@@ -886,17 +905,68 @@ export class DynamicCanvas {
   draw(key, fn) {
     if (key === this.key) return;
     this.key = key;
-    fn(this.g, this.canvas.width, this.canvas.height);
+    this.g.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+    fn(this.g, this.w, this.h);
     this.texture.needsUpdate = true;
   }
+}
+
+/**
+ * Seat seam: a pressed groove with two rows of slightly irregular thread stitches (u along
+ * the seam, 1 u = 4 cm; v across). RGBA (alpha outside the seam).
+ */
+export function stitchTex() {
+  return cached('stitch', () => {
+    const w = 128, h = 32;
+    const [c, g] = hiCanvas(w, h, 4);
+    g.clearRect(0, 0, w, h);
+    // groove: soft dark valley with a lit lip
+    const grd = g.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, 'rgba(0,0,0,0)');
+    grd.addColorStop(0.3, 'rgba(255,240,215,0.10)');
+    grd.addColorStop(0.44, 'rgba(10,6,4,0.55)');
+    grd.addColorStop(0.5, 'rgba(0,0,0,0.75)');
+    grd.addColorStop(0.56, 'rgba(10,6,4,0.55)');
+    grd.addColorStop(0.7, 'rgba(255,240,215,0.08)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, w, h);
+    const rng = makeRng(77);
+    for (const row of [0.22, 0.78]) {
+      for (let x = 2; x < w; x += 8) {
+        const y = h * row + rng.range(-0.5, 0.5);
+        const len = 5 + rng.range(-0.6, 0.6);
+        // thread: dark hole shadow, then the thread with a highlight
+        g.lineCap = 'round';
+        g.strokeStyle = 'rgba(0,0,0,0.5)';
+        g.lineWidth = 2.2;
+        g.beginPath();
+        g.moveTo(x, y + 0.5);
+        g.lineTo(x + len, y + 0.5);
+        g.stroke();
+        g.strokeStyle = 'rgba(184,166,134,0.92)';
+        g.lineWidth = 1.4;
+        g.beginPath();
+        g.moveTo(x, y);
+        g.lineTo(x + len, y);
+        g.stroke();
+        g.strokeStyle = 'rgba(255,248,230,0.6)';
+        g.lineWidth = 0.5;
+        g.beginPath();
+        g.moveTo(x + 0.8, y - 0.35);
+        g.lineTo(x + len - 0.8, y - 0.35);
+        g.stroke();
+      }
+    }
+    return toTexture(c, { wrap: THREE.RepeatWrapping });
+  });
 }
 
 /** Painted photo of a child (the memory in the sun visor). */
 export function childPhotoTex() {
   return cached('childPhoto', () => {
     const w = 192, h = 256;
-    const c = makeCanvas(w, h);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(w, h);
     g.fillStyle = '#efe6d2';
     g.fillRect(0, 0, w, h);
     // photo area
@@ -976,8 +1046,7 @@ export function childPhotoTex() {
 export function stickerTex(variant) {
   return cached('sticker:' + variant, () => {
     const S = 256;
-    const c = makeCanvas(S, S);
-    const g = c.getContext('2d');
+    const [c, g] = hiCanvas(S, S);
     g.clearRect(0, 0, S, S);
     if (variant === 'cartoon') {
       // faded round sticker: a cheerful little blue elephant waving
