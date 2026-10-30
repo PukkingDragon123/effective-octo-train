@@ -34,6 +34,7 @@ export const RIDE_BOY_M = {
   wrongAftermath: 'reflectionStays',
   deathOnWrong: 'dragBack',
   memoryHooks: [],
+  pacing: { cruiseKmh: 40, minSeconds: 150, stretch: 'none' },
   dialogue: {
     hail: [P('รอด้วยครับ...', 'Wait for me...', { tone: 'whisper' })],
     greet: [
@@ -94,6 +95,7 @@ export const RIDE_BOY_M = {
             { key: 'driving', th: 'พี่ขับรถอยู่ไง', en: "I'm driving, kiddo." },
             { key: 'silent', th: '(เงียบ)', en: '(say nothing)' },
           ], {
+            id: 'boyM_turnAround',
             timeout: 7,
             branches: {
               driving: [P('อ๋อ จริงด้วย ขับรถต้องมองถนน ครูบอก', 'Oh, right. When you drive you watch the road. Teacher said.', { emotion: 'smile' })],
@@ -117,6 +119,7 @@ export const RIDE_BOY_M = {
       },
       {
         id: 'tellMum',
+        essential: true,
         trigger: { type: 'progress', at: 0.84 },
         lines: [
           P('พี่ครับ ถ้าเจอแม่ผม บอกแม่ด้วยนะครับ...', 'Mister, if you ever see my mum, tell her...', { emotion: 'sad' }),

@@ -32,6 +32,7 @@ export const RIDE_PIAK = {
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: ['m_noodle'],
+  pacing: { cruiseKmh: 45, minSeconds: 140, stretch: 'none' },
   dialogue: {
     hail: [
       P('เฮ้ย! แท็กซี่! หยุด ๆ ๆ', 'Oi! Taxi! Stop, stop, stop!', { tone: 'shout', action: 'hail' }),
@@ -50,7 +51,7 @@ export const RIDE_PIAK = {
         id: 'song1',
         trigger: { type: 'progress', at: 0.05 },
         lines: [
-          P('♪ น้ำตาลูกทุ่ง ไหลลงท้องนา... ♪', '♪ Country tears, flowing down the paddy... ♪', { tone: 'sing', action: 'sing' }),
+          P('♪ น้ำตาหยดลง... กลางท้องนา... ♪', '♪ My tears fall down... into the paddy... ♪', { tone: 'sing', action: 'sing' }),
           P('ร้องเพราะไหมไอ้หนู ลุงเคยประกวดได้ที่สามนะ', 'Sounds good, eh, kid? I came third in a contest once.', { emotion: 'smile' }),
           P('...จากสามคน', '...out of three.', { pause: 0.5 }),
         ],
@@ -83,6 +84,7 @@ export const RIDE_PIAK = {
       },
       {
         id: 'sleep',
+        essential: true, // he must be asleep before the knocks (rule 5 at 0.62)
         trigger: { type: 'progress', at: 0.48 },
         lines: [
           P('ง่วงแล้ว... ขอลุงหลับแป๊บนะ', 'Sleepy... gonna rest my eyes a bit.', { action: 'sleep' }),
@@ -152,7 +154,7 @@ export const RIDE_PIAK = {
     ],
     idle: [
       P('อึก!', 'Hic!'),
-      P('♪ ลาก่อนบ้านนา ลาก่อนควายเผือก... ♪', '♪ Farewell my paddy, farewell my white buffalo... ♪', { tone: 'sing' }),
+      P('♪ ลาก่อนเด้อ... ควายเผือกของพี่... ♪', '♪ Farewell, my dear... my white buffalo... ♪', { tone: 'sing' }),
       P('ตอนหนุ่ม ๆ ลุงขับสิบล้อนะ รู้ไหม', 'When I was young I drove ten-wheelers, you know.'),
       P('ป้าเล็กแกใจดีนะ ให้ลุงกินก๋วยเตี๋ยวฟรี', 'Auntie Lek is kind, though. Gives me noodles for free.'),
     ],

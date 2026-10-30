@@ -32,6 +32,7 @@ export const RIDE_NUAN = {
   ],
   deathOnWrong: 'windowAttack',
   memoryHooks: [],
+  pacing: { cruiseKmh: 40, minSeconds: 140, stretch: 'none' },
   dialogue: {
     hail: [P('แวะรับฉันหน่อยได้ไหมจ๊ะ', 'Would you stop for me?', { tone: 'whisper', action: 'hail' })],
     greet: [
@@ -74,6 +75,7 @@ export const RIDE_NUAN = {
       },
       {
         id: 'promise',
+        essential: true,
         trigger: { type: 'progress', at: 0.38 },
         lines: [
           P('ฉันรอคนคนหนึ่งอยู่ใต้ต้นกล้วยมานานแล้ว', "I've waited under the banana tree for someone, a long time.", { emotion: 'sad' }),
@@ -130,7 +132,7 @@ export const RIDE_NUAN = {
       P('หน้าต่างทุกบาน... มีพวกเราอยู่', 'Every window... has one of us.', { tone: 'ghost', emotion: 'creepy' }),
     ],
     idle: [
-      P('ฮือ... ฮือ... ฮือ...', 'Hm... hm... hmm...', { tone: 'sing' }),
+      P('ฮึม... ฮึม ฮึ... ฮึม...', 'Hm... hm-hm... hmm...', { tone: 'sing' }),
       P('ลมพัดใบกล้วยดังเหมือนคนกระซิบนะ', 'The wind in the banana leaves sounds like whispering.'),
       P('เธอทำงานกลางคืนทุกคืนเลยหรือจ๊ะ', 'Do you work every night?'),
       P('ดอกกล้วยบานตอนกลางคืน ไม่มีใครเห็นหรอก', 'Banana flowers open at night. Nobody ever sees.'),

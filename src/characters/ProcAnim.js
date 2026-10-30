@@ -120,7 +120,7 @@ export class Animator {
     this.breath += dt * TAU * 0.24 * breathRate(this.mode);
     this.shift += dt * 0.11;
     // gait phase
-    if (this.mode === 'walk' || this.mode === 'run') {
+    if (this.mode === 'walk' || this.mode === 'run' || this.mode === 'crawl' || this.mode === 'ceiling' || this.mode === 'sprint') {
       const v = Math.max(this.speed, this.opts.speed ?? 0);
       const g = this.gaitParams(this.mode === 'run' ? (this.gait === 'sprint' ? 'sprint' : 'run') : this.gait);
       const stride = g.stride * (0.55 + 0.45 * clamp(v / g.speed, 0, 1.6));
