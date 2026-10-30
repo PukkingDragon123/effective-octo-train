@@ -115,7 +115,9 @@ export function bloodDecalMaterial(opts = {}) {
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\n' + DECAL_FRAG_PARS)
         .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n' + DECAL_SHAPE)
-        .replace('#include <lights_physical_fragment>', DECAL_ROUGH + '\n#include <lights_physical_fragment>');
+        .replace('#include <lights_physical_fragment>', DECAL_ROUGH + '\n#include <lights_physical_fragment>')
+        // headlight fill: the crimson still reads at grazing angles in the beam
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * dlbHeadlightColor * (dlbHeadlightAt(vDlbWP) * 22.0);');
     },
   });
   Object.assign(m.userData.uniforms, extra);

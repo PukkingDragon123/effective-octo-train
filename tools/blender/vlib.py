@@ -854,7 +854,7 @@ def boundary_loops(bm):
 
 
 def roll_edges(ob, radius=0.0015, depth=0.006, segs=3, mat_index=None, normal_src=None, select=None,
-               depth_fn=None, radius_fn=None):
+               depth_fn=None, radius_fn=None, vsel=None):
     """Turn every open boundary of a sheet into a rounded rolled edge + flange
     going 'behind' the surface (along -normal). normal_src: BVHTree of a smooth
     master surface for stable normals. select(co)->bool limits which loops."""
@@ -900,6 +900,9 @@ def roll_edges(ob, radius=0.0015, depth=0.006, segs=3, mat_index=None, normal_sr
             out.append(o)
         rings = []
         for i, v in enumerate(loop):
+            if vsel is not None and not vsel(v.co):
+                rings.append(None)
+                continue
             r = radius_fn(v.co) if radius_fn else radius
             dpt = depth_fn(v.co) if depth_fn else depth
             c = v.co - nrm[i] * r
@@ -913,9 +916,18 @@ def roll_edges(ob, radius=0.0015, depth=0.006, segs=3, mat_index=None, normal_sr
         m = n if closed else n - 1
         for i in range(m):
             j = (i + 1) % n
+            mi = None
+            for e in loop[i].link_edges:
+                if e.other_vert(loop[i]) is loop[j] and e.link_faces:
+                    mi = e.link_faces[0].material_index
+                    break
+            if rings[i] is None or rings[j] is None:
+                continue
             for k in range(len(rings[i]) - 1):
                 try:
                     f = bm.faces.new((rings[i][k], rings[i][k + 1], rings[j][k + 1], rings[j][k]))
+                    if mi is not None:
+                        f.material_index = mi
                     newfaces.append(f)
                 except ValueError:
                     pass

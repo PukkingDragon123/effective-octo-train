@@ -375,6 +375,7 @@ export function createShrineMaRuay(opts = {}) {
     if (mst) card(k, mst.kind, mst.opts, { p: [0.62, at + 0.12, az + 0.22 + 0.056], r: [0, 0, 0.04], w: 0.05, bend: 0.005, seed: 3, wt: false });
     // brass offering pot on the altar + the caretaker's tea corner inside the hall (CC0 models)
     useAsset(k, 'brass_pot_01', { p: [-0.35, at, az - 0.1], r: 0.4 }, { fit: { w: 0.2 }, w: false });
+    useAsset(k, 'brass_vase_01', { p: [0.35, at, az - 0.12], r: -0.4 }, { fit: { h: 0.26 }, w: false });
     if (useAsset(k, 'chinese_tea_table', { p: [HW / 2 - 0.9, y0, hz + 0.7], r: -0.3 }, { fit: { h: 0.45 }, w: { dust: 0.4, grime: 0.3 } })) {
       useAsset(k, 'chinese_stool', { p: [HW / 2 - 0.9 - 0.62, y0, hz + 0.95], r: 1.2 }, { fit: { h: 0.42 }, w: { dust: 0.3, grime: 0.3 } });
       teacup(k, { p: [HW / 2 - 0.95, y0 + 0.45, hz + 0.7] });

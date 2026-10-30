@@ -205,7 +205,7 @@ export function createElectricPole(opts = {}) {
   for (let y = H * 0.35; y < H - 0.3; y += 0.3 + rng() * 0.06) {
     const t = y / H, sc = 1 + (top / base - 1) * t;
     const zf = (base * 0.425 - 0.028) * sc;
-    for (const s of [-1, 1]) k.add(mat('dark'), G('hole2', () => cyl(0.014, 0.014, 0.012, 8, 0.002).rotateX(Math.PI / 2)), { p: [bend * t * t, y, s * (zf + 0.002)], color: 0x0e0d0c, w: false });
+    for (const s of [-1, 1]) k.add(mat('dark'), G('hole3', () => cyl(0.014, 0.014, 0.012, 8, 0.002).rotateX(Math.PI / 2).translate(0, 0, -0.006)), { p: [bend * t * t, y, s * zf], color: 0x0e0d0c, w: false });
   }
   k.add(mat('concrete'), G('poleCap:' + top, () => bevelBox(top * 1.02, 0.05, top * 0.87, 0.012, 0.2, 2, { bottom: true })), { p: [bend, H - 0.01, 0], color: 0xa8a294, w: { moss: 0.8, streak: 0.3 } });
   k.pop();

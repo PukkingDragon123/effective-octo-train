@@ -186,6 +186,13 @@ export function createNoodleStall(opts = {}) {
     trashBag(k, { p: [-2.6, 0, -1.5], s: 0.7 });
     k.add(mat('plastic'), G('bucketN', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [-1.75, 0, -1.4], color: 0x2a8a9a, w: { grime: 0.5 } });
     k.add(mat('cloth_static'), G('dogmat', () => bevelBox(0.7, 0.03, 0.5, 0.015, 0.1)), { p: [2.3, 0, 0.6], r: 0.3, color: 0x6a5a48, jitter: 0.01, jitterFreq: 12, w: { grime: 0.4 } });
+    // prep: cutting board + limes on the counter end, an enamel pot, drinking-water gallons
+    k.at([-0.4, 0, cz], 0, null, () => {
+      useAsset(k, 'wooden_cutting_board', { p: [0.72, 0.87, 0.18], r: 0.2 }, { fit: { w: 0.32 }, w: { grime: 0.2 } });
+      for (let i = 0; i < 4; i++) useAsset(k, 'food_lime_01', { p: [0.68 + (rng() - 0.5) * 0.12, 0.9, 0.12 + (rng() - 0.5) * 0.08], r: rng() * 6 }, { w: false });
+      useAsset(k, 'pot_enamel_01', { p: [1.0, 0.0, -0.58], r: 0.4 }, { fit: { h: 0.22 }, w: { grime: 0.4 } });
+      for (let i = 0; i < 2; i++) useAsset(k, 'plastic_bottle_gallon', { p: [-1.35 + i * 0.28, 0, -0.35], r: rng() * 6 }, { fit: { h: 0.32 }, w: { grime: 0.3 } });
+    });
     // wicker baskets of greens / limes on a crate, a big glazed pot of pickled chillies
     useAsset(k, 'wicker_basket_02', { p: [2.4, 0.6, -1.6], r: 0.5 }, { fit: { w: 0.4 }, w: { grime: 0.2 } });
     useAsset(k, 'wicker_basket_01', { p: [0.95, 0.0, -1.75], r: -0.3 }, { fit: { w: 0.42 }, w: { grime: 0.3 } });
@@ -502,7 +509,8 @@ export function createSignPost(kind, opts = {}) {
       const plate = { color: 0x8a8a84, w: { streak: 0.6, grime: 0.2, vary: 0.25 } };
       if (shape === 'circle') {
         const r = Math.min(fw, fh) * 0.49;
-        k.add(mat('metal'), G('discback:' + r.toFixed(3), () => cyl(r * 0.985, r * 0.985, 0.012, 32, 0.003).rotateX(Math.PI / 2)), { p: [0, 0, -0.009], ...plate });
+        // (cyl is bottom-origin: after the X rotation it spans z 0..0.012, so sit it fully behind the face)
+        k.add(mat('metal'), G('discback:' + r.toFixed(3), () => cyl(r * 0.985, r * 0.985, 0.012, 32, 0.003).rotateX(Math.PI / 2)), { p: [0, 0, -0.015], ...plate });
       } else {
         // diamond plate (+ sub plate for 'diamond_plate'): square side = half-diagonal * sqrt2
         const sq = fw;

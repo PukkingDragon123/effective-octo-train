@@ -151,6 +151,9 @@ def fbm(size, scale=8.0, octaves=5, seed=0, beta=1.0, aniso=(1.0, 1.0)):
     """Perfectly tileable fractal noise in [0,1] via FFT-filtered white noise.
     scale ~ number of features across the tile; aniso stretches (u, v) frequency."""
     w, h = (size, size) if isinstance(size, int) else size
+    if isinstance(scale, (tuple, list)):  # (features across u, features across v)
+        su, sv = scale
+        scale, aniso = su, (1.0, sv / su)
     rng = np.random.default_rng(seed)
     wn = rng.standard_normal((h, w)).astype(np.float32)
     F = np.fft.rfft2(wn)

@@ -62,6 +62,23 @@ export const PROP_ASSETS = {
   handsaw_wood: { shadows: false },
   metal_tool_chest: {},
   oil_tin: { shadows: false },
+  // from the shared Poly Haven bundle (public/assets/props/polyhaven/, credits docs/credits/polyhaven.md);
+  // ids that also exist above keep our smaller copies
+  tire_pump: { path: 'polyhaven/tire_pump.glb' },
+  rusted_wheel_rim_01: { path: 'polyhaven/rusted_wheel_rim_01.glb' },
+  small_oil_can_01: { path: 'polyhaven/small_oil_can_01.glb', shadows: false },
+  screwdrivers_02: { path: 'polyhaven/screwdrivers_02.glb', shadows: false },
+  pliers: { path: 'polyhaven/pliers.glb', shadows: false },
+  adjustable_wrench: { path: 'polyhaven/adjustable_wrench.glb', shadows: false },
+  vintage_electric_kettle: { path: 'polyhaven/vintage_electric_kettle.glb' },
+  metal_toolbox: { path: 'polyhaven/metal_toolbox.glb' },
+  metal_jerrycan: { path: 'polyhaven/metal_jerrycan.glb' },
+  carved_wooden_elephant: { path: 'polyhaven/carved_wooden_elephant.glb', shadows: false },
+  brass_vase_01: { path: 'polyhaven/brass_vase_01.glb', shadows: false },
+  food_lime_01: { path: 'polyhaven/food_lime_01.glb', shadows: false },
+  wooden_cutting_board: { path: 'polyhaven/wooden_cutting_board.glb', shadows: false },
+  pot_enamel_01: { path: 'polyhaven/pot_enamel_01.glb' },
+  plastic_bottle_gallon: { path: 'polyhaven/plastic_bottle_gallon.glb' },
 };
 
 const ready = new Map(); // id -> { parts:[{geo, mat}], size: Vector3 }
@@ -236,7 +253,7 @@ export function loadPropAssets(opts = {}) {
   loading = Promise.all(
     ids.map((id) =>
       loader
-        .loadAsync(new URL(base + id + '.glb', document.baseURI).href)
+        .loadAsync(new URL(base + (PROP_ASSETS[id]?.path || id + '.glb'), document.baseURI).href)
         .then((gltf) => prepare(id, gltf))
         .catch((err) => {
           failed.add(id);

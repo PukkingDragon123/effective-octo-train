@@ -12,6 +12,7 @@ import { SPECIES, buildVariant, rockGeometry, bambooTexture } from './TreeFactor
 import { foliageAtlas, silhouetteTexture } from './foliageAtlas.js';
 import { chainPatch, inject } from './shaderUtil.js';
 import { W } from './constants.js';
+import { WORLD_ASSETS } from './assets.js';
 
 const CELL = W.forestCell;
 const cellKey = (ix, iz) => (ix + 4096) * 8192 + (iz + 4096);
@@ -171,6 +172,21 @@ export class Forest {
       const geo = rockGeometry(rrng, 1);
       const rec = this._addVariant('rock', v, { lods: [{ bark: geo }, { bark: geo.userData.lod1 }], kind: 'rock', height: 1, radius: 1.2 });
       for (const l of rec.lods) l.meshes[0].material = this.mats.rock;
+    }
+    // scanned forest-floor models (optional, CC0): rocks, stumps, root clusters
+    this.ph = { rocks: [], stumps: [], roots: [] };
+    if (WORLD_ASSETS.loaded) {
+      for (const kind of ['rocks', 'stumps', 'roots']) {
+        WORLD_ASSETS[kind].forEach((a, i) => {
+          const name = 'ph_' + kind;
+          const rec = this._addVariant(name, i, { lods: [{ ph: a.geo }], kind: kind === 'roots' ? 'ground' : 'rock', height: a.height, radius: a.radius });
+          for (const l of rec.lods) for (const m of l.meshes) {
+            m.material = a.mat;
+            m.castShadow = kind !== 'roots';
+          }
+          this.ph[kind].push(rec);
+        });
+      }
     }
     // ---- impostors ---------------------------------------------------------------------------
     onProgress?.(0.4, 'กำลังวาดป่าไกล…', 'Painting the distant forest…');
@@ -429,7 +445,10 @@ export class Forest {
           const tx = side * tg.z, tz = -side * tg.x; // toward the road
           const yaw = Math.atan2(-tz, tx) + (rng() - 0.5) * 0.8;
           this._place('reachTree', Math.floor(rng() * 5), p.x, p.z, yaw, 0.78 + rng() * 0.4, rng, { dy: -0.05, lean: { x: tx, z: tz, a: 0.03 + rng() * 0.1 } });
-          if (e < 5.2 && rng() < 0.75) this._place('roots', Math.floor(rng() * 3), p.x, p.z, yaw + (rng() - 0.5) * 0.5, 0.8 + rng() * 0.4, rng, { dy: 0 });
+          if (e < 5.2 && rng() < 0.75) {
+            if (this.ph.roots.length && rng() < 0.12) this._place('ph_roots', 0, p.x, p.z, rng() * 6.28, 0.9 + rng() * 0.3, rng, { dy: -0.05 });
+            else this._place('roots', Math.floor(rng() * 3), p.x, p.z, yaw + (rng() - 0.5) * 0.5, 0.8 + rng() * 0.4, rng, { dy: 0 });
+          }
           this.colliders.push({ x: p.x, z: p.z, r: 0.4 });
         }
       }
@@ -487,7 +506,7 @@ export class Forest {
           const inGrove = groveP && Math.hypot(x - groveP.x, z - groveP.z) < 46;
           const r = rng();
           if (blk) {
-            if (r < 0.08) this._place('rock', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.4 + rng() * 0.5, rng, { dy: -0.15 });
+            if (r < 0.08) this._place('rock', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.4 + rng() * 0.5, rng, { dy: -0.15 });
             continue;
           }
           if (inGrove && r < 0.78 && nr.e > 1.5) {
@@ -517,7 +536,12 @@ export class Forest {
             continue;
           }
           if (r < 0.06 + (nr.e < 9 ? 0.04 : 0)) {
-            this._place('rock', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.4 + rng() * 0.9, rng, { dy: -0.2 });
+            if (this.ph.rocks.length && rng() < 0.6) this._place('ph_rocks', Math.floor(rng() * 6), x, z, rng() * 6.28, 0.7 + rng() * 0.8, rng, { dy: -0.08 });
+            else this._place('rock', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.4 + rng() * 0.9, rng, { dy: -0.2 });
+            continue;
+          }
+          if (r < 0.072 && this.ph.stumps.length && nr.e > 2.4) {
+            this._place('ph_stumps', Math.floor(rng() * 2), x, z, rng() * 6.28, 0.8 + rng() * 0.5, rng, { dy: -0.06 });
             continue;
           }
           if (r < 0.085 && nr.e > 4) {

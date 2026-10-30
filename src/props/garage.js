@@ -365,6 +365,7 @@ export function createGarage(opts = {}) {
       k.add(mat('ceramic'), G('teapot', () => lathe([[0, 0], [0.05, 0], [0.07, 0.04], [0.065, 0.08], [0.03, 0.1], [0.02, 0.12], [0, 0.12]], 12)), { p: [0.25, 0.72, -0.1], color: 0xc8b890, w: false });
       k.add(mat('ceramic'), tube([V(0.07, 0.04, 0), V(0.12, 0.08, 0), V(0.14, 0.1, 0)], 0.009, 5), { p: [0.25, 0.72, -0.1], color: 0xc8b890, w: false });
       teacup(k, { p: [0.08, 0.72, -0.05] });
+      useAsset(k, 'vintage_electric_kettle', { p: [0.36, 0.72, 0.16], r: -2.3 }, { fit: { h: 0.22 }, w: { grime: 0.2, dust: 0.3 } });
       teacup(k, { p: [0.12, 0.72, 0.12] });
       k.add(mat('glass_bottle'), G('ashtray', () => lathe([[0, 0], [0.06, 0], [0.065, 0.025], [0.05, 0.025], [0.045, 0.008], [0, 0.008]], 14)), { p: [-0.2, 0.72, 0.05], color: 0x8a9a90, w: false });
       for (let i = 0; i < 6; i++) k.add(mat('ceramic'), G('butt', () => cyl(0.004, 0.004, 0.025, 5, 0).rotateZ(Math.PI / 2)), { p: [-0.2 + (rng() - 0.5) * 0.06, 0.733, 0.05 + (rng() - 0.5) * 0.06], r: rng() * 6, color: rng() < 0.5 ? 0xd8c890 : 0xe8e4dc, w: false });
@@ -542,6 +543,16 @@ export function createGarage(opts = {}) {
     useAsset(k, 'metal_stool_02', { p: [bx - 0.2, 0, bz + 0.72], r: 0.3 }, { fit: { h: 0.62 }, w: { dust: 0.3, grime: 0.4 } });
     if (useAsset(k, 'hand_truck', { p: [xR - 0.75, 0, zF - 0.85], r: [-0.18, -0.5, 0, 'YXZ'] }, { w: { grime: 0.5, streak: 0.5 } })) out.colliders.push({ x: xR - 0.75, z: zF - 0.85, r: 0.3 });
     useAsset(k, 'cement_bag', { p: [0.75, 0, zB + 1.35], r: 0.3 }, { fit: { w: 0.42 }, w: { dust: 0.8 } });
+    // more workshop gear: tyre pump + rusty rim by the tyre stacks, toolbox under the bench,
+    // pliers / screwdrivers / oil can on the bench, a metal jerrycan, Ah Kong's electric kettle
+    useAsset(k, 'tire_pump', { p: [xR - 1.0, 0, zB + 1.45], r: -0.8 }, { w: { grime: 0.4, dust: 0.3 } });
+    useAsset(k, 'rusted_wheel_rim_01', { p: [xR - 0.2, 0, zB + 2.25], r: [0, -Math.PI / 2, 0.12] }, { fit: { h: 0.4 }, w: { streak: 0.4 } });
+    useAsset(k, 'metal_toolbox', { p: [bx - 0.75, 0, bz + 0.05], r: 0.15 }, { fit: { w: 0.45 }, w: { grime: 0.4, dust: 0.4 } });
+    useAsset(k, 'pliers', { p: [bx - 0.35, 0.93, bz + 0.2], r: [0, 0.7, 0] }, { w: false });
+    useAsset(k, 'screwdrivers_02', { p: [bx + 0.05, 0.93, bz + 0.22], r: [0, -0.4, 0] }, { w: false });
+    useAsset(k, 'adjustable_wrench', { p: [bx - 0.55, 0.93, bz + 0.05], r: [0, 1.9, 0] }, { w: false });
+    useAsset(k, 'small_oil_can_01', { p: [bx + 0.55, 0.93, bz - 0.12], r: 2.2 }, { w: { grime: 0.3 } });
+    useAsset(k, 'metal_jerrycan', { p: [xR - 1.45, 0, -1.25], r: 1.3 }, { fit: { h: 0.45 }, w: { grime: 0.5, streak: 0.5 } });
   });
 
   group.add(k.build({ name: 'garage', detailDistance: 45 }));

@@ -9,7 +9,7 @@ const M_CAP = [[0, 0], [0.006, 0.006], [0.02, 0.018], [0.016, 0.03], [0.03, 0.04
 const M_CORNICE = [[0, 0], [0.008, 0.008], [0.008, 0.016], [0.022, 0.026], [0.03, 0.04], [0.03, 0.05], [0.0, 0.05]];
 import { mat, glowMat, signMat } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
-import { G, PAL, bottle, candle, incensePot, garland, flowerString, fruitPlate, zebras, dancers, plate, glassWater, teacup, offeringTray, lantern } from './lib/small.js';
+import { G, PAL, bottle, candle, incensePot, garland, flowerString, fruitPlate, zebras, dancers, plate, glassWater, teacup, offeringTray, lantern, useAsset } from './lib/small.js';
 import { elderGeo, dancerGeo } from './lib/figures.js';
 import { jossPaper, card, findPrint } from './lib/print.js';
 
@@ -157,6 +157,8 @@ export function createSpiritHouse(opts = {}) {
     // printed offerings: a stack of gold joss paper, lottery tickets left for a lucky number,
     // a little amulet card tucked against the post base
     jossPaper(k, { p: [-0.42, 0, gz + 0.32], r: rng() * 6, n: 5, loose: 2, seed: seed + 9 });
+    // carved wooden elephants offered for a granted wish (CC0 model when loaded)
+    for (let i = 0; i < (style === 'chinese' ? 1 : 2); i++) useAsset(k, 'carved_wooden_elephant', { p: [0.42 - i * 0.16, 0, gz + 0.1 + i * 0.05], r: -0.3 + i * 0.5 }, { fit: { h: 0.11 + i * 0.03 }, w: { moss: 0.3 * age, grime: 0.3 } });
     const lot = findPrint([['lottery']], rng);
     if (lot) for (let i = 0; i < 2; i++) card(k, lot.kind, lot.opts, { p: [0.18 + i * 0.05, 0.004 + i * 0.001, gz + 0.38 + i * 0.03], r: [-Math.PI / 2, 0, rng() * 6, 'XYZ'], curl: 0.008, seed: seed + 50 + i, wt: { grime: 0.4, ground: -0.4, vary: 0.3 } });
     const bc = findPrint([['buddha_card'], ['amulet_card']], rng);

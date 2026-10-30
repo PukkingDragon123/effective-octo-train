@@ -12,6 +12,8 @@ import { settings } from '../core/Settings.js';
 import { tex } from '../textures/index.js';
 import { sampleTextureRed } from './shaderUtil.js';
 import { Ambience } from './Ambience.js';
+import { loadWorldAssets } from './assets.js';
+export { loadWorldAssets };
 
 export { RoadSpline, RoadNetwork };
 
@@ -141,6 +143,14 @@ export class World {
 
     // ---- forest --------------------------------------------------------------------------------
     if (opts.forest !== false) {
+      if (opts.assets !== false) {
+        try {
+          await loadWorldAssets();
+        } catch (e) {
+          console.warn('[world] scanned assets unavailable, procedural fallback', e);
+        }
+        lap('assets');
+      }
       const { Forest } = await import('./Forest.js');
       this.forest = new Forest(this, { density: this.density });
       await this.forest.build((f, th, en) => prog(0.4 + f * 0.4, th || 'กำลังปลูกป่า…', en || 'Growing the forest…'));

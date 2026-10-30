@@ -95,7 +95,16 @@ def fetch_ambientcg(s, dest):
 
 
 def fetch_url(s, dest):
-    b = get(s['url'])
+    try:
+        b = get(s['url'], tries=1)
+    except RuntimeError:
+        # some hosts (Wikimedia) reject urllib's request signature: retry with curl (no shell)
+        import subprocess
+        tmp = os.path.join(dest, 'photo.download')
+        subprocess.run(['curl', '-sSL', '--fail', '-A', UA, s['url'], '-o', tmp], check=True, timeout=180)
+        with open(tmp, 'rb') as f:
+            b = f.read()
+        os.remove(tmp)
     if not looks_like_image(b):
         raise RuntimeError('not an image: ' + s['url'])
     with open(os.path.join(dest, 'photo.jpg'), 'wb') as f:

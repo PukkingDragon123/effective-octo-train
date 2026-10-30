@@ -29,7 +29,7 @@ export default async function (ctx) {
   window.__world = world;
 
   if (params.get('fogd') != null) sky.overrides.fogDensity = num('fogd', 0.02);
-  sky.setHour(hour);
+  sky.setHour(hour < 12 ? hour + 24 : hour);
   if (params.get('paint') != null) postfx.params.painterly = num('paint', 1);
   const weather = {};
   if (params.get('rain') != null) weather.rain = num('rain', 0);
@@ -37,72 +37,86 @@ export default async function (ctx) {
   if (Object.keys(weather).length) sky.setWeather(weather, 0);
   if (params.get('wet') != null) GLOBAL_UNIFORMS.uWetness.value = num('wet', 0.6);
 
-  // ---- camera placement ---------------------------------------------------------------
-  const sp = world.road.get(splineId);
-  let s = u * sp.length;
-  if (lmKey && world.landmarks[lmKey]) s = world.landmarks[lmKey].roadRef.s + num('ds', -25);
-  const smp = sp.sample(s);
+  // ---- camera placement (re-callable: window.__worldCam({lm, ds, u, spline, cam, look, pitch, lat, h, hour, headlights})) ----
   const eye = new THREE.Object3D();
   engine.scene.add(eye);
-  const look = new THREE.Vector3();
-  const lane = LAYOUT.laneOffset + 0.36; // RHD driver sits right of the car centre
-  if (camMode === 'drive' || camMode === 'walk') {
-    const lat = num('lat', camMode === 'walk' ? -(LAYOUT.roadWidth / 2 + 0.8) : lane);
-    sp.pointAt(s, lat, eye.position);
-    eye.position.y = world.getHeight(eye.position.x, eye.position.z) + num('h', camMode === 'walk' ? 1.62 : 1.15);
-    const ahead = sp.pointAt(Math.min(sp.length, s + num('ahead', 22)), lat);
-    look.copy(ahead);
-    look.y = world.getHeight(ahead.x, ahead.z) + num('h', 1.15) * 0.8;
-  } else if (camMode === 'side') {
-    sp.pointAt(s, num('lat', 9), eye.position);
-    eye.position.y = world.getHeight(eye.position.x, eye.position.z) + num('h', 1.7);
-    look.copy(sp.pointAt(s + 4, num('tlat', -4)));
-    look.y += 1.5;
-  } else {
-    // aerial
-    const back = sp.pointAt(Math.max(0, s - num('back', 45)), num('lat', 18));
-    eye.position.copy(back);
-    eye.position.y += num('h', 38);
-    look.copy(sp.pointAt(s, 0));
-  }
-  const dir = look.clone().sub(eye.position);
-  const yaw = Math.atan2(-dir.x, -dir.z) + THREE.MathUtils.degToRad(num('look', 0));
-  const pitch = Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) + THREE.MathUtils.degToRad(num('pitch', 0));
-  eye.rotation.set(0, 0, 0);
-  cameraRig.attach(eye, null, { yaw, pitch });
+  const spots = [];
+  const place = (o) => {
+    const get = (k, d) => (o[k] != null ? Number(o[k]) : d);
+    const hr = ((h) => (h < 12 ? h + 24 : h))(get('hour', hour));
+    if (o.hour != null) sky.setHour(hr);
+    const mode = o.cam || 'drive';
+    const sp = world.road.get(o.spline || 'main');
+    let s = get('u', 0.2) * sp.length;
+    if (o.lm && world.landmarks[o.lm]) s = world.landmarks[o.lm].roadRef.s + get('ds', -25);
+    const look = new THREE.Vector3();
+    const lane = LAYOUT.laneOffset + 0.36; // RHD driver sits right of the car centre
+    if (mode === 'drive' || mode === 'walk') {
+      const lat = get('lat', mode === 'walk' ? -(LAYOUT.roadWidth / 2 + 0.8) : lane);
+      sp.pointAt(s, lat, eye.position);
+      eye.position.y = world.getHeight(eye.position.x, eye.position.z) + get('h', mode === 'walk' ? 1.62 : 1.15);
+      const ahead = sp.pointAt(Math.min(sp.length, s + get('ahead', 22)), lat);
+      look.copy(ahead);
+      look.y = world.getHeight(ahead.x, ahead.z) + get('h', 1.15) * 0.8;
+    } else if (mode === 'side') {
+      sp.pointAt(s, get('lat', 9), eye.position);
+      eye.position.y = world.getHeight(eye.position.x, eye.position.z) + get('h', 1.7);
+      look.copy(sp.pointAt(s + 4, get('tlat', -4)));
+      look.y += 1.5;
+    } else {
+      const back = sp.pointAt(Math.max(0, s - get('back', 45)), get('lat', 18));
+      eye.position.copy(back);
+      eye.position.y += get('h', 38);
+      look.copy(sp.pointAt(s, 0));
+    }
+    const dir = look.clone().sub(eye.position);
+    const yaw = Math.atan2(-dir.x, -dir.z) + THREE.MathUtils.degToRad(get('look', 0));
+    const pitch = Math.atan2(dir.y, Math.hypot(dir.x, dir.z)) + THREE.MathUtils.degToRad(get('pitch', 0));
+    eye.rotation.set(0, 0, 0);
+    cameraRig.attach(eye, null, { yaw, pitch });
+    for (const l of spots.splice(0)) engine.scene.remove(l, l.target);
+    GLOBAL_UNIFORMS.uHeadlightOn.value = 0;
+    // headlights (a car's low beams just ahead of / below the driver's eye)
+    if (o.headlights !== '0' && o.headlights !== 0 && (hr < 29.5 || o.headlights === '1' || o.headlights === 1)) {
+      const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+      const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+      const centre = eye.position.clone().addScaledVector(fwd, 2.1).addScaledVector(right, -0.36);
+      centre.y -= 0.5;
+      for (const sx of [-0.62, 0.62]) {
+        const base = centre.clone().addScaledVector(right, sx);
+        const spot = new THREE.SpotLight(0xfff0d2, get('hl', 160), 95, 0.72, 0.5, 1.25);
+        spot.position.copy(base);
+        spot.target.position.copy(base).addScaledVector(fwd, 30).addScaledVector(right, sx * 0.4);
+        spot.target.position.y -= 1.9;
+        spot.castShadow = sx > 0 && !!settings.get('shadows');
+        spot.shadow.mapSize.set(1024, 1024);
+        spot.shadow.camera.near = 0.5;
+        spot.shadow.camera.far = 70;
+        spot.shadow.bias = -0.0004;
+        engine.scene.add(spot, spot.target);
+        spots.push(spot);
+      }
+      GLOBAL_UNIFORMS.uHeadlightPos.value.copy(centre);
+      GLOBAL_UNIFORMS.uHeadlightDir.value.copy(fwd).multiplyScalar(30).add(new THREE.Vector3(0, -1.9, 0)).normalize();
+      GLOBAL_UNIFORMS.uHeadlightOn.value = 1;
+    }
+    world.update(0.016, eye.position);
+  };
+  const initial = Object.fromEntries(params.entries());
+  initial.hour = hour;
+  void camMode;
+  void splineId;
+  void u;
+  void lmKey;
+  place(initial);
   if (params.get('fov')) {
     engine.camera.fov = num('fov', 72);
     cameraRig.fovBase = engine.camera.fov;
   }
-
-  // ---- headlights (a car's low beams just ahead of / below the driver's eye) ----------------
-  if (params.get('headlights') !== '0' && (hour < 29.5 || params.get('headlights') === '1')) {
-    const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-    const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
-    const centre = eye.position.clone().addScaledVector(fwd, 2.1).addScaledVector(right, -0.36);
-    centre.y -= 0.5;
-    for (const sx of [-0.62, 0.62]) {
-      const base = centre.clone().addScaledVector(right, sx);
-      const spot = new THREE.SpotLight(0xfff0d2, num('hl', 160), 95, 0.72, 0.5, 1.25);
-      spot.position.copy(base);
-      spot.target.position.copy(base).addScaledVector(fwd, 30).addScaledVector(right, sx * 0.4);
-      spot.target.position.y -= 1.9;
-      spot.castShadow = sx > 0 && !!settings.get('shadows');
-      spot.shadow.mapSize.set(1024, 1024);
-      spot.shadow.camera.near = 0.5;
-      spot.shadow.camera.far = 70;
-      spot.shadow.bias = -0.0004;
-      engine.scene.add(spot, spot.target);
-    }
-    GLOBAL_UNIFORMS.uHeadlightPos.value.copy(centre);
-    GLOBAL_UNIFORMS.uHeadlightDir.value.copy(fwd).multiplyScalar(30).add(new THREE.Vector3(0, -1.9, 0)).normalize();
-    GLOBAL_UNIFORMS.uHeadlightOn.value = 1;
-  }
+  window.__worldCam = (o) => place({ hour, ...o });
 
   // stream around the eye (the rig moves the camera only at order 50, after the world update)
   engine.onUpdate((dt) => world.update(dt, eye.position), 40);
-  // warm-up so streaming/LOD reflect the camera position
-  world.update(0.016, eye.position);
   window.__worldInfo = () => ({
     buildMs: Math.round(world.buildMs),
     preloadMs: Math.round(preloadMs),

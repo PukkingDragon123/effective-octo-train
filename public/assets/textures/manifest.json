@@ -1,0 +1,63 @@
+{
+ "decals": {},
+ "overlays": {},
+ "printed": {},
+ "textures": {
+  "bark": {
+   "bytes": 372212,
+   "file": "nature/bark.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "bark_banyan": {
+   "bytes": 327670,
+   "file": "nature/bark_banyan.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "bark_banyan_normal": {
+   "bytes": 266836,
+   "file": "nature/bark_banyan_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "bark_banyan_rough": {
+   "bytes": 1232,
+   "file": "nature/bark_banyan_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "bark_normal": {
+   "bytes": 558440,
+   "file": "nature/bark_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "bark_rough": {
+   "bytes": 23750,
+   "file": "nature/bark_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  }
+ },
+ "totalBytes": 2623922,
+ "version": 1
+}
