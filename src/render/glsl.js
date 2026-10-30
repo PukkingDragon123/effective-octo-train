@@ -65,6 +65,8 @@ uniform float dlbFogHeight;
 uniform float dlbFogHeightFalloff;
 uniform float dlbFogHeightDensity;
 uniform float dlbFogNoise;
+uniform float dlbGroundMist;
+uniform float dlbGroundMistFalloff;
 uniform vec3 dlbHeadlightPos;
 uniform vec3 dlbHeadlightDir;
 uniform float dlbHeadlightOn;
@@ -98,13 +100,24 @@ float dlbFogNoiseAt(vec3 p) {
   vec3 q = (p - drift) * 0.085;
   return dlbNoise3(q) * 0.62 + dlbNoise3(q * 2.37 + vec3(7.1, 3.3, 1.9)) * 0.38;
 }
-// optical depth along a ray of length d (no noise)
-float dlbFogOptical(vec3 ro, vec3 rd, float d) {
-  float k = max(dlbFogHeightFalloff, 1e-4);
+// integral of exp(-k * (y(t) - base)) along a ray, analytic
+float dlbExpLayer(vec3 ro, vec3 rd, float d, float k) {
   float h0 = max(ro.y - dlbFogHeight, -25.0);
   float t = k * rd.y * d;
   float integ = abs(t) > 1e-3 ? (1.0 - exp(-t)) / t : 1.0 - 0.5 * t;
-  return dlbFogDensity * d + dlbFogHeightDensity * exp(-k * h0) * d * integ;
+  // clamped: rays diving into deep valleys fill up with mist without overflowing
+  return min(exp(-k * h0) * d * integ, 1e4);
+}
+// optical depth: x = distance + height fog, y = dense ground mist (both without noise)
+vec2 dlbFogOptical2(vec3 ro, vec3 rd, float d) {
+  float main = dlbFogDensity * d + dlbFogHeightDensity * dlbExpLayer(ro, rd, d, max(dlbFogHeightFalloff, 1e-4));
+  float ground = dlbGroundMist > 0.0 ? dlbGroundMist * dlbExpLayer(ro, rd, d, max(dlbGroundMistFalloff, 1e-3)) : 0.0;
+  return min(vec2(main, ground), vec2(60.0));
+}
+// optical depth along a ray of length d (no noise)
+float dlbFogOptical(vec3 ro, vec3 rd, float d) {
+  vec2 o = dlbFogOptical2(ro, rd, d);
+  return o.x + o.y;
 }
 float dlbPhaseHG(float c, float g) {
   float g2 = g * g;
@@ -137,11 +150,11 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
       float ld = length(lv);
       vec3 l = lv / max(ld, 1e-3);
       float cone = smoothstep(dlbHeadlightCone.x, dlbHeadlightCone.y, dot(l, dlbHeadlightDir));
-      float att = 1.0 / (1.0 + 0.09 * ld * ld) * (1.0 - smoothstep(range * 0.55, range, ld)) * smoothstep(0.0, 0.6, ld);
+      float att = 1.0 / (1.0 + 0.07 * ld * ld) * (1.0 - smoothstep(range * 0.55, range, ld)) * smoothstep(0.4, 2.5, ld);
       float ph = 0.06 + dlbPhaseHG(dot(l, -rd), 0.55) * 0.6;
       sum += cone * att * ph * exp(-sigma * t);
     }
-    acc += dlbHeadlightColor * (sum * dt * dlbHeadlightOn * (sigma * 18.0 + 0.04));
+    acc += dlbHeadlightColor * (sum * dt * dlbHeadlightOn * (sigma * 20.0 + 0.04));
   }
   for (int i = 0; i < 4; i++) {
     vec4 lp = dlbLampPos[i];
@@ -158,7 +171,7 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
     float H = sqrt(h2 + R * R);
     float I = (atan((tm + b) / h) - atan(b / h)) / h - (atan((tm + b) / H) - atan(b / H)) / H;
     float dist = sqrt(c);
-    acc += lc * (max(I, 0.0) * 0.0011 * (sigma * 14.0 + 0.012) * exp(-sigma * dist * 0.5));
+    acc += lc * (max(I, 0.0) * 0.0011 * (sigma * 16.0 + 0.012) * exp(-sigma * dist * 0.5));
   }
   return acc;
 }
@@ -192,13 +205,18 @@ vec3 dlbApplyFog(vec3 col, vec3 wp, vec2 fragXY) {
   float n = 0.55 * dlbFogNoiseAt(ro + rd * min(d * 0.5, 7.0)) + 0.45 * dlbFogNoiseAt(ro + rd * min(d, 30.0));
   float nn = smoothstep(0.22, 0.78, n);
   float nm = mix(1.0, 0.3 + 1.4 * nn, dlbFogNoise);
-  float od = dlbFogOptical(ro, rd, d) * nm;
+  // ground mist rolls in drifts: much stronger contrast than the fog above it
+  float nmG = mix(1.0, 0.08 + 2.0 * nn * nn, min(dlbFogNoise * 1.3, 1.0));
+  vec2 o2 = dlbFogOptical2(ro, rd, d);
+  float od = o2.x * nm + o2.y * nmG;
   float T = exp(-od);
 #ifdef DLB_FOG_ADDITIVE
   return col * T;
 #else
-  float sigma = od / max(d, 1e-3);
-  return col * T + dlbFogTint(rd) * (1.0 - T) + dlbInscatter(ro, rd, d, sigma, fragXY);
+  float sigma = min(od / max(d, 1e-3), 4.0);
+  // lights scattered in the medium follow the same drifting patches (beams look patchy)
+  vec3 ins = dlbInscatter(ro, rd, d, sigma, fragXY) * (0.45 + 0.55 * nm);
+  return col * T + dlbFogTint(rd) * (1.0 - T) + ins;
 #endif
 }
 // Transmittance only (for additive particles / glows).

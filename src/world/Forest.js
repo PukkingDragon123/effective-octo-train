@@ -369,6 +369,16 @@ export class Forest {
     return null;
   }
 
+  /**
+   * Openings in the roadside canopy (~20 % of the road, one side or both) where moonlight and
+   * the dawn shafts come through; the tunnel of trees closes again in between.
+   */
+  _canopyGap(sp, s, side) {
+    const g = this.noise.noise2D(s / 70 + sp.id.length * 13.7, side * 3.1);
+    const both = this.noise.noise2D(s / 110 + 40, sp.id.length);
+    return g > 0.42 || both > 0.62;
+  }
+
   _water(x, z) {
     const T = this.world.terrain;
     let d = 1e9;
@@ -436,6 +446,7 @@ export class Forest {
       for (let s = 6 + rng() * 6; s < sp.length - 6; s += 7 + rng() * 9) {
         for (const side of [-1, 1]) {
           if (rng() > 0.6) continue;
+          if (this._canopyGap(sp, s, side)) continue;
           const e = 2.5 + rng() * 4.5;
           const p = sp.pointAt(s, side * (W.halfWidth + e));
           const nr = T.nearestRoad(p.x, p.z);
@@ -466,6 +477,7 @@ export class Forest {
           if (!nr.sp || nr.e < 4.6 || nr.e > corridor - W.halfWidth) continue;
           const zone = nz.noise2D(x / 90, z / 90) * 0.5 + 0.5;
           if (rng() > 0.45 + 0.5 * zone) continue;
+          if (nr.exact && nr.e < 15 && this._canopyGap(nr.sp, nr.s, nr.side)) continue;
           if (this._blocked(x, z, 4) || this._water(x, z) < 3) continue;
           const near = nr.e < 14;
           const w = {

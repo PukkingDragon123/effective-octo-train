@@ -42,6 +42,26 @@ export class Ambience {
       if (!L) continue;
       add('fireflies', { position: L.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), radius: key === 'bridge' ? 16 : 11, count: 46, seed: key.length });
     }
+    // low mist pooling in the dips: creek under the bridge, the ravine below the accident curve,
+    // the pond, the banana grove, the elephant trail, the ghost gate and the shrine approach
+    const T = this.world.terrain;
+    const mist = (pos, radius, intensity = 1) => {
+      if (!pos) return;
+      const gy = T ? T.sample(pos.x, pos.z) : pos.y;
+      add('mist', { position: new THREE.Vector3(pos.x, gy, pos.z), groundY: gy + 0.1, radius, height: 1.4, count: 40, intensity, seed: Math.round(pos.x * 7 + pos.z) });
+    };
+    if (T?.creek) {
+      const sp = T.creek.spline;
+      for (const f of [0.3, 0.5, 0.7]) {
+        const p = sp.pointAt(sp.length * f, 0);
+        mist(p, 16, 1.2);
+      }
+    }
+    for (const m of T?.mods || []) if (m.dh < 0) mist({ x: m.x, z: m.z }, m.r * 0.6, 1.1);
+    for (const key of ['hiddenPond', 'bananaGrove', 'elephantCrossing', 'ghostGate', 'shrineApproach', 'shrineMaRuay', 'sacredTree1', 'sacredTree3']) {
+      const L = lm[key];
+      if (L) mist(key === 'shrineMaRuay' ? L.centre || L.pos : L.pos, key === 'bananaGrove' || key === 'shrineApproach' ? 24 : 16, key === 'ghostGate' ? 1.5 : 1);
+    }
     // moths at the lit set pieces (at most 6 lamps)
     let n = 0;
     for (const L of Object.values(lm)) {

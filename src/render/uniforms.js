@@ -27,8 +27,11 @@ export const GLOBAL_UNIFORMS = {
   uFogHeightDensity: { value: 0.06 },
   /** 0..1 how patchy / drifting the fog is (3D noise modulation). */
   uFogNoise: { value: 0.6 },
+  /** Dense ground mist hugging the road / pooling in dips: density at uFogHeight and its falloff (1/m). */
+  uGroundMist: { value: 0.12 },
+  uGroundMistFalloff: { value: 0.9 },
   /** Linear colour * strength of the light the headlights scatter into fog. */
-  uHeadlightColor: { value: new THREE.Color(1.0, 0.86, 0.66).multiplyScalar(0.12) },
+  uHeadlightColor: { value: new THREE.Color(0.88, 0.94, 1.0).multiplyScalar(0.13) },
   /** x = cos(outer half-angle), y = cos(inner half-angle), z = range (m), w = ray-march steps. */
   uHeadlightCone: { value: new THREE.Vector4(Math.cos(0.5), Math.cos(0.2), 46, 8) },
   /** Direction TOWARD the sun / moon (world) and the colour they scatter into fog (forward lobe). */
@@ -66,6 +69,8 @@ export const SHADER_GLOBALS = {
   dlbFogHeightFalloff: GLOBAL_UNIFORMS.uFogHeightFalloff,
   dlbFogHeightDensity: GLOBAL_UNIFORMS.uFogHeightDensity,
   dlbFogNoise: GLOBAL_UNIFORMS.uFogNoise,
+  dlbGroundMist: GLOBAL_UNIFORMS.uGroundMist,
+  dlbGroundMistFalloff: GLOBAL_UNIFORMS.uGroundMistFalloff,
   dlbHeadlightPos: GLOBAL_UNIFORMS.uHeadlightPos,
   dlbHeadlightDir: GLOBAL_UNIFORMS.uHeadlightDir,
   dlbHeadlightOn: GLOBAL_UNIFORMS.uHeadlightOn,

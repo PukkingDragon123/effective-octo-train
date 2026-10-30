@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import * as P from '../props/index.js';
 import { colliders } from '../core/Colliders.js';
+import { lightPool } from '../render/index.js';
 import { makeRng } from '../core/math.js';
 import { W, faceRoadYaw } from './constants.js';
 import { LANDMARK_NAMES } from './layout.js';
@@ -174,10 +175,16 @@ export class Placement {
         let lamp = null;
         const near = lampLm.find((l) => l.roadRef.id === id && Math.abs(l.roadRef.s - s) < 34);
         const lonely = id === 'main' && s > father - 160;
+        let vignette = false;
         if (near && !lonely) lamp = near.kind === 'sala' || near.kind === 'bus_stop' ? 'fluorescent' : 'sodium';
-        else if (!lonely && rng() < 0.05) lamp = 'dying';
-        const lantern = id === 'main' && s > approachS - 10 && s < L - 30;
-        this.items.push({ type: 'pole', id, s, lat, side: useSide, lamp, chain: id + chain, transformer: rng() < 0.14, seed: 200 + this.items.length, lantern });
+        else if (!lonely && rng() < 0.16) {
+          // a lonely pool of light every few hundred metres, each staged as a little picture
+          const r = rng();
+          lamp = r < 0.3 ? 'dying' : r < 0.6 ? 'fluorescent' : 'sodium';
+          vignette = true;
+        }
+        const lantern = id === 'main' && s > approachS - 70 && s < L - 30;
+        this.items.push({ type: 'pole', id, s, lat, side: useSide, lamp, chain: id + chain, transformer: rng() < 0.14, seed: 200 + this.items.length, lantern, vignette });
         this.points.push({ x: p.x, z: p.z, r: 1 });
         plan.clearings.push({ x: p.x, z: p.z, r: 1.4, key: 'pole' });
         if (lantern) {
@@ -329,9 +336,39 @@ export class Placement {
     this.times.lm[lm.key] = Math.round(performance.now() - tl0);
   }
 
+  /** A small staged picture under a lone lamp: an empty chair, a roadside shrine, a dumped scooter... */
+  _vignette(it, sp, yaw) {
+    const kinds = [
+      [['plastic_chair', 1.4, 0.6], ['crate', 2.0, -0.4], ['cans', 1.1, -0.9]],
+      [['spirit', 1.9, 0.2]],
+      [['broken_scooter', 2.1, 0.3], ['trash_bag', 1.2, -1.2], ['tire', 2.6, -1.4]],
+      [['shrine_table', 1.6, 0.3], ['red_soda_bottles', 1.6, 1.1], ['garland', 0, 0]],
+      [['water_jar', 1.3, 0.8], ['plastic_stool', 1.8, -0.5], ['oil_drum', 2.4, 1.2]],
+    ];
+    const set = kinds[it.seed % kinds.length];
+    const side = it.side;
+    const faceYaw = faceRoadYaw(yaw, side < 0 ? 'L' : 'R');
+    set.forEach(([k, out, along], i) => {
+      if (k === 'garland') return;
+      const p = this._roadPoint(it.id, it.s + along, it.lat + side * out, new THREE.Vector3());
+      if (k === 'spirit') this._put(P.createSpiritHouse({ style: it.seed % 2 ? 'thai' : 'chinese', seed: it.seed + 3, size: 0.8, age: 0.85 }), p, faceYaw, { batch: true });
+      else this._put(P.createDressing(k, { seed: it.seed + i, fallen: k === 'broken_scooter' }), p, faceYaw + (i - 1) * 0.5, { batch: true });
+    });
+  }
+
+  /** Glowing incense tips (tiny embers) at a shrine anchor. */
+  _ember(anchor, i = 0) {
+    if (!anchor) return;
+    this.lightHandles.push(
+      lightPool.add({ object: anchor, offset: new THREE.Vector3(0, 0.12, 0), color: 0xff5a1e, intensity: 0.12, distance: 1.2, flicker: 'candle', glow: { size: 0.07 + (i % 2) * 0.02, color: 0xff4818, opacity: 0.9 }, pool: false, priority: -0.6, scatter: 0.3 }),
+    );
+  }
+
   /** Remember a prop result and register its lights (its object must already be in place). */
   _track(result) {
     this.results.push(result);
+    if (result.incenseAnchor) this._ember(result.incenseAnchor);
+    if (Array.isArray(result.incenseAnchors)) result.incenseAnchors.slice(0, 4).forEach((a, i) => this._ember(a, i));
     if (!result.lights || !result.lights.length) return result;
     // LightPool divides by (1 + priority): the props 'delineator' preset (priority -1) would
     // never glow. Clamp to the lowest usable priority.
@@ -680,6 +717,7 @@ export class Placement {
               this.batcher.add(span, mx, mz);
             }
             chains.set(it.chain, res);
+            if (it.vignette) this._vignette(it, sp, yaw);
             if (it.lantern) {
               // bare post opposite + a string of red lanterns across the road (shrine approach)
               const q = this._roadPoint(it.id, it.s, -it.lat, new THREE.Vector3());
