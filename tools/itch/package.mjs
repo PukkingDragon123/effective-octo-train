@@ -14,13 +14,16 @@ const zipPath = path.join(outDir, 'lon-yan-plaithang-itch.zip');
 
 if (!process.argv.includes('--no-build')) execSync('npx vite build', { cwd: root, stdio: 'inherit' });
 
-const skip = (f) => /\.woff$/.test(f) || /-(vietnamese|latin-ext)-[\w-]+\.woff2$/.test(f);
+// --skip=<dir/> leaves a folder out (e.g. --skip=assets/vehicle/ while a model is unfinished;
+// the game falls back to its procedural version when a file is missing)
+const skipDirs = process.argv.filter((a) => a.startsWith('--skip=')).map((a) => a.slice(7));
+const skip = (f, rel) => /\.woff$/.test(f) || /-(vietnamese|latin-ext)-[\w-]+\.woff2$/.test(f) || skipDirs.some((d) => rel.startsWith(d));
 const files = [];
 (function walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p);
-    else if (!skip(e.name)) files.push(path.relative(dist, p));
+    else if (!skip(e.name, path.relative(dist, p))) files.push(path.relative(dist, p));
   }
 })(dist);
 const bytes = files.reduce((n, f) => n + fs.statSync(path.join(dist, f)).size, 0);
