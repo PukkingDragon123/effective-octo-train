@@ -21,7 +21,7 @@ export async function run(E) {
   E.frame(() => {
     if (E.outcomeKey && E.outcomeKey !== 'invite') return;
     const a = t.state?.windows?.[win] ?? 0;
-    if (!E._creeping && a > Math.max(open0, RULE_PARAMS.windowOpenFailAmount)) E.outcome('windowOpened');
+    if (!E._creeping && !E.managed && a > Math.max(open0, RULE_PARAMS.windowOpenFailAmount)) E.outcome('windowOpened');
   });
   await E.wait(2.2);
   if (!E.alive) return;
@@ -37,7 +37,7 @@ export async function run(E) {
   }
   await E.until(() => !!E.outcomeKey, Math.max(2, E.duration - E.elapsed));
   if (!E.outcomeKey) E.outcome('silent');
-  if (E.outcomeKey === 'invite') {
+  if (E.outcomeKey === 'invite' && !E.managed) {
     // escalate: windowCreep — the window winds itself down until it is cranked back up
     E._creeping = true;
     let maxAmt = t.state?.windows?.[win] ?? 0;

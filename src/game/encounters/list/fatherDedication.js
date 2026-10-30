@@ -15,15 +15,18 @@ export async function run(E) {
   if ((t.state?.radioStation ?? 0) !== 3) await t.setControl?.('radioTune', 3, { source: 'ghost' });
   const bc = (SPECIAL_BROADCASTS || []).find((b) => b.id === E.def.broadcast) || null;
   const radioObj = t.anchors?.radioKnob || t.root;
-  E.report('start', { exception: true });
+  if (E.managed) E.arm({ exception: true });
+  else E.report('start', { exception: true });
   E.event('encounter:fatherDedication');
-  onControl(E, 'radioTune', () => !E.outcomeKey && E.outcome('retuned'));
-  onControl(E, 'radio', (v) => !v && !E.outcomeKey && E.outcome('retuned'));
+  if (!E.managed) {
+    onControl(E, 'radioTune', () => !E.outcomeKey && E.outcome('retuned'));
+    onControl(E, 'radio', (v) => !v && !E.outcomeKey && E.outcome('retuned'));
+  }
   if (bc?.lines?.length) await E.say(bc.lines, { object: radioObj });
   if (!E.alive) return;
   const ok = await E.until(() => !!E.outcomeKey, Math.max(8, E.duration - E.elapsed));
   if (!E.alive) return;
-  if (!ok && !E.outcomeKey) {
+  if (!ok && !E.outcomeKey && !E.managed) {
     E.outcome('listened');
     const mem = bc?.memory || 'm_song';
     bus.emit('memory:found', { id: mem, source: E.id });

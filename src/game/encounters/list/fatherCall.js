@@ -7,12 +7,17 @@ import { S, THREE, bus } from '../helpers.js';
 
 export async function run(E) {
   const t = E.taxi;
-  E.arm({ backSeatEvent: true, final: true, yawDeg: RULE_PARAMS.lookBackYawDeg });
+  E.arm({ mode: 'ending', seat: 'rearRight', backSeatEvent: true, final: true, yawDeg: RULE_PARAMS.lookBackYawDeg });
   E.event('encounter:fatherCall');
   try {
     t?.setFog?.('rr', 0.55);
     t?.addGlassMark?.('rr', 'handprint', new THREE.Vector2(0.45, 0.55), { size: 1.2, intensity: 0.6 });
   } catch (e) { /* optional */ }
+  if (E.managed) {
+    await E.until(() => !!E.outcomeKey, E.duration);
+    await E._outcomeP;
+    return;
+  }
   let stareT = 0;
   const looked = await E.until((dt) => {
     if (S.lookingBack()) return true;

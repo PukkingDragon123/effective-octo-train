@@ -23,6 +23,16 @@ export async function run(E) {
     if (!v && !E.outcomeKey) E.outcome('off');
   });
   E.say(E.def.lines);
+  if (E.managed) {
+    E.g.bus?.on && E.cleanup(E.g.bus.on('rule:event', (e) => {
+      if (e?.ruleId === 'r6' && e.phase === 'warn' && E.passengerId === 'boyM' && !E.director.isRunning('twistedNeckReflection')) {
+        E.director.start('twistedNeckReflection', { ride: E.ride, passenger: E.ctx.passenger, scheduled: true, duration: RULE_PARAMS.radioEscalateSeconds });
+      }
+    }));
+    await E.until(() => !!E.outcomeKey, RULE_PARAMS.radioGraceSeconds + RULE_PARAMS.radioEscalateSeconds + 4);
+    await E._outcomeP;
+    return;
+  }
   const off = await E.until(() => !!E.outcomeKey || !t.state?.radioOn, RULE_PARAMS.radioGraceSeconds);
   if (!E.alive) return;
   if (off || !t.state?.radioOn) {

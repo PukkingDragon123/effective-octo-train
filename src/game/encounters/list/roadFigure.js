@@ -14,7 +14,7 @@ export async function run(E) {
   const w = E.track(createWindowGhost({ spec: CREATURE_SPECS.roadFigure }));
   const h = w.humanoid;
   w.perform('standInRoad', { pos: r.pos, facing: r.yaw + Math.PI, duration: 120 });
-  E.arm({ noBrakeMinKmh: RULE_PARAMS.roadFigureNoBrakeMinKmh, dangerM: RULE_PARAMS.roadFigureDangerM, maxSwerveM: RULE_PARAMS.roadFigureMaxSwerveLateralM });
+  E.arm({ position: r.pos.clone(), noBrakeMinKmh: RULE_PARAMS.roadFigureNoBrakeMinKmh, dangerM: RULE_PARAMS.roadFigureDangerM, maxSwerveM: RULE_PARAMS.roadFigureMaxSwerveLateralM });
   let revealed = false, warned = false;
   const res = await E.until(() => {
     const d = S.aheadOf(r.pos);
@@ -23,7 +23,8 @@ export async function run(E) {
       E.event('encounter:roadFigure');
       S.sfx('sting_low', { position: r.pos, volume: 0.6 });
     }
-    if (d < RULE_PARAMS.roadFigureDangerM && d > 0) {
+    if (E.managed && E.outcomeKey && E.outcomeKey !== 'passed') return 'decided';
+    if (d < RULE_PARAMS.roadFigureDangerM && d > 0 && !E.managed) {
       if (t.speedKmh < RULE_PARAMS.roadFigureNoBrakeMinKmh) return 'braked';
       const lat = S.taxiPos().sub(r.pos).dot(r.right);
       if (Math.abs(lat) > RULE_PARAMS.roadFigureMaxSwerveLateralM || t.physics?.onRoad === false) return 'swerved';
@@ -37,7 +38,11 @@ export async function run(E) {
   if (!E.alive) return;
   // the until() helper gives true/false; recompute which
   const d = S.aheadOf(r.pos);
-  if (d >= -0.5) {
+  if (E.managed && E.outcomeKey && E.outcomeKey !== 'passed') {
+    await E._outcomeP;
+    return;
+  }
+  if (d >= -0.5 && !E.managed) {
     const lat = S.taxiPos().sub(r.pos).dot(r.right);
     const key = Math.abs(lat) > RULE_PARAMS.roadFigureMaxSwerveLateralM ? 'swerved' : res ? 'braked' : 'passed';
     if (key !== 'passed') {
@@ -53,7 +58,7 @@ export async function run(E) {
   t.setFog?.('windshield', 0.85);
   t.glass?.fillFog?.('windshield', 0.7);
   S.cameraRig.shake(0.2);
-  E.outcome('passed');
+  if (!E.managed) E.outcome('passed');
   const back = S.roadAhead(-14, -1.55);
   h.root.position.copy(back.pos);
   h.root.rotation.y = back.yaw;

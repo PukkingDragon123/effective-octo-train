@@ -300,6 +300,11 @@ export class Quadruped extends Entity {
     const y = this.groundFn(x, z);
     return Number.isFinite(y) ? y : fallback;
   }
+  /** Resting pose: 'stand' (default) | 'lie' | 'lieAlert' (head up, watching) | 'sleep' (curled). */
+  setPose(name = 'stand') {
+    this.pose = ['lie', 'lieAlert', 'sleep'].includes(name) ? name : 'stand';
+    this._poseK = this._poseK ?? 0;
+  }
   setGait(name) {
     if (this.sp.gaits[name]) {
       this.gaitName = name;
@@ -420,14 +425,28 @@ export class Quadruped extends Entity {
     const R = this.b.root;
     R.position.copy(R.userData.rest);
     R.position.y += bob / sc + (this.kind === 'dog' && this.gaitName === 'gallop' ? Math.max(0, Math.sin(this.phase * TAU)) * 0.04 : 0);
+    // lying down (dogs in the garage): body lowered onto the ground, slow breathing
+    const lying = this.pose && this.pose !== 'stand' && !this.move ? 1 : 0;
+    this._poseK = damp(this._poseK ?? 0, lying, 2, dt);
+    const pk = this._poseK;
+    if (pk > 0.001) {
+      const drop = (R.userData.rest.y - (this.kind === 'dog' ? 0.17 : 0.9)) * pk;
+      R.position.y -= drop - Math.sin(t * (this.pose === 'sleep' ? 1.6 : 2.4)) * 0.004 * pk;
+    }
     // pitch from front / hind foot heights (slopes), plus the gallop's rocking
     const hf = this._avgPlantY(true), hb = this._avgPlantY(false);
     const len = (this.kind === 'dog' ? 0.45 : 1.7) * sc;
     const pitch = Number.isFinite(hf - hb) ? clamp(Math.atan2(hf - hb, len), -0.35, 0.35) : 0;
     R.quaternion.setFromEuler(_e.set(pitch + flex * 0.5, 0, Math.sin(this.phase * TAU) * 0.02 * (freq > 0 ? 1 : 0)));
-    this.b.chest.quaternion.setFromEuler(_e.set(-flex * 0.6, 0, 0));
-    this.b.hips.quaternion.setFromEuler(_e.set(flex * 0.6, 0, 0));
+    const curl = this.pose === 'sleep' ? pk : 0;
+    this.b.chest.quaternion.setFromEuler(_e.set(-flex * 0.6, 0.45 * curl, 0));
+    this.b.hips.quaternion.setFromEuler(_e.set(flex * 0.6, -0.3 * curl, 0));
     this._head(dt);
+    if (pk > 0.001) {
+      const asleep = this.pose === 'sleep' ? 1 : 0;
+      this.b.neck.quaternion.multiply(_q2.setFromEuler(_e.set(-0.35 * pk * (asleep ? 1.4 : 0.4), 0.5 * curl, 0)));
+      this.b.head.quaternion.multiply(_q2.setFromEuler(_e.set(-0.4 * pk * asleep, 0.2 * curl, 0.15 * curl)));
+    }
     this._extras(dt, t);
     this.root.updateMatrixWorld(true);
     // ---- legs
@@ -458,7 +477,14 @@ export class Quadruped extends Entity {
       l.init = true;
     }
     const sc = this.scale;
-    if (freq > 0) {
+    const pk = this._poseK ?? 0;
+    if (pk > 0.001 && freq === 0) {
+      // folded legs: paws forward under the chin, hind legs tucked to the side
+      const fwd = _v3.set(0, 0, -1).applyQuaternion(this.mesh.getWorldQuaternion(_q));
+      const side = new THREE.Vector3(Math.sign(l.rest.x) || 1, 0, 0).applyQuaternion(_q);
+      const lie = rw.clone().addScaledVector(fwd, (l.front ? 0.2 : 0.1) * sc).addScaledVector(side, (l.front ? 0.01 : 0.07) * sc);
+      l.target.lerpVectors(l.plant, lie, pk);
+    } else if (freq > 0) {
       const ph = (this.phase + (G.offsets[l.n] ?? 0)) % 1;
       if (ph < G.duty) {
         if (l.swinging) {

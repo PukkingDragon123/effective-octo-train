@@ -6,7 +6,8 @@ import { S, THREE, rand } from '../helpers.js';
 export async function run(E) {
   const t = E.taxi;
   if (!t) return;
-  E.report('start', { exception: true });
+  if (E.managed) E.arm({ exception: true, noStaging: true });
+  else E.report('start', { exception: true });
   S.sfx('splash', { object: t.anchors?.rearLeftSeat || t.root, volume: 0.35, rate: 1.4 });
   await E.wait(0.35);
   for (let i = 0; i < 5; i++) {
@@ -15,7 +16,7 @@ export async function run(E) {
     } catch (e) { /* optional */ }
   }
   E.event('encounter:betelSpit');
-  const wiped = await E.until(() => (t.state?.wipers ?? 0) > 0, E.duration);
+  const wiped = await E.until(() => (t.state?.wipers ?? 0) > 0 || !!E.outcomeKey, E.duration);
   if (!E.alive) return;
-  E.outcome(wiped ? 'wiped' : 'letRun');
+  if (!E.outcomeKey) E.outcome(wiped ? 'wiped' : 'letRun');
 }

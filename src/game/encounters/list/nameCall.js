@@ -7,7 +7,6 @@ export async function run(E) {
   const t = E.taxi;
   if (!t) return;
   E.arm({ stopSpeedKmh: RULE_PARAMS.nameCallStopSpeedKmh });
-  E.event('encounter:nameCall');
   // the voice circles the car outside
   const orbit = new THREE.Object3D();
   S.engine.scene.add(orbit);
@@ -29,7 +28,7 @@ export async function run(E) {
   });
   // watch for the window: stopped + a window open = answering
   E.frame(() => {
-    if (E.outcomeKey) return;
+    if (E.outcomeKey || E.managed) return;
     const w = t.state?.windows || {};
     const open = Object.values(w).some((a) => a > RULE_PARAMS.windowOpenFailAmount);
     if (open && t.speedKmh < RULE_PARAMS.nameCallStopSpeedKmh) E.outcome('windowOpened');
@@ -40,6 +39,7 @@ export async function run(E) {
     await E.wait(rand(0.6, 1.4));
   }
   if (!E.alive) return;
+  E.event('encounter:nameCall'); // the ride's beat after the voice's own lines
   if (!E.outcomeKey) {
     const key = await E.ask();
     if (key && !E.outcomeKey) E.outcome(key);
@@ -48,7 +48,7 @@ export async function run(E) {
     await E.until(() => !!E.outcomeKey, Math.max(2, E.duration - E.elapsed));
     if (!E.outcomeKey) E.outcome('silent');
   }
-  E.event(E.outcomeKey === 'answer' || E.outcomeKey === 'windowOpened' ? 'nameCallAnswered' : 'nameCallIgnored');
+  if (!E.managed) E.event(E.outcomeKey === 'answer' || E.outcomeKey === 'windowOpened' ? 'nameCallAnswered' : 'nameCallIgnored');
   await E.outcomeSet;
   await E._outcomeP;
 }

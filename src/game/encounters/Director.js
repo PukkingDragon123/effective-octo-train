@@ -25,6 +25,7 @@ import { Encounter } from './Encounter.js';
 import { LOCAL_DEFS } from './defs.js';
 import { DEATHS, registerCreatureDeaths, playDeath } from './deaths.js';
 import * as S from './stage.js';
+import { prewarmCreatures } from '../../creatures/index.js';
 
 const MODULES = import.meta.glob('./list/*.js', { eager: true });
 const RUNNERS = {};
@@ -64,6 +65,14 @@ export class EncounterDirector {
     this._frame = -1;
     this._offs = [];
     this._installed = false;
+    this.selfUpdate = true; // runs itself at engine order 0 (ShiftState need not call update)
+    this.active = false; // B: setActive(true) while the shift runs
+  }
+
+  /** B's ShiftState: on while the night shift runs (ambient scheduling), off stops everything. */
+  setActive(on) {
+    this.active = !!on;
+    if (!on) this.stopAll();
   }
 
   install() {
@@ -85,7 +94,7 @@ export class EncounterDirector {
     this._offs.push(
       bus.on('dialogue:line', (e) => {
         const r = e?.line?.set?.ruleBreak;
-        if (!r || !RULE_BREAKS[r]) return;
+        if (!r || !RULE_BREAKS[r] || g.rules) return; // B's rule monitor applies RULE_BREAKS when present
         const enc = this.byRule(r);
         if (!enc) return;
         const key = RULE_BREAKS[r].outcome;
@@ -94,7 +103,7 @@ export class EncounterDirector {
           if (!enc.alive || enc.outcomeKey) return off();
           if (!g.dialogue?.busy || engine.time - t0 > 6) {
             off();
-            enc.outcome(key);
+            enc.outcome(key, 'external');
           }
         }, 2);
       }),
@@ -107,6 +116,8 @@ export class EncounterDirector {
       }),
     );
     registerCreatureDeaths();
+    // sculpt the animals / hand / face rat in idle time, well after boot
+    setTimeout(() => prewarmCreatures().catch(() => {}), 12000);
     return this;
   }
 
@@ -122,7 +133,7 @@ export class EncounterDirector {
     return null;
   }
   outcome(id, key) {
-    return this.running.get(id)?.outcome(key);
+    return this.running.get(id)?.outcome(key, 'external');
   }
 
   /**
@@ -136,12 +147,13 @@ export class EncounterDirector {
       return this._nullHandle(id);
     }
     const existing = this.running.get(id);
-    if (existing?.alive) return this._handle(existing);
+    if (existing?.alive) return existing.handle || this._handle(existing);
     const mod = RUNNERS[id];
     const enc = new Encounter(this, def, { scheduled: ctx.scheduled ?? true, ...ctx });
+    enc.handle = this._handle(enc);
     this.running.set(id, enc);
     if (SCARY.has(def.kind) && enc.scheduled && ctx.ride !== undefined) this._lastRideScare = engine.time;
-    bus.emit('encounter:start', { id, scheduled: enc.scheduled });
+    bus.emit('encounter:start', { id, scheduled: enc.scheduled, handle: enc.handle });
     (async () => {
       try {
         if (mod) await mod.run(enc);
@@ -159,10 +171,10 @@ export class EncounterDirector {
         bus.emit('encounter:end', { id, outcome: enc.outcomeKey, result: enc.result });
       }
     })();
-    return this._handle(enc);
+    return enc.handle;
   }
   _handle(enc) {
-    return { id: enc.id, done: enc.done, outcome: (k) => enc.outcome(k), stop: () => enc.stop(), encounter: enc };
+    return { id: enc.id, done: enc.done, outcome: (k) => enc.outcome(k, 'external'), stop: () => enc.stop(), encounter: enc };
   }
   _nullHandle(id) {
     return { id, done: Promise.resolve({ id, outcome: null, result: 'none' }), outcome() {}, stop() {}, encounter: null };
@@ -198,7 +210,7 @@ export class EncounterDirector {
     if (this._frame === engine.frame) return; // already ran this frame (self-update)
     this._frame = engine.frame;
     if (!this.enabled || !this.ambient) return;
-    const inShift = this.forceAmbient || !!g.fsm?.is?.('shift');
+    const inShift = this.forceAmbient || this.active || !!g.fsm?.is?.('shift');
     if (!inShift || !g.taxi || g.engine?.paused) return;
     this._t -= dt;
     if (this._t > 0) return;
@@ -229,7 +241,8 @@ export class EncounterDirector {
     if (this.running.has(def.id)) return false;
     if (def.once && this.onceNight.has(def.id)) return false;
     const last = this.lastEnd.get(def.id);
-    if (last !== undefined && now - last < (def.cooldownSec || 0)) return false;
+    if (last !== undefined && !def.cooldownSec) return false; // no cooldown = once a night when ambient
+    if (last !== undefined && now - last < def.cooldownSec) return false;
     if (!inHours(def.hours, h)) return false;
     if (!this._where(def)) return false;
     const t = g.taxi;

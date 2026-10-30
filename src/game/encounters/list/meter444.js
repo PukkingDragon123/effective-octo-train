@@ -5,11 +5,13 @@
 // Exception: with the monk aboard the number is just a number.
 import { RULE_PARAMS } from '../../data/rules.js';
 import { checkCond } from '../../data/logic.js';
-import { S, THREE } from '../helpers.js';
+import { createCreatureHumanoid, CREATURE_SPECS } from '../../../creatures/index.js';
+import { S, THREE, rand } from '../helpers.js';
 
 export async function run(E) {
   const t = E.taxi;
   if (!t) return;
+  if (E.managed) return presence(E, t);
   t.setMeterGlitch?.({ mode: 'text', text: '444.00' });
   E.cleanup(() => t.setMeterGlitch?.(null));
   E.event('meter444');
@@ -77,5 +79,48 @@ export async function run(E) {
   // the rest of the ten seconds
   await E.until(() => !!E.outcomeKey, Math.max(0.5, RULE_PARAMS.meter444CountSeconds - (E.elapsed - t0)));
   if (!E.outcomeKey) E.outcome('silent');
+  await E._outcomeP;
+}
+
+/**
+ * With B's rule monitor the rule side (meter, stop, the counting voice, the reply, the chain, the
+ * monk) is B's. We add the presence: once the car has stopped, something tall walks slowly round
+ * the car, window to window, a hand left on each pane as the count goes on. Look down.
+ */
+async function presence(E, t) {
+  E.arm({});
+  E.event('encounter:meter444');
+  if (E.passengerId === 'monk') {
+    await E.wait(4);
+    return;
+  }
+  const stopped = await E.until(() => t.speedKmh < RULE_PARAMS.meter444StopSpeedKmh || !!E.outcomeKey, RULE_PARAMS.meter444StopWithinSeconds + 1);
+  if (!E.alive || !stopped || E.outcomeKey) return;
+  const h = E.track(createCreatureHumanoid(CREATURE_SPECS.tallMan));
+  S.engine.scene.add(h.root);
+  h.setGhost({ stare: 1, still: 0.4, backbend: -0.2 }, 100);
+  const ring = [[-1.5, 0, -1.2], [-1.6, 0, 0.6], [0, 0, 2.9], [1.6, 0, 0.6], [1.5, 0, -1.2], [0, 0, -3.4]];
+  const panes = ['fl', 'rl', 'rear', 'rr', 'fr', 'windshield'];
+  const at = (i) => {
+    const p = S.fromTaxi(...ring[i % ring.length]);
+    p.y = S.ground(p.x, p.z, S.taxiPos().y);
+    return p;
+  };
+  h.root.position.copy(at(0));
+  let i = 0;
+  const step = RULE_PARAMS.meter444CountSeconds / ring.length;
+  while (E.alive && !E.outcomeKey && i < ring.length) {
+    const from = at(i), to = at(i + 1);
+    h.lookAt(S.engine.camera, { speed: 1, weight: 0.7 });
+    h.walkTo(to, { speed: from.distanceTo(to) / Math.max(0.6, step) });
+    try {
+      t.addGlassMark?.(panes[i], 'handprint', new THREE.Vector2(rand(0.3, 0.7), rand(0.35, 0.65)), { size: 1.25, drag: Math.random() < 0.4 });
+      t.addBreathFog?.(panes[i], from.clone().setY(from.y + 1.3), 0.6);
+    } catch (e) { /* optional */ }
+    S.sfx('footstep_gravel', { position: from, volume: 0.35, rate: 0.85 });
+    await E.wait(step);
+    i++;
+  }
+  await E.until(() => !!E.outcomeKey, 6);
   await E._outcomeP;
 }

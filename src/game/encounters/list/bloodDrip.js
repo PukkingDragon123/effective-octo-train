@@ -10,7 +10,7 @@ export async function run(E) {
   if (!t) return;
   if (E.g.save?.flags) E.g.save.flags.bloodOnGlass = true;
   E.cleanup(() => E.g.save?.flags && delete E.g.save.flags.bloodOnGlass);
-  E.arm({ wiperGraceSeconds: RULE_PARAMS.bloodWiperGraceSeconds, wipeFailSeconds: RULE_PARAMS.bloodWipeFailSeconds });
+  E.arm({ wiperGraceSeconds: RULE_PARAMS.bloodWiperGraceSeconds, wipeFailSeconds: RULE_PARAMS.bloodWipeFailSeconds, noStaging: true });
   E.event('encounter:bloodDrip');
   const drip = (u, s = 1) => {
     try {
@@ -60,9 +60,17 @@ export async function run(E) {
         S.sfx('thump_roof', { object: t.root, volume: 0.6 });
       }
     }
+    if (E.managed) return !!E.outcomeKey;
     return wipe > RULE_PARAMS.bloodWipeFailSeconds;
   }, E.duration);
   if (!E.alive) return;
+  if (E.managed) {
+    if (E.outcomeKey === 'wiped') {
+      reveal = 1;
+      await E._outcomeP;
+    }
+    return;
+  }
   if (res) {
     E.outcome('wiped');
     await E._outcomeP;

@@ -7,7 +7,7 @@ export async function run(E) {
   const t = E.taxi;
   if (!t) return;
   const wasOn = !!t.state?.cabinLight;
-  E.arm({ attackDelay: RULE_PARAMS.cabinLightAttackDelay, wasOn });
+  E.arm({ attackDelay: RULE_PARAMS.cabinLightAttackDelay, wasOn, noStaging: true });
   E.event('cabinLightDies');
   E.event('encounter:cabinLightDies');
   // flicker, then die
@@ -23,7 +23,7 @@ export async function run(E) {
   E.cleanup(() => t.setCabinOverride?.(null));
   // switching it back on is the break
   onControl(E, 'cabinLight', (v) => {
-    if (v && !E.outcomeKey) {
+    if (v && !E.outcomeKey && !E.managed) {
       E.wait(RULE_PARAMS.cabinLightAttackDelay).then(() => E.outcome('lightOn'));
     }
   });
@@ -37,6 +37,6 @@ export async function run(E) {
     }
   })();
   await E.until(() => !!E.outcomeKey, E.duration);
-  if (!E.outcomeKey) E.outcome('waited');
+  if (!E.outcomeKey && !E.managed) E.outcome('waited');
   await E.wait(0.2);
 }

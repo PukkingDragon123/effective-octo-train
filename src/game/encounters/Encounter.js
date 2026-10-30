@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { g } from '../context.js';
 import { engine } from '../../core/Engine.js';
 import { bus } from '../../core/Events.js';
-import { RULE_PARAMS } from '../data/rules.js';
+import { RULE_PARAMS, RULE_BREAKS } from '../data/rules.js';
 import * as S from './stage.js';
 
 let _uid = 0;
@@ -65,6 +65,10 @@ export class Encounter {
   }
   get g() {
     return g;
+  }
+  /** True when B's rule monitor (g.rules) watches the rules: detection and kills are B's; we stage. */
+  get managed() {
+    return !!g.rules;
   }
 
   // ---------------------------------------------------------------- timing
@@ -125,7 +129,7 @@ export class Encounter {
     if (!r) return;
     this.armed = true;
     try {
-      g.rules?.arm?.(r, { encounter: this.id, until: this.done, untilTime: engine.time + this.duration + 30, params });
+      g.rules?.arm?.(r, { encounter: this.handle || this.id, params });
     } catch (e) {
       console.warn('[director] rules.arm failed', e);
     }
@@ -136,14 +140,29 @@ export class Encounter {
     if (!r) return;
     bus.emit('rule:event', { ruleId: r, phase, encounterId: this.id, source: 'director', exception: !!this.def.exception, ...extra });
   }
-  /** A dialogue event for the ride (DIALOGUE_EVENTS) + bus 'encounter:event'. */
+  /** A dialogue event for the ride (DIALOGUE_EVENTS) + bus 'encounter:event'. 'encounter:<own id>' = reveal(). */
   event(name) {
+    if (name === 'encounter:' + this.id) return this.reveal();
     try {
       this.ride?.emit?.(name);
     } catch (e) {
       console.warn('[director] ride.emit failed', e);
     }
     bus.emit('encounter:event', { event: name, id: this.id });
+  }
+  /** The moment the encounter is actually seen / heard: the ride's beat on 'encounter:<id>' plays now. */
+  reveal() {
+    if (this._revealed) return this._beatP;
+    this._revealed = true;
+    bus.emit('encounter:event', { event: 'encounter:' + this.id, id: this.id });
+    try {
+      const r = this.ride;
+      if (r?.encounterBeat) this._beatP = r.encounterBeat(this.id).catch(() => null);
+      else r?.emit?.('encounter:' + this.id);
+    } catch (e) {
+      console.warn('[director] encounter beat failed', e);
+    }
+    return this._beatP;
   }
 
   // ---------------------------------------------------------------- speech
@@ -180,6 +199,9 @@ export class Encounter {
   }
   /** True when the current ride has a beat on 'encounter:<id>' that contains a reply moment. */
   rideOwnsReply() {
+    try {
+      if (typeof this.ride?.beatOwnsReply === 'function') return this.ride.beatOwnsReply(this.id);
+    } catch (e) { /* fall back to the data */ }
     const beats = this.ride?.data?.dialogue?.beats;
     if (!beats) return false;
     const has = (lines) => (lines || []).some((l) => l.choice || Object.values(l.choice?.branches || {}).some(has));
@@ -188,6 +210,8 @@ export class Encounter {
   /** Play the def's choice (prompt line first). Returns the key, or null when the ride owns the reply. */
   async ask(choice = this.def.choice) {
     if (!choice || this.rideOwnsReply() || !this.alive) return null;
+    if (this._beatP) await Promise.race([this._beatP, this.wait(20)]); // the ride's beat speaks first
+    if (!this.alive || this.outcomeKey) return null;
     if (choice.prompt) await this.say([choice.prompt]);
     if (!this.alive || this.outcomeKey) return null;
     const line = { who: 'player', th: '', en: '', tone: 'thought', choice: { id: choice.id, options: choice.options, defaultKey: choice.defaultKey, timeout: choice.timeout } };
@@ -196,8 +220,12 @@ export class Encounter {
   }
 
   // ---------------------------------------------------------------- outcomes
-  /** Resolve an outcome by key (first call wins). Returns a Promise of the result string. */
-  outcome(key) {
+  /**
+   * Resolve an outcome by key (first call wins). src 'local' = decided by this encounter (reported to
+   * B: deaths as 'violated', escalations through g.rules.escalate); 'external' = B decided it via the
+   * handle (we only play the lines). Returns a Promise of the result string.
+   */
+  outcome(key, src = 'local') {
     if (this.outcomeKey) return this._outcomeP || Promise.resolve(this.result);
     if (!this.alive) return Promise.resolve(null);
     this.outcomeKey = key;
@@ -208,7 +236,24 @@ export class Encounter {
     this._outcomeP = (async () => {
       if (o?.lines?.length && this.alive) await this.say(o.lines);
       const [kind, arg] = this.result.split(':');
-      if (kind === 'death') this.violate(arg, key);
+      if (kind === 'death') {
+        if (src === 'local') this.violate(arg, key);
+        else {
+          this._violated = true;
+          this.violated = arg;
+        }
+      } else if (kind === 'escalate') {
+        if (src === 'local' && g.rules) {
+          try {
+            g.rules.disarm?.(this.def.ruleId, key);
+            g.rules.escalate?.(arg, RULE_BREAKS[this.def.ruleId]?.death);
+          } catch (e) {
+            console.warn('[director] escalate failed', e);
+          }
+        }
+        this.escalated = arg;
+        bus.emit('encounter:result', { id: this.id, kind, arg, outcome: key });
+      }
       else if (kind === 'ending') {
         this.report('violated', { outcome: key, ending: arg });
         bus.emit('encounter:ending', { id: this.id, ending: arg, outcome: key });
@@ -225,7 +270,8 @@ export class Encounter {
     const extra = { ...(this.deathCtx || {}), passengerId: this.passengerId };
     this.report('violated', { death: deathType, outcome: outcomeKey, ...extra });
     bus.emit('encounter:death', { id: this.id, death: deathType, ruleId: this.def.ruleId, outcome: outcomeKey, ...extra });
-    if (!g.rules) {
+    // B kills on our 'violated' report; deaths outside the rules (Yai Speed) go to g.kill directly
+    if (!g.rules || !this.def.ruleId) {
       if (g.kill) g.kill(deathType, { encounterId: this.id, ruleId: this.def.ruleId, outcome: outcomeKey, ...extra });
       else this.director.playDeath?.(deathType, { encounter: this, ruleId: this.def.ruleId, ...extra });
     }
@@ -237,6 +283,7 @@ export class Encounter {
     if (!this.alive) return;
     this.alive = false;
     this._teardown();
+    this._resolveDone({ id: this.id, outcome: this.outcomeKey, result: this.result || 'stopped', violated: this.violated || null, stopped: true });
   }
   _teardown() {
     for (const f of this._cleanups.splice(0)) {
@@ -263,11 +310,7 @@ export class Encounter {
         if (sp) sp.object = prev;
       } catch (e) { /* optional */ }
     }
-    if (this.armed) {
-      try {
-        g.rules?.disarm?.(this.def.ruleId, { encounter: this.id });
-      } catch (e) { /* optional */ }
-    }
+    // (B's rule monitor closes an armed rule itself when this encounter's handle.done resolves)
   }
   _finish() {
     const wasAlive = this.alive;

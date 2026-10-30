@@ -10,8 +10,10 @@ export async function run(E) {
   if (!t.state?.radioOn) await t.setControl?.('radio', true, { source: 'ghost' });
   const radioObj = t.anchors?.radioKnob || t.root;
   E.arm({ tuneSeconds: RULE_PARAMS.radioNameTuneSeconds });
-  onControl(E, 'radioTune', () => !E.outcomeKey && E.outcome('retuned'));
-  onControl(E, 'radio', (v) => !v && !E.outcomeKey && E.outcome('switchedOff'));
+  if (!E.managed) {
+    onControl(E, 'radioTune', () => !E.outcomeKey && E.outcome('retuned'));
+    onControl(E, 'radio', (v) => !v && !E.outcomeKey && E.outcome('switchedOff'));
+  }
   try {
     E.g.audio?.radio?.setStatic?.(0.35);
   } catch (e) { /* optional */ }
@@ -21,18 +23,24 @@ export async function run(E) {
     } catch (e) { /* optional */ }
   });
   const lines = E.resolve(E.def.lines);
-  await E.say(lines.slice(0, 1), { object: radioObj });
+  await E.say(lines, { object: radioObj });
   if (!E.alive) return;
   E.event('encounter:radioName');
-  const rest = E.say(lines.slice(1), { object: radioObj });
+  const rest = null;
   const tuned = await E.until(() => !!E.outcomeKey, RULE_PARAMS.radioNameTuneSeconds + 3);
   if (!E.alive) return;
   if (!tuned && !E.outcomeKey) {
     const key = await E.ask();
-    if (key && !E.outcomeKey) E.outcome(key === 'silent' ? 'ignored' : key);
-    if (!E.outcomeKey) E.outcome('ignored');
+    if (key === 'answer' && !E.outcomeKey) E.outcome('answer');
+    if (!E.outcomeKey && !E.managed) E.outcome('ignored');
   }
   void rest;
+  if (E.managed) {
+    // B decides retuned / switchedOff / ignored and runs the back-seat escalation itself
+    await E.until(() => !!E.outcomeKey, 8);
+    await E._outcomeP;
+    return;
+  }
   await E._outcomeP;
   if (E.outcomeKey === 'retuned' || !E.alive) return;
   // escalate: backSeatVoice — rule 3

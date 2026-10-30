@@ -78,6 +78,25 @@ export function createWindowGhost(opts = {}) {
   return new WindowGhost(opts);
 }
 
+/**
+ * Build the sculpted geometries ahead of time (one per idle slice) so the first elephant / dog /
+ * hand / face rat never hitches a frame. kinds: subset of ['hand','dog','elephant','elephantCalf','rat','egret'].
+ */
+export async function prewarmCreatures(kinds = ['hand', 'dog', 'rat', 'elephant', 'elephantCalf', 'egret']) {
+  const idle = () => new Promise((r) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(() => r(), { timeout: 1500 }) : setTimeout(r, 30)));
+  for (const k of kinds) {
+    await idle();
+    try {
+      if (k === 'hand') handGeometry({ fingerScale: 1.32, bony: 0.8, nails: 0.17, forearm: 2.6, thickness: 0.88, cell: 0.026 });
+      else if (k === 'dog' || k === 'elephant' || k === 'elephantCalf') createAnimal(k).dispose();
+      else if (k === 'rat') createFaceRat().dispose();
+      else if (k === 'egret') createEgretFlock(1).dispose();
+    } catch (e) {
+      console.warn('[creatures] prewarm', k, e);
+    }
+  }
+}
+
 export { createAnimal, createFaceRat, createEgretFlock, EgretFlock, Quadruped, FaceRat, DOG_COATS, HandRig, handGeometry, SPECS as CREATURE_SPECS, human as createCreatureHumanoid };
 export { paneFrame, panePoint, toBody, dirToBody, bodyOf, humanoidFacing };
 export { YaiSpeed, Krasue, Krahang, NangTani, WireCrawler, ForestGiant, GiantHand, PhiTaiHong, WindowGhost };

@@ -34,6 +34,7 @@ export async function run(E) {
       h.setExpression({ smile, creepy: 0.3 + smile * 0.6 });
     }
     wasLooking = now;
+    if (E.managed) return;
     if (t.speedKmh < RULE_PARAMS.extraPassengerStopSpeedKmh) still += dt;
     else still = 0;
     if (still > 2 && !E.outcomeKey) E.outcome('stopped');
@@ -43,6 +44,6 @@ export async function run(E) {
     if (key && !E.outcomeKey) E.outcome(key);
   }
   await E.until(() => !!E.outcomeKey, Math.max(2, E.duration - E.elapsed));
-  if (!E.outcomeKey) E.outcome('silent');
+  if (!E.outcomeKey && !E.managed) E.outcome('silent');
   await E._outcomeP;
 }
