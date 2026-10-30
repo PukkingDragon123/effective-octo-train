@@ -12,9 +12,15 @@ import { StateMachine } from './StateMachine.js';
 import { Dialogue } from './Dialogue.js';
 import { cine } from './Cinematic.js';
 import { Clock } from './Clock.js';
-import { World } from '../world/World.js';
-import { Taxi, Motorcycle } from '../vehicle/index.js';
-import { PlayerBody, createHumanoid } from '../characters/index.js';
+import * as WorldModule from '../world/World.js';
+import * as VehicleModule from '../vehicle/index.js';
+import * as PropsModule from '../props/index.js';
+import * as TexturesModule from '../textures/index.js';
+import * as CharactersModule from '../characters/index.js';
+
+const { World } = WorldModule;
+const { Taxi, Motorcycle } = VehicleModule;
+const { PlayerBody, createHumanoid } = CharactersModule;
 import { audio } from '../audio/index.js';
 import { ui } from '../ui/index.js';
 import { postfx, sky, lightPool, particles } from '../render/index.js';
@@ -53,11 +59,28 @@ export async function startGame(ctx) {
   window.addEventListener('keydown', unlock);
   window.addEventListener('gamepadconnected', unlock);
 
+  // --- assets (downloaded / modelled / photobashed), each optional --------------
+  // Every loader falls back to procedural content when its files are missing.
+  const step = async (label, th, en, frac, fn) => {
+    ui.showLoading(frac, th, en);
+    try {
+      await fn?.();
+    } catch (err) {
+      console.warn(`[boot] ${label} failed, using procedural fallback`, err);
+    }
+  };
+  await step('textures', 'กำลังวาดพื้นผิว…', 'Painting surfaces…', 0.05, () =>
+    TexturesModule.preloadTextures?.(undefined, (d, t) => ui.showLoading(0.05 + 0.2 * (d / Math.max(1, t)), 'กำลังวาดพื้นผิว…', 'Painting surfaces…')));
+  await step('characters', 'กำลังปลุกผู้โดยสาร…', 'Waking the passengers…', 0.27, () => CharactersModule.loadCharacterAssets?.());
+  await step('vehicle', 'กำลังเข็นแท็กซี่ออกจากอู่…', 'Rolling the taxi out…', 0.32, () => VehicleModule.loadVehicleAssets?.());
+  await step('props', 'กำลังจัดของในอู่…', 'Cluttering the garage…', 0.36, () => PropsModule.loadPropAssets?.());
+  await step('world assets', 'กำลังหาหินและรากไม้…', 'Gathering roots and stones…', 0.4, () => (WorldModule.loadWorldAssets || PropsModule.loadWorldAssets)?.());
+
   // --- world --------------------------------------------------------------------
   const world = new World();
   await world.build({
     quality: ctx.settings.get('graphicsPreset'),
-    onProgress: (f, label) => ui.showLoading(0.05 + f * 0.8, label?.th || 'กำลังปลูกต้นไม้…', label?.en || label || 'Growing the forest…'),
+    onProgress: (f, label) => ui.showLoading(0.42 + f * 0.44, label?.th || 'กำลังปลูกต้นไม้…', label?.en || label || 'Growing the forest…'),
   });
   engine.scene.add(world.group);
   g.world = world;

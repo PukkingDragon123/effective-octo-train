@@ -127,7 +127,7 @@ export const GLOW = {
   red: { color: 0xff2a14, intensity: 3.2, base: 0x300404 },
   lantern: { color: 0xc8160a, intensity: 1.35, base: 0x3a0503 },
   lantern_white: { color: 0xfff0d0, intensity: 0.9, base: 0xb0a890 },
-  amber: { color: 0xffa83a, intensity: 6.0, base: 0x402000 },
+  amber: { color: 0xff8a14, intensity: 3.2, base: 0x5a2a00 },
   candle: { color: 0xffb860, intensity: 6.0, base: 0x402008 },
   ember: { color: 0xff5010, intensity: 4.0, base: 0x200000 },
   window: { color: 0xffb060, intensity: 1.8, base: 0x201005 },

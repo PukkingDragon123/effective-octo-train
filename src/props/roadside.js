@@ -1,7 +1,7 @@
 // Roadside set pieces: noodle stall, bridge, guardrail, sign posts, convex traffic mirror,
 // accident memorial, ghost (mist) gate, village stop.
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, sweep, smoothPath, sagCurve, blob, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, sweep, smoothPath, sagCurve, blob, steelSection, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, signInfo, texMat, photoTex, nightEnvTex, stainTex, crackTex, noticeTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { paintedMaterial } from '../render/index.js';
@@ -356,7 +356,10 @@ export function createGuardrail(points, opts = {}) {
   flare(0, 1);
   flare(0, -1);
   const prof = WBEAM.map(([x, y]) => [x * fs, y]);
+  // uv 'keep': u = across the profile (m), v = along the rail (m) so the galvanised texture
+  // runs with the beam instead of box-projecting into diagonal stripes on the curve
   k.add(mat('galv'), sweep(path, prof, {}), {
+    uv: 'keep', uvScale: 0.8,
     color: 0x8a8c86, w: { grime: 0.2, grimeH: 0.9, streak: 0.6, vary: 0.3 },
     colorFn: (p, nn, c) => {
       const sc = noise.noise3D(p.x * 1.5, p.y * 4, p.z * 1.5);
@@ -381,21 +384,29 @@ export function createGuardrail(points, opts = {}) {
       continue;
     }
     k.at([b.x + off.x, b.y, b.z + off.z], [bent ? -0.35 : (rng() - 0.5) * 0.04, yaw, (rng() - 0.5) * 0.05, 'YXZ'], null, () => {
-      k.add(mat('galv'), G('gpost', () => bbox(0.1, H + 0.12, 0.15, 0.008, 0.2)), { color: 0x7a7c76, w: { grime: 0.7, grimeH: 0.5, streak: 0.8, mossLow: 0.7, mossH: 0.25 } });
+      // C-channel steel post (rolled section), bolted to a timber spacer block behind the beam
+      k.add(mat('galv'), G('gpostC', () => steelSection(H + 0.12, 0.15, 0.1, 0.008, 0.006)), { color: 0x7a7c76, w: { grime: 0.7, grimeH: 0.5, streak: 0.8, mossLow: 0.7, mossH: 0.25 } });
       k.add(mat('wood'), G('gspacer', () => bbox(0.12, 0.32, 0.12, 0.01, 0.1)), { p: [0, H - 0.16, 0.12], color: 0x5a4a3a, w: { moss: 0.5 } });
-      // delineator lamp on top (reference 4): post cap + small housing + glowing amber dome
-      const lampHere = opts.delineators !== false && i % (opts.lampEvery ?? 2) === 0;
-      if (lampHere) {
-        k.add(mat('plastic'), G('dlhouse', () => cyl(0.045, 0.05, 0.08, 10, 0.01)), { p: [0, H + 0.12, 0.02], color: 0x2a2a2a, w: { dust: 0.4 } });
-        k.add(mat('dark'), G('dlsolar', () => bbox(0.07, 0.006, 0.07, 0.002, 0.05)), { p: [0, H + 0.2, 0.02], r: [0.3, 0, 0], color: 0x1a2030, w: false });
-        k.add(glowMat('amber'), G('dldome', () => new THREE.SphereGeometry(0.055, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6)), { p: [0, H + 0.2, 0.02], color: 0xffffff, w: false });
-      } else {
-        // reflector on the beam (amber)
-        k.add(mat('plastic'), G('refl', () => bbox(0.07, 0.1, 0.012, 0.004, 0.05)), { p: [0, H - 0.02, 0.21], color: 0xe0901a, w: false });
+      for (const by of [H - 0.08, H - 0.24]) k.add(mat('galv'), G('gbolt', () => cyl(0.014, 0.014, 0.02, 6, 0.003).rotateX(Math.PI / 2)), { p: [0, by, 0.185], color: 0x8a8a80, w: false });
+      // solar delineator lamp on every post (reference 4): black body + solar panel cap +
+      // tall amber prismatic lens that glows; real lights only every lampEvery posts
+      if (opts.delineators !== false) {
+        k.add(mat('plastic'), G('dlbody', () => lathe([[0, 0], [0.05, 0], [0.052, 0.03], [0.045, 0.04], [0, 0.04]], 14)), { p: [0, H + 0.12, 0.0], color: 0x1e1e1e, w: { dust: 0.4 } });
+        k.add(glowMat('amber'), G('dllens', () => {
+          const g = lathe([[0.042, 0], [0.046, 0.02], [0.046, 0.075], [0.042, 0.09]], 12);
+          const pa = g.attributes.position; // faceted prism ridges
+          for (let j = 0; j < pa.count; j++) { const a = Math.atan2(pa.getZ(j), pa.getX(j)); const f = 1 + 0.06 * Math.abs(Math.sin(a * 6)); pa.setX(j, pa.getX(j) * f); pa.setZ(j, pa.getZ(j) * f); }
+          g.computeVertexNormals();
+          return g;
+        }), { p: [0, H + 0.16, 0.0], color: 0xffffff, w: false });
+        k.add(mat('plastic'), G('dlcap', () => lathe([[0, 0], [0.056, 0], [0.058, 0.012], [0.05, 0.022], [0, 0.026]], 14)), { p: [0, H + 0.25, 0.0], color: 0x1a1a1a, w: { dust: 0.5, moss: 0.3 } });
+        k.add(mat('dark'), G('dlsolar2', () => bbox(0.07, 0.004, 0.07, 0.002, 0.05)), { p: [0, H + 0.275, 0.0], color: 0x18223a, w: false });
       }
+      // amber reflector on the beam face
+      k.add(mat('plastic'), G('refl', () => bbox(0.07, 0.1, 0.012, 0.004, 0.05)), { p: [0, H - 0.02, 0.21], color: 0xe0901a, w: false });
     });
     if (opts.delineators !== false && i % (opts.lampEvery ?? 2) === 0 && i !== missing) {
-      const lp = V(b.x + off.x, b.y + H + 0.24, b.z + off.z);
+      const lp = V(b.x + off.x, b.y + H + 0.2, b.z + off.z);
       const a = anchor(group, 'delineator' + i, lp.x, lp.y, lp.z);
       out.lampAnchors.push(a);
       out.lights.push(lightSpec('delineator', a, { height: H + 0.24 }));
