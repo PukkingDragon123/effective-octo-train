@@ -302,7 +302,7 @@ def _bristle(n, rng):
 
 
 def brush_strokes(canvas, src, n, length, width, seed=0, angle=None, opacity=0.6, jitter=0.06,
-                  mask=None, wrap=True, angle_jitter=0.35, value_jitter=0.05):
+                  mask=None, wrap=True, angle_jitter=0.35, value_jitter=0.11):
     """Paint n soft bristle strokes onto canvas (in place). Colour comes from src at the stroke
     centre (+ small hue/value jitter). angle: None (random), float, or (H,W) field. mask (H,W)
     gives stroke probability. Strokes wrap around the tile borders."""
@@ -327,7 +327,7 @@ def brush_strokes(canvas, src, n, length, width, seed=0, angle=None, opacity=0.6
         else:
             a = float(angle[y, x]) + (rng.random() - 0.5) * angle_jitter * 2
         col = src[y, x, :3] * (1 + (rng.random() - 0.5) * value_jitter * 2)
-        col = col + (rng.random(3) - 0.5) * jitter * 0.3
+        col = col + (rng.random(3) - 0.5) * jitter * 0.45 * (0.3 + col.mean())
         R = int(L / 2 + Wd + 3)
         size = 2 * R + 1
         yy, xx = np.mgrid[-R:R + 1, -R:R + 1].astype(np.float32)
@@ -351,7 +351,7 @@ def brush_strokes(canvas, src, n, length, width, seed=0, angle=None, opacity=0.6
 
 
 def painterly(a, sigma=6, strokes=1800, length=26, width=9, seed=1, opacity=0.55, detail=1.08, kuwa=5,
-              angle=None, mask=None, keep=0.0):
+              angle=None, mask=None, keep=0.0, jitter=0.08):
     """Frequency-separated overpaint: paint brushwork over the LOW frequencies of the photo,
     then put the photo's high-frequency detail back on top (sharp, never blurry)."""
     low, high = split_freq(a, sigma)
@@ -360,7 +360,7 @@ def painterly(a, sigma=6, strokes=1800, length=26, width=9, seed=1, opacity=0.55
     if angle is None:
         angle = flow_angle(a, sigma=8)
     if strokes:
-        brush_strokes(base, low, strokes, length, width, seed=seed, angle=angle, opacity=opacity, mask=mask)
+        brush_strokes(base, low, strokes, length, width, seed=seed, angle=angle, opacity=opacity, mask=mask, jitter=jitter)
     return np.clip(base + high * detail, 0, 1)
 
 

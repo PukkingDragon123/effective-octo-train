@@ -155,12 +155,14 @@ def concrete_moss(S=1024):
     mo = maps('acg_Moss002', S)
     # mossy plaster as a mid layer for stains, moss scan for the lush cushions
     noise = fbm(S, 5, 4, 31)
-    cav = np.clip(cavity_from_height(h, 14), 0, 1)
+    cav = np.clip(cavity_from_height(blur(h, 3), 18), 0, 1) * 0.5 + fbm(S, 12, 4, 36) * 0.5
     stain = sstep(0.4, 0.75, noise * 0.7 + cav * 0.6)
     col = apply_layer(col, col * 0.4 + cm['color'] * 0.75, stain * 0.8)
-    moss_m = sstep(0.55, 0.8, noise * 0.65 + cav * 0.7 + fbm(S, 18, 3, 32) * 0.25)
-    moss_m = np.clip(moss_m + sstep(0.82, 0.95, fbm(S, 9, 3, 33)) * 0.6, 0, 1)
-    mcol = grade(mo['color'], sat=1.0, contrast=1.05) * hex2rgb('#c8d68a') * 1.25
+    cush = fbm(S, 7, 3, 32, beta=1.4)
+    moss_m = sstep(0.58, 0.72, noise * 0.55 + cush * 0.35 + cav * 0.3)
+    moss_m = np.clip(moss_m + sstep(0.8, 0.9, fbm(S, 11, 3, 33)) * 0.7, 0, 1)
+    moss_m = np.clip(moss_m * (0.75 + 0.5 * sstep(0.3, 0.7, mo['height'])), 0, 1)
+    mcol = grade(mo['color'], sat=0.85, contrast=1.08) * hex2rgb('#d4d684') * 1.3
     col = apply_layer(col, mcol, moss_m)
     h = h * (1 - moss_m) + (0.55 + mo['height'] * 0.45) * moss_m
     n = blend_normals(n * (1 - moss_m[..., None]) + mo['normal'] * moss_m[..., None], normal_from_height(blur(moss_m, 2), 3))
@@ -251,14 +253,19 @@ def bark_banyan(S=1024):
     col, n, r, h = m['color'], m['normal'], m['rough'], m['height']
     # banyan: smooth grey, vertical flutes and lichen blotches
     u = np.linspace(0, 1, S, endpoint=False)[None, :]
-    flutes = (0.5 + 0.5 * np.sin(u * 2 * np.pi * 5 + fbm(S, (2, 6), 3, 101, aniso=(1, 4)) * 4)).astype(np.float32)
-    flutes = np.repeat(flutes, S, 0) if flutes.shape[0] == 1 else flutes
-    h2 = h * 0.6 + flutes * 0.4
-    n = blend_normals(n, normal_from_height(blur(flutes, 3), 6), 0.8)
-    col = col * (0.82 + 0.25 * flutes[..., None])
+    warp = fbm(S, (2, 5), 4, 101) * 3.0 + fbm(S, (6, 2), 3, 105) * 0.8
+    flutes = (0.5 + 0.5 * np.sin(u * 2 * np.pi * 3 + warp)).astype(np.float32)
+    flutes = flutes ** 1.5
+    h2 = h * 0.7 + flutes * 0.3
+    n = blend_normals(n, normal_from_height(blur(flutes, 4), 5), 0.6)
+    col = col * (0.88 + 0.18 * flutes[..., None])
+    # tone down the scan's pale lichen spots, keep them as faint mottling
+    L = lum(col)
+    spots = sstep(0.05, 0.2, L - blur(L, 12))
+    col = apply_layer(col, blur(col, 6), spots * 0.6)
     col = saturate(col, 0.5) * hex2rgb('#e8e4d8') * 1.05
-    lichen = sstep(0.68, 0.8, fbm(S, 10, 4, 102))
-    col = apply_layer(col, col * 0.4 + hex2rgb('#a9ad96') * 0.6, lichen * 0.5)
+    lichen = sstep(0.7, 0.85, fbm(S, (8, 4), 4, 102))
+    col = apply_layer(col, col * 0.5 + hex2rgb('#9da08a') * 0.45, lichen * 0.35)
     col, n, r = _moss_on(col, n, r, h2, S, 103, 0.35)
     col = grade(col, sat=0.7, contrast=1.06, shadow_tint='#1e2522', shadow_amt=0.2)
     col = painterly(col, sigma=6, strokes=1500, length=36, width=9, seed=104, opacity=0.38, detail=1.1,
