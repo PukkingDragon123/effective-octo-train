@@ -1,5 +1,5 @@
 // Playable motorbike intro (GAME_DESIGN §8): 20:50, the spur road through the forest, first-person
-// hands on the bars of an old rusty step-through. Insects in the headlight, dogs barking far off,
+// hands on the bars of an old rusty step-through. Insects in the headlight, an owl far off,
 // a spirit house slides past, fog. Up to the KM 9 garage: a flickering fluorescent tube and an old
 // man smoking beside a green-and-yellow taxi. Park, get off -> GarageState.
 // The ride never strands anyone: after a while the bike rides itself the rest of the way.
@@ -93,21 +93,21 @@ export const IntroState = {
         sfx('switch_click', { volume: 0.25, pan: 0.4 });
         g.ui.subtitle({ speakerTH: `${P.fromTH} · ${P.time}`, speakerEN: `${P.fromEN} · ${P.time}`, th: P.th, en: P.en, tone: 'thought', duration: 6.5 });
       }
-      this._dogs();
+      this._forestCalls();
     } catch (e) {
       if (!isAbort(e)) console.error('[intro]', e);
     }
   },
 
-  /** Dogs barking far off in the forest, then closer, then one howl. */
-  async _dogs() {
+  /** The forest at night: an owl far off, a branch cracking somewhere close, the gecko. (No dogs.) */
+  async _forestCalls() {
     const S = guard(this);
     try {
       const plan = [
-        [4, 0.3, 'dog_bark', 3],
-        [16, 0.55, 'dog_bark', 5],
-        [27, 0.75, 'dog_howl', 1],
-        [40, 0.9, 'dog_bark', 2],
+        [4, 0.3, 'owl', 2],
+        [16, 0.55, 'branch_crack', 1],
+        [27, 0.75, 'owl', 3],
+        [40, 0.9, 'gecko', 4],
       ];
       let tPrev = 0;
       for (const [at, u, id, n] of plan) {
@@ -120,7 +120,7 @@ export const IntroState = {
         sfx(id, { position: p, count: n, interval: 0.55 + Math.random() * 0.3, volume: 0.9 });
       }
     } catch (e) {
-      if (!isAbort(e)) console.error('[intro] dogs', e);
+      if (!isAbort(e)) console.error('[intro] forest calls', e);
     }
   },
 

@@ -194,7 +194,6 @@ class LoopStagingImpl {
     this.dejaVuDone = false;
     this.radioOn = false;
     this.cigTip = null;
-    this.dogEntity = null;
     this._dejaT = {};
   }
 
@@ -245,9 +244,6 @@ class LoopStagingImpl {
     this.radioEntry = by(ST.radio) || { on: false };
     this.radioOn = false;
     if (this.radioEntry.on && A.radioAnchor) this._radioOn(A.radioAnchor, this.radioEntry);
-    // the dog
-    this.dogEntry = by(ST.dog) || { pose: 'asleep' };
-    this._dog(A, this.dogEntry);
     // the gecko, seven calls at nine o'clock
     try {
       const gp = wpos(A.calendarAnchor || G.anchors?.lampAnchor || null, new THREE.Vector3());
@@ -330,47 +326,6 @@ class LoopStagingImpl {
     }
   }
 
-  async _dog(A, entry) {
-    if (!entry || entry.pose === 'gone' || !A.dogBowlAnchor) return;
-    const gen = (this._gen = (this._gen || 0) + 1);
-    let mod = null;
-    try {
-      mod = await import('../../creatures/index.js');
-    } catch (e) {
-      return;
-    }
-    if (gen !== this._gen) return; // restaged meanwhile
-    if (typeof mod.createAnimal !== 'function') return; // no proper dog yet: better none than a box
-    try {
-      const dog = mod.createAnimal('dog', { seed: 9 });
-      const p = wpos(A.dogBowlAnchor, new THREE.Vector3());
-      p.x += 0.5;
-      g.engine.scene.add(dog.root);
-      try {
-        dog.setGroundFn?.((x, z) => g.world?.getHeight?.(x, z) ?? p.y);
-      } catch (e) {
-        /* optional */
-      }
-      if (dog.place) dog.place(p, Math.PI * 0.3);
-      else {
-        dog.root.position.copy(p);
-        dog.root.rotation.y = Math.PI * 0.3;
-      }
-      dog.setPose?.(entry.pose === 'watching' ? 'lieAlert' : 'sleep');
-      dog.setGait?.(entry.pose === 'watching' ? 'lieAlert' : 'sleep');
-      this.dogEntity = dog;
-      this.dogPos = p;
-      const off = g.engine.onUpdate((dt) => dog.update?.(dt), 20);
-      this.garageItems.push(() => {
-        off();
-        dog.dispose?.();
-        this.dogEntity = null;
-      });
-    } catch (e) {
-      console.warn('[loop] dog', e);
-    }
-  }
-
   clearGarage() {
     this._gen = (this._gen || 0) + 1;
     for (const f of this.garageItems.splice(0).reverse()) {
@@ -415,7 +370,6 @@ class LoopStagingImpl {
     if (this.tallyAnchor && gazeAt(this.tallyAnchor, 'tally', 0.8, 10, 1.6)) this.notify('seeTally');
     else if (this.radioOn && A.radioAnchor && wpos(A.radioAnchor, _v).distanceTo(cam) < 6) this.notify('garageRadio');
     else if (A.calendarAnchor && gazeAt(A.calendarAnchor, 'cal', 1.0, 8, 7)) this.notify('calendar');
-    else if (A.dogBowlAnchor && gazeAt(this.dogPos || A.dogBowlAnchor, 'dog', 0.8, 10, 8)) this.notify('dog');
     this._radioHandover();
   }
 

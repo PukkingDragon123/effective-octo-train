@@ -13,7 +13,7 @@
 //     action: an input action ('interact', 'amulet', 'handbrake', ...) or 'brake' (S / ↓ / LT / B)
 //     time:   real seconds before it fails      slowmo: engine.timeScale while it runs (eased; 1 = none)
 //     dread:  0..1 extra FOV push / horror tint while it runs (camera feel)
-//     onTick(state, dt) · onPress() · ok(): extra condition for 'still' / 'hold'
+//     onTick(state, dt) · onPress() · ok(): extra condition for 'still' / 'hold' · fail(state): true ends it as failed
 //   }
 //   g.qte.active (the running spec or null) · g.qte.cancel() · bus 'qte:start' {kind} / 'qte:end' {ok, reason}
 // QTEs run in real time (slow motion does not stretch the window) and freeze while the game is paused.
@@ -139,6 +139,12 @@ export class QTE {
     const dt = Math.min(rawDt, 0.1);
     st.t += dt;
     const ui = this.ui;
+    // the world can end it early (the car reached the hand, the arm got a grip...)
+    try {
+      if (s.fail?.(st)) return this._finish(false, 'failed');
+    } catch (e) {
+      console.warn('[qte] fail()', e);
+    }
     switch (s.kind) {
       case 'hold': {
         const held = this._down(s.action) && (!s.ok || s.ok());

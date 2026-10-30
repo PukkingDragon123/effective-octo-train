@@ -7,7 +7,7 @@
 // DEJA_VU = [{ minLoop, maxLoop?, trigger, lines:[Line] }]  optional one-off moments, at most ONE per
 //   restart (the first whose trigger fires and whose loop range matches). Triggers:
 //   'seeTally' (gaze rests on the dash tally 0.8 s), 'garageRadio' (within 6 m of the garage radio),
-//   'dog' (looks at the dog), 'calendar' (looks at the calendar), 'enterTaxi'.
+//   'calendar' (looks at the calendar), 'enterTaxi'. (No dog: the owner removed it from the game.)
 // Lines that change with the loop live with their speakers:
 //   Ah Kong: ahkong.js RESTART_LINES / RESTART_KEYS (refusal from loops >= 3 → ending ride_away)
 //   passengers: rides/*.js `loopVariants` (whole block by loop) and line/option `if: { loopsGte, diedOn }`.
@@ -33,13 +33,6 @@ export const LOOP_STAGING = {
     { minLoop: 1, on: true, station: 1, song: 'countryTears', fromLyric: 0, note: 'Already playing when Ton wakes on the stool: the same song, from the same line, every restart.' },
     { minLoop: 4, on: true, station: 1, song: 'countryTears', fromLyric: 2, note: 'It has moved on two lines. The night is wearing thin.' },
   ],
-  /** The garage dog, a scruffy temple-dog type (createQuadruped("dog")). */
-  dog: [
-    { minLoop: 0, pose: 'asleep', spot: 'garageDoor', note: 'Curled by the door, left of the tool chest.' },
-    { minLoop: 2, pose: 'asleep', spot: 'garageDoor', note: 'Exactly the same curl, the same twitch of the ear at the gecko.' },
-    { minLoop: 4, pose: 'watching', spot: 'garageDoor', note: 'Lifts its head and watches Ton walk to the taxi; then sleeps again.' },
-    { minLoop: 7, pose: 'gone', spot: 'garageDoor', note: 'Only a warm dent in the dust where it always lies.' },
-  ],
   /** Ah Kong himself. */
   ahKong: [
     { minLoop: 0, cigarette: 'fresh', tea: false, where: 'besideTaxi' },
@@ -55,5 +48,4 @@ export const DEJA_VU = [
   { minLoop: 1, maxLoop: 1, trigger: 'seeTally', lines: [T('รอยนี้... เมื่อกี้ไม่มี', "This mark... it wasn't here before.")] },
   { minLoop: 1, maxLoop: 2, trigger: 'garageRadio', lines: [T('เพลงนี้... ท่อนเดิม', 'This song... the same verse.')] },
   { minLoop: 5, maxLoop: 5, trigger: 'seeTally', lines: [T('ห้ารอยแล้ว', 'Five marks now.')] },
-  { minLoop: 7, maxLoop: 99, trigger: 'dog', lines: [T('...หมาไปไหน', '...where did the dog go?')] },
 ];

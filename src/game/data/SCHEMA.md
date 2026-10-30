@@ -161,9 +161,9 @@ restarts and ending scenes (`logic.endingFor(id, ctx)` filters scenes and epilog
 * **Physical changes** (`loop.js` `LOOP_STAGING`, each a `[{ minLoop, ... }]` table, `byLoop`): a new key
   scratch on the dashboard per death (`tally`; from loop 6 ninety-nine older marks appear beneath),
   the calendar (pencil ticks per night, then the 15th circled, then every day), the garage radio already
-  playing `countryTears` from the same line, the dog asleep in the same curl (then watching, then gone),
+  playing `countryTears` from the same line, (no dog: removed by the owner),
   Ah Kong's half-smoked cigarette with the same ash, the tea from loop 4, the gecko's seven calls.
-  `DEJA_VU` holds at most one short Ton thought per restart (`trigger`: `seeTally garageRadio dog calendar enterTaxi`).
+  `DEJA_VU` holds at most one short Ton thought per restart (`trigger`: `seeTally garageRadio calendar enterTaxi`).
 
 ## Passenger (ride)
 

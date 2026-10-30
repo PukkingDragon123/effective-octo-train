@@ -74,6 +74,11 @@ export function segmentWords(text) {
   return out;
 }
 
+const CL_R = 'กขคตปพบดฟ';
+const CL_L = 'กขคปพผบฟ';
+const CL_W = 'กขค';
+const validCluster = (a, b) => (b === 'ร' && CL_R.includes(a)) || (b === 'ล' && CL_L.includes(a)) || (b === 'ว' && CL_W.includes(a));
+
 function newSyl(ci) {
   return { lead: '', onset: [], marks: '', tone: '', finals: [], ci };
 }
@@ -93,6 +98,8 @@ export function parseThai(text) {
     pos[i] = u;
     if (i < chars.length) u += chars[i].length;
   }
+  // a syllable never crosses a word boundary (the segmenter resolves finals like อยู่|ตรง)
+  const wordStarts = new Set(segmentWords(text).filter((w) => w.word).map((w) => w.index));
   let cur = newSyl(0);
   const empty = () => !cur.onset.length && !cur.lead && !cur.marks;
   const flush = (i) => {
@@ -107,7 +114,8 @@ export function parseThai(text) {
   };
   for (let i = 0; i < chars.length; i++) {
     const c = chars[i];
-    const nx = chars[i + 1] || '';
+    const nx = chars[i + 1] || '\0'; // sentinel: ''.includes('') would be true
+    if (i > 0 && wordStarts.has(pos[i]) && !empty() && !TONES.includes(c) && !ABOVE.includes(c) && !FOLLOW.includes(c)) flush(i);
     if (empty()) cur.ci = pos[i];
     if (LEAD.includes(c)) {
       if (cur.onset.length || cur.marks) flush(i);
@@ -118,24 +126,42 @@ export function parseThai(text) {
         continue;
       }
       const nxIsVowel = ABOVE.includes(nx) || FOLLOW.includes(nx) || TONES.includes(nx);
+      const L = cur.lead;
+      const first = cur.onset[0];
       if (!cur.onset.length) {
         cur.onset.push(c);
       } else if (cur.finals.length) {
         flush(i);
         cur.onset.push(c);
-      } else if (!cur.marks && !(cur.lead && cur.onset.length && !nxIsVowel && c !== 'อ' && c !== 'ย')) {
-        // onset present, no vowel yet
-        if ('รลว'.includes(c) && nxIsVowel && cur.onset.length === 1) cur.onset.push(c); // cluster
-        else if (cur.onset.length === 1 && cur.onset[0] === 'ห' && 'งญนมยรลว'.includes(c) && !cur.lead) cur.onset.push(c); // ห นำ
-        else if (c === 'อ' && !cur.lead) cur.marks += 'อ'; // อ as vowel ɔɔ
-        else if (c === 'ว' && !nxIsVowel && !cur.lead) cur.marks += 'ัว'; // ัว (ua) without the mai han-akat
-        else if (cur.lead && (c === 'อ' || c === 'ย')) cur.marks += c; // เ-อ, เ-ีย
-        else if (nxIsVowel || cur.lead) {
-          if (cur.lead) cur.onset.push(c); // e.g. lead + cluster
-          else {
+      } else if (!cur.marks) {
+        // onset (maybe after a lead vowel) and no vowel mark yet
+        const one = cur.onset.length === 1;
+        const nn = chars[i + 2] || '\0';
+        const implicitO = isCons(nx) && !ABOVE.includes(nn) && !FOLLOW.includes(nn) && !TONES.includes(nn); // ตรง กลม ครบ
+        if (one && 'รลว'.includes(c) && validCluster(first, c) && (nxIsVowel || L || (c !== 'ว' && implicitO))) cur.onset.push(c); // true cluster
+        else if (one && c === 'ร' && 'จซศส'.includes(first) && (nxIsVowel || L)) {
+          /* silent ร: จริง สร้าง ศรี */
+        } else if (one && first === 'ท' && c === 'ร' && (nxIsVowel || L)) cur.onset[0] = 'ซ'; // ทร = ซ (ทราย)
+        else if (one && first === 'ห' && 'งญนมยรลว'.includes(c) && (nxIsVowel || L || !isCons(chars[i + 2] || '\0'))) cur.onset.push(c); // ห นำ (ไหม เหมือน หมด)
+        else if (one && first === 'อ' && c === 'ย' && !L) cur.onset.push(c); // อ นำ ย (อย่า อยู่ อยาก อย่าง)
+        else if (c === 'อ' && !L) cur.marks += 'อ'; // อ as vowel ɔɔ
+        else if (c === 'ว' && !nxIsVowel && !L) cur.marks += 'ัว'; // ัว (ua) without the mai han-akat
+        else if (L && (c === 'อ' || c === 'ย')) cur.marks += c; // เ-อ, เ-ย
+        else if (L === 'ไ' || L === 'ใ') {
+          // ไ / ใ is a whole vowel: the next consonant starts a new syllable (silent ย of ไทย aside)
+          if (!(c === 'ย' && !nxIsVowel)) {
             flush(i);
             cur.onset.push(c);
           }
+        } else if (L) {
+          if (nxIsVowel) {
+            flush(i);
+            cur.onset.push(c);
+          } else cur.finals.push(c);
+        } else if (nxIsVowel) {
+          // no cluster: the first consonant carries a reduced inherent 'a' (ตลาด = ta-laat, สบาย = sa-baay)
+          flush(i);
+          cur.onset.push(c);
         } else {
           cur.finals.push(c); // implicit vowel o: คน
         }
@@ -143,7 +169,7 @@ export function parseThai(text) {
         // vowel present
         if (c === 'อ' || (c === 'ย' && cur.marks.includes('ี')) || (c === 'ว' && cur.marks.includes('ั') && !nxIsVowel)) {
           cur.marks += c;
-        } else if (nxIsVowel) {
+        } else if (nxIsVowel || 'หฉผฝฮ'.includes(c)) {
           flush(i);
           cur.onset.push(c);
         } else {
@@ -164,7 +190,7 @@ export function parseThai(text) {
     } else if ('.!?…'.includes(c)) {
       // runs of dots / ellipsis = a long, held pause
       let j = i;
-      while ('.…'.includes(chars[j + 1] || '')) j++;
+      while ('.…'.includes(chars[j + 1] || '\0')) j++;
       const long = j > i || c === '…';
       endPhrase(long ? 0.62 : c === '?' ? 0.42 : 0.48, i);
       if (c === '?' && phrases.length) phrases[phrases.length - 1].question = true;
@@ -226,7 +252,8 @@ function finishSyl(s) {
     if (has('า')) { vowel = 'a'; long = false; offglide = 'w'; }
     else if (has('ี') && has('ย')) { vowel = 'i'; long = true; offglide = 'schwa'; }
     else if (has('ื') && has('อ')) { vowel = 'ue'; long = true; offglide = 'schwa'; }
-    else if (has('อ') || has('ิ')) { vowel = 'oe'; long = true; }
+    else if (has('อ') || has('ิ')) { vowel = 'oe'; long = !has('ะ'); }
+    else if (has('ย')) { vowel = 'oe'; long = true; offglide = 'y'; }
     else { vowel = 'e'; long = !has('ะ') && !has('็'); }
   } else if (L === 'แ') { vowel = 'ae'; long = !has('ะ') && !has('็'); }
   else if (L === 'โ') { vowel = 'o'; long = !has('ะ'); }
@@ -250,6 +277,7 @@ function finishSyl(s) {
   const first = s.onset[0] || 'อ';
   let cls = MID.includes(first) ? 'mid' : HIGH.includes(first) ? 'high' : 'low';
   if (first === 'ห' && s.onset.length > 1) cls = 'high';
+  if (first === 'อ' && s.onset[1] === 'ย') cls = 'mid';
   const dead = STOP_FINAL[coda] || (!coda && !long && !offglide);
   let tone = 'M';
   const tm = s.tone;
@@ -260,8 +288,8 @@ function finishSyl(s) {
   else if (dead) tone = cls === 'low' ? (long ? 'F' : 'H') : 'L';
   else tone = cls === 'high' ? 'R' : 'M';
   let onset = ONSET[first] ?? '';
-  if (first === 'ห' && s.onset.length > 1) onset = ONSET[s.onset[1]] ?? '';
-  const cluster = s.onset.length > 1 && first !== 'ห' ? ONSET[s.onset[1]] || '' : '';
+  if ((first === 'ห' || first === 'อ') && s.onset.length > 1) onset = ONSET[s.onset[1]] ?? '';
+  const cluster = s.onset.length > 1 && first !== 'ห' && first !== 'อ' ? ONSET[s.onset[1]] || '' : '';
   return { onset, cluster, vowel, long, coda, glide: offglide === 'schwa' ? 'schwa' : '', tone, ci: s.ci ?? 0, dead: !!dead };
 }
 

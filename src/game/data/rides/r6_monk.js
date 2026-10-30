@@ -33,7 +33,6 @@ export const RIDE_MONK = {
   encounters: [
     { id: 'krahang', at: 0.28 },
     { id: 'meter444', at: 0.44 }, // outcome 'monkAboard': no voice, no count
-    { id: 'strayDogs', at: 0.56 },
     { id: 'monkBlessing', at: 0.62 },
   ],
   deathOnWrong: 'giantHand',
@@ -162,14 +161,6 @@ export const RIDE_MONK = {
               stop: [P('ตามสบายโยม อาตมาจะได้ยืดขา', "As you like. I'll stretch my legs.", { action: 'laugh' })],
             },
           }),
-        ],
-      },
-      {
-        id: 'dogs',
-        trigger: { type: 'event', event: 'encounter:strayDogs' },
-        lines: [
-          P('หมาวัดน่ะโยม มันวิ่งไล่รถทุกคัน', 'Temple dogs, layman. They chase every car.', { emotion: 'smile' }),
-          P('อาตมาให้ข้าวมันทุกเช้า ไม่เคยขอบใจสักคำ', 'I feed them every morning. Not one word of thanks.', { action: 'laugh' }),
         ],
       },
       {

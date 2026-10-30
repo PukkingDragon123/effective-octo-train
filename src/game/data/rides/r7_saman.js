@@ -32,7 +32,6 @@ export const RIDE_SAMAN = {
     { rule: 'r3', lookBack: 'warn', note: 'He is friendly: looking back gets a joke, but the breath event still counts.' },
   ],
   encounters: [
-    { id: 'strayDogs', at: 0.1, optional: true },
     { id: 'betelSpit', at: 0.44 },
     { id: 'fatherDedication', at: 0.55, optional: true }, // requires the radio on (station 3)
     { id: 'faceAgainstGlass', at: 0.64 },

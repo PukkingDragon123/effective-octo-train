@@ -208,12 +208,6 @@ export const ENCOUNTERS = {
   },
 
   // ---------------------------------------------------------------- calm & dawn (beautiful)
-  strayDogs: {
-    id: 'strayDogs', nameTH: 'หมาวัดวิ่งไล่รถ', nameEN: 'Temple Dogs Chase the Taxi', kind: 'beautiful',
-    hours: [26, 28], where: ['nearLandmark:forestTemple', 'ride:monk', 'ride:saman'], gazeMode: 'any',
-    cooldownSec: 400, chance: 0.5, durationSec: [8, 12],
-    staging: '3–5 scruffy dogs (createQuadruped("dog")) burst out barking and chase the taxi for 100 m, then trot back proudly.',
-  },
   monkBlessing: {
     id: 'monkBlessing', nameTH: 'หลวงพี่ให้พร', nameEN: "The Monk's Blessing", kind: 'story',
     hours: [21, 30], where: 'ride:monk', gazeMode: 'any',

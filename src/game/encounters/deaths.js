@@ -140,15 +140,19 @@ export const DEATHS = {
     const saved = freezeTaxi();
     letterbox(true);
     sky.setFogBoost?.(1.7, 1.5);
-    const hand = createGiantHand({ scale: 4.6 });
-    engine.scene.add(hand.root);
-    const ahead = S.roadAhead(11, -1);
-    hand.root.position.copy(ahead.pos);
-    hand.root.rotation.y = ahead.yaw + Math.PI;
-    povShot(() => hand.lightAnchor.getWorldPosition(new THREE.Vector3()), { blend: 0.6 });
+    // the fork's brake QTE (fork/HandBrake.js) hands over the hand it already raised
+    const given = ctx.opts?.hand && !ctx.opts.hand.disposed ? ctx.opts.hand : null;
+    const hand = given || createGiantHand({ scale: 4.6 });
+    if (!given) {
+      engine.scene.add(hand.root);
+      const ahead = S.roadAhead(11, -1);
+      hand.root.position.copy(ahead.pos);
+      hand.root.rotation.y = ahead.yaw + Math.PI;
+    }
+    povShot(() => hand.lightAnchor.getWorldPosition(new THREE.Vector3()), { blend: given ? 0.3 : 0.6 });
     S.sfx('sting_reveal', { volume: 1 });
-    await hand.rise(1.6);
-    await sleep(0.4);
+    if (!given) await hand.rise(1.6);
+    await sleep(given ? 0.15 : 0.4);
     // the palm comes from the driver's side, fingers over the roof
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(t.root.quaternion).setY(0).normalize();
     const grabP = hand.grab(t.root, { height: 1.55, from: right.clone().negate(), lift: false, sink: false, attach: false, gore: false });

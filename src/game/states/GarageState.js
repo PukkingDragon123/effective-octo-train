@@ -2,7 +2,7 @@
 // First night: Ton walks (full body, first person) to Ah Kong; a cinematic conversation with
 // Ton's replies (data.ahkong.INTRO_GARAGE); the keys and the folded rules paper -> TutorialState.
 // Restart (params.restart): Ton wakes at 21:00 again. LoopStaging dresses the garage for the loop
-// (dash tally, calendar, the radio already playing, the dog, the ash), then RESTART_LINES ->
+// (dash tally, calendar, the radio already playing, the ash), then RESTART_LINES ->
 // DEATH_HINTS -> TIME_SKIP -> RESTART_KEYS (refuse from loop 3 -> ride the motorbike out:
 // ending ride_away) -> SEND_OFF; Ton walks to the taxi and gets in -> ShiftState {ride, hour}.
 import * as THREE from 'three';
