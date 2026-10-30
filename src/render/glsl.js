@@ -177,7 +177,9 @@ vec3 dlbEnvRadiance(vec3 r, vec3 wp, float rough) {
     float d2 = dot(lv, lv);
     float cs = dot(r, lv * inversesqrt(max(d2, 1e-4)));
     float g = exp(-(1.0 - cs) * k) * (k / 60.0 + 1.0) * 0.012;
-    c += lc * g / (1.0 + d2 * 0.08);
+    // wide lobe: the lamp's fog halo seen in reflection
+    float halo = exp(-(1.0 - cs) * 18.0) * 0.0035 * (dlbFogDensity * 30.0 + 0.3);
+    c += lc * (g + halo) / (1.0 + d2 * 0.08);
   }
   return c;
 }

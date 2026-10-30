@@ -209,8 +209,8 @@ const FRAG_ALBEDO = /* glsl */ `
     float porous = 1.0 - metalness * 0.8;
     diffuseColor.rgb *= mix(1.0, 0.58, dlbWet * porous * (0.6 + 0.4 * dlbUp));
     float pm = dlbTri(dlbBrushTex, vDlbWP * 0.11 + 0.73, dlbW).a;
-    dlbPuddle = smoothstep(0.62, 0.74, pm + dlbWet * 0.28 - 0.06 + (dlbB.b - 0.5) * 0.05) * smoothstep(0.86, 0.97, dlbUp) * dlbWet * dlbPaint3.z;
-    diffuseColor.rgb *= 1.0 - dlbPuddle * 0.55;
+    dlbPuddle = smoothstep(0.6, 0.76, pm + dlbWet * 0.28 - 0.06 + (dlbB.b - 0.5) * 0.06) * smoothstep(0.86, 0.97, dlbUp) * dlbWet * dlbPaint3.z;
+    diffuseColor.rgb *= 1.0 - dlbPuddle * 0.4;
   }
   #ifdef DLB_PALE
   {
@@ -255,7 +255,7 @@ const FRAG_ENV = /* glsl */ `
   {
     vec3 dlbRv = reflect(-geometryViewDir, geometryNormal);
     vec3 dlbRw = inverseTransformDirection(dlbRv, viewMatrix);
-    radiance += dlbEnvRadiance(dlbRw, vDlbWP, material.roughness) * dlbPaint3.w * (1.0 - 0.5 * material.roughness);
+    radiance += dlbEnvRadiance(dlbRw, vDlbWP, material.roughness) * dlbPaint3.w * (1.0 - 0.5 * material.roughness) * (1.0 + dlbPuddle * 2.5 + dlbWet * 0.6);
   }
   #endif
 `;

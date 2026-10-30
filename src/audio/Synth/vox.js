@@ -156,15 +156,15 @@ export function renderVox(sr, score, opts = {}) {
     let src = whisper ? 0 : dflow * av * periodAmp;
     // aspiration noise (modulated by glottal flow when voicing, breathy voice)
     const nz = rng() * 2 - 1;
-    const asp = aspHP.process(nz) * (whisper ? av * 0.9 + ah : ah + av * breath * (0.4 + flow));
-    src = tiltLP.process(src + asp * 0.6);
+    const asp = aspHP.process(nz) * (whisper ? (av * 0.9 + ah) * 2.2 : ah * 2.2 + av * breath * (0.4 + flow) * 0.6);
+    src = tiltLP.process(src + asp);
     if (nas > 0) src = src * (1 - nas * 0.6) + nasRes.process(src) * nas * 0.5;
     // cascade formants
     let y = src;
     for (let k = 0; k < 5; k++) y = res[k].process(y);
     // parallel frication
     fric.process(rng() * 2 - 1);
-    y += (fric.bp + fric.hp * 0.25) * af * 4;
+    y += (fric.bp + fric.hp * 0.25) * af * 0.6;
     // radiation-ish (simple first difference blend for brightness)
     const yo = y - prevSrc * 0.6;
     prevSrc = y;
