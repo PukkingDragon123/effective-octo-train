@@ -22,7 +22,7 @@ export const RIDE_MONK = {
     extra: ['Amulet stays silent (cool) near him.', 'Present-day talk: mentions the dhamma radio schedule.'],
   },
   specialRules: [
-    { rule: 'r6', exception: 'radioOnRequest', note: 'He asks for the radio ON. Dhamma talk on station 1 (FM 89.5).' },
+    { rule: 'r6', exception: 'radioOnRequest', note: 'He asks for the radio ON. Dhamma talk on station 4 (AM 1080, audio/Radio.js).' },
     { rule: 'r10', note: 'He approves loudly if you honk at the shrine.' },
     { rule: 'r3', lookBack: 'warn' },
   ],
@@ -33,13 +33,14 @@ export const RIDE_MONK = {
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: [],
+  pacing: { cruiseKmh: 40, minSeconds: 150, stretch: 'fog' }, // 1.3 km carrying ~2 min of talk + the blessing
   dialogue: {
     hail: [P('โยม... โยม', 'Layman... layman.', { action: 'hail' })],
     greet: [
       P('เจริญพร โยม', 'Blessings, layman.', { action: 'nod' }),
       P('อาตมาไม่มีตังค์นะโยม บอกไว้ก่อน', 'I have no money, layman. Just so you know.', { emotion: 'smile' }),
-      Y('ไม่เป็นไรครับหลวงพี่ ขึ้นมาเลยครับ', "That's fine, Luang Phi. Please, get in."),
-      P('สาธุ โยมใจบุญ', 'Sadhu. A generous heart.', { emotion: 'smile' }),
+      Y('ไม่เป็นไรครับหลวงพี่ นิมนต์ขึ้นรถเลยครับ', "That's fine, Luang Phi. Please, come in."),
+      P('อนุโมทนาด้วยนะโยม ใจบุญจริง ๆ', 'Anumodana, layman. A kind heart.', { emotion: 'smile' }),
     ],
     destination: [
       P('ไปทางบ้านห้วยทรายนะโยม', 'Towards Huai Sai Village, layman.'),
@@ -51,7 +52,7 @@ export const RIDE_MONK = {
         trigger: { type: 'progress', at: 0.08 },
         lines: [
           P('โยม เปิดวิทยุให้หน่อยได้ไหม', 'Layman, could you turn on the radio?'),
-          P('ตีสองมีเทศน์ คลื่นแปดเก้าจุดห้า อาตมาฟังทุกคืน', "There's a dhamma talk at two, on 89.5. I listen every night."),
+          P('ตีสองมีเทศน์ทางคลื่นสี่ อาตมาฟังทุกคืน', "There's a dhamma talk at two, on station four. I listen every night."),
           T('ขอให้เปิด... ไม่ได้ขอให้ปิด ไม่ผิดกฎ', "He's asking for it ON... not off. That's allowed."),
         ],
         set: { monkWantsRadio: true },
@@ -81,6 +82,7 @@ export const RIDE_MONK = {
       },
       {
         id: 'heavyHeart',
+        essential: true, // seeds the forgiveness ending
         trigger: { type: 'progress', at: 0.4 },
         lines: [
           P('โยมดูเหมือนแบกอะไรหนัก ๆ ไว้ในใจนะ', 'You look like you carry something heavy in your heart.'),
@@ -88,6 +90,7 @@ export const RIDE_MONK = {
             { key: 'father', th: 'ผมทะเลาะกับพ่อครับ... แล้วพ่อก็ตาย', 'en': 'I fought with my father... then he died.' },
             { key: 'nothing', th: 'เปล่าครับ', en: "It's nothing." },
           ], {
+            id: 'monk_heavyHeart',
             timeout: 8,
             defaultKey: 'nothing',
             setOnPick: { father: { confidedInMonk: true } },
@@ -114,7 +117,8 @@ export const RIDE_MONK = {
         trigger: { type: 'event', event: 'encounter:monkBlessing' },
         lines: [
           P('เดี๋ยวอาตมาให้พรรถโยมหน่อยนะ', 'Let me bless your car a little.', { action: 'pray' }),
-          P('ขอให้โยมแคล้วคลาดปลอดภัย', 'May you pass safely through all dangers.', { tone: 'sing', pause: 1.0 }),
+          P('ภะวะตุ สัพพะมังคะลัง... รักขันตุ สัพพะเทวะตา...', 'Bhavatu sabba-mangalam... rakkhantu sabba-devata...', { tone: 'sing', pause: 0.6 }),
+          P('ขอให้โยมแคล้วคลาดปลอดภัย', 'May you pass safely through all dangers.', { pause: 1.0 }),
           T('ข้างทาง... มีคนยืนอยู่เต็มไปหมด', 'By the road... there are people everywhere.'),
           P('เขามาฟังเทศน์ด้วยน่ะโยม ไม่ต้องกลัว', "They came to hear the sermon too. Don't be afraid."),
         ],
