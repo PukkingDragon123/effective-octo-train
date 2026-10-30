@@ -120,7 +120,7 @@ class PostFX {
     const fu = {
       tScene: { value: null }, tPaint: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tShafts: { value: null },
       tCanvas: { value: canvasTexture() },
-      uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uPaint: { value: 0 }, uPaintDir: { value: 1 }, uCanvas: { value: 1 },
+      uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uPaint: { value: 0 }, uPaintDir: { value: 1 }, uCanvas: { value: 1 }, uPaintTexel: { value: new THREE.Vector2() },
       uExposure: { value: 1 }, uSaturation: { value: 1 }, uContrast: { value: 1 }, uTemperature: { value: 0 }, uTint: { value: 0 },
       uLift: { value: new THREE.Vector3() }, uGamma: { value: new THREE.Vector3(1, 1, 1) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uShadowTint: { value: new THREE.Color(1, 1, 1) }, uHighTint: { value: new THREE.Color(1, 1, 1) }, uSplit: { value: 0 },
@@ -206,6 +206,7 @@ class PostFX {
     this.shaftB = makeRT(Math.ceil(w / 4), Math.ceil(h / 4), { name: 'dlbShaftB' });
     this.glassUniforms.uResolution.value.set(w, h);
     this.finalUniforms.uRes.value.set(w, h);
+    this.finalUniforms.uPaintTexel.value.set(1 / pw, 1 / ph);
   }
 
   _ensureGlassRTs() {

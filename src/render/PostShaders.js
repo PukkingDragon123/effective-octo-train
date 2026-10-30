@@ -119,6 +119,7 @@ uniform vec2 uRes;
 uniform float uTime;
 uniform float uPaint;
 uniform float uPaintDir;
+uniform vec2 uPaintTexel;
 uniform float uCanvas;
 uniform float uExposure;
 uniform float uSaturation;
@@ -207,6 +208,16 @@ void main() {
   } else {
     col = comp(uv);
   }
+#ifdef PAINT
+  // crisp up the (half-res) paint strokes: unsharp mask on the painterly layer
+  {
+    vec3 pc = texture2D(tPaint, uv).rgb;
+    vec3 pa = texture2D(tPaint, uv + vec2(uPaintTexel.x, 0.0)).rgb + texture2D(tPaint, uv - vec2(uPaintTexel.x, 0.0)).rgb
+            + texture2D(tPaint, uv + vec2(0.0, uPaintTexel.y)).rgb + texture2D(tPaint, uv - vec2(0.0, uPaintTexel.y)).rgb;
+    col += (pc - pa * 0.25) * uPaint * 0.55;
+    col = max(col, vec3(0.0));
+  }
+#endif
   // ---- bloom, shafts, menu blur, flash ---------------------------------------------
   vec3 bloom = texture2D(tBloom, uv).rgb;
   col = mix(col, bloom, uBloom);
