@@ -743,7 +743,7 @@ export class Garland {
     const o = body.localToWorld(p.clone());
     ray.set(o, new THREE.Vector3(0, -1, 0).applyQuaternion(body.getWorldQuaternion(new THREE.Quaternion())));
     ray.far = 1.2;
-    const targets = (t._blood?.surfaces?.() || []).filter((m) => m !== this.budMesh);
+    const targets = t.cabinSurfaces?.() || [];
     const hit = ray.intersectObjects(targets, false).find((h) => h.distance > 0.02);
     if (!hit) return p.y - 0.6;
     return body.worldToLocal(hit.point.clone()).y;
@@ -817,12 +817,12 @@ export function buildAmulet(opts = {}) {
   // the tablet (painted face) recessed in the window, both sides
   const faceTex = (() => {
     try {
-      return signTex('amulet_face', { variant: opts.variant ?? 0 });
+      return signTex('amulet_face', {});
     } catch (e) {
       return null;
     }
   })();
-  const faceMat = paintedMaterial({ map: faceTex, color: faceTex ? 0xffffff : 0x8a6a3a, roughness: 0.6, brush: 0.15, name: 'amulet_face' });
+  const faceMat = paintedMaterial({ map: faceTex, normalMap: faceTex?.userData?.normalMap || null, color: faceTex ? (opts.tint ?? 0xffffff) : 0x8a6a3a, roughness: 0.6, brush: 0.15, name: 'amulet_face' });
   const faceShape = archShape(w - 0.0045, h - 0.0045, kind);
   const faceGeo = new THREE.ShapeGeometry(faceShape, 20);
   // uv 0..1 over the face
@@ -971,14 +971,13 @@ export function buildKeyModel(swings) {
   const bowG = new THREE.ExtrudeGeometry(bow, { depth: 0.006, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.0012, bevelSegments: 3, curveSegments: 16 });
   // shape (x, y) -> key (y, z): bow stands out of the lock along +Z
   bowG.translate(0, 0, -0.003);
-  bowG.rotateX(-Math.PI / 2);
-  bowG.rotateZ(Math.PI / 2);
+  bowG.rotateX(Math.PI / 2); // shape y -> +Z (out of the lock)
+  bowG.rotateZ(Math.PI / 2); // flat in the blade's plane (thin along X)
   const bowMat = paintedMaterial({ color: 0x141312, roughness: 0.55, brush: 0.15, name: 'key_bow' });
   key.add(new THREE.Mesh(bowG, bowMat));
   // split ring through the hole + a small brass amulet tag on two links
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0085, 0.0007, 6, 28), M.silver);
-  ring.position.set(0, -0.006, 0.0235);
-  ring.rotation.y = Math.PI / 2;
+  ring.position.set(0, -0.0075, 0.0235); // threaded through the hole, hanging below the bow
   key.add(ring);
   const kp = new THREE.Group();
   kp.position.set(0, -0.0145, 0.0235);

@@ -891,7 +891,7 @@ function banana(rng, opts) {
     skel.leaves.push({ type: 'strip', spine, sides, widthFn: (t) => 0.2 * sc * (1 - t * 0.35), slot: SLOT.bananaDead, tint: jitterTint(rng, [0.8, 0.7, 0.55]), fold: 0.15, keepNormal: true });
   }
   // the blossom (หัวปลี) on a drooping peduncle, a few hands of green fingers above it
-  if (opts.flower ?? rng() < 0.4) {
+  if (opts.flower ?? opts.look === 1) {
     const az = rng() * TAU;
     const out = new THREE.Vector3(Math.cos(az), 0, Math.sin(az));
     const ped = growPath(rng, { x: top.x, y: top.y - 0.1, z: top.z }, out.clone().add(new THREE.Vector3(0, 0.9, 0)).normalize(), (1.3 + rng() * 0.4) * sc, 0.035 * sc, 0.028 * sc, 8, { gravity: 1.9, wobble: 0.04 });
@@ -1142,7 +1142,7 @@ export const SPECIES = {
   deadTree: { fn: deadTree, variants: 2, lods: 2, impostor: true },
   palm: { fn: palm, variants: 2, lods: 1, impostor: true, looks: [0, 1] },
   bamboo: { fn: bamboo, variants: 3, lods: 2, impostor: true },
-  banana: { fn: banana, variants: 3, lods: 1, impostor: false },
+  banana: { fn: banana, variants: 4, lods: 1, impostor: false, looks: [0, 1, 0, 1] },
   treeFern: { fn: fernPlant, variants: 2, lods: 1, impostor: false, looks: [1, 1] },
   fern: { fn: fernPlant, variants: 3, lods: 2, impostor: false, looks: [0, 0, 0] },
   grass: { fn: grassClump, variants: 3, lods: 1, impostor: false, looks: [0, 0, 1] },

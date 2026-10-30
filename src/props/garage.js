@@ -33,9 +33,9 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
     // real (CC0) tins / cleaner bottles / rusty cans when the models are loaded
     const ra = rng();
     if (ra < 0.3 && x < x0 + w - 0.24) {
-      const pick = ['can_rusted', 'cleaner_tin_01', 'multi_cleaner_5_litre', 'jug_01'][Math.floor(rng() * (theme === 'parts' ? 2 : 4))];
-      const fit = { can_rusted: { h: 0.12 + rng() * 0.05 }, cleaner_tin_01: { h: 0.13 }, multi_cleaner_5_litre: { h: 0.26 }, jug_01: { h: 0.17 } }[pick];
-      const wid = { can_rusted: 0.12, cleaner_tin_01: 0.1, multi_cleaner_5_litre: 0.21, jug_01: 0.24 }[pick];
+      const pick = ['can_rusted', 'oil_tin', 'cleaner_tin_01', 'multi_cleaner_5_litre', 'jug_01'][Math.floor(rng() * (theme === 'parts' ? 3 : 5))];
+      const fit = { can_rusted: { h: 0.12 + rng() * 0.05 }, oil_tin: { h: 0.2 }, cleaner_tin_01: { h: 0.13 }, multi_cleaner_5_litre: { h: 0.26 }, jug_01: { h: 0.17 } }[pick];
+      const wid = { can_rusted: 0.12, oil_tin: 0.13, cleaner_tin_01: 0.1, multi_cleaner_5_litre: 0.21, jug_01: 0.24 }[pick];
       if (useAsset(k, pick, { p: [x + wid / 2, y, zj], r: (rng() - 0.5) * 1.2 }, { fit, w: { dust: 0.5, grime: 0.15 } })) {
         x += wid + 0.02;
         continue;
@@ -71,6 +71,22 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
 
 /** Wrench / screwdriver / hammer silhouettes hung on a pegboard (kit space, board facing +Z). */
 function pegTools(k, x0, y0, z, rng) {
+  // real (CC0) hand tools hung flat on the pegboard when the models are loaded
+  if (hasAsset('cross_pein_hammer') && hasAsset('combination_wrench')) {
+    const hang = [
+      ['handsaw_wood', [x0 + 0.62, y0 + 0.02, z + 0.01], [0, Math.PI / 2, 0], 0.62],
+      ['cross_pein_hammer', [x0 + 0.02, y0 - 0.3, z + 0.02], [0, 0, 0.05], 1],
+      ['flathead_screwdriver', [x0 + 0.17, y0 - 0.28, z + 0.015], [0, 0, 0], 1],
+      ['flathead_screwdriver', [x0 + 0.24, y0 - 0.3, z + 0.015], [0, 0.6, 0.04], 0.85],
+      ['combination_wrench', [x0 + 0.36, y0 - 0.36, z + 0.012], [Math.PI / 2, 0, 0], 1],
+      ['combination_wrench', [x0 + 0.44, y0 - 0.33, z + 0.012], [Math.PI / 2, 0, 0.03], 0.85],
+      ['combination_wrench', [x0 + 0.51, y0 - 0.3, z + 0.012], [Math.PI / 2, 0, -0.02], 0.7],
+      ['cross_pein_hammer', [x0 + 1.25, y0 - 0.32, z + 0.02], [0, 0, -0.04], 0.85],
+      ['crowbar_01', [x0 + 1.4, y0 - 0.5, z + 0.02], [0, 0, 0.02], 1],
+    ];
+    for (const [id, p, r, s] of hang) useAsset(k, id, { p, r, s }, { w: { dust: 0.3, grime: 0.1 } });
+    return;
+  }
   for (let i = 0; i < 9; i++) {
     const x = x0 + i * 0.13 + (rng() - 0.5) * 0.02, y = y0 + (rng() - 0.5) * 0.15;
     const t = i % 3;
@@ -204,8 +220,10 @@ export function createGarage(opts = {}) {
   for (const sx of [-1.2, 1.2]) for (const sz of [-0.28, 0.28]) k.add(mat('metal'), G('wbleg', () => bbox(0.06, 0.86, 0.06, 0.006, 0.3)), { p: [bx + sx, 0, bz + sz], color: 0x3a3a38, w: { grime: 0.7 } });
   k.add(mat('metal'), bbox(0.8, 0.5, 0.6, 0.01, 0.2), { p: [bx + 0.75, 0.12, bz], color: 0x6a2a20, w: { grime: 0.5, streak: 0.5 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(Math.sin(lp.y * 18)) < 0.12) c.multiplyScalar(0.3); } }); // drawers
   // vise
-  k.add(mat('metal'), G('vise', () => bbox(0.12, 0.12, 0.28, 0.01, 0.1)), { p: [bx - 1.1, 0.93, bz + 0.2], color: 0x2a4a6a, w: { grime: 0.2 } });
-  k.add(mat('metal'), G('vise2', () => bbox(0.16, 0.06, 0.06, 0.008, 0.1)), { p: [bx - 1.1, 1.05, bz + 0.33], color: 0x2a4a6a });
+  if (!useAsset(k, 'bench_vice_01', { p: [bx - 1.05, 0.93, bz + 0.18], r: 0 }, { fit: { d: 0.38 }, w: { grime: 0.2, dust: 0.2 } })) {
+    k.add(mat('metal'), G('vise', () => bbox(0.12, 0.12, 0.28, 0.01, 0.1)), { p: [bx - 1.1, 0.93, bz + 0.2], color: 0x2a4a6a, w: { grime: 0.2 } });
+    k.add(mat('metal'), G('vise2', () => bbox(0.16, 0.06, 0.06, 0.008, 0.1)), { p: [bx - 1.1, 1.05, bz + 0.33], color: 0x2a4a6a });
+  }
   // pegboard + tools
   k.add(mat('wood'), bbox(1.8, 0.9, 0.02, 0.004, 0.3), { p: [bx, 1.25, zB + 0.11], color: 0x8a7458, w: { grime: 0, streak: 0.5, dust: 0.3 }, colorFn: (p, n, c, lp) => { if (Math.sin(lp.x * 160) * Math.sin(lp.y * 160) > 0.92) c.multiplyScalar(0.3); } });
   k.details(() => pegTools(k, bx - 0.75, 1.85, zB + 0.13, rng));
@@ -389,8 +407,14 @@ export function createGarage(opts = {}) {
     for (let i = 0; i < 3; i++) k.add(mat('galv'), G('hubcap', () => lathe([[0, 0.03], [0.1, 0.025], [0.17, 0.01], [0.18, 0]], 18).rotateX(Math.PI / 2)), { p: [2.5 + i * 0.4, 1.4 + (i % 2) * 0.35, zB + 0.11], color: 0xb0b0a8, w: { grime: 0, dust: 0.4, streak: 0.4 } });
     for (let i = 0; i < 4; i++) k.add(mat('rubber'), G('belt' + i, () => torus(0.12 + i * 0.03, 0.008, 3, 20).scale(0.6, 1.3, 1)), { p: [3.55, 1.95 - i * 0.03, zB + 0.13], color: 0x1a1a1a, w: false });
     // buckets + broom + creeper board + cardboard on the floor
-    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [0.6, 0, zB + 0.45], color: 0x2a5a9a, w: { grime: 0.5 } });
-    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [0.9, 0, zB + 0.5], color: 0xd8b030, w: { grime: 0.5 } });
+    const chest = useAsset(k, 'metal_tool_chest', { p: [0.55, 0, zB + 0.34], r: 0 }, { fit: { h: 0.66 }, w: { grime: 0.4, dust: 0.4, streak: 0.3 } });
+    if (chest) {
+      out.colliders.push({ x: 0.55, z: zB + 0.34, hx: 0.36, hz: 0.24, yaw: 0 });
+      // an old wood-cased TV on the chest (muay thai on Sunday nights)
+      useAsset(k, 'Television_01', { p: [0.55, 0.66, zB + 0.36], r: 0.12 }, { fit: { w: 0.56 }, w: { dust: 0.6, grime: 0 } });
+    }
+    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: chest ? [1.3, 0, zB + 0.85] : [0.6, 0, zB + 0.45], color: 0x2a5a9a, w: { grime: 0.5 } });
+    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: chest ? [1.62, 0, zB + 0.9] : [0.9, 0, zB + 0.5], color: 0xd8b030, w: { grime: 0.5 } });
     if (!useAsset(k, 'plastic_broom', { p: [xL + 0.62, 0.02, zF - 1.35], r: [0, 0.4, -0.22] }, { color: 0xe0e0d8, w: { dust: 0.4 } })) {
       k.add(mat('wood'), tube([V(0, 0.02, 0), V(0.02, 1.25, -0.25)], 0.012, 5), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a6a40, w: false });
       k.add(mat('flower'), G('broomhead', () => cyl(0.02, 0.12, 0.35, 8, 0, 1, true)), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a7a50, w: false });

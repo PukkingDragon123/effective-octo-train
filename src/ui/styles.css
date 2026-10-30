@@ -1230,3 +1230,23 @@
 .dlb-sub__en { font-size: calc(clamp(17px, 1.5vw, 22px) * var(--sub-scale)); font-weight: 700; }
 .dlb-death__sub .th { font-size: 16px; }
 .dlb-death__sub .en { font-size: 14px; font-weight: 700; }
+
+/* ---------------------------------------------------------------------------------------
+   Thai-only mode (default, settings.language === 'th'): the whole game is in Thai with
+   almost no text. English helper spans are hidden; Thai becomes the primary line.
+   --------------------------------------------------------------------------------------- */
+.dlb-ui.thai-only .en,
+.dlb-ui.thai-only [lang='en']:not(h1):not(.dlb-title__l1):not(.dlb-title__l2) { display: none !important; }
+.dlb-ui.thai-only .dlb-title__l1,
+.dlb-ui.thai-only .dlb-title__l2,
+.dlb-ui.thai-only .dlb-title__presents { display: none !important; }
+.dlb-ui.thai-only .dlb-title__th {
+  font-family: var(--f-title); font-weight: 700; color: var(--bone);
+  font-size: clamp(44px, 5.6vw, 88px); line-height: 1.15; margin-top: 0;
+  text-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+}
+.dlb-ui.thai-only .dlb-item .th {
+  font-family: var(--f-title); font-weight: 700; font-size: clamp(20px, 1.9vw, 30px);
+  color: inherit; transform: none;
+}
+.dlb-ui.thai-only .dlb-sub__th { font-size: calc(clamp(24px, 2.2vw, 34px) * var(--sub-scale)); }

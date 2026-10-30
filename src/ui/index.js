@@ -101,7 +101,10 @@ class UI {
       const hr = typeof e === 'number' ? e : e?.hour;
       if (Number.isFinite(hr)) this._hour = hr;
     });
+    const applyLang = () => root.classList.toggle('thai-only', (settings.get('language') ?? 'th') !== 'both');
+    applyLang();
     settings.onChange(() => {
+      applyLang();
       this.subs.applySettings();
       this.xhair.applySettings();
     });

@@ -41,9 +41,10 @@ export const DEFAULT_SETTINGS = {
   invertY: false,
   gamepadLookSensitivity: 1.0,
   transmission: 'auto', // 'auto' | 'manual'
-  showPrompts: true,
+  showPrompts: false, // minimal text: the crosshair dot blooms on targets but shows no label
   // text / language
-  subtitles: 'both', // 'en' | 'th' | 'both' | 'off'
+  language: 'th', // 'th' = the whole game in Thai only (default) | 'both' = Thai with English helpers
+  subtitles: 'th', // 'en' | 'th' | 'both' | 'off'
   subtitleSize: 1.0,
   voice: 'auto', // 'auto' (Thai TTS when the OS has a Thai voice, else murmur) | 'murmur' | 'off'
   // audio

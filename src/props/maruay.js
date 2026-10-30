@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, sagCurve, blob, squareMoulding, baluster, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
-import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap, forkPlank } from './lib/small.js';
+import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap, forkPlank, useAsset } from './lib/small.js';
 import { deityHeadGeo, deityBodyGeo, lionGeo } from './lib/figures.js';
 import { chineseRoof } from './shrines.js';
 
@@ -354,8 +354,8 @@ export function createShrineMaRuay(opts = {}) {
       k.add(mat('gold'), G('cstand', () => lathe([[0, 0], [0.07, 0], [0.04, 0.03], [0.02, 0.12], [0.06, 0.14], [0, 0.15]], 10)), { p: [s * 0.45, at - 0.0, az + 0.1], s: 0.6, color: GOLD, w: false });
       fruitPlate(k, { p: [s * 0.85, at, az], kind: s < 0 ? 'orange' : 'apple', seed: seed + 3 + s, s: 1.1 });
       for (let i = 0; i < 3; i++) teacup(k, { p: [s * (0.2 + i * 0.08), at, az - 0.22] });
-      // vases with flowers
-      k.add(mat('ceramic'), G('vase', () => lathe([[0, 0], [0.05, 0], [0.07, 0.08], [0.04, 0.18], [0.05, 0.24], [0, 0.22]], 12)), { p: [s * 1.1, at, az - 0.2], color: 0x2a4a8a, w: false });
+      // vases with flowers (CC0 porcelain vase when loaded, glazed blue tint)
+      if (!useAsset(k, s < 0 ? 'ceramic_vase_03' : 'ceramic_vase_01', { p: [s * 1.1, at, az - 0.2], r: s }, { fit: { h: 0.3 }, color: 0xb8c4d8, w: false })) k.add(mat('ceramic'), G('vase', () => lathe([[0, 0], [0.05, 0], [0.07, 0.08], [0.04, 0.18], [0.05, 0.24], [0, 0.22]], 12)), { p: [s * 1.1, at, az - 0.2], color: 0x2a4a8a, w: false });
       for (let i = 0; i < 6; i++) k.add(mat('flower'), G('vflower', () => sphere(0.03, 6, 5)), { p: [s * 1.1 + (rng() - 0.5) * 0.12, at + 0.3 + rng() * 0.12, az - 0.2 + (rng() - 0.5) * 0.1], color: rng() < 0.5 ? PAL.marigold : 0xd8c040, w: false });
       // oil lamps (gold cups with glowing wick)
       k.add(mat('gold'), G('oillamp', () => lathe([[0, 0], [0.025, 0], [0.012, 0.04], [0.04, 0.07], [0.045, 0.09], [0, 0.085]], 10)), { p: [s * 0.25, at, az + 0.25], color: GOLD, w: false });
@@ -368,6 +368,13 @@ export function createShrineMaRuay(opts = {}) {
       k.add(mat('wood'), G('fstick', () => bbox(0.008, 0.32, 0.003, 0.001, 0.4)), { p: [0.62 + Math.cos(a) * r, at + 0.06, az + 0.22 + Math.sin(a) * r], r: [(rng() - 0.5) * 0.15, rng() * 3, (rng() - 0.5) * 0.15], color: 0xc89a5a, w: false });
     }
     for (let i = 0; i < 3; i++) k.add(mat('paper'), G('gpaper', () => bbox(0.16, 0.06, 0.11, 0.002, 0.1)), { p: [-0.65 + i * 0.03, at + i * 0.06, az + 0.2], r: rng() * 0.3, color: 0xd8b040, w: false });
+    // brass offering pot on the altar + the caretaker's tea corner inside the hall (CC0 models)
+    useAsset(k, 'brass_pot_01', { p: [-0.35, at, az - 0.1], r: 0.4 }, { fit: { w: 0.2 }, w: false });
+    if (useAsset(k, 'chinese_tea_table', { p: [HW / 2 - 0.9, y0, hz + 0.7], r: -0.3 }, { fit: { h: 0.45 }, w: { dust: 0.4, grime: 0.3 } })) {
+      useAsset(k, 'chinese_stool', { p: [HW / 2 - 0.9 - 0.62, y0, hz + 0.95], r: 1.2 }, { fit: { h: 0.42 }, w: { dust: 0.3, grime: 0.3 } });
+      teacup(k, { p: [HW / 2 - 0.95, y0 + 0.45, hz + 0.7] });
+      teacup(k, { p: [HW / 2 - 0.8, y0 + 0.45, hz + 0.62] });
+    }
   });
   // two big lanterns hanging inside the hall: the doorway glows red-gold from the road
   for (const s of [-1, 1]) {

@@ -94,6 +94,7 @@ export const SETTINGS_TABS = [
       {
         th: 'คำบรรยาย', en: 'Subtitles',
         rows: [
+          { key: 'language', type: 'seg', th: 'ภาษาในเกม', en: 'Game language', thMain: true, options: [['th', 'ไทย', 'Thai'], ['both', 'ไทย + อังกฤษ', 'Thai + English']] },
           { key: 'subtitles', type: 'seg', th: 'ภาษาคำบรรยาย', en: 'Subtitles', thMain: true, options: [['th', 'ไทย', 'Thai'], ['en', 'English', 'อังกฤษ'], ['both', 'ทั้งสอง', 'Both'], ['off', 'ปิด', 'Off']] },
           { key: 'subtitleSize', type: 'slider', th: 'ขนาดตัวอักษร', en: 'Subtitle size', min: 0.75, max: 1.6, step: 0.05, fmt: 'x' },
           {

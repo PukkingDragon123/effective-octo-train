@@ -10,6 +10,7 @@ import { tex, signTex } from '../textures/index.js';
 import { MergeBuilder, GridSurface, xform, roundedBox, lathe, rod, tube, extrude, roundRectPts, roundRectPlane, pillow, deform, boxUV, planarUV } from './geom.js';
 import * as VT from './VehicleTextures.js';
 import { sharedMaterials } from './Materials.js';
+import { buildKeyModel } from './Garland.js';
 import { DIM, belt } from './TaxiBody.js';
 import { makeRng, lerp, clamp, noise, smoothstep } from '../core/math.js';
 import { FONTS } from '../ui/fonts.js';
@@ -69,8 +70,8 @@ function interiorMaterials() {
   return m;
 }
 
-/** Per-instance emissive / dynamic materials. */
-function instanceMaterials() {
+/** Per-instance emissive / dynamic materials (also used by the GLB binding). */
+export function instanceMaterials() {
   const g = (kind) => paintedMaterial({ map: VT.gaugeTex(kind, false), emissiveMap: VT.gaugeTex(kind, true), emissive: 0x6dffb0, emissiveIntensity: 0, roughness: 0.5, brush: 0.1, name: 'int_gauge_' + kind });
   // supersampled: the LED digits and radio text are read up close all game
   const meter = new VT.DynamicCanvas(256, 96, { scale: 3 });
@@ -676,22 +677,7 @@ export function buildTaxiInterior(ext) {
     g.add('black', xform(new THREE.BoxGeometry(0.003, 0.012, 0.004), [0, 0, 0.006]));
     keySlot.add(g.build({ chrome: m.chrome, black: blackMat() }));
   }
-  const key = new THREE.Group();
-  {
-    const g = new MergeBuilder();
-    g.add('metal', xform(new THREE.BoxGeometry(0.004, 0.012, 0.03), [0, 0, 0.012]));
-    g.add('black', xform(roundedBox(0.03, 0.026, 0.008, 0.006, 2).rotateY(Math.PI / 2), [0, 0, 0.034]));
-    g.add('metal', xform(new THREE.TorusGeometry(0.012, 0.0018, 6, 16), [0, -0.015, 0.042], [0, Math.PI / 2, 0]));
-    key.add(g.build({ metal: m.chrome, black: blackMat() }));
-    // keychain amulet swinging
-    const kp = new THREE.Group();
-    kp.position.set(0, -0.026, 0.042);
-    const tag = new THREE.Mesh(xform(roundedBox(0.018, 0.024, 0.004, 0.003, 1), [0, -0.03, 0]), m.gold);
-    kp.add(tag);
-    key.add(kp);
-    parts.swings.push(new Swing(kp, 0.03, 3));
-  }
-  key.visible = false;
+  const key = buildKeyModel(parts.swings);
   keySlot.add(key);
   group.add(keySlot);
   parts.keySlot = keySlot;
@@ -931,93 +917,14 @@ export function buildTaxiInterior(ext) {
     group.add(mirror);
     parts.rearviewMount = mount;
     parts.rearview = mirror;
-    // amulets hanging from the stem
-    const rng = makeRng(88);
-    const amuletTex = S('amulet_face', {});
-    const amuletMat = paintedMaterial({ map: amuletTex, color: amuletTex ? 0xffffff : 0x8a6a3a, roughness: 0.5, brush: 0.2, name: 'int_amuletface' });
-    const hangs = [[-0.012, 0.13], [0.008, 0.155], [0.022, 0.11]];
-    hangs.forEach(([dx, L], i) => {
-      const piv = new THREE.Group();
-      piv.position.set(mp.x + dx, mp.y - 0.005, mp.z - 0.005);
-      const g = new MergeBuilder();
-      g.add('s', rod([0, 0, 0], [0, -L, 0], 0.0009, 4));
-      const fr = roundedBox(0.026 + i * 0.004, 0.036 + i * 0.004, 0.006, 0.006, 2);
-      g.add('gold', xform(fr, [0, -L - 0.018, 0]));
-      piv.add(g.build({ s: m.string, gold: m.gold }));
-      for (const sz of [1, -1]) {
-        const face = new THREE.Mesh(new THREE.PlaneGeometry(0.02 + i * 0.004, 0.028 + i * 0.004), amuletMat);
-        face.position.set(0, -L - 0.018, sz * 0.0035);
-        if (sz < 0) face.rotation.y = Math.PI;
-        piv.add(face);
-      }
-      group.add(piv);
-      parts.swings.push(new Swing(piv, L + 0.018, 0.9 + rng() * 0.6));
-    });
-    // jasmine garland: loop of buds + tassel with rose + ribbons
-    const gp = new THREE.Group();
-    gp.position.set(mp.x - 0.03, mp.y - 0.01, mp.z);
-    const budGeo = new THREE.SphereGeometry(0.0055, 6, 5);
-    budGeo.scale(1, 1.6, 1);
-    const buds = [];
-    const loopN = 42;
-    for (let i = 0; i < loopN; i++) {
-      const a = (i / loopN) * Math.PI * 2;
-      // a narrow hanging loop (U shape)
-      const x = Math.sin(a) * 0.018;
-      const y = -0.05 - 0.05 * (1 - Math.cos(a));
-      buds.push([x, y, Math.cos(a * 2) * 0.004]);
-    }
-    const bud = new THREE.InstancedMesh(budGeo, m.jasmine, loopN + 12);
-    const mt = new THREE.Matrix4();
-    buds.forEach(([x, y, z], i) => {
-      mt.makeRotationFromEuler(new THREE.Euler(rng() * 0.6, rng() * 3, rng() * 0.6)).setPosition(x, y, z);
-      bud.setMatrixAt(i, mt);
-    });
-    // tassel buds below
-    for (let i = 0; i < 12; i++) {
-      mt.makeRotationFromEuler(new THREE.Euler(0, rng() * 3, 0)).setPosition((rng() - 0.5) * 0.012, -0.165 - i * 0.008, (rng() - 0.5) * 0.012);
-      bud.setMatrixAt(loopN + i, mt);
-    }
-    gp.add(bud);
-    const g = new MergeBuilder();
-    g.add('s', rod([0, 0, 0], [0, -0.05, 0], 0.0009, 4));
-    const rose = new THREE.IcosahedronGeometry(0.013, 1);
-    deform(rose, (v) => v.multiplyScalar(1 + 0.15 * Math.sin(v.x * 400) * Math.sin(v.y * 300)));
-    g.add('rose', xform(rose, [0, -0.15, 0]));
-    g.add('mari', xform(new THREE.IcosahedronGeometry(0.009, 1), [0, -0.135, 0.004]));
-    for (const sx of [-1, 1]) {
-      const rib = new THREE.PlaneGeometry(0.01, 0.09, 1, 6);
-      deform(rib, (v) => {
-        v.x += Math.sin(v.y * 40) * 0.003;
-      });
-      g.add('rib', xform(rib, [sx * 0.008, -0.23, 0], [0, 0, sx * 0.08]));
-    }
-    gp.add(g.build({ s: m.string, rose: m.rose, mari: m.marigold, rib: m.ribbon }));
-    group.add(gp);
-    parts.swings.push(new Swing(gp, 0.12, 1.1));
+    // amulets + jasmine garland are built by the taxi (Garland.js) for both model paths
   }
 
   // ---- dashboard decorations ------------------------------------------------------------------------
   {
     // little golden Buddha on the dash (passenger side, near the windshield)
-    const b = new MergeBuilder();
-    const base = lathe([[0.0, 0], [0.032, 0], [0.034, 0.006], [0.03, 0.012], [0.026, 0.016], [0, 0.016]], 20);
-    b.add('gold', base);
-    const lotus = lathe([[0.026, 0.016], [0.03, 0.022], [0.024, 0.026], [0, 0.026]], 16);
-    b.add('gold', lotus);
-    const legs = new THREE.SphereGeometry(0.024, 16, 10);
-    legs.scale(1, 0.38, 0.75);
-    b.add('gold', xform(legs, [0, 0.032, 0]));
-    const body = new THREE.SphereGeometry(0.014, 16, 12);
-    body.scale(1, 1.55, 0.85);
-    b.add('gold', xform(body, [0, 0.055, -0.002]));
-    const head = new THREE.SphereGeometry(0.0085, 16, 12);
-    b.add('gold', xform(head, [0, 0.083, 0]));
-    b.add('gold', xform(new THREE.ConeGeometry(0.004, 0.012, 10), [0, 0.096, 0]));
-    const halo = new THREE.TorusGeometry(0.016, 0.0015, 6, 24);
-    b.add('gold', xform(halo, [0, 0.08, -0.008]));
     const buddha = new THREE.Group();
-    buddha.add(b.build({ gold: m.gold }));
+    buddha.add(buildBuddha(m.gold));
     buddha.position.set(-0.2, 0.938, -0.86);
     buddha.rotation.y = 0.15;
     group.add(buddha);
@@ -1193,6 +1100,84 @@ function buildHeadlinerSag(group, ext, m) {
   });
 }
 
+/**
+ * Seated Buddha (Sukhothai style, meditation) ~11 cm: moulded lathe pedestal with two rings
+ * of shaped lotus petals, crossed legs, an elliptical lathe torso (slim waist, sloping
+ * shoulders), arms resting in the lap, a robe sash over the left shoulder, and a head with
+ * long ear lobes, curls cap, ushnisha and the flame finial. Base at y = 0, facing +Z.
+ */
+let _buddhaGeo = null;
+function buildBuddha(mat) {
+  if (!_buddhaGeo) {
+    const b = new MergeBuilder();
+    const V = (pts) => pts.map(([r, y]) => [r, y]);
+    // pedestal: plinth, waist, lotus seat rim
+    b.add('g', lathe(V([[0, 0], [0.034, 0], [0.035, 0.002], [0.033, 0.004], [0.028, 0.006], [0.025, 0.011], [0.027, 0.013], [0.031, 0.015], [0.032, 0.0175], [0, 0.0175]]), 32));
+    // lotus petals: pointed, cupped, two rings (up and down)
+    const petal = new THREE.Shape();
+    petal.moveTo(0, 0);
+    petal.bezierCurveTo(0.0055, 0.002, 0.0052, 0.0075, 0, 0.011);
+    petal.bezierCurveTo(-0.0052, 0.0075, -0.0055, 0.002, 0, 0);
+    const pg = new THREE.ExtrudeGeometry(petal, { depth: 0.0012, bevelEnabled: true, bevelThickness: 0.0005, bevelSize: 0.0004, bevelSegments: 2, curveSegments: 10 });
+    deform(pg, (v) => {
+      v.z += 0.0006 * (v.x / 0.0055) ** 2 * 6; // cup the petal
+    });
+    for (let ring = 0; ring < 2; ring++) {
+      const n = 16;
+      for (let k = 0; k < n; k++) {
+        const a = ((k + ring * 0.5) / n) * Math.PI * 2;
+        const g = pg.clone();
+        if (ring === 0) g.rotateX(-0.35);
+        else g.rotateX(Math.PI + 0.45);
+        g.translate(0, 0, ring === 0 ? 0.0305 : 0.03);
+        g.rotateY(a);
+        g.translate(0, ring === 0 ? 0.0135 : 0.0125, 0);
+        b.add('g', g);
+      }
+    }
+    // crossed legs: a broad lens, flattened front-to-back
+    const legs = lathe(V([[0, 0], [0.019, 0.001], [0.025, 0.005], [0.026, 0.009], [0.022, 0.013], [0.012, 0.0155], [0, 0.016]]), 28);
+    legs.scale(1.0, 1, 0.66);
+    b.add('g', xform(legs, [0, 0.0175, 0.002]));
+    // soles of the feet (right foot on top), knees
+    for (const sx of [-1, 1]) b.add('g', xform(new THREE.SphereGeometry(0.0065, 12, 8).scale(1.5, 0.55, 0.9), [sx * 0.018, 0.0225, 0.007]));
+    // torso: waist -> chest -> sloping shoulders -> neck
+    const torso = lathe(V([[0, 0], [0.0105, 0.0], [0.0098, 0.006], [0.0102, 0.012], [0.0118, 0.019], [0.0128, 0.024], [0.0122, 0.0275], [0.0085, 0.0305], [0.0042, 0.0325], [0.0036, 0.0345], [0, 0.0345]]), 28);
+    torso.scale(1.0, 1, 0.62);
+    b.add('g', xform(torso, [0, 0.03, 0]));
+    // robe sash over the left shoulder
+    b.add('g', tube([[0.009, 0.059, 0.0045], [0.0035, 0.05, 0.0068], [-0.004, 0.04, 0.0066], [-0.009, 0.032, 0.0055]], 0.0016, 16, 6));
+    b.add('g', tube([[0.009, 0.059, -0.0045], [0.0105, 0.045, -0.006], [0.01, 0.034, -0.005]], 0.0014, 10, 6));
+    // arms: shoulder -> elbow -> hands resting in the lap
+    for (const sx of [-1, 1]) {
+      b.add('g', tube([[sx * 0.0118, 0.0545, 0.0], [sx * 0.0145, 0.045, 0.002], [sx * 0.0145, 0.036, 0.005], [sx * 0.009, 0.031, 0.0085], [sx * 0.002, 0.0305, 0.0095]], 0.0026, 16, 8));
+    }
+    b.add('g', xform(new THREE.SphereGeometry(0.0042, 12, 8).scale(1.6, 0.5, 1.0), [0, 0.031, 0.0092]));
+    // head: chin, oval face, crown of curls, ushnisha, flame finial (ketumala)
+    const head = lathe(V([[0, 0], [0.0032, 0.0006], [0.0052, 0.0028], [0.0062, 0.006], [0.0064, 0.0095], [0.0062, 0.012], [0.0066, 0.0128], [0.0058, 0.0148], [0.0034, 0.0162], [0.0032, 0.0172], [0.0026, 0.0186], [0.0016, 0.0194], [0.0011, 0.0205], [0.0009, 0.023], [0.0004, 0.026], [0, 0.028]]), 24);
+    head.scale(1, 1, 0.92);
+    b.add('g', xform(head, [0, 0.0645, 0.0005]));
+    // long ear lobes
+    for (const sx of [-1, 1]) b.add('g', xform(new THREE.SphereGeometry(0.0016, 8, 6).scale(0.6, 2.8, 1.0), [sx * 0.0064, 0.0715, 0.0002]));
+    // brow / nose ridge hint
+    b.add('g', xform(new THREE.SphereGeometry(0.0011, 8, 6).scale(0.8, 2.0, 1.0), [0, 0.0715, 0.0058]));
+    _buddhaGeo = b;
+  }
+  // MergeBuilder consumes its lists on build: rebuild a fresh copy each time from cached geometries
+  const out = new THREE.Group();
+  const g = _buddhaGeo.lists.get('g');
+  const merged = new MergeBuilder();
+  for (const geo of g) merged.add('g', geo.clone());
+  out.add(merged.build({ g: mat }));
+  out.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
+  return out;
+}
+
 let _black = null;
 function blackMat() {
   if (!_black) _black = paintedMaterial({ color: 0x080808, roughness: 0.9, brush: 0.1, name: 'int_black' });
@@ -1290,3 +1275,7 @@ function buildDoorCard(id, d, m, parts) {
 }
 
 export { Swing };
+/** The modelled ignition key (for the GLB binding). */
+export function buildKey(swings) {
+  return buildKeyModel(swings);
+}

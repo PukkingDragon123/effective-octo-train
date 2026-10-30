@@ -513,3 +513,144 @@ function dilate(d, w, h, passes) {
     d[i * 4 + 2] = 20;
   }
 }
+
+// ----------------------------------------------------------------------------------
+// Background "stage flats": painted silhouettes of a jungle tree line (trunks, ragged
+// crowns of small leaves, hanging lianas, a few palm and bamboo arcs) for the far layers in
+// the fog. Two horizontal strips (v 0..0.5 and 0.5..1), each tileable along u.
+// ----------------------------------------------------------------------------------
+let _flats = null;
+export function silhouetteTexture() {
+  if (_flats) return _flats;
+  const Wd = 2048, Hh = 1024, SH = Hh / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = Wd;
+  canvas.height = Hh;
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+  const rng = makeRng(31337);
+  for (let strip = 0; strip < 2; strip++) {
+    g.save();
+    g.beginPath();
+    g.rect(0, strip * SH, Wd, SH);
+    g.clip();
+    g.translate(0, strip * SH);
+    const col = (l, a = 1) => hsl(100 + rng() * 30, 0.18, l, a);
+    // undergrowth band
+    for (let i = 0; i < 900; i++) {
+      const x = rng() * Wd, y = SH - rng() * SH * 0.22;
+      g.save();
+      g.translate(x, y);
+      g.rotate(-Math.PI / 2 + (rng() - 0.5) * 1.6);
+      leafPath(g, SH * (0.03 + rng() * 0.05), SH * 0.012, 0.5);
+      g.fillStyle = col(0.1 + rng() * 0.06);
+      g.fill();
+      g.restore();
+    }
+    // trunks + crowns (wrap around the tile edge for seamless tiling)
+    const nT = strip === 0 ? 9 : 12;
+    for (let t = 0; t < nT; t++) {
+      const x0 = ((t + rng() * 0.7) / nT) * Wd;
+      const topY = SH * (0.06 + rng() * 0.3);
+      const w = SH * (0.008 + rng() * 0.018);
+      for (const dx of [0, -Wd, Wd]) {
+        const xb = x0 + dx;
+        g.strokeStyle = col(0.09 + rng() * 0.04);
+        g.lineCap = 'round';
+        // trunk with a low fork
+        const fy = SH * (0.55 + rng() * 0.25);
+        g.lineWidth = w * 1.4;
+        g.beginPath();
+        g.moveTo(xb, SH);
+        g.lineTo(xb + (rng() - 0.5) * w * 3, fy);
+        g.stroke();
+        for (let k = 0; k < 2 + Math.floor(rng() * 2); k++) {
+          g.lineWidth = w * (0.9 - k * 0.2);
+          g.beginPath();
+          g.moveTo(xb, fy);
+          const ex = xb + (rng() - 0.5) * SH * 0.5, ey = topY + rng() * SH * 0.15;
+          g.quadraticCurveTo(xb + (ex - xb) * 0.2, (fy + ey) * 0.55, ex, ey);
+          g.stroke();
+          // reaching limbs
+          for (let b = 0; b < 3; b++) {
+            const f = 0.35 + rng() * 0.5;
+            const bx = xb + (ex - xb) * f, by = fy + (ey - fy) * f;
+            const lx = bx + (rng() - 0.5) * SH * 0.55, ly = by - rng() * SH * 0.12;
+            g.lineWidth = w * 0.45;
+            g.beginPath();
+            g.moveTo(bx, by);
+            g.quadraticCurveTo((bx + lx) / 2, Math.min(by, ly) - SH * 0.05, lx, ly);
+            g.stroke();
+            crown(g, rng, lx, ly, SH * (0.07 + rng() * 0.06), col);
+          }
+          crown(g, rng, ex, ey, SH * (0.1 + rng() * 0.08), col);
+        }
+      }
+      // lianas hanging from the crowns
+      for (let v = 0; v < 4; v++) {
+        const vx = x0 + (rng() - 0.5) * SH * 0.6, vy = topY + SH * 0.1;
+        g.strokeStyle = col(0.08, 0.95);
+        g.lineWidth = 1 + rng() * 2;
+        g.beginPath();
+        g.moveTo(vx, vy);
+        g.bezierCurveTo(vx + (rng() - 0.5) * 30, vy + SH * 0.2, vx + (rng() - 0.5) * 30, vy + SH * 0.35, vx + (rng() - 0.5) * 20, vy + SH * (0.3 + rng() * 0.35));
+        g.stroke();
+      }
+    }
+    // bamboo / palm arcs
+    for (let i = 0; i < (strip ? 5 : 3); i++) {
+      const x = rng() * Wd;
+      for (let c = 0; c < 7; c++) {
+        const a = (rng() - 0.5) * 0.9;
+        const L = SH * (0.55 + rng() * 0.35);
+        g.strokeStyle = col(0.1);
+        g.lineWidth = 3;
+        g.beginPath();
+        g.moveTo(x, SH);
+        const ex = x + Math.sin(a) * L * 1.2, ey = SH - Math.cos(a) * L;
+        g.quadraticCurveTo(x + Math.sin(a) * L * 0.3, SH - L * 0.8, ex, ey);
+        g.stroke();
+        for (let k = 0; k < 12; k++) {
+          g.save();
+          g.translate(x + (ex - x) * (k / 12) + Math.sin(a) * L * 0.1, SH + (ey - SH) * (k / 12));
+          g.rotate((rng() - 0.5) * 3);
+          leafPath(g, SH * 0.05, SH * 0.008, 0.9);
+          g.fillStyle = col(0.11);
+          g.fill();
+          g.restore();
+        }
+      }
+    }
+    g.restore();
+  }
+  const img = g.getImageData(0, 0, Wd, Hh);
+  dilate(img.data, Wd, Hh, 4);
+  const row = Wd * 4;
+  const flipped = new Uint8Array(img.data.length);
+  for (let y = 0; y < Hh; y++) flipped.set(img.data.subarray(y * row, (y + 1) * row), (Hh - 1 - y) * row);
+  const tex = new THREE.DataTexture(flipped, Wd, Hh, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  tex.name = 'worldSilhouettes';
+  _flats = tex;
+  return tex;
+}
+
+function crown(g, rng, x, y, r, col) {
+  const n = Math.round(r * 2.2);
+  for (let i = 0; i < n; i++) {
+    const a = rng() * Math.PI * 2, rr = Math.sqrt(rng()) * r;
+    g.save();
+    g.translate(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.7);
+    g.rotate(rng() * Math.PI * 2);
+    leafPath(g, r * (0.16 + rng() * 0.12), r * 0.06, 0.5);
+    g.fillStyle = col(0.08 + rng() * 0.07);
+    g.fill();
+    g.restore();
+  }
+}

@@ -31,7 +31,7 @@ export class MainMenu {
       h('div', { class: 'dlb-menu__shade' }),
       h('div', { class: 'dlb-menu__col' }, titleLockup({ align: 'left' }), this.list),
       h('footer', { class: 'dlb-foot' },
-        h('div', { class: 'dlb-foot__brand' }, 'Pukking Dragon ', h('i', null, '· a night-shift ghost story')),
+        h('div', { class: 'dlb-foot__brand' }, 'Pukking Dragon ', h('i', { attrs: { lang: 'th' } }, '· เรื่องเล่ากะดึก'), h('i', { class: 'en', attrs: { lang: 'en' } }, ' · a night-shift ghost story')),
         keyHints([NAV_HINTS.move, NAV_HINTS.ok])));
     ui.layer.appendChild(this.el);
     this.ctx = nav.push({ root: this.list, modal: true, initial: can ? 1 : 0, name: 'menu' });

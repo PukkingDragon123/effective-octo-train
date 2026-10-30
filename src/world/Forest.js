@@ -9,7 +9,7 @@ import { tex } from '../textures/index.js';
 import { engine } from '../core/Engine.js';
 import { makeRng, SimplexNoise, smoothstep } from '../core/math.js';
 import { SPECIES, buildVariant, rockGeometry, bambooTexture } from './TreeFactory.js';
-import { foliageAtlas } from './foliageAtlas.js';
+import { foliageAtlas, silhouetteTexture } from './foliageAtlas.js';
 import { chainPatch, inject } from './shaderUtil.js';
 import { W } from './constants.js';
 
@@ -20,6 +20,28 @@ const cellKey = (ix, iz) => (ix + 4096) * 8192 + (iz + 4096);
 function unflipNormals(m, key) {
   return chainPatch(m, key, (shader) => {
     shader.fragmentShader = inject(shader.fragmentShader, '#include <normal_fragment_begin>', '#ifdef DOUBLE_SIDED\n normal *= faceDirection;\n#endif');
+  });
+}
+
+/**
+ * Crisp foliage edges: scale alpha by the sampled mip level so distant cards keep their
+ * coverage (no thinning / mush), then alpha-to-coverage (MSAA) or the alpha test cuts a clean edge.
+ */
+function crispAlpha(m, key) {
+  if (!m) return m;
+  return chainPatch(m, key, (shader) => {
+    shader.fragmentShader = inject(
+      shader.fragmentShader,
+      '#include <map_fragment>',
+      `#ifdef USE_MAP
+      {
+        vec2 tsz = vec2(textureSize(map, 0));
+        vec2 ddx = dFdx(vMapUv * tsz), ddy = dFdy(vMapUv * tsz);
+        float mipL = max(0.0, 0.5 * log2(max(dot(ddx, ddx), dot(ddy, ddy))));
+        diffuseColor.a = clamp(diffuseColor.a * (1.0 + mipL * 0.3), 0.0, 1.0);
+      }
+      #endif`,
+    );
   });
 }
 
@@ -69,11 +91,12 @@ export class Forest {
       banyanBark: paintedMaterial({ name: 'barkBanyan', map: banyanMap, normalMap: barkN, vertexColors: true, roughness: 0.9, wind: 'trunk', moss: 0.35, brush: 0.6, wet: 0.5 }),
       stem: paintedMaterial({ name: 'plantStem', color: 0xffffff, vertexColors: true, roughness: 0.75, wind: 'leaf', brush: 0.5, wet: 0.6 }),
       bamboo: paintedMaterial({ name: 'bambooCulm', map: bambooTexture(), vertexColors: true, roughness: 0.55, wind: 'leaf', brush: 0.4, wet: 0.6 }),
-      leaves: unflipNormals(foliageMaterial({ name: 'leaves', map: atlas, alphaTest: 0.42, vertexColors: true, wind: 'leaf', translucency: 0.65, roughness: 0.72, brush: 0.5 }), 'unflip'),
+      leaves: unflipNormals(foliageMaterial({ name: 'leaves', map: atlas, alphaTest: 0.45, vertexColors: true, wind: 'leaf', flutter: 1.7, translucency: 0.7, roughness: 0.72, brush: 0.45 }), 'unflip'),
       ground: unflipNormals(foliageMaterial({ name: 'groundLeaves', map: atlas, alphaTest: 0.42, vertexColors: true, wind: 'grass', translucency: 0.6, roughness: 0.75, brush: 0.5 }), 'unflip'),
       vine: unflipNormals(foliageMaterial({ name: 'vines', map: atlas, alphaTest: 0.42, vertexColors: true, wind: 'vine', translucency: 0.5, roughness: 0.8 }), 'unflip'),
       rock: paintedMaterial({ name: 'rock', color: 0xb8b4aa, vertexColors: true, triplanar: 'rock', triplanarScale: 0.45, roughness: 0.88, moss: 0.65, brush: 0.6, wet: 0.6 }),
     };
+    for (const k of ['leaves', 'ground', 'vine']) crispAlpha(this.mats[k], 'crisp');
     for (const m of Object.values(this.mats)) m.side = m.side ?? THREE.FrontSide;
     this.mats.stem.side = THREE.DoubleSide;
   }
@@ -161,6 +184,11 @@ export class Forest {
     onProgress?.(0.45, 'กำลังปลูกป่า…', 'Planting the jungle…');
     await this._scatter((f) => onProgress?.(0.45 + f * 0.53, 'กำลังปลูกป่า…', 'Planting the jungle…'));
     this._finalizeInstances();
+    try {
+      this._buildFlats();
+    } catch (e) {
+      console.warn('[world] silhouette flats failed', e);
+    }
     onProgress?.(1);
   }
 
@@ -387,6 +415,25 @@ export class Forest {
     const tilesTotal = tiles.length;
     let lastYield = performance.now();
 
+    // ---------------- roadside reach trees: slender forked trees arching over the road ----------
+    for (const sp of road.splines.values()) {
+      for (let s = 6 + rng() * 6; s < sp.length - 6; s += 7 + rng() * 9) {
+        for (const side of [-1, 1]) {
+          if (rng() > 0.6) continue;
+          const e = 2.5 + rng() * 4.5;
+          const p = sp.pointAt(s, side * (W.halfWidth + e));
+          const nr = T.nearestRoad(p.x, p.z);
+          if (!nr.sp || nr.e < 2.2) continue;
+          if (this._blocked(p.x, p.z, 2.2) || this._water(p.x, p.z) < 2) continue;
+          const tg = sp.tangents[Math.min(sp.points.length - 1, Math.max(0, Math.round(s)))];
+          const tx = side * tg.z, tz = -side * tg.x; // toward the road
+          const yaw = Math.atan2(-tz, tx) + (rng() - 0.5) * 0.8;
+          this._place('reachTree', Math.floor(rng() * 5), p.x, p.z, yaw, 0.78 + rng() * 0.4, rng, { dy: -0.05, lean: { x: tx, z: tz, a: 0.03 + rng() * 0.1 } });
+          this.colliders.push({ x: p.x, z: p.z, r: 0.4 });
+        }
+      }
+    }
+
     for (let ti = 0; ti < tilesTotal; ti++) {
       const tile = tiles[ti];
       const tx0 = tile.x, tz0 = tile.z, TS = W.terrainTile;
@@ -402,7 +449,8 @@ export class Forest {
           if (this._blocked(x, z, 4) || this._water(x, z) < 3) continue;
           const near = nr.e < 14;
           const w = {
-            rainTree: near ? 1.8 : nr.e < 32 ? 0.9 : 0.35,
+            reachTree: near ? 1.1 : 0.55,
+            rainTree: near ? 1.6 : nr.e < 32 ? 0.9 : 0.35,
             dipterocarp: 1.1,
             banyan: 0.22,
             deadTree: 0.07,
@@ -410,7 +458,7 @@ export class Forest {
           };
           const name = pickW(rng, w);
           const v = Math.floor(rng() * 8);
-          const sc = name === 'understory' ? 1.3 + rng() * 0.4 : 0.85 + rng() * 0.32;
+          const sc = name === 'understory' ? 1.3 + rng() * 0.4 : name === 'reachTree' ? 0.9 + rng() * 0.45 : 0.85 + rng() * 0.32;
           // trees at the road edge lean into the light gap over the asphalt
           let lean = null;
           if (nr.exact && nr.e < 16) {
@@ -435,14 +483,19 @@ export class Forest {
           if (blk && !blk.soft) continue;
           const zb = nz.noise2D(x / 70 + 40, z / 70);
           const zbn = nz.noise2D(x / 55 - 20, z / 55 + 7);
-          const inGrove = groveP && Math.hypot(x - groveP.x, z - groveP.z) < 38;
+          const inGrove = groveP && Math.hypot(x - groveP.x, z - groveP.z) < 46;
           const r = rng();
           if (blk) {
             if (r < 0.08) this._place('rock', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.4 + rng() * 0.5, rng, { dy: -0.15 });
             continue;
           }
-          if (inGrove && r < 0.7 && nr.e > 1.8) {
-            this._place('banana', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.9 + rng() * 0.4, rng);
+          if (inGrove && r < 0.78 && nr.e > 1.5) {
+            // clumps of 1-4 stems (mother plant + suckers), all leaning a little apart
+            const nc = 1 + Math.floor(rng() * 3.5);
+            for (let c = 0; c < nc; c++) {
+              const a = rng() * 6.28, d = c ? 0.5 + rng() * 0.9 : 0;
+              this._place('banana', Math.floor(rng() * 4), x + Math.cos(a) * d, z + Math.sin(a) * d, rng() * 6.28, (c ? 0.55 + rng() * 0.35 : 0.95 + rng() * 0.45), rng, { lean: { x: Math.cos(a), z: Math.sin(a), a: c ? 0.08 + rng() * 0.12 : 0.03 } });
+            }
             continue;
           }
           if (zb > 0.35 && r < 0.42 && nr.e > 2.6) {
@@ -450,7 +503,8 @@ export class Forest {
             continue;
           }
           if (zbn > 0.5 && r < 0.35 && nr.e > 1.8) {
-            this._place('banana', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.8 + rng() * 0.4, rng);
+            this._place('banana', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.8 + rng() * 0.4, rng);
+            if (rng() < 0.5) this._place('banana', Math.floor(rng() * 4), x + 0.7, z - 0.4, rng() * 6.28, 0.55 + rng() * 0.3, rng, { lean: { x: 1, z: -0.5, a: 0.12 } });
             continue;
           }
           if ((wat < 14 || zb < -0.55) && r < 0.2) {
@@ -680,7 +734,98 @@ export class Forest {
       for (const l of rec.lods) commit(l);
       commit(rec.impostor);
     }
+    calls += this._selectFlats(fx, fz, dd + 40);
     this._stats = { calls, instances: inst, total: this.totalInstances };
+  }
+
+  // ---------------------------------------------------------------------------------
+  // background stage flats: painted tree-line silhouettes deep in the fog (2 layers)
+  // ---------------------------------------------------------------------------------
+  _buildFlats() {
+    const world = this.world, T = world.terrain, road = world.road;
+    if (!T || !road) return;
+    const tex = silhouetteTexture();
+    const mat = crispAlpha(
+      unflipNormals(foliageMaterial({ name: 'flats', map: tex, alphaTest: 0.5, color: 0x56604a, vertexColors: false, wind: 'trunk', windHeightScale: 0.35, translucency: 0.15, roughness: 1, brush: 0.4 }), 'unflip'),
+      'crisp',
+    );
+    this.mats.flats = mat;
+    const mk = (row) => {
+      const g = new THREE.PlaneGeometry(1, 1, 4, 2).translate(0, 0.5, 0);
+      const uv = g.attributes.uv, nrm = g.attributes.normal, pos = g.attributes.position;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setY(i, row * 0.5 + uv.getY(i) * 0.5);
+        const x = pos.getX(i);
+        const n = new THREE.Vector3(x * 0.6, 0.45, 1).normalize();
+        nrm.setXYZ(i, n.x, n.y, n.z);
+      }
+      return g;
+    };
+    const rng = makeRng(777);
+    const recs = [];
+    for (let row = 0; row < 2; row++) {
+      const geo = mk(row);
+      const attr = new THREE.InstancedBufferAttribute(new Float32Array(16 * 64), 16);
+      attr.setUsage(THREE.DynamicDrawUsage);
+      const mesh = new THREE.InstancedMesh(geo, mat, 64);
+      mesh.instanceMatrix = attr;
+      mesh.count = 0;
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      mesh.matrixAutoUpdate = false;
+      mesh.name = 'silhouetteFlats' + row;
+      this.group.add(mesh);
+      recs.push({ slot: { attr, meshes: [mesh], cap: 64, count: 0 }, m: [], x: [], z: [] });
+    }
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+    for (const sp of road.splines.values()) {
+      for (let s = 10; s < sp.length - 10; s += 16 + rng() * 10) {
+        for (const side of [-1, 1]) {
+          for (const layer of [0, 1]) {
+            const e = layer ? 52 + rng() * 22 : 30 + rng() * 12;
+            const p = sp.pointAt(s, side * (W.halfWidth + e));
+            if (T._coarseDist(p.x, p.z) > W.corridor - 2) continue;
+            const nr = T.nearestRoad(p.x, p.z);
+            if (!nr.sp || nr.e < 26) continue;
+            const tg = sp.tangents[Math.min(sp.points.length - 1, Math.round(s))];
+            const tx = side * tg.z, tz = -side * tg.x; // toward the road
+            const yaw = Math.atan2(tx, tz) + (rng() - 0.5) * 0.4;
+            q.setFromAxisAngle(up, yaw);
+            const w = 26 + rng() * 12, h = (layer ? 24 : 19) + rng() * 8;
+            m.compose(new THREE.Vector3(p.x, T.sample(p.x, p.z) - 1.2, p.z), q, new THREE.Vector3(w, h, 1));
+            const rec = recs[(layer + (rng() < 0.5 ? 1 : 0)) % 2];
+            for (let k = 0; k < 16; k++) rec.m.push(m.elements[k]);
+            rec.x.push(p.x);
+            rec.z.push(p.z);
+          }
+        }
+      }
+    }
+    this.flats = recs.map((r) => ({ slot: r.slot, m: Float32Array.from(r.m), x: Float32Array.from(r.x), z: Float32Array.from(r.z) }));
+  }
+
+  _selectFlats(fx, fz, R) {
+    if (!this.flats) return 0;
+    let calls = 0;
+    for (const f of this.flats) {
+      const slot = f.slot;
+      slot.count = 0;
+      for (let i = 0; i < f.x.length; i++) {
+        const dx = f.x[i] - fx, dz = f.z[i] - fz;
+        if (dx * dx + dz * dz > R * R) continue;
+        if (slot.count >= slot.cap) this._ensure(slot, slot.count + 1);
+        slot.attr.array.set(f.m.subarray(i * 16, i * 16 + 16), slot.count * 16);
+        slot.count++;
+      }
+      const mesh = slot.meshes[0];
+      mesh.count = slot.count;
+      mesh.visible = slot.count > 0;
+      if (slot.count) {
+        slot.attr.needsUpdate = true;
+        calls++;
+      }
+    }
+    return calls;
   }
 
   setDensity(f) {

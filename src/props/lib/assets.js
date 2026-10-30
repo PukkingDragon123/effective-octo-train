@@ -47,6 +47,21 @@ export const PROP_ASSETS = {
   cleaner_tin_01: { shadows: false },
   ceramic_pot: {},
   dustpan: { shadows: false },
+  // fetched directly from polyhaven.com (CC0), textures 512 px JPEG, packed to GLB
+  Television_01: {},
+  bench_vice_01: {},
+  brass_pot_01: {},
+  ceramic_vase_01: { shadows: false },
+  ceramic_vase_03: { shadows: false },
+  chinese_stool: {},
+  chinese_tea_table: {},
+  combination_wrench: { shadows: false },
+  cross_pein_hammer: { shadows: false },
+  crowbar_01: { shadows: false },
+  flathead_screwdriver: { shadows: false },
+  handsaw_wood: { shadows: false },
+  metal_tool_chest: {},
+  oil_tin: { shadows: false },
 };
 
 const ready = new Map(); // id -> { parts:[{geo, mat}], size: Vector3 }

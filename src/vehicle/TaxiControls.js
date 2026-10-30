@@ -28,7 +28,18 @@ export const STATIONS = [
   { freq: _SN[3]?.freq || 'FM 103.3', name: _SN[3]?.th || '…', th: _SN[3]?.th || '…', en: _SN[3]?.en || '…' },
   { freq: _SN[4]?.freq || 'AM 1080', name: _SN[4]?.th || 'ธรรมะยามดึก', th: _SN[4]?.th || 'ธรรมะยามดึก', en: _SN[4]?.en || 'Late-Night Dhamma' },
 ];
-const ENGINE_CRANK = [0.82, 1.05]; // seconds of cranking per engine_start variant (audio/Synth/sfxCar.js)
+const ENGINE_CRANK = [0.82, 1.05];
+
+/**
+ * Rotate a control part. Procedural parts use Euler components; GLB pivots carry
+ * userData.axis (parent space) + sign, so the same control code drives both models.
+ */
+export function turn(obj, comp, v) {
+  if (!obj) return;
+  const u = obj.userData;
+  if (u.axis) obj.quaternion.setFromAxisAngle(u.axis, v * (u.sign ?? 1));
+  else obj.rotation[comp] = v;
+} // seconds of cranking per engine_start variant (audio/Synth/sfxCar.js)
 
 const LABELS = {
   key_insert: ['เสียบกุญแจ', 'Insert the key'],
@@ -448,6 +459,7 @@ export class TaxiControls {
     }
     // doors: inner handles and outer handle proxies
     for (const id of ['fr', 'fl', 'rr', 'rl']) {
+      if (!t.ext.doors[id]) continue;
       const it = add({ id: 'taxi.door.' + id, object: P.innerHandles[id], ...L('door_open'), reach: 1.4, enabled: inCar, onUse: () => this.set('door', { door: id, open: s.doors[id] > 0.5 ? 0 : 1 }, { source: 'interact' }) });
       it._door = id;
       const proxy = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.22), new THREE.MeshBasicMaterial());
@@ -460,7 +472,7 @@ export class TaxiControls {
     }
     const trunkProxy = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.2), new THREE.MeshBasicMaterial());
     trunkProxy.layers.set(LAYERS.INTERACT);
-    trunkProxy.position.set(0, 0.95, 2.1);
+    trunkProxy.position.copy(t.anchors.trunk.position);
     t.bodyInner.add(trunkProxy);
     (this._doorProxies = this._doorProxies || []).push(trunkProxy);
     add({ id: 'taxi.trunk', object: trunkProxy, ...L('trunk'), reach: 1.8, enabled: () => !inCar(), onUse: () => this.set('trunk', 'toggle', { source: 'interact' }) });
@@ -606,10 +618,13 @@ export class TaxiControls {
     P.steering.spin.rotation.z = -ph.wheelAngle * 8.5;
     // pedals
     const inp = ph.input;
-    P.pedals.throttle.rotation.x = damp(P.pedals.throttle.rotation.x, -inp.throttle * 0.32, 20, dt);
-    P.pedals.brake.rotation.x = damp(P.pedals.brake.rotation.x, -inp.brake * 0.3, 20, dt);
-    P.pedals.clutch.visible = this.manual;
-    P.pedals.clutch.rotation.x = damp(P.pedals.clutch.rotation.x, -(ph.shiftTimer > 0 ? 0.35 : 0), 16, dt);
+    A.pThr = damp(A.pThr || 0, -inp.throttle * 0.32, 20, dt);
+    A.pBrk = damp(A.pBrk || 0, -inp.brake * 0.3, 20, dt);
+    A.pClu = damp(A.pClu || 0, -(ph.shiftTimer > 0 ? 0.35 : 0), 16, dt);
+    turn(P.pedals.throttle, 'x', A.pThr);
+    turn(P.pedals.brake, 'x', A.pBrk);
+    P.pedals.clutch.visible = this.manual || !!t.ext.glb;
+    turn(P.pedals.clutch, 'x', A.pClu);
     // gear lever pose
     const gp = this.gearPose(s.gear);
     A.gear.x = damp(A.gear.x, gp[0], 16, dt);
@@ -618,12 +633,13 @@ export class TaxiControls {
     P.gearGate.visible = !this.manual;
     // handbrake
     A.handbrake = damp(A.handbrake, s.handbrake ? 1 : 0, 14, dt);
-    P.handbrake.rotation.x = A.handbrake * 0.42;
+    turn(P.handbrake, 'x', A.handbrake * 0.42);
     // glovebox, visors
     A.glove = damp(A.glove, s.glovebox ? 1 : 0, 7, dt);
-    P.glovebox.rotation.x = A.glove * 1.25;
+    turn(P.glovebox, 'x', A.glove * 1.25);
     A.visorD = damp(A.visorD, s.visor ? 1 : 0, 8, dt);
-    P.visors.driver.rotation.x = lerp(1.45, 0.12, A.visorD);
+    if (P.visors.driver.userData.relative) turn(P.visors.driver, 'x', A.visorD * 1.35);
+    else P.visors.driver.rotation.x = lerp(1.45, 0.12, A.visorD);
     // stalks
     const lightsTwist = { off: 0, low: 0.5, high: 0.5 }[s.headlights] ?? 0;
     A.stalkL = damp(A.stalkL, lightsTwist, 14, dt);
@@ -634,8 +650,10 @@ export class TaxiControls {
     P.stalkWipers.rotation.z = -A.stalkW;
     // radio knobs
     A.tune = damp(A.tune, 0, 3, dt);
-    P.radioKnobTune.rotation.z += A.tune * dt * 6;
-    P.radioKnobVol.rotation.z = damp(P.radioKnobVol.rotation.z, s.radioOn ? -1.6 : 0, 8, dt);
+    A.tuneRot = (A.tuneRot || 0) + A.tune * dt * 6;
+    A.volRot = damp(A.volRot || 0, s.radioOn ? -1.6 : 0, 8, dt);
+    turn(P.radioKnobTune, 'z', A.tuneRot);
+    turn(P.radioKnobVol, 'z', A.volRot);
     // gauges
     const kmh = Math.abs(ph.v) * 3.6;
     const power = this.hasPower() ? 1 : 0;
@@ -661,7 +679,7 @@ export class TaxiControls {
           if (Math.floor(Math.abs(A.crank[id]) / 3.14) !== Math.floor(Math.abs(A.crank[id] - (next - cur) * 22) / 3.14)) audio.play('window_crank', { object: P.cranks[id], volume: 0.5 });
         } else delete this.windowDrive[id];
       }
-      P.cranks[id].rotation.x = A.crank[id];
+      turn(P.cranks[id], 'x', A.crank[id]);
       t.glass.setWindow(id, s.windows[id]);
       // lock pins
       P.lockPins[id].position.y = damp(P.lockPins[id].position.y, (P.lockPins[id].userData.y0 ??= P.lockPins[id].position.y) - (s.locked ? 0.03 : 0), 20, dt);
@@ -673,10 +691,12 @@ export class TaxiControls {
     // doors + trunk hinges
     for (const id of ['fl', 'fr', 'rl', 'rr']) {
       const d = t.ext.doors[id];
+      if (!d) continue;
       const max = id[0] === 'f' ? 1.12 : 1.02;
       d.group.rotation.y = easeInOut(s.doors[id]) * max * d.sx;
     }
-    t.ext.trunk.group.rotation.x = -easeInOut(s.doors.trunk) * 1.15;
+    if (t.ext.trunk) turn(t.ext.trunk.group, 'x', -easeInOut(s.doors.trunk) * 1.15);
+    if (t.ext.hood) turn(t.ext.hood.group, 'x', easeInOut(s.doors.hood || 0) * 1.0);
     // wipers
     this.animateWipers(dt);
     // displays
@@ -689,6 +709,11 @@ export class TaxiControls {
     const n = this.taxi.parts.needles[kind];
     if (!n) return;
     f = clamp(f, 0, 1.05);
+    if (n.axis) {
+      // GLB needle: rest pose = zero; clockwise as seen by the driver
+      n.pivot.quaternion.setFromAxisAngle(n.axis, -f * n.sweep);
+      return;
+    }
     // canvas sweep -> rotation about z (canvas y down, three y up)
     const big = n.big;
     const a0 = big ? Math.PI * 0.75 : Math.PI * 0.8, a1 = big ? Math.PI * 2.25 : Math.PI * 1.2;
@@ -736,10 +761,9 @@ export class TaxiControls {
       A.wiperAngle = damp(A.wiperAngle, 0, 6, dt);
       A.wiperPhase = 0;
     }
-    t.ext.wipers.forEach((w, i) => {
-      w.pivot.rotation.z = A.wiperAngle;
-      t.glass.setWiperAngle(i, A.wiperAngle);
-    });
+    t.ext.wipers.forEach((w) => turn(w.pivot, 'z', A.wiperAngle));
+    const nw = t.glass.wipers.length;
+    for (let i = 0; i < nw; i++) t.glass.setWiperAngle(i, A.wiperAngle);
   }
 
   // ---------------------------------------------------------------------------
