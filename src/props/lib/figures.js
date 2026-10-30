@@ -377,5 +377,5 @@ function nagaSDF(x, y, z) {
   return d;
 }
 export function nagaGeo() {
-  return sculpt('naga5', nagaSDF, [-0.42, -0.12, -0.38, 0.42, 0.98, 0.2], 0.012, { color: buddhaColor(0.15), smooth: 1 });
+  return sculpt('naga5', nagaSDF, [-0.42, -0.12, -0.38, 0.42, 0.98, 0.2], 0.015, { color: buddhaColor(0.15), smooth: 1 });
 }

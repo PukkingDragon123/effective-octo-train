@@ -67,7 +67,29 @@ export class InstanceRig {
   idx(name) { return this.t.index[name]; }
   bone(name) { return this.byName[name]; }
 
-  /** reset every bone to its rest local transform (call before the mixer) */
+  /** Restore the previous mixer output (the mixer only writes values that changed since its last
+   *  write, so procedural edits must be undone before each mixer update). */
+  restoreBase() {
+    const B = this._base;
+    if (!B) { this.reset(); this.saveBase(); return; }
+    for (let i = 0; i < this._n; i++) {
+      const b = this.bones[i];
+      b.quaternion.fromArray(B, i * 7);
+      b.position.fromArray(B, i * 7 + 4);
+    }
+  }
+  /** Save the mixer output (call right after mixer.update). */
+  saveBase() {
+    if (!this._base) this._base = new Float32Array(this._n * 7);
+    const B = this._base;
+    for (let i = 0; i < this._n; i++) {
+      const b = this.bones[i];
+      b.quaternion.toArray(B, i * 7);
+      b.position.toArray(B, i * 7 + 4);
+    }
+  }
+
+  /** reset every bone to its rest local transform */
   reset(keepScale = true) {
     const t = this.t;
     for (let i = 0; i < this._n; i++) {

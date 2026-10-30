@@ -23,16 +23,54 @@ export function generateSound(id, v = 0, loop = false, srOverride = 0) {
   let res = def.gen({ sr, rng, v, p: {} }, loop && !!def.loopable);
   let channels = Array.isArray(res) ? res : [res];
   channels = channels.map((c) => sanitize(c, loop && !!def.loopable));
-  // joint normalisation
+  // loudness normalisation: loudest 50 ms window hits the id's target (dBFS RMS), peak capped
   let pk = 0;
   for (const c of channels) for (let i = 0; i < c.length; i++) pk = Math.max(pk, Math.abs(c[i]));
-  const target = def.norm ?? 0.89;
-  if (pk > 1e-9) for (const c of channels) for (let i = 0; i < c.length; i++) c[i] *= target / pk;
+  if (pk > 1e-9) {
+    const st = shortTermMax(channels, sr);
+    const tgt = Math.pow(10, loudnessTarget(id) / 20);
+    const g = Math.min(tgt / Math.max(st, 1e-9), (def.norm ?? 0.95) / pk);
+    for (const c of channels) for (let i = 0; i < c.length; i++) c[i] *= g;
+  }
   if (!(loop && def.loopable)) for (const c of channels) {
     fadeIn(c, sr, 0.0008);
     fadeOut(c, sr, 0.004);
   }
   return { channels, sr };
+}
+
+/** Max short-term (50 ms) RMS across the buffer (linear). */
+function shortTermMax(channels, sr) {
+  const w = Math.max(1, Math.floor(sr * 0.05));
+  const n = channels[0].length;
+  let best = 0;
+  for (let s0 = 0; s0 < n; s0 += Math.floor(w / 2)) {
+    let e = 0, cnt = 0;
+    for (const c of channels) for (let i = s0; i < Math.min(n, s0 + w); i++) {
+      e += c[i] * c[i];
+      cnt++;
+    }
+    best = Math.max(best, Math.sqrt(e / Math.max(1, cnt)));
+  }
+  return best;
+}
+
+// Target loudness (dBFS, loudest 50 ms RMS) per sound: sets the relative mix of all SFX.
+const LOUD = {
+  '-10': 'collision_thud scare_hit elephant_trumpet horn thump_roof',
+  '-12': 'door_close knock_trunk engine_start engine_stall sting_low sting_reveal bell_temple giant_hand_rumble dog_bark rooster splash',
+  '-14': 'door_open ignition sting_high dog_howl koel gecko neck_snap scream_far branch_crack motorbike_pass elephant_rumble chapter_chime',
+  '-16': 'knock scratch_glass heartbeat bone_crack owl frog_croak dog_whine child_laugh_far rain_roof_start wind_chime monk_chant amulet_hum cicada_burst',
+  '-18': 'wiper window_crank bush_scrape footstep_puddle footstep_gravel footstep_wood breath_neck whisper giggle alms_bowl spark birds_dawn',
+  '-20': 'footstep_asphalt footstep_concrete footstep_grass glovebox handbrake gear_shift seat_creak radio_tune fluorescent_flicker electric_buzz transformer_hum mosquito_buzz',
+  '-23': 'coins paper_unfold lighter cigarette_inhale garland_jingle meter_beep key_turn ui_select',
+  '-26': 'key_insert radio_click switch_click paper_rustle ui_back',
+  '-29': 'indicator_tick ui_hover',
+};
+const LOUD_MAP = {};
+for (const [db, ids] of Object.entries(LOUD)) for (const id of ids.split(' ')) LOUD_MAP[id] = Number(db);
+export function loudnessTarget(id) {
+  return LOUD_MAP[id] ?? -18;
 }
 
 /** Task dispatcher shared by worker and main thread. */

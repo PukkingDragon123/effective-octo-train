@@ -27,14 +27,15 @@ export const RIDE_BOY_M = {
     { rule: 'r3', lookBack: 'warn', note: 'Turning round shows an empty seat; soft line, no death.' },
   ],
   encounters: [
-    { id: 'krasue', at: 0.12 },
+    { id: 'krasue', at: 0.16 },
     { id: 'radioSelfOn', at: 0.22 },
     { id: 'somethingEnormous', at: 0.5, optional: true },
+    { id: 'twistedNeckReflection', at: 0.62, optional: true }, // or as the rule-6 escalation
   ],
   wrongAftermath: 'reflectionStays',
   deathOnWrong: 'dragBack',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 150, stretch: 'none' },
+  pacing: { cruiseKmh: 40, minSeconds: 130, stretch: 'fog' }, // from midnight on the road grows longer than it should
   dialogue: {
     hail: [P('รอด้วยครับ...', 'Wait for me...', { tone: 'whisper' })],
     greet: [
@@ -120,7 +121,7 @@ export const RIDE_BOY_M = {
       {
         id: 'tellMum',
         essential: true,
-        trigger: { type: 'progress', at: 0.84 },
+        trigger: { type: 'progress', at: 0.8 },
         lines: [
           P('พี่ครับ ถ้าเจอแม่ผม บอกแม่ด้วยนะครับ...', 'Mister, if you ever see my mum, tell her...', { emotion: 'sad' }),
           P('ว่าผมไม่เจ็บแล้ว', "...that it doesn't hurt any more.", { tone: 'whisper', pause: 1.5 }),

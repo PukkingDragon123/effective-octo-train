@@ -29,12 +29,13 @@ export default async function ({ engine, cameraRig, params }) {
     s.doors.trunk = open * 0.6;
   }
   if (params.get('win')) s.windows.fr = s.windows.fl = Number(params.get('win'));
-  // a second car's headlights from behind / the side
-  if (params.get('other') !== '0') {
+  // a second car's headlights from behind (other=1), or oncoming (other=2; aims at the camera side)
+  if (params.get('other') === '1' || params.get('other') === '2') {
     const other = new Taxi({ world });
     engine.scene.add(other.root);
-    other.setPose(new THREE.Vector3(1.6, 0, -16), Math.PI + 0.12);
-    Object.assign(other.state, { keyInserted: true, ignition: 'on', engineOn: true, headlights: 'high' });
+    if (params.get('other') === '2') other.setPose(new THREE.Vector3(1.6, 0, -22), Math.PI + 0.05);
+    else other.setPose(new THREE.Vector3(-1.3, 0, 13), 0.04);
+    Object.assign(other.state, { keyInserted: true, ignition: 'on', engineOn: true, headlights: 'low' });
     other.root.visible = params.get('showOther') === '1';
     if (!other.root.visible) {
       // keep only its lights in the scene

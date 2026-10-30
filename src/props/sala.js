@@ -365,7 +365,7 @@ export function createBusStop(opts = {}) {
   // round bus stop sign on its own pole
   k.add(mat('galv'), cyl(0.03, 0.03, 2.6, 8, 0.004), { p: [W / 2 + 0.6, 0, D / 2 + 0.2], r: [0.04, 0, 0.06], color: 0x9a9a94, w: { grime: 0.6, streak: 0.4 } });
   k.add(signMat('bus_stop_sign', {}), G('bsign', () => new THREE.CircleGeometry(0.28, 24)), { p: [W / 2 + 0.6 + 0.15, 2.45, D / 2 + 0.3], r: [0.04, 0.2, 0.06], color: 0xd8d0c0, uv: 'keep', w: { vary: 0.3, grime: 0 } });
-  k.add(mat('metal'), G('bsignback', () => cyl(0.285, 0.285, 0.015, 24, 0.003).rotateX(Math.PI / 2)), { p: [W / 2 + 0.6 + 0.15, 2.45, D / 2 + 0.29], r: [0.04, 0.2, 0.06], color: 0x6a6a64 });
+  k.add(mat('metal'), G('bsignback', () => cyl(0.285, 0.285, 0.015, 24, 0.003).rotateX(Math.PI / 2)), { p: [W / 2 + 0.6 + 0.15 - 0.003, 2.45, D / 2 + 0.3 - 0.016], r: [0.04, 0.2, 0.06], color: 0x6a6a64 });
   // dead tube under the roof front beam (flickers rarely)
   k.push([-0.3, H - 0.32, D / 2 - 0.12]);
   const fl = hangingFluorescent(k, group, { broken: false, dying: true, chain: 0.02, seed: seed + 5, noDiffuser: true });

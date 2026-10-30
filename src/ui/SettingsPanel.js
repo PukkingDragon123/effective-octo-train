@@ -209,7 +209,7 @@ export class SettingsPanel {
     } else this.preview = null;
     if (tab.reference) this._reference();
     // footer actions
-    this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'en' }, ' '), null));
+    this.body.appendChild(h('div', { class: 'dlb-spacer', style: 'height:26px' }));
     this.body.appendChild(this._button({ en: 'Reset to defaults', th: 'คืนค่าเริ่มต้นทั้งหมด', onSelect: () => this._reset() }));
     this.body.appendChild(this._button({ en: 'Back', th: 'กลับ', onSelect: () => this._close?.() }));
     this.body.scrollTop = 0;

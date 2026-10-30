@@ -1,8 +1,10 @@
 // Shared building blocks: title lockup, menu items, grain texture, screen shells.
 import { h } from './dom.js';
 import { navItem } from './nav.js';
+import * as NARRATIVE from '../game/data/index.js';
 
-export const TITLE = { l1: 'DON’T LOOK BACK', l2: 'in horror', th: 'อย่าหันหลังกลับไป' };
+/** Title lockup text. The Thai title follows the narrative data (GAME_TITLE.th) when present. */
+export const TITLE = { l1: 'DON\u2019T LOOK BACK', l2: 'in horror', th: NARRATIVE.GAME_TITLE?.th || 'อย่าหันหลังกลับไป' };
 
 /** The game title lockup. opts { presents=false, align:'left'|'center' } */
 export function titleLockup({ presents = false, align = 'left' } = {}) {

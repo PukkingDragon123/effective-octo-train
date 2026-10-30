@@ -598,7 +598,7 @@ export class Terrain {
       if (i < n - 1) {
         for (let c = 0; c < cols - 1; c++) {
           const a = i * cols + c, b = a + 1, d = a + cols, e = d + 1;
-          idx.push(a, d, b, b, d, e);
+          idx.push(a, b, d, b, e, d);
         }
       }
     }

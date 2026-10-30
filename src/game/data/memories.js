@@ -75,7 +75,7 @@ export const MEMORIES = [
     text: [
       { th: 'หมวกกันน็อกแตกร้าว วางอยู่ข้างพวงหรีด', en: 'A cracked helmet beside the wreaths.' },
       { th: 'สติกเกอร์ช้างน้อยสีฟ้า... แปะอยู่ที่หมวกด้วย', en: 'A little blue elephant sticker... on the helmet too.' },
-      { th: 'คืนนั้นพ่อขี่มอเตอร์ไซค์... ไม่ได้ขับแท็กซี่', en: "That night Dad was on the motorbike... not in the taxi." },
+      { th: 'เช้ามืดวันนั้น พ่อขี่มอเตอร์ไซค์... ไม่ได้ขับแท็กซี่', en: "That morning before dawn, Dad took the motorbike... not the taxi." },
     ],
     pencil: { th: 'หมวกพ่อ ที่โค้งร้อยศพ', en: "Dad's helmet. the curve." },
   },

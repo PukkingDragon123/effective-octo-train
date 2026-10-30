@@ -28,16 +28,20 @@ export const HOUR_WORDS = {
   27: { th: 'ตีสาม', en: '3 a.m.' }, 28: { th: 'ตีสี่', en: '4 a.m.' }, 29: { th: 'ตีห้า', en: '5 a.m.' }, 30: { th: 'หกโมงเช้า', en: '6 a.m.' },
 };
 
-/** Chapter cards on each hour change: ui.chapter({ time, th, en }). */
+/**
+ * Chapter cards on each hour change: ui.chapter({ time, th, en }).
+ * Rule for writers: evoke the hour, never reveal the passenger's nature or the rule event
+ * (identifying human vs ghost is the game).
+ */
 export const CHAPTERS = [
   { hour: 21, time: '21:00', th: 'สามทุ่ม — ใครโบกก็ต้องรับ', en: 'Nine O\'Clock — Whoever Waves, You Stop' },
-  { hour: 22, time: '22:00', th: 'สี่ทุ่ม — หญิงสาวที่โค้งร้อยศพ', en: 'Ten O\'Clock — The Girl at the Curve' },
-  { hour: 23, time: '23:00', th: 'ห้าทุ่ม — เคาะสามที', en: 'Eleven O\'Clock — Three Knocks' },
-  { hour: 24, time: '00:00', th: 'เที่ยงคืน — เด็กในกระจก', en: 'Midnight — The Boy in the Mirror' },
+  { hour: 22, time: '22:00', th: 'สี่ทุ่ม — กลิ่นมะลิ', en: 'Ten O\'Clock — The Scent of Jasmine' },
+  { hour: 23, time: '23:00', th: 'ห้าทุ่ม — ร้านที่ไม่เคยปิด', en: 'Eleven O\'Clock — The Stall That Never Closes' },
+  { hour: 24, time: '00:00', th: 'เที่ยงคืน — ป้ายรถเมล์ร้าง', en: 'Midnight — The Empty Bus Stop' },
   { hour: 25, time: '01:00', th: 'ตีหนึ่ง — ใต้ต้นกล้วย', en: 'One A.M. — Beneath the Banana Leaves' },
   { hour: 26, time: '02:00', th: 'ตีสอง — เจริญพร โยม', en: 'Two A.M. — Blessings, Layman' },
   { hour: 27, time: '03:00', th: 'ตีสาม — เพลงเก่าเล่าความหลัง', en: 'Three A.M. — An Old Song' },
-  { hour: 28, time: '04:00', th: 'ตีสี่ — ฟ้าสาง', en: 'Four A.M. — Blue Hour' },
+  { hour: 28, time: '04:00', th: 'ตีสี่ — พวงมาลัยหน้ารถ', en: 'Four A.M. — A Garland for the Mirror' },
   { hour: 29, time: '05:00', th: 'ตีห้า — เสาไฟต้นสุดท้าย', en: 'Five A.M. — The Last Streetlight' },
   { hour: 30, time: '06:00', th: 'หกโมงเช้า — รุ่งสาง', en: 'Six A.M. — Dawn' },
 ];
@@ -80,7 +84,7 @@ export const SIGNS = {
   honkPlease: { th: 'ผ่านศาล โปรดบีบแตร', en: 'Passing the shrine? Please honk.' },
   busStop: { th: 'ป้ายหยุดรถประจำทาง สาย ๙ (งดให้บริการ)', en: 'Bus stop, Route 9 (service discontinued)' }, // ('bus_stop_sign')
   temple: { th: 'วัดป่าเงียบสงัด', en: 'Wat Pa Ngiap Sa-ngat (the Silent Forest Temple)' }, // ('temple_sign')
-  garage: { th: 'อู่กง ซ่อมได้ทุกอย่าง ยกเว้นหัวใจ', en: "Kong's Garage — we fix everything but hearts" }, // ('garage_sign')
+  garage: { th: 'อู่ กม.9 ซ่อมได้ทุกอย่าง ยกเว้นหัวใจ', en: 'KM 9 Garage — we fix everything but hearts' }, // ('garage_sign')
   garageNoSmoking: { th: 'ห้ามสูบบุหรี่', en: 'No smoking', note: 'Hangs right above where Ah Kong smokes.' },
   noLitter: { th: 'ห้ามทิ้งขยะ ผีเห็นนะ', en: 'No littering. The ghosts can see you.' },
   nightWalkers: { th: 'ระวังคนเดินข้ามถนน (ช่วงกลางคืน)', en: 'Watch for pedestrians (at night)' },
@@ -99,12 +103,14 @@ export const SHOP_SIGNS = {
   fuel: { th: 'ปั๊มหลอด น้ำมัน ลิตรละ', en: 'Hand-pump fuel, per litre' },
 };
 
-/** Faded posters on salas, the bus stop and poles. variant = signTex('poster', {variant}). */
+/** Faded posters on salas, the bus stop and poles. variant = signTex('poster', {variant}).
+ *  { variant, where:[landmark keys], th:[lines], en:[lines], strike?:{th,en} (token drawn crossed out), note? } */
 export const POSTERS = [
   {
-    variant: 'missingBoy', where: ['busStop', 'sala1'],
-    th: ['ประกาศตามหาเด็กหาย', 'ด.ช. เอ็ม อายุ ๙ ขวบ', 'ใส่ชุดนักเรียน ถือกล่องข้าว', 'หายตัวไปบริเวณป้ายรถเมล์ กม.11'],
-    en: ['MISSING CHILD', 'Master M, age 9', 'In school uniform, carrying a lunchbox', 'Last seen at the KM 11 bus stop'],
+    // A mother's hand-lettered appeal, sun-faded, re-taped many times (the truck never stopped).
+    variant: 'witnessBoy', where: ['busStop', 'sala1'],
+    th: ['แม่ขอร้อง', 'ใครเห็นรถบรรทุกที่ชนลูกแม่ แล้วหนีไป', 'ด.ช. เอ็ม อายุ ๙ ขวบ ป้ายรถเมล์ กม.11', 'ช่วยบอกแม่ด้วย'],
+    en: ['A MOTHER BEGS YOU', 'Did you see the truck that hit my son and drove away?', 'Master M, age 9, KM 11 bus stop', 'Please, tell me'],
   },
   {
     variant: 'samanConcert', where: ['sala2', 'noodleShop'],
@@ -112,9 +118,12 @@ export const POSTERS = [
     en: ['TONIGHT! Annual temple fair', 'Saman Golden-Voice', 'With full dancing troupe', '1983'],
   },
   {
-    variant: 'witnessAppeal', where: ['accidentCurve'],
-    th: ['ขอความช่วยเหลือ', 'ใครเห็นเหตุการณ์อุบัติเหตุ', 'มอเตอร์ไซค์ล้ม โค้ง กม.10 คืนฝนตก', 'โปรดแจ้งญาติผู้เสียชีวิต'],
-    en: ['PLEASE HELP', 'Did you witness the accident?', 'Motorbike crash, KM 10 curve, a rainy night', 'Please contact the family'],
+    // The highway department's tally board at the curve: "99" crossed out in marker, "100" written beside it.
+    variant: 'curveTally', where: ['accidentCurve'],
+    th: ['โค้งนี้', 'มีผู้เสียชีวิตแล้ว', '๙๙ ๑๐๐ ราย', 'ขับช้า ๆ ได้ถึงบ้าน'],
+    en: ['THIS CURVE', 'has claimed', '99 100 lives', 'Drive slow, get home'],
+    strike: { th: '๙๙', en: '99' }, // painted number crossed out; the 100 beside it is newer, hand-written marker
+    note: 'Somchai was the hundredth.',
   },
   {
     variant: 'driverWanted', where: ['sala1', 'garage'],
@@ -150,7 +159,7 @@ export const NOODLE_MENU = {
 
 /** The old Thai-Chinese wall calendar in the garage: stuck on the month Somchai died. */
 export const GARAGE_CALENDAR = {
-  titleTH: 'ปฏิทินมงคล อู่กง', titleEN: "Kong's Garage Lucky Calendar",
+  titleTH: 'ปฏิทินมงคล อู่ กม.9', titleEN: 'KM 9 Garage Lucky Calendar',
   monthTH: 'กันยายน', monthEN: 'September',
   circledDay: 14,
   noteTH: 'ทำบุญ ๗ วัน ไอ้ชาย', noteEN: "Chai's 7th-day merit-making",

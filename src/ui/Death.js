@@ -21,7 +21,7 @@ export class DeathCard {
       h('div', { class: 'dlb-death__txt' },
         d.th ? h('div', { class: 'dlb-death__th', attrs: { lang: 'th' } }, d.th) : null,
         d.en ? h('div', { class: 'dlb-death__en' }, d.en) : null,
-        sub ? h('div', { class: 'dlb-death__sub' }, h('span', { attrs: { lang: 'th' } }, sub.th), sub.en ? ` · ${sub.en}` : '') : null),
+        sub ? h('div', { class: 'dlb-death__sub' }, h('span', { class: 'th', attrs: { lang: 'th' } }, sub.th), sub.en ? h('span', { class: 'en' }, sub.en) : null) : null),
       h('div', { class: 'dlb-death__black' }));
     this.el = el;
     this.ui.layer.appendChild(el);

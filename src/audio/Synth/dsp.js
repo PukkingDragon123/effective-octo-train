@@ -578,16 +578,21 @@ export function creak(out, sr, rng, at, dur, opts = {}) {
   const gain = opts.gain ?? 1;
   const env = opts.env || ((t) => Math.sin(Math.PI * t));
   const w = new Wander(rng, opts.wanderRate ?? 6);
+  // excitation pulse width (s): wider = softer, darker slips (big wood / bone groans)
+  const pw = Math.max(1, Math.floor((opts.pulse ?? 0) * sr));
+  const pulse = new Float32Array(pw);
+  for (let k = 0; k < pw; k++) pulse[k] = pw === 1 ? 1 : (Math.sin((Math.PI * (k + 0.5)) / pw) * 2) / pw;
+  const exc = new Float32Array(n + pw);
   let next = 0;
   for (let i = 0; i < n; i++) {
     const t01 = i / n;
-    let x = 0;
     if (i >= next) {
       const rate = (r0 + (r1 - r0) * t01) * (1 + w.next(1 / 30) * 0.3);
       next = i + Math.max(1, Math.floor((sr / Math.max(rate, 1)) * (1 + (rng() * 2 - 1) * jit)));
-      x = (0.6 + rng() * 0.6) * env(t01);
+      const a = (0.6 + rng() * 0.6) * env(t01);
+      for (let k = 0; k < pw; k++) exc[i + k] += a * pulse[k];
     }
-    out[s + i] += bank.process(x) * gain;
+    out[s + i] += bank.process(exc[i]) * gain;
   }
   return out;
 }

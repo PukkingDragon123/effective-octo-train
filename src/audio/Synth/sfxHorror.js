@@ -129,19 +129,57 @@ export const HORROR_SFX = {
     vars: 3, cabin: true, ref: 0.4, reverb: 0.02, loopable: true, sr: 24000,
     gen({ sr, rng }, loop = false) {
       const cycles = loop ? 2 : 1;
-      return vox(sr, rng, (sc) => {
-        for (let c = 0; c < cycles; c++) {
-          // slow wet inhale through the nose/mouth, too long
-          sc.seg(0.05, { av: 0, ah: 0, F1: 600, F2: 1300, F3: 2500, B1: 200, B2: 250 });
-          sc.seg(1.4 + rng() * 0.4, { ah: 0.15 }, { ah: 0.55, F1: 420, F2: 1700 }, 'in');
-          sc.seg(0.08, {}, { ah: 0 });
-          sc.rest(0.25 + rng() * 0.35);
-          // exhale with a vocal-fry rattle (unnatural)
-          sc.seg(0.12, { ah: 0.7, av: 0.2, f0: 42, oq: 0.25, sub: 0.9, F1: 520, F2: 1150 }, {}, 'out');
-          sc.seg(1.3 + rng() * 0.5, {}, { ah: 0.08, av: 0.03, f0: 32, F1: 480, F2: 1000 });
-          sc.rest(loop ? 0.6 : 0.2);
+      const parts = [];
+      let total = 0;
+      for (let c = 0; c < cycles; c++) {
+        const inh = 1.5 + rng() * 0.5, hold = 0.25 + rng() * 0.4, exh = 1.6 + rng() * 0.6, gap = loop ? 0.5 + rng() * 0.4 : 0.15;
+        parts.push({ at: total, inh, hold, exh });
+        total += inh + hold + exh + gap;
+      }
+      const out = alloc(sr, total + 0.1);
+      const fl = new Wander(rng, 10);
+      for (const P of parts) {
+        // wet mouth click before the inhale
+        crackle(out, sr, rng, P.at, 0.05, { density: 300, f: 2200, spread: 1.2, t60: 0.002, gain: 0.15 });
+        // inhale: slow, too long, shaky; formants sweep up as the throat opens
+        const b1 = new SVF(sr, 900, 2), b2 = new SVF(sr, 2300, 3), b3 = new SVF(sr, 420, 1.2);
+        const n1 = Math.floor(P.inh * sr), s1 = Math.floor((P.at + 0.03) * sr);
+        for (let i = 0; i < n1; i++) {
+          const u = i / n1;
+          if ((i & 31) === 0) {
+            b1.set(850 + 500 * u, 2);
+            b2.set(2100 + 900 * u, 3);
+          }
+          const x = rng() * 2 - 1;
+          b1.process(x);
+          b2.process(x);
+          b3.process(x);
+          const env = Math.pow(Math.min(1, u / 0.85), 1.8) * Math.min(1, (1 - u) / 0.05) * (1 + fl.next(1 / sr) * 0.25);
+          out[s1 + i] += (b1.bp * 1.0 + b2.bp * 0.6 + b3.bp * 0.5) * env * 0.9;
         }
-      }, { jitter: 0.2, shimmer: 0.4, breath: 0.5, drift: 0.5, presence: 11 });
+        // exhale: warm, close (proximity boom), with an irregular vocal-fry rattle
+        const s2 = Math.floor((P.at + 0.03 + P.inh + P.hold) * sr), n2 = Math.floor(P.exh * sr);
+        const e1 = new SVF(sr, 600, 1.5), e2 = new SVF(sr, 1250, 2.2), lo = new SVF(sr, 170, 0.8), fry = new Reson(sr, 320, 0.03);
+        let ph = 0;
+        for (let i = 0; i < n2; i++) {
+          const u = i / n2;
+          const x = rng() * 2 - 1;
+          e1.process(x);
+          e2.process(x);
+          lo.process(x);
+          ph += (38 + 14 * Math.sin(u * 7) + (rng() - 0.5) * 30) / sr;
+          let pulse = 0;
+          if (ph >= 1) {
+            ph -= 1;
+            pulse = rng() < 0.85 ? 1 : 0;
+          }
+          const fryAmt = Math.max(0, 0.9 - u) * 0.9;
+          const gate = 0.55 + 0.45 * fryAmt * Math.min(1, ph * 6);
+          const env = Math.min(1, u / 0.04) * Math.pow(1 - u, 1.4);
+          out[s2 + i] += ((e1.bp * 0.9 + e2.bp * 0.45) * gate + lo.lp * 0.35 + fry.process(pulse) * fryAmt * 0.6) * env;
+        }
+      }
+      return loop ? loopify(out, sr, 0.3) : out;
     },
   },
   whisper: {
@@ -213,7 +251,7 @@ export const HORROR_SFX = {
     },
   },
   scare_hit: {
-    vars: 3, cabin: true, reverb: 0.3, bus: 'music', gain: 1, sr: 24000,
+    vars: 3, cabin: true, reverb: 0.3, bus: 'music', sr: 24000,
     gen({ sr, rng }) {
       const out = alloc(sr, 4.5);
       // the braam: detuned brass-like saws through an opening/closing filter, overdriven
@@ -232,7 +270,7 @@ export const HORROR_SFX = {
           f2.process(f1.lp);
           f3.process(f1.lp);
           const y = f1.lp + f2.bp * 0.8 + f3.bp * 0.4;
-          const env = Math.min(1, t / 0.015) * Math.exp(-t / 1.6);
+          const env = Math.min(1, t / 0.015) * Math.exp(-t / 1.3) * Math.min(1, Math.max(0, (b.length / sr - 0.05 - t) / 1.2));
           b[i] = Math.tanh(y * 5) * env;
         }
       });
@@ -264,9 +302,13 @@ export const HORROR_SFX = {
       const nCreaks = loop ? 4 : 3;
       for (let k = 0; k < nCreaks; k++) {
         const t0 = (k / nCreaks) * dur + rng() * 0.6;
-        L(out, sr, t0, 2.2, 0.55, (b) => creak(b, sr, rng, 0, 1.4 + rng() * 0.6, { rate0: 8 + rng() * 6, rate1: 14 + rng() * 10, jitter: 0.45, modes: [{ f: 140 + rng() * 60, t60: 0.15 }, { f: 330 + rng() * 80, t60: 0.1, a: 0.6 }, { f: 760, t60: 0.05, a: 0.3 }] }));
+        L(out, sr, t0, 2.2, 0.5, (b) => creak(b, sr, rng, 0, 1.4 + rng() * 0.6, { rate0: 9 + rng() * 6, rate1: 16 + rng() * 10, jitter: 0.35, pulse: 0.003, modes: [{ f: 95 + rng() * 40, t60: 0.2 }, { f: 210 + rng() * 60, t60: 0.14, a: 0.7 }, { f: 470 + rng() * 80, t60: 0.08, a: 0.35 }, { f: 1100, t60: 0.03, a: 0.1 }] }));
       }
-      L(out, sr, 0, dur, 0.25, (b) => crackle(b, sr, rng, 0, dur, { density: 18, f: 900, spread: 1.4, t60: 0.02, env: loop ? null : (u) => Math.sin(Math.PI * u) }));
+      L(out, sr, 0, dur, 0.18, (b) => {
+        crackle(b, sr, rng, 0, dur, { density: 14, f: 600, spread: 1.2, t60: 0.03, env: loop ? null : (u) => Math.sin(Math.PI * u) });
+        const lp = new OnePole(sr, 1500);
+        for (let i = 0; i < b.length; i++) b[i] = lp.lp(b[i]);
+      });
       return loop ? loopify(out, sr, 0.8) : out;
     },
   },
@@ -382,7 +424,7 @@ export const HORROR_SFX = {
           const t = i / sr;
           let s = 0;
           for (let k = 0; k < fr.length; k++) s += Math.sin(TAU * fr[k] * t + k) * (0.5 + 0.5 * Math.sin(t * (0.9 + k * 0.37) + k * 2));
-          b[i] = s * Math.min(1, t / 0.8, (dur - t) / 0.8 + (loop ? 1 : 0));
+          b[i] = s * Math.max(0, Math.min(1, t / 0.8, (dur - t) / 0.8 + (loop ? 1 : 0)));
         }
       });
       if (loop) return loopify(out.subarray(0, Math.floor(dur * sr)), sr, 1.2);
@@ -393,23 +435,45 @@ export const HORROR_SFX = {
   monk_chant: {
     vars: 2, ref: 3, reverb: 0.45, loopable: true, sr: 24000,
     gen({ sr, rng, v }, loop = false) {
-      const text = v === 0 ? 'นะโม ตัสสะ ภะคะวะโต อะระหะโต สัมมาสัมพุทธัสสะ' : 'พุทธัง สะระณัง คัจฉามิ ธัมมัง สะระณัง คัจฉามิ';
+      const text = v === 0 ? 'นะโม ตัสสะ ภะคะวะโต อะระหะโต สัมมาสัมพุทธัสสะ' : 'พุทธัง สะระณัง คัจฉามิ ธัมมัง สะระณัง คัจฉามิ สังฆัง สะระณัง คัจฉามิ';
       const phrases = parseThai(text);
-      const voices = [{ f0: 104, fs: 1 }, { f0: 98.5, fs: 1.03 }, { f0: 110.5, fs: 0.97 }, { f0: 52.2, fs: 1.05 }];
+      const voices = [{ f0: 104, fs: 1, g: 0.8 }, { f0: 103.2, fs: 1.04, g: 0.7 }, { f0: 105.1, fs: 0.96, g: 0.7 }, { f0: 52.2, fs: 1.06, g: 0.45 }];
+      const SON = { m: [260, 1000], n: [260, 1500], ng: [260, 2000] };
+      const build = (r, f0) => {
+        const sc = new VoxScore({ f0, av: 0, oq: 0.6 });
+        sc.rest(0.05);
+        for (const ph of phrases) {
+          ph.sylls.forEach((sy, i) => {
+            const last = i === ph.sylls.length - 1;
+            const long = sy.long || !!sy.coda;
+            const d = (long ? 0.44 : 0.25) * (0.96 + r() * 0.08) * (last ? 1.6 : 1);
+            const vp = vowelParams(sy.vowel === 'o' ? 'or' : sy.vowel);
+            const fEnd = last ? f0 * Math.pow(2, -2 / 12) : f0;
+            // onset: soft consonant (voiced-through), no silent closures
+            if (/^(p|t|k|c|ph|th|kh|ch|b|d)$/.test(sy.onset)) sc.seg(0.025, { av: 0.35, af: 0.08, ff: 2500, f0 }, { av: 0.5, af: 0 });
+            else if (sy.onset === 's') sc.seg(0.05, { av: 0.15, af: 0.12, ff: 5500, f0 }, { af: 0 });
+            else if (SON[sy.onset]) sc.seg(0.06, { av: 0.7, af: 0, F1: SON[sy.onset][0], F2: SON[sy.onset][1], nas: 0.8, f0 });
+            sc.seg(d * 0.75, { av: 1, af: 0, ah: 0, nas: 0, ...vp }, { f0: last ? f0 : f0 * 1.003 }, 'smooth');
+            if (SON[sy.coda]) sc.seg(d * 0.35, { F1: SON[sy.coda][0], F2: SON[sy.coda][1], nas: 0.9, av: 0.75 }, { f0: fEnd });
+            else sc.seg(d * 0.25, {}, { f0: fEnd, av: last ? 0.6 : 0.9 });
+          });
+          sc.seg(0.25, {}, { av: 0, f0: f0 * 0.95 });
+          sc.rest(0.55 + r() * 0.15); // shared breath
+        }
+        return sc;
+      };
       let len = 0;
       const parts = voices.map((vc, k) => {
         const r = rngFrom(100 + k + v * 7);
-        const preset = { ...voicePreset({ gender: 'm', age: 45 }), f0: vc.f0, rate: 0.62 + r() * 0.03 };
-        const sc = buildSpeechScore(phrases, preset, r, { toneDepth: 0.12, fric: 0.3 });
-        const b = renderVox(sr, sc, { rng: r, formantScale: vc.fs, jitter: 0.004, shimmer: 0.03, breath: 0.08, drift: 0.05 });
+        const b = renderVox(sr, build(r, vc.f0), { rng: r, formantScale: vc.fs, jitter: 0.004, shimmer: 0.03, breath: 0.1, drift: 0.06, vibrato: { rate: 4.2 + k * 0.3, depth: 0.06 } });
         len = Math.max(len, b.length);
         return b;
       });
-      const out = new Float32Array(len + Math.floor(0.5 * sr));
-      parts.forEach((b, k) => mixInto(out, b, Math.floor(rng() * 0.05 * sr), k === 3 ? 0.5 : 0.8));
-      // drone under it (held "mmm")
-      for (let i = 0; i < out.length; i++) out[i] += Math.sin((TAU * 104 * i) / sr) * 0.02 + Math.sin((TAU * 52 * i) / sr) * 0.03;
-      const lp = new SVF(sr, 2600, 0.6);
+      const out = new Float32Array(len + Math.floor(0.6 * sr));
+      parts.forEach((b, k) => mixInto(out, b, Math.floor(rng() * 0.05 * sr), voices[k].g));
+      // the room's held drone under it
+      for (let i = 0; i < out.length; i++) out[i] += Math.sin((TAU * 104 * i) / sr) * 0.025 + Math.sin((TAU * 52 * i) / sr) * 0.035;
+      const lp = new SVF(sr, 2400, 0.6);
       for (let i = 0; i < out.length; i++) out[i] = lp.process(out[i]);
       return loop ? loopify(out, sr, 0.6) : out;
     },
@@ -417,7 +481,7 @@ export const HORROR_SFX = {
 
   // ---------------------------------------------------------------- UI
   ui_hover: {
-    vars: 3, bus: 'ui', stereoCenter: true, reverb: 0.15, gain: 0.35,
+    vars: 3, bus: 'ui', stereoCenter: true, reverb: 0.15,
     gen({ sr, rng }) {
       const out = alloc(sr, 0.25);
       addModes(out, sr, 0, woodModes(1760 + rng() * 120, 0.5).map((m) => ({ ...m, a: m.a * (m.f > 6000 ? 0.2 : 1) })));
@@ -428,7 +492,7 @@ export const HORROR_SFX = {
     },
   },
   ui_select: {
-    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.3, gain: 0.55,
+    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.3,
     gen({ sr, rng }) {
       const out = alloc(sr, 1.4);
       addModes(out, sr, 0, woodModes(1046, 2.2));
@@ -439,7 +503,7 @@ export const HORROR_SFX = {
     },
   },
   ui_back: {
-    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.25, gain: 0.45,
+    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.25,
     gen({ sr, rng }) {
       const out = alloc(sr, 0.8);
       addModes(out, sr, 0, woodModes(880, 1.4));
@@ -451,7 +515,7 @@ export const HORROR_SFX = {
     },
   },
   chapter_chime: {
-    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.45, gain: 0.8, sr: 24000,
+    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.45, sr: 24000,
     gen({ sr, rng }) {
       const dur = 6;
       const out = alloc(sr, dur);

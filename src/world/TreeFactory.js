@@ -88,15 +88,15 @@ export function addTube(B, pts, o = {}) {
   for (let i = 0; i < n - 1; i++) {
     for (let j = 0; j < radial; j++) {
       const a = base + i * row + j, b = a + 1, c = a + row, d = c + 1;
-      B.t(a, c, b);
-      B.t(b, c, d);
+      B.t(a, b, c);
+      B.t(b, d, c);
     }
   }
   if (o.cap) {
     const p = pts[n - 1];
     const ci = B.v(p.x + T.x * p.r * 0.3, p.y + T.y * p.r * 0.3, p.z + T.z * p.r * 0.3, T.x, T.y, T.z, 0.5, vAcc, 0.6, 0.55, 0.5);
     const last = base + (n - 1) * row;
-    for (let j = 0; j < radial; j++) B.t(last + j, ci, last + j + 1);
+    for (let j = 0; j < radial; j++) B.t(last + j, last + j + 1, ci);
   }
 }
 

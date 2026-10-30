@@ -29,10 +29,11 @@ export default async function ({ engine, cameraRig, params }) {
   g.fillStyle = '#ff2020'; for (let t = 0.6; t < 0.9; t += 0.02) g.fillRect(5 + 0.5 * 310 - 30, 405 + t * 310, 60, 1);
   const tex = new THREE.CanvasTexture(cv);
   tex.flipY = false; tex.colorSpace = THREE.SRGBColorSpace;
-  const sexes = (params.get('sex') || 'm,f').split(',');
-  const clipName = params.get('clip') || 'Idle_Loop';
+  const clipsP = params.get('clips');
+  const sexes = clipsP ? clipsP.split(',').map(() => params.get('sex') || 'm') : (params.get('sex') || 'm,f').split(',');
   const chars = [];
   sexes.forEach((sex, k) => {
+    const clipName = clipsP ? clipsP.split(',')[k] : params.get('clip') || 'Idle_Loop';
     const t = templateFor(sex);
     const rig = new InstanceRig(t);
     const root = new THREE.Group();
@@ -45,7 +46,7 @@ export default async function ({ engine, cameraRig, params }) {
     mesh.bind(rig.skeleton, new THREE.Matrix4());
     mesh.frustumCulled = false;
     inner.add(mesh);
-    root.position.x = (k - (sexes.length - 1) / 2) * 0.9;
+    root.position.x = (k - (sexes.length - 1) / 2) * (clipsP ? 1.1 : 0.9);
     root.rotation.y = Math.PI; // face the camera (+Z)
     scene.add(root);
     const mixer = new THREE.AnimationMixer(inner);
@@ -54,12 +55,13 @@ export default async function ({ engine, cameraRig, params }) {
     chars.push({ rig, mixer, root });
   });
   engine.onUpdate((dt) => {
-    for (const c of chars) { c.rig.reset(); c.mixer.update(dt); }
+    for (const c of chars) { c.rig.restoreBase(); c.mixer.update(dt); c.rig.saveBase(); }
   }, 20);
   const eye = new THREE.Object3D();
   scene.add(eye);
   const cam = params.get('cam') || 'front';
-  const C = { front: [[0, 1.0, 3.6], [0, 0.95, 0]], side: [[3.6, 1.0, 0], [0, 0.95, 0]], close: [[0.45, 1.68, 0.55], [0.45, 1.66, 0]], back: [[0, 1.0, -3.6], [0, 0.95, 0]] }[cam];
+  const W = sexes.length * 0.55 + 1.2;
+  const C = { front: [[0, 1.0, 3.6 * Math.max(1, W / 2.4)], [0, 0.95, 0]], three: [[W * 0.9, 1.6, W * 1.3], [0, 0.8, 0]], side: [[3.6, 1.0, 0], [0, 0.95, 0]], close: [[0.45, 1.68, 0.55], [0.45, 1.66, 0]], back: [[0, 1.0, -3.6], [0, 0.95, 0]] }[cam];
   eye.position.fromArray(C[0]);
   const dir = new THREE.Vector3().fromArray(C[1]).sub(eye.position).normalize();
   cameraRig.attach(eye, null, { yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.asin(dir.y) });

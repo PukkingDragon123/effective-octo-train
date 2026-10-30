@@ -248,8 +248,10 @@ class PostFX {
     const mask = camera.layers.mask;
     camera.layers.mask = mask & ~GLASS_BIT;
     renderer.autoClear = true;
+    if (sky) sky.uniforms.uSkyAlpha.value = 0;
     renderer.setRenderTarget(this.sceneRT);
     renderer.render(scene, camera);
+    if (sky) sky.uniforms.uSkyAlpha.value = 1;
     camera.layers.mask = mask;
 
     // ---- 2. glass ------------------------------------------------------------------

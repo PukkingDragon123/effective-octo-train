@@ -23,14 +23,14 @@ export const RIDE_SAMAN = {
     extra: ['His cigarette smoke passes straight through the closed glass.', 'Outdated detail: booked for the fair "in 1983".', 'Sequins catch no light in the mirror: the seat is empty.'],
   },
   specialRules: [
-    { rule: 'r8', at: 0.64, note: 'Breath on the neck. Hold amulet + eyes front. Saman sings you through it.' },
+    { rule: 'r8', at: 0.72, note: 'Breath on the neck. Hold amulet + eyes front. Saman sings you through it.' },
     { rule: 'r4', note: 'Consistent rules: even a friendly ghost must not be stared at.' },
     { rule: 'r3', lookBack: 'warn', note: 'He is friendly: looking back gets a joke, but the breath event still counts.' },
   ],
   encounters: [
-    { id: 'faceAgainstGlass', at: 0.38 },
-    { id: 'breathOnNeck', at: 0.64 },
-    { id: 'strayDogs', at: 0.2, optional: true },
+    { id: 'strayDogs', at: 0.12, optional: true },
+    { id: 'faceAgainstGlass', at: 0.6 },
+    { id: 'breathOnNeck', at: 0.72 },
   ],
   deathOnWrong: 'windowAttack',
   memoryHooks: ['m_song'],
@@ -38,7 +38,7 @@ export const RIDE_SAMAN = {
   dialogue: {
     hail: [P('ฮัลโหล! แท็กซี่! ทางนี้ครับพี่น้อง!', 'Hello! Taxi! Over here, brothers and sisters!', { tone: 'shout', action: 'wave' })],
     greet: [
-      P('สวัสดีครับพี่น้องแฟนเพลงทุกท่าน!', 'Good evening to all my beloved fans!', { emotion: 'smile', action: 'wai' }),
+      P('สวัสดีครับ พ่อแม่พี่น้องแฟนเพลงทุกท่าน!', 'Good evening, ladies and gentlemen, my beloved fans!', { emotion: 'smile', action: 'wai' }),
       P('อ้าว แฟนเพลงคนเดียวเหรอ ไม่เป็นไร ๆ', 'Oh, just the one fan tonight? Never mind, never mind.'),
       P('ผมสมาน... สมาน เสียงทอง ไง จำไม่ได้เหรอ', "I'm Saman... Saman Golden-Voice! Don't you recognise me?"),
       Y('ไม่ครับ', 'No.'),
@@ -51,7 +51,7 @@ export const RIDE_SAMAN = {
     beats: [
       {
         id: 'station3',
-        trigger: { type: 'progress', at: 0.06 },
+        trigger: { type: 'progress', at: 0.17 },
         lines: [P('เปิดวิทยุหน่อยพ่อหนุ่ม ขอคลื่นสามนะ', 'Put the radio on, young man. Station three, please.')],
       },
       {
@@ -64,21 +64,21 @@ export const RIDE_SAMAN = {
       },
       {
         id: 'joke1',
-        trigger: { type: 'progress', at: 0.16 },
+        trigger: { type: 'progress', at: 0.24 },
         lines: [
           P('ทายซิ ผีอะไรชอบนั่งแท็กซี่', 'Riddle me this: what kind of ghost loves taxis?'),
           C([
             { key: 'what', th: 'ผีอะไรครับ', en: 'What kind?' },
             { key: 'silent', th: '(เงียบ)', en: '(say nothing)' },
           ], { id: 'saman_riddle', timeout: 5, defaultKey: 'silent' }),
-          P('ผี-โดยสารไง! ฮ่า ๆ ๆ', "A passen-GHOST! Ha ha ha!", { emotion: 'smile', action: 'laugh' }),
+          P('ผี...โดยสารไง! ฮ่า ๆ ๆ', 'A passen-GHOST! Ha ha ha!', { emotion: 'smile', action: 'laugh' }),
           P('...ไม่ขำเหรอ', '...not funny?', { pause: 1.0 }),
           P('ตอนผมยังมีชีวิต... เอ๊ย ตอนผมยังดัง คนดูขำนะ', 'Back when I was alive... er, I mean, famous, the crowd laughed.'),
         ],
       },
       {
         id: 'smoke',
-        trigger: { type: 'progress', at: 0.28 },
+        trigger: { type: 'progress', at: 0.4 },
         lines: [
           P('ขอสูบบุหรี่หน่อยนะ ไม่ต้องเปิดกระจกหรอก', "Mind if I smoke? No need to open the window.", { action: 'smoke' }),
           T('ควัน... ลอยทะลุกระจกออกไป', 'The smoke... drifts straight through the glass.'),

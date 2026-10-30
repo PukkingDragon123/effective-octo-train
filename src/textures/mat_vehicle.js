@@ -69,20 +69,42 @@ export function genTaxiPaint(S = 1024) {
   const mudRun = drip(mud, w, h, 2305, 0.9, 0.96);
   // oxidised / chalky patches (sun-faded)
   const chalk = smask(field(n, (i) => low[i] * 0.8 + mid[i] * 0.4), 0.1, 0.65, 0.6);
+  // all wear layers are colour-independent: fold them into one affine overlay  x' = A + x * B
+  const OA = new Float32Array(n * 3), OB = new Float32Array(n).fill(1);
+  const over = (mask, col, op) => {
+    const c = rgb(col);
+    for (let i = 0; i < n; i++) {
+      let a = mask[i] * op;
+      if (a <= 0) continue;
+      if (a > 1) a = 1;
+      const j = i * 3, q = 1 - a;
+      OA[j] = c[0] * a + OA[j] * q;
+      OA[j + 1] = c[1] * a + OA[j + 1] * q;
+      OA[j + 2] = c[2] * a + OA[j + 2] * q;
+      OB[i] *= q;
+    }
+  };
+  over(swirl, '#f6f4ee', 0.07);
+  over(spots, '#e8e2d4', 0.18);
+  over(smask(deep, 0.2, 0.7), '#8d8a82', 0.85);
+  over(chips, '#9b9890', 0.9);
+  over(chipRust, '#5a2c16', 0.95);
+  over(rustRun, '#6e3a1c', 0.5);
+  over(grime, '#4a4136', 0.55);
+  over(mudRun, '#5a4632', 0.55);
   const make = (base, chalkCol, satOx) => {
     const img = new Img(w, h);
     const b = rgb(base);
     gradientMap(img, field(n, (i) => 0.5 + low[i] * 0.25 + mid[i] * 0.15 + peel[i] * 0.06), [[0, b.map((v) => v * 0.82)], [0.5, b], [1, b.map((v) => Math.min(1, v * 1.1))]]);
     tint(img, chalk, chalkCol, satOx);
-    tint(img, swirl, '#ffffff', 0.1, 'screen');
-    tint(img, spots, '#e8e2d4', 0.18);
-    tint(img, smask(deep, 0.2, 0.7), '#8d8a82', 0.85);
-    tint(img, chips, '#9b9890', 0.9);
-    tint(img, chipRust, '#5a2c16', 0.95);
-    tint(img, rustRun, '#6e3a1c', 0.5);
-    tint(img, grime, '#4a4136', 0.55);
-    tint(img, mudRun, '#5a4632', 0.55);
-    strokes(img, { seed: 2306, len: [30 * k, 80 * k], width: [8 * k, 16 * k], opacity: 0.12, coverage: 0.4, angle: 0, angleJitter: 0.2, valueJitter: 0.035 });
+    const d = img.d;
+    for (let i = 0; i < n; i++) {
+      const j = i * 4, o = i * 3, q = OB[i];
+      d[j] = OA[o] + d[j] * q;
+      d[j + 1] = OA[o + 1] + d[j + 1] * q;
+      d[j + 2] = OA[o + 2] + d[j + 2] * q;
+    }
+    strokes(img, { seed: 2306, len: [30 * k, 80 * k], width: [8 * k, 16 * k], opacity: 0.12, coverage: 0.3, angle: 0, angleJitter: 0.2, valueJitter: 0.035 });
     return img;
   };
   const out = {};

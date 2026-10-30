@@ -279,7 +279,7 @@ const TYPES = {
       float dc = length(wp - cameraPosition);
       float fade = smoothstep(1.5, 6.0, dc) * (1.0 - smoothstep(uRadius * 0.55, uRadius, length(rel)));
       vec3 lit = dlbFogTint(normalize(wp - cameraPosition)) * 1.3 + dlbAmbient * 0.25 + pDirect(wp) * 0.6;
-      col = vec4(lit * uColor, (0.05 + aSeed2.y * 0.05) * fade * uIntensity);
+      col = vec4(lit * uColor, (0.06 + aSeed2.y * 0.07) * fade * uIntensity);
       misc.x = aSeed2.y;
       shape = 7.0;
     `,

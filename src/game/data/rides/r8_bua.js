@@ -25,8 +25,8 @@ export const RIDE_BUA = {
     { rule: 'r10', note: 'She wai\'s the shrine as you pass.' },
   ],
   encounters: [
-    { id: 'elephants', at: 0.34 },
-    { id: 'fireflies', at: 0.12, optional: true },
+    { id: 'fireflies', at: 0.05, optional: true },
+    { id: 'elephants', at: 0.42 },
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: ['m_photo', 'm_helmet'],
@@ -47,7 +47,7 @@ export const RIDE_BUA = {
       {
         id: 'chai',
         essential: true,
-        trigger: { type: 'progress', at: 0.08 },
+        trigger: { type: 'progress', at: 0.11 },
         lines: [
           P('ไอ้ชายมันขับแท็กซี่สีนี้แหละ มาซื้อมาลัยยายทุกเช้า', 'Chai drove a cab this colour. Bought my garlands every morning.'),
           P('พวงละยี่สิบ ให้ยายห้าสิบ ไม่เคยเอาทอน', 'Twenty baht a garland, he\'d hand me fifty. Never took change.', { emotion: 'smile' }),
@@ -138,7 +138,7 @@ export const RIDE_BUA = {
     arriveCorrect: [
       P('ถึงแล้ว... ขอบใจนะลูก', 'Here we are... thank you, love.', { emotion: 'smile' }),
       P('นี่สี่สิบบาท ยายนับแล้ว ครบนะ', "Forty baht. I counted. It's all there.", { action: 'pay' }),
-      P('ว่าง ๆ ไปหาพ่อเอ็งบ้างนะลูก ที่วัดก็ยังดี', 'Go and see your dad sometime, love. Even just at the temple.', { emotion: 'sad' }),
+      P('ว่าง ๆ กลับไปหาพ่อแม่บ้างนะลูก อย่าให้สายเกินไป', 'Go and see your parents sometime, love. Before it\'s too late.', { emotion: 'sad' }),
     ],
     arriveWrong: [
       P('ลูก... ทางนี้มันทางไปป่าช้านะ', 'Love... this road goes to the graveyard.', { emotion: 'fear' }),

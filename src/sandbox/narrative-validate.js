@@ -29,7 +29,7 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
   const err = (path, msg) => errors.push(`${path}: ${msg}`);
   const warn = (path, msg) => warnings.push(`${path}: ${msg}`);
   const {
-    CHARACTERS, RULES, HIDDEN_LINE, RULE_PARAMS, PENCIL_NOTES, PASSENGERS, DIALOGUE_EVENTS, WRONG_FORK_DEATHS, ENCOUNTERS, ENCOUNTER_DEATHS,
+    CHARACTERS, RULES, HIDDEN_LINE, RULE_PARAMS, PENCIL_NOTES, PASSENGERS, DIALOGUE_EVENTS, DIALOGUE_EVENT_PARAMS, WRONG_FORK_DEATHS, ENCOUNTERS, ENCOUNTER_DEATHS,
     MEMORIES, ENDINGS, STATIONS, SONGS, FATHER_SONG, DJ_LINES, LATE_NIGHT_WHISPERS, SPECIAL_BROADCASTS, CHAPTERS, DEATH_CARDS, LOADING_LINES,
     SIGNS, POSTERS, NOODLE_MENU, CREDITS, CREDITS_HEADLINE, INTRO_GARAGE, TUTORIAL_STEPS, SEND_OFF, GARAGE_IDLE, RESTART_LINES, DEATH_HINTS,
     TIME_SKIP, RADIO_CAMEO, SHRINE_REVEAL,
@@ -138,6 +138,60 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
     }
   }
 
+  // ---------------------------------------------------------------- pacing
+  // Spoken-line duration: the same estimate src/game/Dialogue.js uses, + the line's pause.
+  const lineSeconds = (l) => {
+    if (l.choice) return 5 + Math.max(0, ...Object.values(l.choice.branches || {}).map((b) => b.reduce((a, x) => a + lineSeconds(x), 0)));
+    return Math.max(1.8, 1.1 + (l.th || '').length * 0.065 + (l.en || '').length * 0.012) + (l.pause ?? 0.4);
+  };
+  const linesSeconds = (ls) => (ls || []).reduce((a, l) => a + lineSeconds(l), 0);
+  stats.pacing = {};
+  function checkPacing(path, p, d) {
+    const pc = p.pacing;
+    if (!pc) return err(path, 'missing pacing { cruiseKmh, minSeconds, stretch }');
+    if (!(pc.cruiseKmh >= 15 && pc.cruiseKmh <= 80)) err(path, 'pacing.cruiseKmh out of 15..80');
+    if (!(pc.minSeconds > 0)) err(path, 'pacing.minSeconds');
+    if (!['none', 'fog', 'mist'].includes(pc.stretch)) err(path, `pacing.stretch ${pc.stretch}`);
+    if (pc.speedCapKmh != null && !(pc.speedCapKmh > pc.cruiseKmh * 0.8)) err(path, 'pacing.speedCapKmh too low');
+    const lm = landmarks[p.pickup];
+    if (!lm || lm.spline !== 'main') return;
+    const routeM = (1 - lm.u) * layout.mainLength; // pickup -> fork (u = 1)
+    const driveS = routeM / (pc.cruiseKmh / 3.6);
+    const fastS = routeM / ((pc.speedCapKmh ?? 70) / 3.6); // a player in a hurry
+    const rideS = Math.max(driveS, pc.minSeconds);
+    const opening = linesSeconds(d.greet) + linesSeconds(d.destination);
+    const progress = (d.beats || []).filter((b) => b.trigger.type === 'progress').sort((a, b) => a.trigger.at - b.trigger.at);
+    const mainS = opening + (d.beats || []).filter((b) => b.trigger.type !== 'event').reduce((a, b) => a + linesSeconds(b.lines), 0);
+    const essentialS = (d.beats || []).filter((b) => b.essential).reduce((a, b) => a + linesSeconds(b.lines), 0);
+    stats.pacing[p.id] = { routeM: Math.round(routeM), driveS: Math.round(driveS), rideS: Math.round(rideS), mainDialogueS: Math.round(mainS), essentialS: Math.round(essentialS) };
+    if (mainS > rideS * 0.85) warn(path, `pacing: ~${Math.round(mainS)} s of scripted talk in a ~${Math.round(rideS)} s ride (no room for silence)`);
+    if (pc.stretch === 'none' && pc.minSeconds > fastS * 1.05) warn(path, `pacing: minSeconds ${pc.minSeconds} > a fast drive (${Math.round(fastS)} s) but stretch is 'none'`);
+    // Timeline at the slowest legal pace: progress beats start at ≈ at * rideS (progress is
+    // min(distance, time) based, see SCHEMA.md), scheduled encounters bring their reaction beat
+    // ('encounter:<id>') at their own `at`, and 'after' beats follow their parent. Nothing may pile up.
+    const items = progress.map((b) => ({ t: b.trigger.at * rideS, b, label: b.id }));
+    for (const e of p.encounters || []) {
+      const rb = (d.beats || []).find((b) => b.trigger.type === 'event' && (b.trigger.event === `encounter:${e.id}` || b.trigger.event === e.id));
+      if (rb) items.push({ t: e.at * rideS, b: rb, label: `${rb.id} (encounter ${e.id}${e.optional ? ', optional' : ''})` });
+    }
+    items.sort((x, y) => x.t - y.t);
+    let busyUntil = opening;
+    const ends = {};
+    for (const it of items) {
+      let t = it.t;
+      if (t < busyUntil - 0.5) warn(`${path}.beats.${it.label}`, `starts at ~${Math.round(t)} s while the previous talk runs until ~${Math.round(busyUntil)} s`);
+      t = Math.max(busyUntil, t);
+      busyUntil = t + linesSeconds(it.b.lines) + 1.5;
+      ends[it.b.id] = busyUntil - 1.5;
+      for (const ab of (d.beats || []).filter((x) => x.trigger.type === 'after' && x.trigger.beat === it.b.id)) {
+        const at = ends[it.b.id] + ab.trigger.seconds;
+        const next = items.find((x) => x.t > it.t && x !== it);
+        if (next && at + linesSeconds(ab.lines) > next.t) warn(`${path}.beats.${ab.id}`, `'after' beat (~${Math.round(at)} s) runs into ${next.label} (~${Math.round(next.t)} s)`);
+      }
+    }
+    if (busyUntil > rideS * (DIALOGUE_EVENT_PARAMS.forkApproachProgress ?? 0.9) + 2) warn(path, `pacing: progress beats run until ~${Math.round(busyUntil)} s, past forkApproach (~${Math.round(rideS * 0.9)} s)`);
+  }
+
   // ---------------------------------------------------------------- characters
   for (const [key, c] of Object.entries(CHARACTERS)) {
     const p = `CHARACTERS.${key}`;
@@ -230,6 +284,7 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
       const ok = where.some((w) => w === `ride:${p.id}` || w === 'any' || (w === 'ride:anyGhost' && p.identity === 'ghost'));
       if (!ok) warn(path, `encounter ${e.id} where=${JSON.stringify(enc.where)} does not list ride:${p.id}`);
       if (!inHours(enc.hours, p.hour)) warn(path, `encounter ${e.id} hours ${JSON.stringify(enc.hours)} exclude ride hour ${p.hour}`);
+      if (enc.needsReflection && c.reflection === 'none') err(path, `encounter ${e.id} needs a reflection but this passenger has none`);
     }
     if (!WRONG_FORK_DEATHS.includes(p.deathOnWrong)) err(path, `deathOnWrong ${p.deathOnWrong}`);
     for (const m of p.memoryHooks || []) if (!memIds.has(m)) err(path, `unknown memory ${m}`);
@@ -250,10 +305,15 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
       checkLines(`${bp}.lines`, b.lines, { count });
       if (!b.lines?.length) err(bp, 'beat has no lines');
       checkEffects(bp, b.effects);
+      if (b.essential != null && typeof b.essential !== 'boolean') err(bp, 'essential must be boolean');
+      if (b.essential && b.if) warn(bp, 'essential beat with a condition: it may never play');
+      for (const k of Object.keys(b.if || {})) if (!['taxi', 'flag', 'memories'].includes(k)) err(bp, `unknown if.${k}`);
+      for (const m of b.if?.memories || []) if (!memIds.has(m)) err(bp, `if.memories: unknown memory ${m}`);
     }
+    checkPacing(path, p, d);
     if (p.finale) for (const [k, v] of Object.entries(p.finale)) Array.isArray(v) ? checkLines(`${path}.finale.${k}`, v, { count }) : checkLine(`${path}.finale.${k}`, v, { count });
     stats.perPassenger[p.id] = { lines: count.n, beats: d.beats?.length || 0 };
-    if (count.n < 15 || count.n > 60) warn(path, `${count.n} lines (target 15–30 core + reactions)`);
+    if (count.n < 15 || count.n > (p.finale ? 75 : 60)) warn(path, `${count.n} lines (target 15–30 core + reactions)`);
     // `who` must not reference another passenger's character
     const playerLines = JSON.stringify(d).split('"who":"player"').length - 1;
     if (playerLines > 12) warn(path, `Ton speaks/thinks ${playerLines} times (he is laconic)`);
@@ -351,6 +411,14 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
     });
   }
   checkLines('LATE_NIGHT_WHISPERS', LATE_NIGHT_WHISPERS);
+  // cross-file radio consistency: memory m_song, the father's broadcast and Ah Kong's cameo must agree
+  // on the station NUMBER (1..4 = src/audio/Radio.js) and the hours.
+  const songMem = MEMORIES.find((m) => m.id === 'm_song');
+  const fatherSt = STATIONS.find((s) => (s.schedule || []).some((sch) => (sch.songs || []).includes(FATHER_SONG) && songMem && inHours(sch.hours, songMem.requires?.hours?.[0])));
+  if (!fatherSt) err('STATIONS', `no station schedules ${FATHER_SONG} during m_song hours`);
+  else if (songMem?.requires?.station !== fatherSt.index) err('MEMORIES.m_song', `requires.station ${songMem?.requires?.station} but ${FATHER_SONG} plays on station ${fatherSt.index}`);
+  if (!STATIONS.some((s) => s.index === RADIO_CAMEO.station)) err('RADIO_CAMEO', `station ${RADIO_CAMEO.station} does not exist`);
+  checkHours('RADIO_CAMEO.hours', RADIO_CAMEO.hours);
   for (const b of SPECIAL_BROADCASTS) {
     if (!stationIds.has(b.station)) err(`SPECIAL_BROADCASTS.${b.id}`, 'station');
     if (b.then && !SONGS[b.then]) err(`SPECIAL_BROADCASTS.${b.id}`, 'then song');
@@ -379,6 +447,11 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
   checkLines('SEND_OFF', SEND_OFF);
   checkLines('GARAGE_IDLE', GARAGE_IDLE);
   checkLines('SHRINE_REVEAL', SHRINE_REVEAL);
+  for (const b of data.INTRO_BIKE || []) {
+    if (!(b.at >= 0 && b.at <= 1)) err(`INTRO_BIKE.${b.id}`, 'at must be 0..1 (spur progress)');
+    checkLines(`INTRO_BIKE.${b.id}`, b.lines);
+  }
+  if (!data.INTRO_BIKE?.length) warn('INTRO_BIKE', 'no motorbike-intro lines');
   checkLines('RADIO_CAMEO', RADIO_CAMEO.lines);
   const stepIds = new Set();
   const checkWait = (p, w) => {
@@ -417,6 +490,7 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
     if (!(r.minLoop > lastLoop)) err('RESTART_LINES', 'minLoop must ascend');
     lastLoop = r.minLoop;
     checkLines(`RESTART_LINES.${r.minLoop}`, r.lines);
+    (r.variants || []).forEach((v, i) => checkLines(`RESTART_LINES.${r.minLoop}.variants[${i}]`, v));
   }
   for (const [k, ls] of Object.entries(DEATH_HINTS)) {
     if (!DEATH_CARDS[k]) err(`DEATH_HINTS.${k}`, 'no matching death card');

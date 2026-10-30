@@ -4,7 +4,7 @@
 //   forest=0 / props=0 to skip, density, rain (0..1), fog, wet
 import * as THREE from 'three';
 import { World } from '../world/World.js';
-import { sky, GLOBAL_UNIFORMS } from '../render/index.js';
+import { sky, postfx, GLOBAL_UNIFORMS } from '../render/index.js';
 import { LAYOUT } from '../world/layout.js';
 
 export default async function (ctx) {
@@ -26,7 +26,7 @@ export default async function (ctx) {
 
   if (params.get('fogd') != null) sky.overrides.fogDensity = num('fogd', 0.02);
   sky.setHour(hour);
-  if (params.get('raw') === '1') engine.renderPipeline = null;
+  if (params.get('paint') != null) postfx.params.painterly = num('paint', 1);
   const weather = {};
   if (params.get('rain') != null) weather.rain = num('rain', 0);
   if (params.get('fog') != null) weather.fog = num('fog', 0.5);
@@ -75,20 +75,23 @@ export default async function (ctx) {
   if (params.get('headlights') !== '0' && (hour < 29.5 || params.get('headlights') === '1')) {
     const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
-    const base = eye.position.clone().addScaledVector(fwd, 2.1).addScaledVector(right, -0.36);
-    base.y -= 0.55;
-    const spot = new THREE.SpotLight(0xfff1d6, num('hl', 260), 85, 0.62, 0.55, 1.35);
-    spot.position.copy(base);
-    spot.target.position.copy(base).addScaledVector(fwd, 30);
-    spot.target.position.y -= 1.6;
-    spot.castShadow = !!settings.get('shadows');
-    spot.shadow.mapSize.set(1024, 1024);
-    spot.shadow.camera.near = 0.5;
-    spot.shadow.camera.far = 70;
-    spot.shadow.bias = -0.0004;
-    engine.scene.add(spot, spot.target);
-    GLOBAL_UNIFORMS.uHeadlightPos.value.copy(base);
-    GLOBAL_UNIFORMS.uHeadlightDir.value.copy(spot.target.position).sub(base).normalize();
+    const centre = eye.position.clone().addScaledVector(fwd, 2.1).addScaledVector(right, -0.36);
+    centre.y -= 0.5;
+    for (const sx of [-0.62, 0.62]) {
+      const base = centre.clone().addScaledVector(right, sx);
+      const spot = new THREE.SpotLight(0xfff0d2, num('hl', 160), 95, 0.72, 0.5, 1.25);
+      spot.position.copy(base);
+      spot.target.position.copy(base).addScaledVector(fwd, 30).addScaledVector(right, sx * 0.4);
+      spot.target.position.y -= 1.9;
+      spot.castShadow = sx > 0 && !!settings.get('shadows');
+      spot.shadow.mapSize.set(1024, 1024);
+      spot.shadow.camera.near = 0.5;
+      spot.shadow.camera.far = 70;
+      spot.shadow.bias = -0.0004;
+      engine.scene.add(spot, spot.target);
+    }
+    GLOBAL_UNIFORMS.uHeadlightPos.value.copy(centre);
+    GLOBAL_UNIFORMS.uHeadlightDir.value.copy(fwd).multiplyScalar(30).add(new THREE.Vector3(0, -1.9, 0)).normalize();
     GLOBAL_UNIFORMS.uHeadlightOn.value = 1;
   }
 

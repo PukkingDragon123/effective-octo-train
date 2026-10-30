@@ -52,7 +52,7 @@ export default async function ({ engine, cameraRig, params, interact }) {
   if (params.get('visor') === '1') taxi.state.visor = true;
   if (params.get('glove') === '1') taxi.state.glovebox = true;
   if (params.get('win')) taxi.state.windows.fr = Number(params.get('win'));
-  const condense = Number(params.get('condense') ?? 0.55);
+  const condense = Number(params.get('condense') ?? 0.4);
   taxi.setFog('all', condense);
   taxi.glass.fillFog('all', condense);
   // hand-wiped patches on the windshield and the driver's window

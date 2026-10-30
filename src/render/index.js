@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals } from './uniforms.js';
 import { installFogChunks, installMaterialInjection } from './Fog.js';
-import { paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows } from './Materials.js';
+import { paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug } from './Materials.js';
 import { postfx } from './PostFX.js';
 import { sky } from './Sky.js';
 import { lightPool } from './LightPool.js';
@@ -19,10 +19,11 @@ import { particles } from './Particles.js';
 import { createVolumetricBeam } from './Beams.js';
 import { brushTexture, canvasTexture, glowTexture } from './noiseTex.js';
 import { bus } from '../core/Events.js';
+import { settings } from '../core/Settings.js';
 
 export {
   GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals,
-  paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows,
+  paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug,
   postfx, sky, lightPool, particles, createVolumetricBeam,
   brushTexture, canvasTexture, glowTexture,
 };
@@ -61,6 +62,14 @@ export function installRendering(engine) {
   renderer.toneMapping = THREE.NoToneMapping; // PostFX does its own grade
   renderer.setClearColor(0x000000, 1);
   postfx.sky = sky;
+  // headlight scattering ray-march steps by quality
+  const applyQuality = () => {
+    const preset = settings.get('graphicsPreset') || 'high';
+    const steps = { low: 4, medium: 6, high: 8, ultra: 10 }[preset] ?? 8;
+    GLOBAL_UNIFORMS.uHeadlightCone.value.w = settings.get('volumetrics') === false ? Math.min(steps, 4) : steps;
+  };
+  applyQuality();
+  settings.onChange(applyQuality);
   scene.add(sky.group, lightPool.group, particles.group);
   particles.setViewportHeight(engine.height * engine.pixelRatio);
   bus.on('engine:resize', ({ height, pixelRatio }) => particles.setViewportHeight(height * pixelRatio));

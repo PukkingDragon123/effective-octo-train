@@ -395,10 +395,10 @@ export function foliageAtlas(size = 2048) {
     fn(S);
     g.restore();
   };
-  paint(SLOT.broadA, (S) => paintCluster(g, S, rng, [96, 0.42, 0.24], { count: 80, len: 0.17, aspect: 0.36, veins: true }));
-  paint(SLOT.broadB, (S) => paintCluster(g, S, rng, [84, 0.4, 0.29], { count: 46, len: 0.26, aspect: 0.42, twigs: 5, veins: true, tip: 0.4 }));
+  paint(SLOT.broadA, (S) => paintCluster(g, S, rng, [96, 0.42, 0.24], { count: 150, len: 0.105, aspect: 0.36, veins: true, twigs: 8 }));
+  paint(SLOT.broadB, (S) => paintCluster(g, S, rng, [84, 0.4, 0.29], { count: 70, len: 0.19, aspect: 0.42, twigs: 6, veins: true, tip: 0.4 }));
   paint(SLOT.rain, (S) => paintRainTree(g, S, rng));
-  paint(SLOT.fig, (S) => paintCluster(g, S, rng, [110, 0.38, 0.2], { count: 95, len: 0.13, aspect: 0.48, tip: 0.3, twigs: 7 }));
+  paint(SLOT.fig, (S) => paintCluster(g, S, rng, [110, 0.38, 0.2], { count: 190, len: 0.085, aspect: 0.5, tip: 0.3, twigs: 9 }));
   paint(SLOT.bamboo, (S) => paintBambooSprig(g, S, rng));
   paint(SLOT.banana, (S) => paintBananaLeaf(g, S, rng, false));
   paint(SLOT.bananaDead, (S) => paintBananaLeaf(g, S, rng, true));
@@ -407,7 +407,7 @@ export function foliageAtlas(size = 2048) {
   paint(SLOT.grass, (S) => paintGrass(g, S, rng, false));
   paint(SLOT.elephant, (S) => paintElephantEar(g, S, rng));
   paint(SLOT.vines, (S) => paintVines(g, S, rng));
-  paint(SLOT.shrub, (S) => paintCluster(g, S, rng, [100, 0.4, 0.22], { count: 120, len: 0.1, aspect: 0.45, twigs: 9, tip: 0.5, cy: 0.5 }));
+  paint(SLOT.shrub, (S) => paintCluster(g, S, rng, [100, 0.4, 0.22], { count: 190, len: 0.075, aspect: 0.45, twigs: 10, tip: 0.5, cy: 0.5 }));
   paint(SLOT.deadTwigs, (S) => paintDeadTwigs(g, S, rng));
   paint(SLOT.epiphyte, (S) => paintEpiphyte(g, S, rng));
   paint(SLOT.tallGrass, (S) => paintGrass(g, S, rng, true));

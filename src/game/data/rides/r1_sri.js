@@ -25,13 +25,13 @@ export const RIDE_SRI = {
     { rule: 'r3', lookBack: 'warn', note: 'Human passenger: looking back only earns a scolding.' },
   ],
   encounters: [
-    { id: 'treeWatcher', at: 0.3 },
+    { id: 'treeWatcher', at: 0.36 },
     { id: 'salaShadows', at: 0.61, optional: true }, // passing sala2
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: [],
   // Long first ride (sala1 → fork ≈ 2.8 km): no stretching needed. See SCHEMA.md "Pacing".
-  pacing: { cruiseKmh: 45, minSeconds: 150, stretch: 'none' },
+  pacing: { cruiseKmh: 45, minSeconds: 140, stretch: 'none' },
   dialogue: {
     hail: [P('แท็กซี่! แท็กซี่จ้ะ! จอดก่อน!', 'Taxi! Taxi, dear! Stop!', { tone: 'shout', action: 'hail' })],
     greet: [
@@ -50,7 +50,7 @@ export const RIDE_SRI = {
       },
       {
         id: 'newFace',
-        trigger: { type: 'progress', at: 0.06 },
+        trigger: { type: 'progress', at: 0.09 },
         lines: [
           P('หนุ่มเพิ่งมาขับแถวนี้ใช่ไหม หน้าไม่คุ้นเลย', "You're new round here, aren't you? Don't know your face."),
           Y('ครับ คืนแรก', 'Yeah. First night.'),
@@ -60,7 +60,7 @@ export const RIDE_SRI = {
       {
         id: 'yaiSpeedLegend',
         essential: true, // the legend must be heard before ride 3's Yai Speed encounter
-        trigger: { type: 'progress', at: 0.14 },
+        trigger: { type: 'progress', at: 0.17 },
         lines: [
           P('รู้จักยายสปีดไหม', 'Ever heard of Yai Speed?'),
           C([
@@ -84,7 +84,7 @@ export const RIDE_SRI = {
       },
       {
         id: 'jasmine',
-        trigger: { type: 'progress', at: 0.38 },
+        trigger: { type: 'progress', at: 0.42 },
         lines: [
           P('มาลัยมะลิพวกนี้ ป้าร้อยเองทั้งเย็นเลยนะ', 'I strung all these jasmine garlands myself. All evening.', { emotion: 'smile' }),
           P('พรุ่งนี้เช้าเอาไปขายที่ตลาด พวงละยี่สิบ', "Tomorrow morning they go to market. Twenty baht each."),

@@ -118,32 +118,12 @@ function weave(w, h, threads, twill, seed) {
   return { H, warpM, slub, slub2 };
 }
 
-/** Soft drape folds (height 0..1): long parallel folds whose phase drifts slowly (tileable). */
-function folds(w, h, seed, k, dir = 'v') {
-  const n = w * h;
-  const vert = dir === 'v';
-  const p1 = fbm(w, h, { cells: vert ? [1, 2] : [2, 1], octaves: 1, seed });
-  const p2 = fbm(w, h, { cells: vert ? [2, 2] : [2, 2], octaves: 2, seed: seed + 1 });
-  const p3 = fbm(w, h, { cells: vert ? [3, 4] : [4, 3], octaves: 2, seed: seed + 2 });
-  const out = new Float32Array(n);
-  const T = Math.PI * 2;
-  for (let y = 0, i = 0; y < h; y++) {
-    for (let x = 0; x < w; x++, i++) {
-      const u = vert ? x / w : y / h;
-      // broad ridges, narrow creases
-      const a = Math.sin(T * (u * 3 + p1[i] * 0.45)), b = Math.sin(T * (u * 7 + p2[i] * 0.6)), c = Math.sin(T * (u * 13 + p3[i] * 0.5));
-      const sh = (q) => (q > 0 ? Math.sqrt(q) : -q * q);
-      out[i] = 0.55 + 0.24 * sh(a) + 0.14 * sh(b) + 0.05 * sh(c);
-    }
-  }
-  return out;
-}
-
 /**
  * Paint cloth folds with brush strokes: long dark creases and light ridges along the fold
  * direction, then a smear pass. pal = [dark, mid, light, highlight]. Returns a height field.
  */
-function paintFolds(img, pal, seed, k, dir = 'v', sheen = 0.5) {
+function paintFolds(img, pal, seed, k, dir = 'v', sheen = 0.5, broad = 1.4) {
+  const b = broad;
   const { w, h } = img;
   const n = w * h;
   const ang = dir === 'v' ? Math.PI / 2 : 0;
@@ -156,22 +136,14 @@ function paintFolds(img, pal, seed, k, dir = 'v', sheen = 0.5) {
     out[1] = c[1] * v;
     out[2] = c[2] * v;
   };
-  strokes(img, { seed: seed + 1, color: set(dark), len: [90 * k, 260 * k], width: [3 * k, 9 * k], opacity: 0.5, coverage: 0.5, angle: ang, angleJitter: 0.1, curve: 0.18, bristles: 6, bristleAmt: 0.4 });
-  strokes(img, { seed: seed + 2, color: set(light), len: [70 * k, 220 * k], width: [4 * k, 12 * k], opacity: 0.4, coverage: 0.45, angle: ang, angleJitter: 0.1, curve: 0.18, bristles: 8, bristleAmt: 0.5 });
+  strokes(img, { seed: seed + 1, color: set(dark), len: [90 * k, 260 * k], width: [3 * k * b, 9 * k * b], opacity: 0.45, coverage: 0.4, angle: ang, angleJitter: 0.1, curve: 0.18, bristles: 6, bristleAmt: 0.4 });
+  strokes(img, { seed: seed + 2, color: set(light), len: [70 * k, 220 * k], width: [4 * k * b, 12 * k * b], opacity: 0.38, coverage: 0.35, angle: ang, angleJitter: 0.1, curve: 0.18, bristles: 8, bristleAmt: 0.5 });
   strokes(img, { seed: seed + 3, color: set(hi), len: [40 * k, 140 * k], width: [2 * k, 5 * k], opacity: 0.35 * sheen * 2, coverage: 0.18, angle: ang, angleJitter: 0.08, curve: 0.15, bristles: 5 });
-  strokes(img, { seed: seed + 4, len: [24 * k, 60 * k], width: [6 * k, 14 * k], opacity: 0.3, coverage: 0.6, angle: ang, angleJitter: 0.15, valueJitter: 0.03, smear: 0.4 });
+  strokes(img, { seed: seed + 4, len: [24 * k, 60 * k], width: [6 * k * b, 14 * k * b], opacity: 0.35, coverage: 0.6, angle: ang, angleJitter: 0.15, valueJitter: 0.03, smear: 0.4 });
   const H = new Float32Array(n);
   const d = img.d;
   for (let i = 0; i < n; i++) H[i] = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.55 + d[i * 4 + 2] * 0.15;
   return blur(H, w, h, Math.max(1, Math.round(2 * k)), 2);
-}
-
-function clothFinish(img, H, n, w, h, k, seed, sheen) {
-  if (sheen) {
-    const fl = blur(H, w, h, Math.round(3 * k), 1);
-    tint(img, field(n, (i) => sstep(0.55, 0.9, fl[i]) * sheen), '#ffffff', 0.25, 'screen');
-  }
-  strokes(img, { seed, len: [10 * k, 26 * k], width: [3 * k, 7 * k], opacity: 0.25, coverage: 0.5, valueJitter: 0.05 });
 }
 
 export function genFabricCotton(S = 512) {
@@ -231,7 +203,7 @@ export function genMonkRobe(S = 512) {
       const u = x / w, v = y / h;
       let c = 0;
       while (c < colsX.length - 2 && u > colsX[c + 1]) c++;
-      const rowsN = c % 2 ? 1 : 3;
+      const rowsN = c % 2 ? 2 : 3;
       const r = Math.floor(v * rowsN);
       pid[i] = panelT[(c * 4 + r) % 64];
       const du = Math.min(u - colsX[c], colsX[c + 1] - u) * w;
@@ -240,9 +212,10 @@ export function genMonkRobe(S = 512) {
     }
   }
   const img = new Img(w, h);
-  const Hf = paintFolds(img, ['#6a3410', '#a85c1c', '#c87a2a', '#e8a850'], 3705, k, 'v', 0.3);
-  modulate(img, field(n, (i) => (pid[i] - 0.5) + (wv.H[i] - 0.5) * 0.5), 0.12);
-  tint(img, seam, '#5a2c0e', 0.55);
+  const Hf = paintFolds(img, ['#7a3c12', '#b0641e', '#cc822e', '#e8a850'], 3705, k, 'v', 0.25, 4.5);
+  modulate(img, field(n, (i) => wv.H[i] - 0.5), 0.12);
+  modulate(img, field(n, (i) => (pid[i] - 0.5) * 1.4 + (wv.H[i] - 0.5) * 0.4), 0.14);
+  tint(img, seam, '#4e240a', 0.75);
   // stitch dashes along seams
   tint(img, field(n, (i) => seam[i] > 0.6 && ((i % w) + ((i / w) | 0)) % (6 * k) < 2.5 * k ? 0.6 : 0), '#e0a050', 0.5);
   tint(img, smask(low, 0.2, 0.7, 0.4), '#e4b06a', 0.3); // sun-faded

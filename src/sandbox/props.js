@@ -72,7 +72,7 @@ const ITEMS = {
   garage: { build: () => P.createGarage({}), view: { dist: 9, yaw: 10, h: 1.65, ty: 1.4 } },
   busstop: { build: () => P.createBusStop({ seed: 2 }), view: { dist: 6, yaw: 25, h: 1.6, ty: 1.3 } },
   noodle: { build: () => P.createNoodleStall({ seed: 3 }), view: { dist: 6, yaw: 20, h: 1.6, ty: 1.1 } },
-  bridge: { build: () => P.createBridge({ seed: 4 }), view: { dist: 16, yaw: 70, h: 1.2, ty: -0.5 }, road: 'none' },
+  bridge: { build: () => P.createBridge({ seed: 4 }), view: { dist: 16, yaw: 70, h: 1.2, ty: -0.5 }, road: 'none', groundY: -4.2 },
   guardrail: {
     build: () => {
       const pts = [];
@@ -98,7 +98,7 @@ const ITEMS = {
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.85, 6, 20), paintedMaterial({ color: 0x5a4a3a, map: tex('bark') }));
       trunk.position.y = 3;
       g.add(trunk);
-      g.add(P.createClothWrap(0.78, 0.9, 1.5, { seed: 2 }));
+      g.add(P.createClothWrap(0.82, 0.9, 1.5, { seed: 2 }));
       return { object: g, lights: [] };
     },
     view: { dist: 3.2, yaw: 10, h: 1.6, ty: 1.2 },
@@ -117,6 +117,8 @@ export default async function ({ engine, cameraRig, params }) {
   // ground + road
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400, 1, 1).rotateX(-Math.PI / 2), paintedMaterial({ color: 0x4a4636, map: tex('soil', { repeat: [80, 80] }) }));
   ground.position.y = -0.02;
+  const gItem = ITEMS[params.get('item')];
+  if (gItem && gItem.groundY != null) ground.position.y = gItem.groundY;
   ground.receiveShadow = true;
   scene.add(ground);
 

@@ -196,10 +196,14 @@ const FRAG_ALBEDO = /* glsl */ `
   // moss on up-facing surfaces (and in damp blotches)
   float dlbMoss = 0.0;
   if (dlbPaint.z > 0.0) {
-    float m = smoothstep(0.25, 0.85, dlbUp + (dlbB2.g - 0.5) * 0.9 + (dlbB.r - 0.5) * 0.35);
-    m *= smoothstep(0.25, 0.6, dlbB2.a + dlbPaint.z * 0.35);
-    dlbMoss = clamp(m * dlbPaint.z * 1.4, 0.0, 1.0);
-    vec3 mc = dlbMossColor * (0.65 + dlbB.r * 0.7) * mix(vec3(1.0), vec3(1.12, 1.05, 0.7), dlbB2.b);
+    // thick on top surfaces, creeping up from the base and in damp patches on the sides
+    float mUp = smoothstep(0.3, 0.75, dlbUp + (dlbB2.g - 0.5) * 0.8 + (dlbB.r - 0.5) * 0.4);
+    float damp = smoothstep(0.66, 0.86, dlbB.g + (dlbB2.a - 0.5) * 0.5);
+    float mBase = (1.0 - smoothstep(0.0, 0.3 + dlbB.g * 0.9, vDlbH + 0.3)) * smoothstep(0.5, 0.72, dlbB.b + dlbB2.a * 0.3);
+    float m = max(mUp * smoothstep(0.2, 0.55, dlbB2.a + dlbPaint.z * 0.45), max(mBase, damp * 0.7) * (1.0 - dlbUp * 0.3));
+    m *= smoothstep(0.32, 0.58, dlbB.r * 0.6 + dlbB.b * 0.4 + dlbPaint.z * 0.15);
+    dlbMoss = clamp(m * dlbPaint.z * 1.6, 0.0, 1.0);
+    vec3 mc = dlbMossColor * (0.6 + dlbB.r * 0.8) * mix(vec3(1.0), vec3(1.25, 1.15, 0.6), smoothstep(0.4, 0.8, dlbB2.b) * dlbUp);
     diffuseColor.rgb = mix(diffuseColor.rgb, mc, dlbMoss);
   }
   // wetness: darker porous albedo, puddles on flat up-facing areas
@@ -223,8 +227,8 @@ const FRAG_ALBEDO = /* glsl */ `
 const FRAG_ROUGHNESS = /* glsl */ `
   roughnessFactor = clamp(roughnessFactor * (1.0 + (dlbB.r - 0.5) * 0.45 * dlbBrushAmt) , 0.03, 1.0);
   roughnessFactor = mix(roughnessFactor, 1.0, dlbDirt * 0.6);
-  roughnessFactor = mix(roughnessFactor, 0.95, dlbMoss * 0.7);
   roughnessFactor = mix(roughnessFactor, max(roughnessFactor * 0.38, 0.12), dlbWet * 0.85);
+  roughnessFactor = mix(roughnessFactor, 0.85, dlbMoss * 0.8);
   roughnessFactor = mix(roughnessFactor, 0.035, dlbPuddle);
 `;
 
@@ -306,6 +310,34 @@ vec3 dlbTransAcc = vec3(0.0);
       .replace(b, 'reflectedLight.directDiffuse += dlbDiffIrr * BRDF_Lambert( material.diffuseColor );')
   );
 })();
+
+const DEBUG_VIEWS = ['brush', 'moss', 'dirt', 'wet', 'normal', 'height', 'albedo', 'mosscol'];
+let _debugView = null;
+/** Debug: materials created AFTER this call output a raw channel ('brush'|'moss'|'dirt'|'wet'|'normal'|'height'|null). */
+export function setMaterialDebug(view) {
+  _debugView = DEBUG_VIEWS.includes(view) ? view : null;
+}
+const FRAG_DEBUG = /* glsl */ `
+#ifdef DLB_DEBUG
+  #if DLB_DEBUG == 1
+    gl_FragColor = vec4(dlbB.rgb, 1.0);
+  #elif DLB_DEBUG == 2
+    gl_FragColor = vec4(vec3(dlbMoss), 1.0);
+  #elif DLB_DEBUG == 3
+    gl_FragColor = vec4(vec3(dlbDirt), 1.0);
+  #elif DLB_DEBUG == 4
+    gl_FragColor = vec4(dlbWet, dlbPuddle, 0.0, 1.0);
+  #elif DLB_DEBUG == 5
+    gl_FragColor = vec4(dlbN * 0.5 + 0.5, 1.0);
+  #elif DLB_DEBUG == 6
+    gl_FragColor = vec4(fract(vDlbH), fract(vDlbWP.y), 0.0, 1.0);
+  #elif DLB_DEBUG == 7
+    gl_FragColor = vec4(sqrt(diffuseColor.rgb), 1.0);
+  #else
+    gl_FragColor = vec4(sqrt(dlbMossColor) , 1.0);
+  #endif
+#endif
+`;
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -394,7 +426,7 @@ export function paintedMaterial(opts = {}) {
     dlbPaint3: { value: new THREE.Vector4(opts.sss ?? 0.6, opts.dirtHeight ?? 0.5, opts.puddles ?? 1, opts.envReflect ?? 1) },
     dlbRim: { value: opts.rim ?? 0 },
     dlbWindParams: { value: new THREE.Vector4(opts.windHeightScale ?? 1, opts.flutter ?? 1, opts.windPhase ?? 0, 0) },
-    dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x34431f) },
+    dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x445424) },
     dlbDirtColor: { value: new THREE.Color(opts.dirtColor ?? 0x3a2f24) },
   };
   if (triKey) {
@@ -407,6 +439,7 @@ export function paintedMaterial(opts = {}) {
   if (translucency > 0) defines.push('#define DLB_TRANSLUCENT');
   if (skin) defines.push('#define DLB_SKIN');
   if (pale > 0 || opts.paleCapable) defines.push('#define DLB_PALE');
+  if (_debugView) defines.push('#define DLB_DEBUG ' + (DEBUG_VIEWS.indexOf(_debugView) + 1));
   const defStr = defines.join('\n') + '\n';
   const cacheKey = 'dlbPainted|' + defines.join('|');
 
@@ -425,7 +458,8 @@ export function paintedMaterial(opts = {}) {
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + FRAG_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + FRAG_EMISSIVE)
       .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\n' + FRAG_ENV)
-      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + FRAG_TRANSLUCENT_END);
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + FRAG_TRANSLUCENT_END)
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n' + FRAG_DEBUG);
   };
   m.customProgramCacheKey = () => cacheKey;
   return m;

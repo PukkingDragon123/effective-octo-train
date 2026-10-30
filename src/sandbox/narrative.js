@@ -9,6 +9,7 @@ import { KEY_BINDINGS } from '../core/Input.js';
 import { FONTS } from '../ui/fonts.js';
 import { validateNarrative } from './narrative-validate.js';
 
+let DATA_REPORT = null;
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 const CSS = `
@@ -40,17 +41,22 @@ const CSS = `
 
 function lineHTML(l) {
   if (!l) return '';
-  const who = l.who === 'passenger' ? 'P' : l.who === 'player' ? (l.tone === 'thought' ? 'ต้น (คิด)' : 'ต้น') : (DATA.CHARACTERS[l.who]?.nameTH || l.who);
+  const who = l.speakerTH || (l.who === 'passenger' ? 'P' : l.who === 'player' ? (l.tone === 'thought' ? 'ต้น (คิด)' : 'ต้น') : (DATA.CHARACTERS[l.who]?.nameTH || l.who));
   const extras = [l.tone && l.tone !== 'normal' && l.tone !== 'thought' ? l.tone : '', l.emotion, l.action ? '▸' + l.action : '', l.set ? 'set ' + Object.keys(l.set).join(',') : ''].filter(Boolean).join(' · ');
   let html = `<div class="line ${l.tone || ''} ${l.choice ? 'choice' : ''}"><span class="who">${esc(who)}</span><span class="th">${esc(l.th)}</span> <span class="meta">${esc(extras)}</span><span class="en">${esc(l.en)}</span>`;
   if (l.choice) {
-    html += '<div class="meta">choice: ' + l.choice.options.map((o) => `[${esc(o.key)}] ${esc(o.th)} / ${esc(o.en)}`).join(' &nbsp; ') + (l.choice.timeout ? ` · ${l.choice.timeout}s, default ${esc(l.choice.defaultKey)}` : '') + '</div>';
-    for (const [k, ls] of Object.entries(l.branches || {})) html += `<div class="beat">→ ${esc(k)}</div>` + ls.map(lineHTML).join('');
+    html += '<div class="meta">choice' + (l.choice.id ? ` <b>${esc(l.choice.id)}</b>` : '') + ': ' + l.choice.options.map((o) => `[${esc(o.key)}] ${esc(o.th)} / ${esc(o.en)}`).join(' &nbsp; ') + (l.choice.timeout ? ` · ${l.choice.timeout}s, default ${esc(l.choice.defaultKey)}` : '') + '</div>';
+    for (const [k, ls] of Object.entries(l.choice.branches || {})) html += `<div class="beat">→ ${esc(k)}</div>` + ls.map(lineHTML).join('');
   }
   return html + '</div>';
 }
 const linesHTML = (ls) => (ls || []).map(lineHTML).join('');
 const trigText = (t) => (t.type === 'progress' ? `@${Math.round(t.at * 100)}%` : t.type === 'time' ? `@${t.seconds}s` : t.type === 'after' ? `after ${t.beat} +${t.seconds}s` : `on ${t.event}`);
+
+function pacingText(st, pc) {
+  if (!st || !pc) return '';
+  return `${st.routeM} m · ${st.rideS}s ride<br>talk ${st.mainDialogueS}s${pc.stretch !== 'none' ? ` · <span class="warn">${pc.stretch} stretch</span>` : ''}`;
+}
 
 function clueTags(p) {
   const c = p.clues;
@@ -64,7 +70,7 @@ function clueTags(p) {
     g(c.radioStatic > 0, 'static ' + c.radioStatic),
     g(!c.blinks, c.blinks ? 'blinks' : 'no blink'),
     c.feetFloat ? g(true, 'feet float') : '',
-    g(!['coins', 'banknote'].includes(c.payment.type), c.payment.type + ' ' + c.payment.amountTHB + '฿'),
+    g(!['coins', 'banknote', 'none'].includes(c.payment.type), c.payment.type === 'none' ? 'pays nothing' : c.payment.type + ' ' + c.payment.amountTHB + '฿'),
   ].join('');
 }
 
@@ -79,7 +85,8 @@ function summary(report) {
       <td>${esc(LANDMARK_NAMES[p.pickup]?.th || p.pickup)}<br><span class="meta">${esc(p.pickup)} · ${p.seat}</span></td>
       <td>${clueTags(p)}</td>
       <td>${p.specialRules.map((r) => `<span class="tag r">${r.rule}</span>`).join('')}<br><span class="meta">${p.encounters.map((e) => e.id).join(', ')}</span></td>
-      <td>${st.lines} / ${st.beats}b<br><span class="meta">${p.deathOnWrong}</span></td></tr>`;
+      <td>${st.lines} / ${st.beats}b<br><span class="meta">${p.deathOnWrong}</span></td>
+      <td class="meta">${pacingText(report.stats.pacing?.[p.id], p.pacing)}</td></tr>`;
   }).join('');
   const status = report.errors.length ? `<span class="bad">${report.errors.length} errors</span>` : '<span class="ok">schema OK</span>';
   return `
@@ -90,7 +97,7 @@ function summary(report) {
   ${report.errors.length ? '<ul class="bad">' + report.errors.slice(0, 12).map((e) => `<li>${esc(e)}</li>`).join('') + '</ul>' : ''}
   ${report.warnings.length ? '<ul class="warn">' + report.warnings.slice(0, 6).map((e) => `<li>${esc(e)}</li>`).join('') + '</ul>' : ''}
   <h2>The night · ride order</h2>
-  <table><tr><th>#</th><th>hour</th><th>passenger</th><th>is</th><th>pickup · seat</th><th>clue language (blue = ghostly)</th><th>rules · encounters</th><th>lines</th></tr>${rows}</table>
+  <table><tr><th>#</th><th>hour</th><th>passenger</th><th>is</th><th>pickup · seat</th><th>clue language (blue = ghostly)</th><th>rules · encounters</th><th>lines</th><th>pacing</th></tr>${rows}</table>
   <div class="cols">
    <div><h2>Ah Kong's rules</h2><ol class="rules hand">${RULES.map((r) => `<li>${esc(r.th)} <span class="meta">— ${esc(r.en)}</span></li>`).join('')}</ol>
    <div class="hand" style="opacity:.8">(${esc(HIDDEN_LINE.th)}) <span class="meta">${esc(HIDDEN_LINE.en)}</span></div></div>
@@ -109,10 +116,11 @@ function ride(id) {
    <div>${clueTags(p)}</div>
    <div class="meta">${(p.clues.extra || []).map(esc).join(' · ')}</div>
    <div class="meta">rules: ${p.specialRules.map((r) => `${r.rule}${r.at != null ? '@' + r.at : ''} ${esc(r.note || r.lookBack || '')}`).join(' | ')}</div>
-   <div class="meta">encounters: ${p.encounters.map((e) => `${e.id}@${e.at}`).join(', ')}</div>`;
+   <div class="meta">encounters: ${p.encounters.map((e) => `${e.id}@${e.at}`).join(', ')}</div>
+   <div class="meta">pacing: ${esc(JSON.stringify(p.pacing))} — ${pacingText(DATA_REPORT?.stats.pacing?.[p.id], p.pacing).replace('<br>', ' · ')}</div>`;
   html += '<div class="cols"><div>';
   html += sec('Hail', d.hail) + sec('Greet', d.greet) + sec('Destination', d.destination);
-  html += '<h2>Beats</h2>' + d.beats.map((b) => `<div class="beat">◆ ${esc(b.id)} — ${esc(trigText(b.trigger))}${b.if ? ' if ' + esc(JSON.stringify(b.if)) : ''}</div>${linesHTML(b.lines)}`).join('');
+  html += '<h2>Beats</h2>' + d.beats.map((b) => `<div class="beat">${b.essential ? '★' : '◆'} ${esc(b.id)} — ${esc(trigText(b.trigger))}${b.if ? ' if ' + esc(JSON.stringify(b.if)) : ''}</div>${linesHTML(b.lines)}`).join('');
   html += '</div><div>';
   html += sec('Arrive — correct', d.arriveCorrect) + sec('Arrive — wrong fork', d.arriveWrong) + sec('Idle', d.idle) + sec('On look back', d.onLookBack) + sec('Face gaze warning', d.onFaceGazeWarn) + sec('On face gaze', d.onFaceGaze);
   if (p.finale) for (const [k, v] of Object.entries(p.finale)) html += sec('Finale — ' + k, Array.isArray(v) ? v : [v]);
@@ -121,14 +129,14 @@ function ride(id) {
 
 function tutorial() {
   const { INTRO_GARAGE, TUTORIAL_STEPS, SEND_OFF, RESTART_LINES, TIME_SKIP, RADIO_CAMEO, SHRINE_REVEAL, DEATH_HINTS } = DATA;
-  let h = '<h1>อากง — Ah Kong</h1><div class="cols"><div><h2>Garage intro</h2>' + linesHTML(INTRO_GARAGE);
+  let h = '<h1>อากง — Ah Kong</h1><div class="cols"><div><h2>Motorbike intro (spur road)</h2>' + (DATA.INTRO_BIKE || []).map((b) => `<div class="beat">@${b.at} ${esc(b.id)}</div>` + linesHTML(b.lines)).join('') + '<h2>Garage intro</h2>' + linesHTML(INTRO_GARAGE);
   h += '<h2>Tutorial</h2>' + TUTORIAL_STEPS.map((s, i) => {
     const w = s.waitFor.auto ? `auto ${JSON.stringify(s.waitFor.auto)} / manual ${JSON.stringify(s.waitFor.manual)}` : JSON.stringify(s.waitFor);
     const hint = s.hint.auto || s.hint;
     return `<div class="beat">${i + 1}. ${esc(s.id)} <span class="meta">[${hint.keys.join(' ')}] ${esc(hint.th)} · ${esc(w)}</span></div>` + linesHTML(Array.isArray(s.lines) ? s.lines : s.lines.auto) + linesHTML(s.after);
   }).join('');
   h += '</div><div><h2>Send-off</h2>' + linesHTML(SEND_OFF);
-  h += '<h2>Restart (by loop)</h2>' + RESTART_LINES.map((r) => `<div class="beat">loop ≥ ${r.minLoop}</div>` + linesHTML(r.lines)).join('');
+  h += '<h2>Restart (by loop)</h2>' + RESTART_LINES.map((r) => `<div class="beat">loop ≥ ${r.minLoop}</div>` + linesHTML(r.lines) + (r.variants || []).map((v, i) => `<div class="meta">variant ${i + 1}</div>` + linesHTML(v)).join('')).join('');
   h += '<h2>Time skip</h2>' + linesHTML([TIME_SKIP.offer, TIME_SKIP.choice, ...TIME_SKIP.accept, ...TIME_SKIP.decline]);
   h += '<h2>Death hints</h2>' + Object.entries(DEATH_HINTS).map(([k, ls]) => `<div class="beat">${k}</div>` + linesHTML(ls)).join('');
   h += '<h2>Radio cameo</h2>' + linesHTML(RADIO_CAMEO.lines) + '<h2>Shrine reveal</h2>' + linesHTML(SHRINE_REVEAL);
@@ -150,7 +158,8 @@ function world() {
   h += MEMORIES.map((m) => `<div class="beat">${m.order}. <b>${esc(m.titleTH)}</b> — ${esc(m.titleEN)} <span class="meta">${esc(m.how.en)}</span></div>` + m.text.map((t) => `<div class="line thought"><span class="th">${esc(t.th)}</span><span class="en">${esc(t.en)}</span></div>`).join('') + `<div class="hand meta">✎ ${esc(m.pencil.th)}</div>`).join('');
   h += '<h2>Death cards</h2><table>' + Object.entries(DEATH_CARDS).map(([k, c]) => `<tr><td class="meta">${k}</td><td>${esc(c.th)}</td><td class="meta">${esc(c.en)}</td></tr>`).join('') + '</table>';
   h += '</div><div><h2>Signs</h2><table>' + Object.entries(SIGNS).map(([k, s]) => `<tr><td class="meta">${k}</td><td>${esc((Array.isArray(s) ? s : [s]).map((x) => x.th).join(' / '))}</td></tr>`).join('') + '</table>';
-  h += '<h2>Posters</h2>' + POSTERS.map((p) => `<div class="line"><span class="th">${esc(p.th.join(' · '))}</span><span class="en">${esc(p.en.join(' · '))}</span></div>`).join('');
+  const strike = (txt, tok) => (tok ? esc(txt).replace(esc(tok), `<s>${esc(tok)}</s>`) : esc(txt));
+  h += '<h2>Posters</h2>' + POSTERS.map((p) => `<div class="line"><span class="th">${strike(p.th.join(' · '), p.strike?.th)}</span><span class="en">${strike(p.en.join(' · '), p.strike?.en)}</span></div>`).join('');
   h += `<h2>${esc(NOODLE_MENU.titleTH)}</h2><table>` + NOODLE_MENU.items.map((i) => `<tr><td>${esc(i.th)}</td><td class="meta">${esc(i.en)}</td><td>${i.prefix || ''}${i.price}</td></tr>`).join('') + `</table><div class="meta">${esc(NOODLE_MENU.footnote.th)}</div>`;
   h += `<h2>Garage calendar</h2><div>${esc(GARAGE_CALENDAR.titleTH)} · ${esc(GARAGE_CALENDAR.monthTH)} ⭕${GARAGE_CALENDAR.circledDay} <span class="hand">${esc(GARAGE_CALENDAR.noteTH)}</span></div>`;
   h += '<h2>Loading</h2>' + LOADING_LINES.map((l) => `<div class="meta">${esc(l.th)} — ${esc(l.en)}</div>`).join('');
@@ -177,6 +186,7 @@ function endingsView() {
 export default async function ({ engine, params }) {
   if (engine.scene.background?.isColor) engine.scene.background.set(0x070908);
   const report = validateNarrative({ data: DATA, layout: LAYOUT, keyBindings: KEY_BINDINGS });
+  DATA_REPORT = report;
   window.__narrative = report;
   for (const e of report.errors) console.error('[narrative] ' + e);
   for (const w of report.warnings) console.warn('[narrative] ' + w);

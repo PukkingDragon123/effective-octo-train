@@ -10,7 +10,7 @@ function heel(b, sr, rng, at, { f = 95, t60 = 0.09, gain = 1, slap = 0.5, slapF 
 
 function footstep(surface) {
   return {
-    vars: 6, ref: 1, reverb: 0.1, gain: 0.8,
+    vars: 6, ref: 1, reverb: 0.1,
     gen({ sr, rng, v }) {
       const out = alloc(sr, 0.5);
       const toe = 0.05 + rng() * 0.04;
@@ -252,7 +252,7 @@ export const FOLEY_SFX = {
   },
 
   bell_temple: {
-    vars: 2, ref: 6, rolloff: 0.6, reverb: 0.5, sr: 22050, gain: 1,
+    vars: 2, ref: 6, rolloff: 0.6, reverb: 0.5, sr: 22050,
     gen({ sr, rng, v }) {
       const f = v === 0 ? 112 : 96;
       const dur = 11;

@@ -24,7 +24,8 @@ function ranat(sr, f, vel, rng, { soft = false } = {}) {
   noiseBurst(out, sr, rng, 0, 0.012, { f: 1800 + f, q: 0.8, a: 0.0002, d: 0.006, gain: 0.12 + bright * 0.15 });
   // boat resonator body
   const body = new Reson(sr, 310, 0.12, 0.25);
-  for (let i = 0; i < Math.min(out.length, sr * 0.4); i++) out[i] += body.process(out[i]) * 0.15;
+  for (let i = 0; i < out.length; i++) out[i] += body.process(out[i]) * 0.15;
+  fadeOut(out, sr, 0.15);
   return out;
 }
 

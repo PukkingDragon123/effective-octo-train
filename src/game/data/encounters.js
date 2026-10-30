@@ -12,6 +12,7 @@
 //   cooldownSec, chance (0..1 per director check, ~every 6 s while eligible; ride-scheduled ones ignore chance),
 //   durationSec: [min,max], ruleId?: 'r1'..'r10' when it is a rule event,
 //   creature?: creatures/ factory name, respectSoftens?: r10 respect shortens it, amuletRepels?: holding the amulet ends it,
+//   needsReflection?: only for passengers whose clues.reflection is not 'none',
 //   lines?: [Line] spoken when it starts, whispers?: [Line] random ambient whispers while it runs,
 //   choice?: { prompt:Line, options:[{key,th,en}], timeout, defaultKey }, outcomes?: { key: { lines:[Line], result:'death:<type>'|'safe'|'ending:<id>' } },
 //   staging: designer notes for the director / creatures programmer,
@@ -48,7 +49,7 @@ export const ENCOUNTERS = {
     id: 'phiTaiHong', nameTH: 'ผีตายโหง', nameEN: 'Phi Tai Hong', kind: 'folklore',
     hours: [[22, 23], [24, 25]], where: 'nearLandmark:accidentCurve', gazeMode: 'any',
     cooldownSec: 600, chance: 0.6, durationSec: [6, 10], creature: 'createPhiTaiHong', respectSoftens: true,
-    whispers: [W('เจ็บ... เจ็บ...', 'It hurts... it hurts...'), W('หมวกฉันอยู่ไหน...', "Where's my helmet...")],
+    whispers: [W('เจ็บ... เจ็บ...', 'It hurts... it hurts...'), W('ใครก็ได้... เรียกรถพยาบาลที', 'Someone... call an ambulance...')],
     staging: 'Broken, wet figure crouched by the wreaths and the old crashed motorbike, twitching. Stands up as the headlights pass.',
   },
 
@@ -85,9 +86,9 @@ export const ENCOUNTERS = {
   },
   twistedNeckReflection: {
     id: 'twistedNeckReflection', nameTH: 'คอบิดในกระจก', nameEN: 'Twisted Neck in the Mirror', kind: 'scare',
-    hours: [21, 30], where: 'ride:anyGhost', gazeMode: 'mirrorOnly',
+    hours: [21, 30], where: 'ride:boyM', gazeMode: 'mirrorOnly', needsReflection: true,
     cooldownSec: 900, chance: 0.25, durationSec: [2, 4],
-    staging: 'humanoid.createReflectionDouble({ neckTwist: 1.6 }): direct view normal, the reflection\'s head bent 90° and staring. Snaps back when the player looks away from the mirror.',
+    staging: 'Only a passenger who HAS a reflection can do this (boy M exists only in the mirror). humanoid.createReflectionDouble({ neckTwist: 1.6 }): his head bent 90°, staring. Plays as the rule-6 escalation when the radio is left on (radioIgnored), or rarely when the player stares into the mirror. Snaps back when the player looks away.',
   },
 
   // ---------------------------------------------------------------- surreal 22–02
@@ -157,6 +158,7 @@ export const ENCOUNTERS = {
     ],
     choice: {
       prompt: T('มีเสียงเรียกจากข้างนอก...', 'A voice outside is calling...'),
+      id: 'nameCall',
       options: [{ key: 'answer', th: 'ครับ?', en: 'Yes?' }, { key: 'silent', th: '(เงียบ)', en: '(stay silent)' }],
       timeout: 6, defaultKey: 'silent',
     },
@@ -193,7 +195,7 @@ export const ENCOUNTERS = {
   },
   reflectionStays: {
     id: 'reflectionStays', nameTH: 'เงาในกระจกที่ไม่ยอมลง', nameEN: 'The Reflection That Stays', kind: 'scare',
-    hours: [21, 30], where: 'ride:boyM', gazeMode: 'mirrorOnly',
+    hours: [21, 30], where: 'ride:boyM', gazeMode: 'mirrorOnly', needsReflection: true,
     cooldownSec: 0, chance: 1, durationSec: [6, 10],
     lines: [{ who: 'boyM', th: 'พี่ครับ... ผมยังอยู่นี่', en: "Mister... I'm still here.", tone: 'ghost' }],
     staging: 'Wrong-fork aftermath for ride 4: the boy is gone, but his reflection remains seated and slowly turns to look at you; then the road folds (dragBack).',

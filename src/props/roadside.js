@@ -7,7 +7,7 @@ import { lightSpec } from './lib/lights.js';
 import { paintedMaterial } from '../render/index.js';
 import {
   G, PAL, bottle, can, cup, bowl, plate, plasticChair, plasticStool, foldTable, candle, incensePot, garland, flowerString, fruitPlate, zebras,
-  dancers, wreath, shoes, helmet, hangingBulb, lantern, crate, trashBag, coil,
+  dancers, wreath, shoes, helmet, hangingBulb, lantern, crate, trashBag, coil, mossCap,
 } from './lib/small.js';
 import { brokenScooter } from './dressing.js';
 import { chineseRoof, thaiRoofTier } from './shrines.js';
@@ -189,10 +189,10 @@ export function createBridge(opts = {}) {
   const k = new Kit(seed, { grime: 0.0, moss: 0.65, mossLow: 0.0, streak: 0.7, streakColor: 0x2a2a1e, vary: 0.22 });
   const out = { object: group, colliders: [], railAnchors: [], deckY: 0 };
   // deck slab + edge beams
-  k.add(mat('concrete'), bbox(W + 0.6, 0.55, L, 0.04, [0.5, 0.3, 0.6]), { p: [0, -0.6, 0], color: 0x9a968a, w: { streak: 0.9, moss: 0.3, cavity: 0.4 } });
+  k.add(mat('concrete'), bbox(W + 0.6, 0.55, L, 0.04, [0.5, 0.3, 0.6]), { p: [0, -0.6, 0], color: 0x7a766a, w: { streak: 0.9, moss: 0.3, cavity: 0.4 } });
   // kerbs / walkways
   for (const s of [-1, 1]) {
-    k.add(mat('concrete'), bbox(0.6, 0.22, L, 0.03, [0.3, 0.3, 0.5]), { p: [s * (W / 2 - 0.0), -0.05, 0], color: 0xa8a49a, jitter: 0.004, w: { moss: 0.7, grime: 0, streak: 0.4 }, colorFn: (p, n, c, lp) => { if (n.y < 0.5 && Math.abs(lp.z % 4) < 0.04) c.multiplyScalar(0.6); } });
+    k.add(mat('concrete'), bbox(0.6, 0.22, L, 0.03, [0.3, 0.3, 0.5]), { p: [s * (W / 2 - 0.0), -0.05, 0], color: 0x86827a, jitter: 0.004, w: { moss: 0.7, grime: 0, streak: 0.4 }, colorFn: (p, n, c, lp) => { if (n.y < 0.5 && Math.abs(lp.z % 4) < 0.04) c.multiplyScalar(0.6); } });
   }
   // railings: posts every 2 m + two rails, some broken
   const nP = Math.floor(L / 2);
@@ -207,8 +207,8 @@ export function createBridge(opts = {}) {
       }
       const end = i === 0 || i === nP;
       k.add(mat('concrete'), G(end ? 'bpostE' : 'bpost', () => bbox(end ? 0.32 : 0.2, end ? 1.2 : 0.95, end ? 0.32 : 0.2, 0.025, 0.2)), {
-        p: [x, 0.17, z], r: [(rng() - 0.5) * 0.04, 0, (rng() - 0.5) * 0.04], color: 0xb0aca0,
-        w: { ground: 0.17, grime: 0.5, grimeH: 0.4, mossLow: 0.7, mossH: 0.5, moss: 0.8, streak: 0.4 },
+        p: [x, 0.17, z], r: [(rng() - 0.5) * 0.04, 0, (rng() - 0.5) * 0.04], color: 0x7a766c, jitter: 0.006, jitterFreq: 6,
+        w: { ground: 0.17, grime: 0.6, grimeH: 0.5, mossLow: 0.9, mossH: 0.6, moss: 0.95, streak: 0.7 },
         colorFn: end ? (p, n, c, lp) => { if (Math.floor((lp.y + lp.x * 0.5) / 0.2) % 2 === 0) c.multiplyScalar(0.18); } : null,
       });
     }
@@ -221,12 +221,15 @@ export function createBridge(opts = {}) {
           k.add(mat('concrete'), G('railhalf', () => bbox(0.12, 0.12, (z1 - z0) * 0.45, 0.02, 0.2)), { p: [x, ry - 0.06 + 0.17, z0 + (z1 - z0) * 0.25], r: [0.4, 0, 0], color: 0xa8a498, jitter: 0.01, jitterFreq: 12 });
           continue;
         }
-        k.add(mat('concrete'), G('railseg:' + (z1 - z0).toFixed(2), () => bbox(0.13, 0.12, z1 - z0, 0.02, [0.2, 0.2, 0.3])), { p: [x, ry - 0.06 + 0.17, (z0 + z1) / 2], color: 0xb4b0a4, w: { moss: 0.9, grime: 0, streak: 0.5 } });
+        k.add(mat('concrete'), G('railseg:' + (z1 - z0).toFixed(2), () => bbox(0.13, 0.12, z1 - z0, 0.02, [0.2, 0.2, 0.3])), { p: [x, ry - 0.06 + 0.17, (z0 + z1) / 2], color: 0x767268, jitter: 0.005, jitterFreq: 5, w: { moss: 1.0, grime: 0, streak: 0.8, cavity: 0.4 } });
+        if (ry > 0.9 && rng() < 0.55) mossCap(k, 0.15, (z1 - z0) * (0.4 + rng() * 0.5), { p: [x, ry + 0.17 + 0.06, (z0 + z1) / 2 + (rng() - 0.5) * 0.4], seed: i * 7 + s });
       }
     }
     out.colliders.push({ x, z: 0, hx: 0.15, hz: L / 2, yaw: 0 });
     out.railAnchors.push(anchor(group, 'rail' + s, x, 1.1, 0));
   }
+  // moss cushions on the kerbs
+  for (const s of [-1, 1]) for (let i = 0; i < 7; i++) mossCap(k, 0.45, 0.6 + rng() * 2.5, { p: [s * W / 2, 0.17, -L / 2 + rng() * L], seed: i * 3 + s * 11 });
   // name plate on the first end post
   k.add(signMat('shop_sign', { th: 'สะพานห้วยเงียบ', en: 'Huai Ngiap Bridge' }), G('bridgeplate', () => quad(0.28, 0.5)), { p: [-(W / 2 + 0.12), 0.75, L / 2 + 0.165], color: 0xc8c0a8, uv: 'keep', w: { vary: 0.3 } });
   out.nameAnchor = anchor(group, 'name', -(W / 2 + 0.12), 0.75, L / 2 + 0.2);
@@ -327,7 +330,7 @@ export function createGuardrail(points, opts = {}) {
   flare(0, -1);
   const prof = WBEAM.map(([x, y]) => [x * fs, y]);
   k.add(mat('galv'), sweep(path, prof, {}), {
-    color: 0xb8bab4, w: { grime: 0.2, grimeH: 0.9, streak: 0.6, vary: 0.25 },
+    color: 0x8a8c86, w: { grime: 0.2, grimeH: 0.9, streak: 0.6, vary: 0.3 },
     colorFn: (p, nn, c) => {
       const sc = noise.noise3D(p.x * 1.5, p.y * 4, p.z * 1.5);
       if (sc > 0.35) c.lerp(_rustC, Math.min(1, (sc - 0.35) * 2.5) * 0.85); // rust patches
@@ -351,14 +354,14 @@ export function createGuardrail(points, opts = {}) {
       continue;
     }
     k.at([b.x + off.x, b.y, b.z + off.z], [bent ? -0.35 : (rng() - 0.5) * 0.04, yaw, (rng() - 0.5) * 0.05, 'YXZ'], null, () => {
-      k.add(mat('galv'), G('gpost', () => bbox(0.1, H + 0.12, 0.15, 0.008, 0.2)), { color: 0x9a9c96, w: { grime: 0.6, grimeH: 0.5, streak: 0.8 } });
+      k.add(mat('galv'), G('gpost', () => bbox(0.1, H + 0.12, 0.15, 0.008, 0.2)), { color: 0x7a7c76, w: { grime: 0.7, grimeH: 0.5, streak: 0.8, mossLow: 0.7, mossH: 0.25 } });
       k.add(mat('wood'), G('gspacer', () => bbox(0.12, 0.32, 0.12, 0.01, 0.1)), { p: [0, H - 0.16, 0.12], color: 0x5a4a3a, w: { moss: 0.5 } });
       // delineator lamp on top (reference 4): post cap + small housing + glowing amber dome
       const lampHere = opts.delineators !== false && i % (opts.lampEvery ?? 2) === 0;
       if (lampHere) {
         k.add(mat('plastic'), G('dlhouse', () => cyl(0.045, 0.05, 0.08, 10, 0.01)), { p: [0, H + 0.12, 0.02], color: 0x2a2a2a, w: { dust: 0.4 } });
         k.add(mat('dark'), G('dlsolar', () => bbox(0.07, 0.006, 0.07, 0.002, 0.05)), { p: [0, H + 0.2, 0.02], r: [0.3, 0, 0], color: 0x1a2030, w: false });
-        k.add(glowMat('amber'), G('dldome', () => new THREE.SphereGeometry(0.042, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2)), { p: [0, H + 0.2, 0.02], color: 0xffffff, w: false });
+        k.add(glowMat('amber'), G('dldome', () => new THREE.SphereGeometry(0.055, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6)), { p: [0, H + 0.2, 0.02], color: 0xffffff, w: false });
       } else {
         // reflector on the beam (amber)
         k.add(mat('plastic'), G('refl', () => bbox(0.07, 0.1, 0.012, 0.004, 0.05)), { p: [0, H - 0.02, 0.21], color: 0xe0901a, w: false });

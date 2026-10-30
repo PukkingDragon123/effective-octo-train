@@ -95,7 +95,7 @@ export function buildRoadMeshes(road, layout) {
         if (r < rows - 1) {
           for (let c = 0; c < nc - 1; c++) {
             const a = r * nc + c, b = a + 1, d = a + nc, e = d + 1;
-            idx.push(a, d, b, b, d, e);
+            idx.push(a, b, d, b, e, d);
           }
         }
       }

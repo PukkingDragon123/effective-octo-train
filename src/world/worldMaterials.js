@@ -207,7 +207,7 @@ const ROAD_EMISSIVE = /* glsl */ `
   // wet sheen: puddles mirror the fog / sky glow at grazing angles
   vec3 vdir = normalize(vViewPosition);
   float fres = pow(1.0 - clamp(dot(normal, vdir), 0.0, 1.0), 5.0);
-  totalEmissiveRadiance += wFogColor * fres * (wRoadPuddle * 0.9 + 0.12 * clamp(wWetness, 0.0, 1.0));
+  totalEmissiveRadiance += wFogColor * fres * (wRoadPuddle * 0.55 + 0.08 * clamp(wWetness, 0.0, 1.0));
 }
 `;
 

@@ -51,6 +51,8 @@ function canvas(w, h) {
   c.height = h;
   return c;
 }
+/** 2D context kept in CPU memory: we read pixels back and draw thousands of small strokes. */
+const ctx2d = (c) => c.getContext('2d', { willReadFrequently: true });
 
 // ------------------------------------------------------------------ shapes ----
 function paperPath(rng) {
@@ -270,10 +272,13 @@ function truncate(g, text, font, maxW) {
 // ------------------------------------------------------------ base (cached) ----
 const _cache = new Map();
 
+const _noiseSrc = new Map();
 function noisePattern(g, density, seed) {
+  const key = `${density}:${seed}`;
+  if (_noiseSrc.has(key)) return g.createPattern(_noiseSrc.get(key), 'repeat');
   const s = 256;
   const c = canvas(s, s);
-  const x = c.getContext('2d');
+  const x = ctx2d(c);
   const img = x.createImageData(s, s);
   const rng = makeRng(seed);
   for (let i = 0; i < img.data.length; i += 4) {
@@ -282,6 +287,7 @@ function noisePattern(g, density, seed) {
     img.data[i + 3] = v < density ? 255 * (0.4 + rng() * 0.6) : 0;
   }
   x.putImageData(img, 0, 0);
+  _noiseSrc.set(key, c);
   return g.createPattern(c, 'repeat');
 }
 
@@ -289,7 +295,7 @@ function buildBase(w, h) {
   const key = `${w}x${h}`;
   if (_cache.has(key)) return _cache.get(key);
   const c = canvas(w, h);
-  const g = c.getContext('2d');
+  const g = ctx2d(c);
   const sx = w / W;
   const sy = h / H;
   g.setTransform(sx, 0, 0, sy, 0, 0);
@@ -310,7 +316,7 @@ function buildBase(w, h) {
   {
     const mw = 96, mh = 132;
     const m = canvas(mw, mh);
-    const mg = m.getContext('2d');
+    const mg = ctx2d(m);
     const img = mg.createImageData(mw, mh);
     for (let y = 0; y < mh; y++) {
       for (let x = 0; x < mw; x++) {
@@ -519,10 +525,11 @@ function cigaretteBurn(g, rng, cx, cy) {
   // charred ring
   const hole = blobPath(rng, cx, cy, 9.5, 0.4, 7.7);
   g.save();
-  g.lineWidth = 5;
-  g.strokeStyle = 'rgba(30,18,8,0.75)';
-  g.filter = 'blur(1.4px)';
-  g.stroke(hole);
+  g.strokeStyle = 'rgba(30,18,8,0.3)';
+  for (const lw of [9, 6, 3.5]) {
+    g.lineWidth = lw;
+    g.stroke(hole);
+  }
   g.restore();
   // the hole itself
   g.save();
@@ -531,11 +538,15 @@ function cigaretteBurn(g, rng, cx, cy) {
   g.restore();
   // ash smear
   g.save();
-  g.globalAlpha = 0.18;
-  g.fillStyle = '#4b4846';
-  g.filter = 'blur(6px)';
+  g.translate(cx + 38, cy - 12);
+  g.rotate(-0.3);
+  g.scale(1, 0.3);
+  const ash = g.createRadialGradient(0, 0, 0, 0, 0, 38);
+  ash.addColorStop(0, 'rgba(75,72,70,0.2)');
+  ash.addColorStop(1, 'rgba(75,72,70,0)');
+  g.fillStyle = ash;
   g.beginPath();
-  g.ellipse(cx + 38, cy - 12, 34, 9, -0.3, 0, Math.PI * 2);
+  g.arc(0, 0, 38, 0, Math.PI * 2);
   g.fill();
   g.restore();
 }
@@ -642,14 +653,13 @@ function folds(g, rng, shape) {
 
 function edgeWear(g, shape) {
   g.save();
-  g.lineWidth = 26;
-  g.strokeStyle = 'rgba(130,95,45,0.20)';
-  g.filter = 'blur(10px)';
-  g.stroke(shape.path);
-  g.lineWidth = 3;
-  g.strokeStyle = 'rgba(110,80,40,0.35)';
-  g.filter = 'blur(1px)';
-  g.stroke(shape.path);
+  g.lineJoin = 'round';
+  // soft yellow-brown wear toward the edges (clipped to the page, so only the inner half shows)
+  for (const [lw, a] of [[64, 0.035], [44, 0.045], [28, 0.06], [14, 0.07], [5, 0.12], [2, 0.22]]) {
+    g.lineWidth = lw;
+    g.strokeStyle = `rgba(125,90,42,${a})`;
+    g.stroke(shape.path);
+  }
   g.restore();
 }
 
@@ -754,10 +764,10 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
 
   // ink & pencil layers (drawn separately so they can be textured, then multiplied)
   const inkC = canvas(w, h);
-  const ink = inkC.getContext('2d');
+  const ink = ctx2d(inkC);
   ink.setTransform(sx, 0, 0, sy, 0, 0);
   const penC = canvas(w, h);
-  const pen = penC.getContext('2d');
+  const pen = ctx2d(penC);
   pen.setTransform(sx, 0, 0, sy, 0, 0);
   const rng = makeRng(seed * 7919 + 13);
 
@@ -1025,12 +1035,11 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   ctx.drawImage(penC, 0, 0);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  // a faint ink halo (ballpoint ink slightly feathers into old paper)
-  ctx.globalAlpha = 0.18;
-  ctx.filter = 'blur(1.2px)';
+  // a faint ink halo (ballpoint ink slightly feathers into old paper): offset copies
+  ctx.globalAlpha = 0.06;
   ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(inkC, 0, 0);
-  ctx.filter = 'none';
+  const hs = Math.max(0.6, w / W);
+  for (const [dx, dy] of [[hs, 0], [-hs, 0], [0, hs], [0, -hs]]) ctx.drawImage(inkC, dx, dy);
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
   ctx.restore();
@@ -1047,11 +1056,10 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
     ctx.save();
     ctx.clip(p);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.filter = 'blur(1.8px)';
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.55;
-    ctx.drawImage(inkC, 0, 0);
-    ctx.filter = 'none';
+    ctx.globalAlpha = 0.16;
+    const bs = 1.6 * Math.max(0.6, w / W);
+    for (const [dx, dy] of [[bs, 0], [-bs, 0], [0, bs], [0, -bs], [bs, bs], [-bs, -bs]]) ctx.drawImage(inkC, dx, dy);
     ctx.globalAlpha = 1;
     ctx.restore();
     ctx.globalCompositeOperation = 'source-over';

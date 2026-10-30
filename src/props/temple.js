@@ -1,9 +1,9 @@
 // Weathered Buddha statues and the abandoned forest temple (วัดป่าร้าง).
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, sweep, smoothPath, blob, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
-import { G, PAL, candle, incensePot, garland, flowerString, bottle } from './lib/small.js';
+import { G, PAL, candle, incensePot, garland, flowerString, bottle, mossCap } from './lib/small.js';
 import { buddhaSeatedGeo, buddhaStandingGeo, nagaGeo } from './lib/figures.js';
 import { thaiRoofTier } from './shrines.js';
 
@@ -39,7 +39,7 @@ function lotusBase(k, r, h, o = {}) {
 /** Saffron cloth sash draped over the left shoulder of a seated Buddha (unit space). */
 function saffronSash(k) {
   const pts = smoothPath([V(-0.2, 0.52, -0.02), V(-0.05, 0.46, 0.12), V(0.12, 0.33, 0.13), V(0.2, 0.22, 0.08), V(0.17, 0.12, -0.05), V(0.0, 0.2, -0.14), V(-0.18, 0.45, -0.08), V(-0.2, 0.52, -0.02)], 30);
-  k.add(mat('cloth_static'), tube(pts, 0.022, 5), { color: 0xa8521a, w: { grime: 0.45, grimeH: 0.4, vary: 0.3 }, jitter: 0.004, jitterFreq: 40 });
+  k.add(mat('cloth_static'), sweep(pts, [[-0.004, -0.04], [0.004, -0.04], [0.006, 0], [0.004, 0.04], [-0.004, 0.04]], { closed: true }), { color: 0x9a4a16, w: { grime: 0.5, grimeH: 0.4, vary: 0.35 } });
 }
 
 /**
@@ -60,6 +60,7 @@ export function createBuddhaStatue(opts = {}) {
   k.push(null, null, S);
   // square plinth + lotus base
   k.add(mat('stone'), bbox(1.25, 0.32, 1.0, 0.03, 0.3), { color: 0x8a8476, jitter: 0.01, jitterFreq: 4, w: { mossLow: 1, mossH: 0.35 } });
+  if (mossA > 0.3) for (const [x, z, w, d] of [[-0.45, 0.3, 0.35, 0.4], [0.5, -0.3, 0.25, 0.35]]) mossCap(k, w, d, { p: [x, 0.32, z], seed: seed + x * 10 });
   if (rng() < 0.7 || opts.broken) k.add(mat('stone'), G('chip', () => bevelBox(0.25, 0.14, 0.18, 0.03, 0.1)), { p: [0.66, 0.06, 0.48], r: [0.3, 0.5, 0.2], color: 0x8a8476, jitter: 0.02, jitterFreq: 10 }); // broken-off corner
   let top;
   if (pose === 'standing') {
@@ -106,7 +107,9 @@ function ruinedWall(k, len, h, th, rng, o = {}) {
   for (let i = 0; i < n; i++) {
     const x = -len / 2 + (i + 0.5) * (len / n);
     const hh = h * (0.45 + 0.55 * Math.abs(noise.noise2D(x * 0.5 + (o.seed ?? 0), 3.1))) + (rng() - 0.5) * 0.15;
-    k.add(mat('brick'), G(`wseg:${(len / n).toFixed(2)}:${hh.toFixed(1)}:${th}`, () => bbox(len / n + 0.01, Math.max(0.2, Math.round(hh * 10) / 10), th, 0.02, [0.3, 0.25, 0.3])), {
+    const hq = Math.max(0.2, Math.round(hh * 10) / 10);
+    if (rng() < 0.55) mossCap(k, len / n + 0.02, th + 0.02, { p: [x, hq, 0], seed: i + (o.seed ?? 0) * 13 });
+    k.add(mat('brick'), G(`wseg:${(len / n).toFixed(2)}:${hh.toFixed(1)}:${th}`, () => bbox(len / n + 0.01, Math.max(0.2, Math.round(hh * 10) / 10), th, 0.02, [0.45, 0.45, 0.5])), {
       p: [x, 0, (rng() - 0.5) * 0.02], color: o.color ?? 0x8a5a40, jitter: 0.015, jitterFreq: 6,
       w: { mossLow: 0.9, mossH: 0.8, moss: 0.9, streak: 0.6, grime: 0.5 },
       colorFn: (p, n2, c, lp) => { if (Math.abs(n2.y) < 0.5 && (Math.abs(Math.sin(lp.y * Math.PI / 0.09)) < 0.12 || Math.abs(Math.sin((lp.x + Math.floor(lp.y / 0.09) * 0.11) * Math.PI / 0.22)) < 0.08)) c.multiplyScalar(0.6); },
@@ -211,7 +214,7 @@ export function createForestTemple(opts = {}) {
   k.add(mat('stone'), bbox(3.4, 0.9, 2.6, 0.05, 0.4), { p: [0, PY, bz], color: 0x857c6c, jitter: 0.015, jitterFreq: 3, w: { ground: PY, mossLow: 1, mossH: 0.6 } });
   k.push([0, PY + 0.9, bz]);
   lotusBase(k, 1.05, 0.55, { color: 0x9a9080 });
-  k.add(mat('stone'), buddhaSeatedGeo(false, 1.4), { p: [0, 0.52, -0.05], s: bs, color: 0xb0a898, w: { ground: -PY - 0.9, moss: 0.85, streak: 0.9 } });
+  k.add(mat('stone'), buddhaSeatedGeo(false, 0.85), { p: [0, 0.52, -0.05], s: bs, color: 0xb0a898, w: { ground: -PY - 0.9, moss: 0.85, streak: 0.9 } });
   k.at([0, 0.52, -0.05], null, bs, () => saffronSash(k));
   k.pop();
   out.buddhaAnchor = anchor(group, 'buddha', 0, PY + 0.9, bz);

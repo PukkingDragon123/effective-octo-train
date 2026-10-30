@@ -276,21 +276,29 @@ export const CAR_SFX = {
   window_crank: {
     vars: 2, cabin: true, ref: 1, reverb: 0.05,
     gen({ sr, rng }) {
-      const dur = 1.3 + rng() * 0.3;
-      const out = alloc(sr, dur + 0.2);
-      // regulator gears: fast irregular ticks
-      L(out, sr, 0, dur, 0.5, (b) => {
-        let t = 0;
-        while (t < dur - 0.02) {
-          const turn = (t * 1.4) % 1;
-          metalTick(b, sr, rng, t, { f: 1800 + rng() * 600, t60: 0.012, gain: 0.3 + 0.4 * Math.sin(Math.PI * turn) });
-          t += 0.028 + rng() * 0.012;
-        }
+      // ~2.5 turns of a stiff old regulator handle: per-turn creak + gear ticks, glass rubbing in its channel
+      const turn = 0.48 + rng() * 0.1;
+      const turns = 2 + Math.floor(rng() * 2);
+      const dur = turns * turn + 0.15;
+      const out = alloc(sr, dur + 0.3);
+      for (let k = 0; k < turns; k++) {
+        const t0 = k * turn + rng() * 0.02;
+        L(out, sr, t0, turn, 0.55, (b) =>
+          creak(b, sr, rng, 0, turn * 0.8, {
+            rate0: 45 + rng() * 25, rate1: 70 + rng() * 30, jitter: 0.3,
+            modes: [{ f: 620 + rng() * 120, t60: 0.05 }, { f: 1450 + rng() * 200, t60: 0.03, a: 0.5 }, { f: 2900, t60: 0.012, a: 0.25 }],
+            env: (u) => Math.pow(Math.sin(Math.PI * u), 1.5) * (0.6 + 0.4 * Math.sin(Math.PI * u * 2)),
+          }),
+        );
+        L(out, sr, t0, turn, 0.16, (b) => {
+          for (let t = 0; t < turn * 0.85; t += 0.06 + rng() * 0.02) metalTick(b, sr, rng, t, { f: 2100 + rng() * 500, t60: 0.01, gain: 0.4 + 0.6 * Math.sin((Math.PI * t) / turn) });
+        });
+      }
+      L(out, sr, 0.04, dur, 0.22, (b) => scrape(b, sr, rng, 0, dur - 0.08, { f0: 480, f1: 420, q: 2.5, grit: 0.1, env: (u) => Math.min(1, u * 8, (1 - u) * 6) * (0.6 + 0.4 * Math.abs(Math.sin((u * dur * Math.PI) / turn))) }));
+      L(out, sr, dur - 0.06, 0.3, 0.5, (b) => {
+        excite(b, sr, 0, burst(sr, rng, 0.006, { lp: 1800 }), glassModes(0.9, 0.7));
+        thud(b, sr, rng, 0, { f: 130, fEnd: 100, t60: 0.08, noise: 0.5, click: 0.2 });
       });
-      // glass sliding in the rubber channel
-      L(out, sr, 0.03, dur, 0.55, (b) => scrape(b, sr, rng, 0, dur - 0.05, { f0: 650, f1: 520, q: 1.8, grit: 0.2, env: (u) => Math.min(1, u * 8, (1 - u) * 6) * (0.75 + 0.25 * Math.sin(u * TAU * 4)) }));
-      L(out, sr, 0.05, dur, 0.2, (b) => creak(b, sr, rng, 0, dur - 0.1, { rate0: 30, rate1: 45, modes: [{ f: 950, t60: 0.04 }, { f: 2100, t60: 0.02, a: 0.4 }] }));
-      L(out, sr, dur - 0.04, 0.25, 0.5, (b) => excite(b, sr, 0, burst(sr, rng, 0.006, { lp: 2000 }), glassModes(0.9, 0.7)));
       return out;
     },
   },
@@ -340,7 +348,7 @@ export const CAR_SFX = {
   },
 
   meter_beep: {
-    vars: 1, cabin: true, ref: 1, reverb: 0.04, gain: 0.55,
+    vars: 1, cabin: true, ref: 1, reverb: 0.04,
     gen({ sr, rng }) {
       // old taxi meter piezo: two short chirps
       const out = alloc(sr, 0.4);
@@ -510,7 +518,8 @@ export const CAR_SFX = {
         addModes(b, sr, 0, [{ f: 310, fEnd: 250, t60: 0.25, a: 1 }, { f: 520, fEnd: 470, t60: 0.18, a: 0.6 }, { f: 790, t60: 0.12, a: 0.4 }]);
         excite(b, sr, 0, burst(sr, rng, 0.006, { lp: 2500 }), panelModes(0.75, 1.0, rng), 0.5);
       });
-      L(out, sr, 0.25, 1.2, 0.25, (b) => creak(b, sr, rng, 0, 0.9 + rng() * 0.3, { rate0: 18, rate1: 30, modes: [{ f: 380, t60: 0.08 }, { f: 820, t60: 0.05, a: 0.5 }, { f: 1500, t60: 0.02, a: 0.2 }], jitter: 0.4 }));
+      // the roof skin groans under the weight (stick-slip at the seams, falling pitch)
+      L(out, sr, 0.22, 1.3, 0.22, (b) => creak(b, sr, rng, 0, 0.8 + rng() * 0.4, { rate0: 140 + rng() * 60, rate1: 60 + rng() * 20, jitter: 0.22, wanderRate: 3, modes: [{ f: 380, t60: 0.06 }, { f: 820, t60: 0.04, a: 0.6 }, { f: 1500, t60: 0.02, a: 0.3 }], env: (u) => Math.pow(Math.sin(Math.PI * Math.pow(u, 0.6)), 1.2) }));
       return out;
     },
   },

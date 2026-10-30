@@ -28,8 +28,8 @@ export const RIDE_MONK = {
   ],
   encounters: [
     { id: 'krahang', at: 0.28 },
-    { id: 'strayDogs', at: 0.52 },
-    { id: 'monkBlessing', at: 0.76 },
+    { id: 'strayDogs', at: 0.56 },
+    { id: 'monkBlessing', at: 0.68 },
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: [],
@@ -49,7 +49,7 @@ export const RIDE_MONK = {
     beats: [
       {
         id: 'radioRequest',
-        trigger: { type: 'progress', at: 0.08 },
+        trigger: { type: 'progress', at: 0.16 },
         lines: [
           P('โยม เปิดวิทยุให้หน่อยได้ไหม', 'Layman, could you turn on the radio?'),
           P('ตีสองมีเทศน์ทางคลื่นสี่ อาตมาฟังทุกคืน', "There's a dhamma talk at two, on station four. I listen every night."),

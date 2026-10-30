@@ -213,8 +213,8 @@ class MenuPlayer extends Player {
     const t = this.nextT;
     // continuous drone bed, re-triggered with overlap
     if (t >= this.droneAt) {
-      this.note('drone', this.base / 4, t, { vel: 0.45, gain: 0.32, extra: { dur: 12 }, env: { a: 4, r: 4, dur: 16 }, loop: true, send: 0.3 });
-      this.note('drone', (this.base / 4) * T7(4), t + 2, { vel: 0.45, gain: 0.16, extra: { dur: 12 }, env: { a: 5, r: 5, dur: 15 }, loop: true, send: 0.3, pan: 0.3 });
+      this.note('drone', this.base / 4, t, { vel: 0.45, gain: 0.17, extra: { dur: 12 }, env: { a: 4, r: 4, dur: 16 }, loop: true, send: 0.3 });
+      this.note('drone', (this.base / 4) * T7(4), t + 2, { vel: 0.45, gain: 0.09, extra: { dur: 12 }, env: { a: 5, r: 5, dur: 15 }, loop: true, send: 0.3, pan: 0.3 });
       this.droneAt = t + 12;
     }
     if (t >= this.nextBell) {
@@ -367,7 +367,7 @@ class CalmPlayer extends Player {
     this.motif = genMotif(5, 5);
     this.phrase = [];
     this.count = 0;
-    this.level = 0.85;
+    this.level = 1.15;
   }
   _pad(k) {
     return { freqs: this.chords[k % 4].map((s) => (this.root / 2) * ET(s)), dur: 8.5, attack: 1.8, release: 2.8, cut: 1400 };
@@ -417,7 +417,7 @@ class NostalgicPlayer extends Player {
     this.barT = this.startT + 0.3;
     this.phrase = [];
     this.motif = this._motif();
-    this.level = 0.8;
+    this.level = 1.1;
   }
   _motif() {
     return genMotif(6, 6).map((n) => ({ ...n, roll: false }));
@@ -475,8 +475,8 @@ class DawnPlayer extends Player {
     this.nextChord = this.startT + 0.2;
     this.mel = FATHER_SONG.melody;
     this.mi = 0;
-    this.melT = this.startT + 30;
-    this.level = 0.95;
+    this.melT = this.startT + 24;
+    this.level = 1.5;
   }
   _pad(k) {
     return { freqs: this.prog[k % 8].map((s) => this.root * ET(s)), dur: this.beat * 8 + 3, attack: 2.5, release: 3, cut: 1600 };
@@ -538,7 +538,7 @@ class EndingPlayer extends Player {
     this.bar = 0;
     this.barT = this.startT + 2;
     this.pass = 0;
-    this.level = 0.9;
+    this.level = 1.25;
   }
   _pad(c) {
     return { freqs: c.map((s) => this.root * ET(s)), dur: this.beat * 4 + 2.5, attack: 1.5, release: 2.5, cut: 1400 };

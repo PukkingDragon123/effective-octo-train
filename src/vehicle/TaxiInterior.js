@@ -9,6 +9,7 @@ import { paintedMaterial } from '../render/index.js';
 import { tex, signTex } from '../textures/index.js';
 import { MergeBuilder, GridSurface, xform, roundedBox, lathe, rod, tube, extrude, roundRectPts, roundRectPlane, pillow, deform, boxUV, planarUV } from './geom.js';
 import * as VT from './VehicleTextures.js';
+import { sharedMaterials } from './Materials.js';
 import { DIM, belt } from './TaxiBody.js';
 import { makeRng, lerp, clamp, noise, smoothstep } from '../core/math.js';
 import { FONTS } from '../ui/fonts.js';
@@ -474,6 +475,9 @@ export function buildTaxiInterior(ext) {
       mb.add('plasticBeige', tube([[sx * 0.66, 1.26, z - 0.1], [sx * 0.62, 1.24, z - 0.06], [sx * 0.615, 1.235, z + 0.06], [sx * 0.66, 1.26, z + 0.1]], 0.009, 12, 6));
     }
   }
+
+  // ---- sagging headliner over the rear seat (glue gave up years ago; pinned back with drawing pins)
+  buildHeadlinerSag(group, ext, m);
 
   // ---- steering column, wheel, stalks, ignition ---------------------------------------------------
   const wc = INT.wheelCenter;
@@ -1006,6 +1010,76 @@ export function buildTaxiInterior(ext) {
   parts.beads = beads;
 
   return { group, parts, materials: { ...m, ...im } };
+}
+
+/** Height of the headliner surface at (x, z), from raycasts against the shell's headliner mesh. */
+function headlinerHeightFn(ext) {
+  const hl = ext.shell.getObjectByName('headliner');
+  const fallback = (x, z) => 1.36 - 0.06 * (x / 0.72) ** 2 - 0.03 * smoothstep(0.75, 1.1, z);
+  if (!hl) return fallback;
+  hl.updateWorldMatrix(true, false);
+  const rc = new THREE.Raycaster();
+  rc.layers.enableAll();
+  rc.far = 0.9;
+  const o = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const side = hl.material.side;
+  hl.material.side = THREE.DoubleSide;
+  // coarse grid of probes, bilinear in between
+  const X0 = -0.6, X1 = 0.6, Z0 = 0.3, Z1 = 1.1, NX = 7, NZ = 5;
+  const grid = [];
+  for (let j = 0; j < NZ; j++) {
+    for (let i = 0; i < NX; i++) {
+      const x = lerp(X0, X1, i / (NX - 1)), z = lerp(Z0, Z1, j / (NZ - 1));
+      o.set(x, 0.75, z);
+      rc.set(o, up);
+      const hit = rc.intersectObject(hl, false).find((h) => h.point.y > 1.15);
+      grid.push(hit ? hit.point.y : fallback(x, z));
+    }
+  }
+  hl.material.side = side;
+  return (x, z) => {
+    const fx = clamp((x - X0) / (X1 - X0), 0, 1) * (NX - 1), fz = clamp((z - Z0) / (Z1 - Z0), 0, 1) * (NZ - 1);
+    const i = Math.min(NX - 2, Math.floor(fx)), j = Math.min(NZ - 2, Math.floor(fz));
+    const tx = fx - i, tz = fz - j;
+    const a = grid[j * NX + i], b = grid[j * NX + i + 1], c = grid[(j + 1) * NX + i], d = grid[(j + 1) * NX + i + 1];
+    return lerp(lerp(a, b, tx), lerp(c, d, tx), tz);
+  };
+}
+
+function buildHeadlinerSag(group, ext, m) {
+  const height = headlinerHeightFn(ext);
+  const W = 1.0, D = 0.6, cz = 0.72;
+  const pins = [[-0.42, 0.47], [0.12, 0.45], [0.44, 0.62], [-0.18, 0.98], [0.38, 0.97]];
+  const g = new THREE.PlaneGeometry(W, D, 20, 12);
+  g.rotateX(Math.PI / 2); // faces down into the cabin; plane y -> z
+  const p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i) + cz;
+    const u = x / W + 0.5, v = (z - (cz - D / 2)) / D;
+    // a tired belly: deepest behind the middle, bubbly where the foam backing crumbled
+    let sag = 0.07 * Math.pow(Math.sin(Math.PI * u), 0.7) * Math.pow(Math.sin(Math.PI * v), 0.9);
+    sag *= 0.75 + 0.35 * (noise.noise2D(x * 6.0 + 3.1, z * 6.0) * 0.5 + 0.5);
+    sag += 0.006 * noise.noise2D(x * 22, z * 22) * Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
+    for (const [px, pz] of pins) {
+      const d2 = ((x - px) ** 2 + (z - pz) ** 2) / 0.0045;
+      sag *= 1 - Math.exp(-d2) * 0.92;
+    }
+    p.setXYZ(i, x, height(x, z) - 0.006 - Math.max(0, sag), z);
+    uv.setXY(i, x * 1.5, z * 1.5);
+  }
+  g.computeVertexNormals();
+  const mat = sharedMaterials().headliner;
+  const sheet = new THREE.Mesh(g, mat);
+  sheet.name = 'headlinerSag';
+  sheet.receiveShadow = true;
+  group.add(sheet);
+  // drawing pins (coloured plastic heads) holding it up
+  const pinCols = [0xb8261c, 0xd8b02a, 0x2a5aa0, 0xb8261c, 0xe8e2d0];
+  pins.forEach(([px, pz], k) => {
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.004, 10), paintedMaterial({ color: pinCols[k % pinCols.length], roughness: 0.45, brush: 0.1, name: 'int_pin' }));
+    head.position.set(px, height(px, pz) - 0.009, pz);
+    group.add(head);
+  });
 }
 
 let _black = null;

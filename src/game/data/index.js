@@ -10,6 +10,6 @@ export * from './radio.js';
 export * from './worldtext.js';
 export * from './credits.js';
 export {
-  INTRO_GARAGE, TUTORIAL_STEPS, SEND_OFF, GARAGE_IDLE, RESTART_LINES, DEATH_HINTS, TIME_SKIP, RADIO_CAMEO, SHRINE_REVEAL, AH_KONG,
+  INTRO_BIKE, INTRO_GARAGE, TUTORIAL_STEPS, SEND_OFF, GARAGE_IDLE, RESTART_LINES, DEATH_HINTS, TIME_SKIP, RADIO_CAMEO, SHRINE_REVEAL, AH_KONG,
 } from './ahkong.js';
 export { P, Y, T, S, C } from './lines.js';

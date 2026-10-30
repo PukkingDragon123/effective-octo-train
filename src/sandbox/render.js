@@ -195,16 +195,20 @@ export default async function ({ engine, cameraRig, params, settings }) {
   }
 
   // --- trees + undergrowth ------------------------------------------------------------------
-  const mats = {
-    bark: paintedMaterial({ color: 0x4a4034, roughness: 0.92, brush: 0.9, moss: 0.55, wet: 0.6, wind: 'trunk', windHeightScale: 1 }),
-    leaf: foliageMaterial({ map: leafClusterTexture(3), color: 0x8a9a7a, translucency: 0.7, wind: 'leaf', alphaTest: 0.45 }),
+  const matsA = {
+    bark: paintedMaterial({ color: 0x3e362c, roughness: 0.92, brush: 0.9, moss: 0.7, wet: 0.6, wind: 'trunk', windHeightScale: 1 }),
+    leaf: foliageMaterial({ map: leafClusterTexture(3), color: 0x7f9070, translucency: 0.7, wind: 'leaf', alphaTest: 0.45 }),
+  };
+  const matsB = {
+    bark: matsA.bark,
+    leaf: foliageMaterial({ map: leafClusterTexture(9, -14), color: 0x6c7c5a, translucency: 0.6, wind: 'leaf', alphaTest: 0.45 }),
   };
   const trees = new THREE.Group();
-  for (let i = 0; i < 46; i++) {
-    const z = 30 - i * 4.4 - rng() * 3;
+  for (let i = 0; i < 64; i++) {
+    const z = 30 - i * 3.2 - rng() * 3;
     const side = i % 2 ? 1 : -1;
-    const x = roadX(z) + side * (6.5 + rng() * 9);
-    const t = makeTree(rng, mats, 0.8 + rng() * 0.6);
+    const x = roadX(z) + side * (5.8 + rng() * 12);
+    const t = makeTree(rng, rng() < 0.5 ? matsA : matsB, 0.85 + rng() * 0.7);
     t.position.set(x, 0, z);
     t.rotation.y = rng() * Math.PI * 2;
     trees.add(t);
@@ -213,21 +217,21 @@ export default async function ({ engine, cameraRig, params, settings }) {
   applyWindShadows(trees);
 
   // grass tufts (instanced crossed cards)
-  const grassMat = foliageMaterial({ map: grassTexture(), color: 0x93a07a, wind: 'grass', translucency: 0.4, alphaTest: 0.4 });
+  const grassMat = foliageMaterial({ map: grassTexture(), color: 0x6f7c5c, wind: 'grass', translucency: 0.35, alphaTest: 0.4, brush: 0.7 });
   const gGeo = new THREE.PlaneGeometry(1.2, 0.9);
   gGeo.translate(0, 0.45, 0);
   const g2 = gGeo.clone().rotateY(Math.PI / 2);
   const grassGeo = mergeGeos([gGeo, g2]);
-  const NG = 1600;
+  const NG = 2600;
   const grass = new THREE.InstancedMesh(grassGeo, grassMat, NG);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3();
   for (let i = 0; i < NG; i++) {
     const z = 30 - rng() * 190;
     const side = rng() < 0.5 ? -1 : 1;
-    const x = roadX(z) + side * (3.4 + rng() * 10);
+    const x = roadX(z) + side * (3.3 + Math.pow(rng(), 1.6) * 12);
     p3.set(x, 0, z);
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rng() * Math.PI);
-    const sc = 0.7 + rng() * 0.9;
+    const sc = 0.5 + rng() * 0.8;
     s3.set(sc, sc * (0.8 + rng() * 0.6), sc);
     m4.compose(p3, q, s3);
     grass.setMatrixAt(i, m4);
@@ -310,7 +314,7 @@ export default async function ({ engine, cameraRig, params, settings }) {
 
   // --- headlights ("taxi" just ahead of the camera) --------------------------------------------------
   const carZ = 8;
-  const hlPos = new THREE.Vector3(roadX(carZ) - 1.5, 0.7, carZ - 2.15);
+  const hlPos = new THREE.Vector3(roadX(carZ) - 1.5, 0.68, carZ - 3.35);
   const look = new THREE.Vector3(roadX(carZ - 30) - 1.4, -2.2, carZ - 30);
   const spot = new THREE.SpotLight(0xfff0d8, headlights ? 900 : 0, 70, 0.6, 0.85, 2);
   spot.position.copy(hlPos);
@@ -332,24 +336,23 @@ export default async function ({ engine, cameraRig, params, settings }) {
       scene.add(beam);
     }
   }
-  // a hood silhouette in front of the camera
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.3, 2.2), paintedMaterial({ color: 0x3f6a34, roughness: 0.45, brush: 0.4, wet: 0.8, metalness: 0.2 }));
-  hood.position.set(roadX(carZ) - 1.5, 0.45, carZ - 0.9);
+  // the taxi's hood seen from the driver's seat (rounded, glossy green, wet)
+  const hoodGeo = new THREE.SphereGeometry(1, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  hoodGeo.scale(0.92, 0.1, 1.3);
+  const hood = new THREE.Mesh(hoodGeo, paintedMaterial({ color: 0x2f5a2c, roughness: 0.32, metalness: 0.15, brush: 0.35, wet: 0.9, dirt: 0.3, puddles: 0, name: 'hood' }));
+  hood.position.set(roadX(carZ) - 1.5, 0.66, carZ - 2.0);
   scene.add(hood);
-  const hoodTop = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 1.6), paintedMaterial({ color: 0xc8a832, roughness: 0.5, brush: 0.4, wet: 0.8, metalness: 0.2 }));
-  hoodTop.position.set(0, 0.2, 0.3);
-  hood.add(hoodTop);
   hood.visible = P('hood', '0') === '1';
 
   // --- particles -------------------------------------------------------------------------------------------
   particles.emit('rain', {});
   particles.emit('splash', { groundY: 0.03 });
   particles.emit('dust', { intensity: 1 });
-  particles.emit('mist', { groundY: 0.0, intensity: hour >= 28 ? 1.4 : 1 });
+  particles.emit('mist', { groundY: 0.0, intensity: hour >= 28 ? 1.3 : 1.5, count: 60 });
   if (hour >= 25.5 && hour < 28.6) particles.emit('fireflies', { position: new THREE.Vector3(roadX(-40), 0, -40), radius: 18, count: 80 });
   particles.emit('leaves', { position: new THREE.Vector3(roadX(-20), 0, -20), radius: 10 });
   particles.emit('pollen', { intensity: hour >= 28.5 ? 1.5 : 0.6 });
-  particles.emit('headlightBugs', { object: hood, offset: new THREE.Vector3(0, -0.5, -1) });
+  particles.emit('headlightBugs', { object: hood, offset: new THREE.Vector3(0, -0.4, -1.2) });
   particles.emit('incense', { position: new THREE.Vector3(roadX(-30) - 4.6, 0.6, -29.6) });
   particles.emit('embers', { position: new THREE.Vector3(roadX(-30) - 4.6, 0.6, -29.6), count: 12, radius: 0.1, height: 0.8 });
   lightPool.add({ position: new THREE.Vector3(roadX(-30) - 4.6, 0.75, -29.6), color: 0xff8a3a, intensity: 12, distance: 5, flicker: 'candle', glow: { size: 0.12 } });

@@ -59,10 +59,10 @@ export const CHARACTERS = {
       id: 'somchai', sex: 'm', age: 56, height: 1.68, build: 'average', skinTone: 0.62,
       hair: { style: 'short', color: '#2b2722' },
       // the faded pale-blue driver's shirt he wore every day, sun-bleached at the shoulders
-      outfit: { type: 'taxi-uniform', top: '#9fb1bd', bottom: '#2e2c28', accent: '#6f8a5a', shoes: 'sandals' },
+      outfit: { type: 'taxi-uniform', top: '#7d95a6', bottom: '#2e2c28', accent: '#6f8a5a', shoes: 'sandals' },
       accessories: ['amulet-necklace'],
       face: { seed: 5601, wrinkles: 0.5, smile: 0.35, eyeSize: 0.98, noseWidth: 1.05, jaw: 1.05, cheek: 1.0 }, // same seed as Ton
-      ghost: { pale: 0.35, eyes: 'normal', wet: 0.15, decay: 0.0, bloodStains: 0.0 },
+      ghost: { pale: 0.18, eyes: 'normal', wet: 0.15, decay: 0.0, bloodStains: 0.0 }, // a gentle ghost: barely paler than life
       noBlink: true,
     },
   },
@@ -175,7 +175,7 @@ export const CHARACTERS = {
       hair: { style: 'pompadour', color: '#0f0d0c' },
       outfit: { type: 'singer', top: '#b8902e', bottom: '#1d1b22', accent: '#d8c27a', shoes: 'shoes' }, // sequinned stage jacket
       accessories: ['cigarette'],
-      face: { seed: 5007, wrinkles: 0.35, smile: 0.7, eyeSize: 1.0, noseWidth: 1.0, jaw: 1.04, cheek: 1.0 },
+      face: { seed: 5007, wrinkles: 0.35, smile: 0.55, eyeSize: 1.0, noseWidth: 1.0, jaw: 1.04, cheek: 1.0 },
       ghost: { pale: 0.6, eyes: 'normal', wet: 0.0, decay: 0.05, bloodStains: 0.0 },
       noBlink: true,
     },
@@ -230,8 +230,8 @@ export const CHARACTERS = {
   },
   voice: {
     id: 'voice',
-    nameTH: '???',
-    nameEN: '???',
+    nameTH: '(เสียง)',
+    nameEN: '(a voice)',
     role: 'Disembodied voices: name-calling (rule 7), whispers, the loop itself.',
     voice: { gender: 'f', age: 30, pitch: 0.9, rate: 0.7, ghost: 0.9, whisper: true },
     appearance: null,

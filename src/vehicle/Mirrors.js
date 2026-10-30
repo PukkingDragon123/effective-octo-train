@@ -190,30 +190,44 @@ export class MirrorSystem {
   setResolution() {
     for (const m of this.list) m.resize();
   }
+  /**
+   * Visibility / gaze budget: mirrors that are off screen or far away are skipped; the one
+   * the player looks at most directly renders every frame, the other visible ones share one
+   * round-robin slot (so at most 2 extra scene renders per frame; 1 on the low preset, where
+   * the gazed mirror and the round-robin alternate frames).
+   */
   update(renderer, scene, camera, rig, frame) {
     if (!this.enabled) return;
     const eye = camera.position;
-    // decide which mirrors are worth rendering
-    const focus = [];
-    const others = [];
+    let focus = null, focusAng = Infinity;
+    const others = this._others || (this._others = []);
+    others.length = 0;
     for (const m of this.list) {
       m.mount.getWorldPosition(_tmp);
       const dist = _tmp.distanceTo(eye);
-      if (dist > 12) {
-        m.uniforms.uValid.value = Math.min(m.uniforms.uValid.value, 1);
-        continue;
-      }
+      if (dist > 12) continue;
       const onScreen = rig ? rig.isOnScreen(_tmp, -0.25) : true;
       if (!onScreen) continue;
+      // facing away (seen from behind): nothing to show
+      m.mount.updateWorldMatrix(true, false);
+      const e = m.mount.matrixWorld.elements;
+      if ((eye.x - _tmp.x) * e[8] + (eye.y - _tmp.y) * e[9] + (eye.z - _tmp.z) * e[10] <= 0) continue;
       const ang = rig ? rig.angleTo(_tmp) : 0;
-      if (ang < 0.5 || dist < 1.2) focus.push(m);
-      else others.push(m);
+      // closeness counts too: the rearview mirror right next to the eye is always "looked at"
+      const score = ang - (dist < 1.0 ? 0.25 : 0);
+      if (score < focusAng) {
+        if (focus) others.push(focus);
+        focus = m;
+        focusAng = score;
+      } else others.push(m);
     }
-    for (const m of focus) {
-      m.render(renderer, scene, eye, this.hide);
-      m.lastRender = frame;
+    const low = settings.get('graphicsPreset') === 'low';
+    const slot = low ? frame % 2 : -1;
+    if (focus && (slot === -1 || slot === 0 || !others.length)) {
+      focus.render(renderer, scene, eye, this.hide);
+      focus.lastRender = frame;
     }
-    if (others.length) {
+    if (others.length && (slot === -1 || slot === 1 || !focus)) {
       const m = others[this.rr++ % others.length];
       m.render(renderer, scene, eye, this.hide);
       m.lastRender = frame;

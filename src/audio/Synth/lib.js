@@ -1,11 +1,12 @@
 // Shared building blocks for the procedural SFX generators (impacts, clicks,
 // rattles, scrapes, splashes, bubbles, rustles). All write into Float32Arrays.
-import { TAU, clamp, alloc, SVF, Biquad, OnePole, ResonBank, Reson, Wander, Pink, addModes, envAD, noiseBurst, normalize, mixInto } from './dsp.js';
+import { TAU, clamp, alloc, SVF, Biquad, OnePole, ResonBank, Reson, Wander, Pink, addModes, envAD, noiseBurst, normalize, mixInto, fadeOut } from './dsp.js';
 
 /** Render a component into its own buffer, peak-normalise, mix at `at` (s) with `gain`. */
 export function L(out, sr, at, dur, gain, fn) {
   const t = alloc(sr, dur);
   fn(t);
+  fadeOut(t, sr, Math.min(0.04, dur * 0.1)); // never truncate a component abruptly
   normalize(t, 1);
   mixInto(out, t, Math.floor(at * sr), gain);
   return out;

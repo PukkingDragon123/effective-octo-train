@@ -2,53 +2,62 @@
 // fiction (no real songs, artists or stations). The audio module synthesises the music;
 // these are the titles, lyric snippets (for subtitles / humming / Web Speech) and talk.
 //
-// STATIONS[i] = { index (1..4, radioTune order), id, freq (dial label), nameTH, nameEN, kind:'dhamma'|'lukthung'|'oldies'|'static',
+// STATIONS[i] = { index (1..4 = audio/Radio.js station number), id, freq (dial label), nameTH, nameEN, kind:'dhamma'|'lukthung'|'oldies'|'static',
 //                 host?: CHARACTERS id or {th,en}, schedule?: [{ hours:[from,to], songs:[songId] | talk:'id' }] }
 // SONGS[id] = { id, titleTH, titleEN, artistTH, artistEN, year, station, mood:'happy'|'sad'|'nostalgic'|'eerie'|'comic'|'lullaby',
 //               tempoBpm, lyrics: [{ th, en }] (sung lines, in order) }
 // DJ_LINES[stationId] = [{ hours?:[from,to], who, th, en, tone? }]  host chatter between songs
-// LATE_NIGHT_WHISPERS = [Line]   station 4 / static bleed
+// LATE_NIGHT_WHISPERS = [Line]   station 3 (the lost frequency) / static bleed between stations
 // FATHER_SONG = SONGS id of Somchai's favourite (memory m_song: station 3, 03:00–04:00)
 // SPECIAL_BROADCASTS = scheduled one-off announcements (the 03:00 request for "The Way Home").
 
 export const STATIONS = [
+  // Numbering, names and dial labels match src/audio/Radio.js (STATION_NAMES), which renders the sound.
   {
-    index: 1, id: 'dhamma', freq: 'FM 89.5', kind: 'dhamma',
-    nameTH: 'สถานีธรรมะร่มโพธิ์', nameEN: 'Rom Pho Dhamma Radio',
-    host: { th: 'พระอาจารย์', en: 'the teaching monk' },
-    schedule: [{ hours: [21, 26], talk: 'chant' }, { hours: [26, 28], talk: 'sermon' }, { hours: [28, 30], talk: 'chant' }],
-  },
-  {
-    index: 2, id: 'lukthung', freq: 'FM 97.25', kind: 'lukthung',
-    nameTH: 'ลูกทุ่งมหาสนุก', nameEN: 'Luk Thung Party FM',
+    index: 1, id: 'lukthung', freq: 'FM 91.5', kind: 'lukthung',
+    nameTH: 'ลูกทุ่งยามดึก', nameEN: 'Late-Night Luk Thung',
     host: 'djNok',
     schedule: [
       { hours: [21, 24], songs: ['countryTears', 'buffaloFarewell', 'jasmineGirl'] },
-      { hours: [24, 27], songs: ['bloodMoon', 'countryTears', 'jasmineGirl'] },
+      { hours: [24, 27], songs: ['countryTears', 'jasmineGirl', 'buffaloFarewell'] },
       { hours: [27, 30], songs: ['buffaloFarewell', 'jasmineGirl', 'countryTears'] },
     ],
   },
   {
-    index: 3, id: 'oldies', freq: 'AM 640', kind: 'oldies',
-    nameTH: 'เพลงเก่าเล่าความหลัง', nameEN: 'Old Songs, Old Memories',
+    index: 2, id: 'oldies', freq: 'FM 97.25', kind: 'oldies',
+    nameTH: 'เพลงเก่าเล่าความหลัง', nameEN: 'Old Songs, Old Stories',
     host: { th: 'ครูเอื้อน', en: 'Khru Uean' },
     schedule: [
-      { hours: [21, 27], songs: ['streetlightsDie', 'closeYourEyes', 'bloodMoon'] },
-      { hours: [27, 28], songs: ['wayHome'] }, // memory m_song
-      { hours: [28, 30], songs: ['closeYourEyes', 'wayHome', 'streetlightsDie'] },
+      { hours: [21, 24], songs: ['streetlightsDie', 'closeYourEyes'] },
+      { hours: [24, 27], songs: ['bloodMoon', 'streetlightsDie', 'closeYourEyes'] },
+      { hours: [27, 30], songs: ['closeYourEyes', 'streetlightsDie'] },
     ],
   },
   {
-    index: 4, id: 'static', freq: 'FM 108.0', kind: 'static',
-    nameTH: '—', nameEN: '—',
-    schedule: [{ hours: [21, 30], songs: ['crossTheRoad'] }],
+    // The lost frequency: dead air, whispers and a warped children's song all night. Only between
+    // 03:00 and 04:00 does it play "ทางกลับบ้าน", requested by Somchai (memory m_song); from 04:00
+    // to 05:00 Ah Kong's voice comes through the static (ahkong.js RADIO_CAMEO).
+    index: 3, id: 'lost', freq: 'FM 103.3', kind: 'static',
+    nameTH: '…', nameEN: '…',
+    schedule: [
+      { hours: [21, 27], songs: ['crossTheRoad'] },
+      { hours: [27, 28], songs: ['wayHome'] }, // memory m_song (SPECIAL_BROADCASTS.fatherRequest)
+      { hours: [28, 29], talk: 'ahKongCameo' },
+      { hours: [29, 30], songs: ['crossTheRoad'] },
+    ],
+  },
+  {
+    index: 4, id: 'dhamma', freq: 'AM 1080', kind: 'dhamma',
+    nameTH: 'ธรรมะยามดึก', nameEN: 'Late-Night Dhamma',
+    host: { th: 'พระอาจารย์', en: 'the teaching monk' },
+    schedule: [{ hours: [21, 26], talk: 'chant' }, { hours: [26, 28], talk: 'sermon' }, { hours: [28, 30], talk: 'chant' }],
   },
 ];
 
 export const SONGS = {
   wayHome: {
     id: 'wayHome', titleTH: 'ทางกลับบ้าน', titleEN: 'The Way Home',
-    artistTH: 'สมาน เสียงทอง', artistEN: 'Saman Golden-Voice', year: 1983, station: 'oldies',
+    artistTH: 'สมาน เสียงทอง', artistEN: 'Saman Golden-Voice', year: 1983, station: 'lost',
     mood: 'nostalgic', tempoBpm: 72,
     lyrics: [
       { th: 'ทางกลับบ้าน ไกลแค่ไหน ใจยังรอ', en: 'However long the road back home, my heart still waits' },
@@ -82,11 +91,11 @@ export const SONGS = {
     ],
   },
   countryTears: {
-    id: 'countryTears', titleTH: 'น้ำตาลูกทุ่ง', titleEN: 'Country Tears',
+    id: 'countryTears', titleTH: 'น้ำตาหยดลงนา', titleEN: 'Tears on the Paddy',
     artistTH: 'ทองใบ ใจงาม', artistEN: 'Thongbai Jai-ngam', year: 1990, station: 'lukthung',
     mood: 'sad', tempoBpm: 96,
     lyrics: [
-      { th: 'น้ำตาลูกทุ่ง ไหลลงท้องนา', en: 'Country tears flowing down into the paddy' },
+      { th: 'น้ำตาหยดลง กลางท้องนา', en: 'My tears fall down into the paddy' },
       { th: 'คิดถึงแม่ คิดถึงบ้านนา', en: 'I miss my mother, I miss the fields' },
       { th: 'ทำงานในเมือง เหนื่อยแทบขาดใจ', en: 'Working in the city, worn down to the bone' },
       { th: 'เมื่อไหร่จะได้ กลับไปไถนา', en: 'When will I get to go home and plough?' },
@@ -97,7 +106,7 @@ export const SONGS = {
     artistTH: 'ทองใบ ใจงาม', artistEN: 'Thongbai Jai-ngam', year: 1992, station: 'lukthung',
     mood: 'comic', tempoBpm: 128,
     lyrics: [
-      { th: 'ลาก่อนบ้านนา ลาก่อนควายเผือก', en: 'Farewell my paddy, farewell my white buffalo' },
+      { th: 'ลาก่อนเด้อนาง ลาก่อนควายเผือก', en: 'Farewell, my girl, farewell, my white buffalo' },
       { th: 'พี่ต้องไปเลือก ทางเดินในเมือง', en: 'I must go and find my way in town' },
       { th: 'ถ้ารวยเมื่อไหร่ จะกลับมาเยี่ยม', en: "When I'm rich, I'll come back to visit" },
       { th: 'ถ้าจนเหมือนเดิม ก็กลับมาเหมือนเดิม', en: "If I'm still broke... I'll come back anyway" },
@@ -127,7 +136,7 @@ export const SONGS = {
   },
   crossTheRoad: {
     id: 'crossTheRoad', titleTH: 'ข้ามถนน', titleEN: 'Crossing the Road',
-    artistTH: '(ไม่ทราบชื่อ)', artistEN: '(unknown)', year: null, station: 'static',
+    artistTH: '(ไม่ทราบชื่อ)', artistEN: '(unknown)', year: null, station: 'lost',
     mood: 'eerie', tempoBpm: 90,
     lyrics: [
       { th: 'หนึ่ง สอง สาม ข้ามถนน มองซ้ายมองขวา', en: 'One, two, three, cross the road, look left, look right' },
@@ -169,10 +178,10 @@ export const DJ_LINES = {
     M([21, 30], 'อย่ารอให้สาย กว่าจะบอกรักคนในบ้าน', "Don't wait until it's too late to tell your family you love them."),
     M([21, 30], 'ทุกสิ่งเกิดขึ้น ตั้งอยู่ แล้วก็ดับไป', 'All things arise, remain a while, and pass away.'),
   ],
-  static: [],
+  lost: [],
 };
 
-/** Whispers that bleed through static on station 4 and between stations. */
+/** Whispers that bleed through the lost frequency (station 3) and between stations. */
 export const LATE_NIGHT_WHISPERS = [
   { who: 'voice', th: 'ช่วยด้วย...', en: 'Help me...', tone: 'whisper' },
   { who: 'voice', th: 'หนาว... หนาวจัง...', en: "Cold... so cold...", tone: 'whisper' },
@@ -187,14 +196,16 @@ export const LATE_NIGHT_WHISPERS = [
 /** Scheduled one-offs. The gameplay layer plays each once per night when the station is on. */
 export const SPECIAL_BROADCASTS = [
   {
-    id: 'fatherRequest', station: 'oldies', hours: [27, 28], memory: 'm_song', then: 'wayHome',
+    // On the lost frequency an announcer nobody recognises reads one request, then plays the song.
+    id: 'fatherRequest', station: 'lost', hours: [27, 28], memory: 'm_song', then: 'wayHome',
     lines: [
-      { who: 'radio', speakerTH: 'ครูเอื้อน', speakerEN: 'Khru Uean', th: 'ตีสามตรงครับ เพลงต่อไปมีคนขอมานานแล้ว', en: "Three o'clock. The next song was requested a long time ago." },
-      { who: 'radio', speakerTH: 'ครูเอื้อน', speakerEN: 'Khru Uean', th: 'คุณสมชาย คนขับแท็กซี่ ขอให้ลูกชายที่กรุงเทพฯ', en: 'From Somchai, a taxi driver, for his son in Bangkok.' },
-      { who: 'radio', speakerTH: 'ครูเอื้อน', speakerEN: 'Khru Uean', th: 'เพลง ทางกลับบ้าน ครับ', en: '"The Way Home".' },
+      { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'ตีสามตรงครับ เพลงต่อไปมีคนขอมานานแล้ว', en: "Three o'clock. The next song was requested a long time ago.", tone: 'ghost' },
+      { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'คุณสมชาย คนขับแท็กซี่ ขอให้ลูกชายที่กรุงเทพฯ', en: 'From Somchai, a taxi driver, for his son in Bangkok.', tone: 'ghost' },
+      { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'เพลง ทางกลับบ้าน ครับ', en: '"The Way Home".', tone: 'ghost' },
     ],
   },
   {
+    // Dawn ending: whatever station is on, Khru Uean plays the father's song (the radio switches itself on).
     id: 'dawnSong', station: 'oldies', hours: [29, 30], ending: 'dawn', then: 'wayHome',
     lines: [{ who: 'radio', speakerTH: 'ครูเอื้อน', speakerEN: 'Khru Uean', th: 'อรุณสวัสดิ์ครับ เพลงนี้สำหรับทุกคนที่กำลังกลับบ้าน', en: 'Good morning. This one is for everyone on their way home.' }],
   },

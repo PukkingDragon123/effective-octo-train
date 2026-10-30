@@ -52,9 +52,10 @@ export class Ambience {
   /** Merge state. hour accepts 21..30 (or 0..6 = next morning). */
   set(s = {}) {
     const st = this.state;
-    for (const k in s) if (s[k] !== undefined) st[k] = s[k];
+    for (const k in s) if (s[k] !== undefined && k !== '_apply') st[k] = s[k];
     if (st.hour < 12) st.hour += 24;
-    if (this.core && st.autoMuffle && ('insideCar' in s || 'windowsOpen' in s)) {
+    if ('insideCar' in s || 'windowsOpen' in s) this._muffleTouched = true;
+    if (this.core && st.autoMuffle && this._muffleTouched && ('insideCar' in s || 'windowsOpen' in s || s._apply)) {
       this.sys.setMuffle(st.insideCar ? clamp(1 - st.windowsOpen * 0.85) : 0);
     }
     if (this.core && 'rain' in s && st.rain > 0.15 && this._lastRain <= 0.15 && st.insideCar) {
@@ -128,7 +129,7 @@ export class Ambience {
       src.connect(eg);
       src.start();
     });
-    this.set({});
+    this.set({ _apply: true });
   }
 
   _eventTable() {

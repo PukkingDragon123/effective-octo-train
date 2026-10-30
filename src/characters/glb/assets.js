@@ -117,11 +117,6 @@ function retargetClips(anims, t) {
             vals[k] = vq.x; vals[k + 1] = vq.y; vals[k + 2] = vq.z; vals[k + 3] = vq.w;
           }
         }
-        // constant tracks (2 identical keys) are dropped: the bone keeps its (possibly procedural) rest
-        if (vals.length === 8 && Math.abs(vals[0] - vals[4]) + Math.abs(vals[1] - vals[5]) + Math.abs(vals[2] - vals[6]) + Math.abs(vals[3] - vals[7]) < 1e-6) {
-          const r = t.restQuat[t.index[node]];
-          if (Math.abs(Math.abs(r.x * vals[0] + r.y * vals[1] + r.z * vals[2] + r.w * vals[3]) - 1) < 1e-6) continue;
-        }
         tracks.push(new THREE.QuaternionKeyframeTrack(tr.name, Float32Array.from(tr.times), vals));
       } else if (prop === 'position' && node === 'pelvis' && s) {
         const vals = Float32Array.from(tr.values);
@@ -188,32 +183,6 @@ async function loadTemplate(sex, anims) {
     addBone(n, par);
   }
   computeRestWorld(t);
-  // place helper bones in model space, then convert to parent-local rest
-  const headP = t.Gp[head];
-  const eyeL = new THREE.Vector3().fromArray(info.eyes[0]);
-  const eyeR = new THREE.Vector3().fromArray(info.eyes[1]);
-  const top = info.height;
-  const hc = headP.clone().add(new THREE.Vector3(0, 0.1, (info.headCenterZ || 0) - 0.01));
-  const place = {
-    eye_l: eyeL, eye_r: eyeR,
-    hair_1: new THREE.Vector3(0, headP.y + 0.08, headP.z - 0.09),
-    hair_2: new THREE.Vector3(0, headP.y - 0.06, headP.z - 0.12),
-    hair_3: new THREE.Vector3(0, headP.y - 0.22, headP.z - 0.13),
-    hairL_1: new THREE.Vector3(0.075, headP.y + 0.04, headP.z - 0.01),
-    hairL_2: new THREE.Vector3(0.09, headP.y - 0.1, headP.z - 0.04),
-    hairR_1: new THREE.Vector3(-0.075, headP.y + 0.04, headP.z - 0.01),
-    hairR_2: new THREE.Vector3(-0.09, headP.y - 0.1, headP.z - 0.04),
-  };
-  void top; void hc;
-  for (const i of extra) {
-    const wp = place[names[i]];
-    const p = parent[i];
-    // local rest: identity world rotation (model axes) -> local q = Gq[p]^-1
-    restQuat[i].copy(t.Gq[p]).invert();
-    restPos[i].copy(wp).sub(t.Gp[p]).applyQuaternion(restQuat[i]);
-  }
-  computeRestWorld(t);
-  t.boneInverses = names.map((_, i) => new THREE.Matrix4().compose(t.Gp[i], t.Gq[i], new THREE.Vector3(1, 1, 1)).invert());
   // ---- geometries
   const geos = {};
   for (const m of meshes) {
@@ -225,6 +194,9 @@ async function loadTemplate(sex, anims) {
   }
   t.geos = geos;
   // ---- landmarks
+  const headP = t.Gp[head];
+  const eyeL = new THREE.Vector3().fromArray(info.eyes[0]);
+  const eyeR = new THREE.Vector3().fromArray(info.eyes[1]);
   t.height = info.height;
   t.eyes = [eyeL, eyeR];
   t.eyeMid = eyeL.clone().add(eyeR).multiplyScalar(0.5);
@@ -237,8 +209,37 @@ async function loadTemplate(sex, anims) {
   fillZeros(ht, 2, 10);
   t.headTable = ht; // rows [ry (m above Head bone), cz (m, +forward), r(0°,22.5°..180°)]
   t.headTop = info.height - headP.y;
+  const tt = info.torsoTable.map((r) => r.slice());
+  fillZeros(tt, 1, 5);
+  t.torsoTable = tt; // rows [yref, r0, r45, r90, r135, r180, cz]
   // measured face landmarks (model space) for the face painter, shader masks and eye placement
   measureFace(t);
+  // eyeball centres: apex ~1.4 mm behind the filled lid surface
+  t.eyeRadius = 0.0118;
+  const ez = (t.face.eyeSurfaceZ > 0 ? t.face.eyeSurfaceZ : eyeL.z + 0.008) - 0.0014 - t.eyeRadius;
+  t.eyeCenters = [new THREE.Vector3(eyeL.x, eyeL.y, ez), new THREE.Vector3(eyeR.x, eyeR.y, ez)];
+  // place helper bones in model space, then convert to parent-local rest
+  const place = {
+    eye_l: t.eyeCenters[0], eye_r: t.eyeCenters[1],
+    hair_1: new THREE.Vector3(0, headP.y + 0.08, headP.z - 0.09),
+    hair_2: new THREE.Vector3(0, headP.y - 0.06, headP.z - 0.12),
+    hair_3: new THREE.Vector3(0, headP.y - 0.22, headP.z - 0.13),
+    hairL_1: new THREE.Vector3(0.075, headP.y + 0.04, headP.z - 0.01),
+    hairL_2: new THREE.Vector3(0.09, headP.y - 0.1, headP.z - 0.04),
+    hairR_1: new THREE.Vector3(-0.075, headP.y + 0.04, headP.z - 0.01),
+    hairR_2: new THREE.Vector3(-0.09, headP.y - 0.1, headP.z - 0.04),
+  };
+  for (const i of extra) {
+    const wp = place[names[i]];
+    const p = parent[i];
+    // local rest: identity world rotation (model axes) -> local q = Gq[p]^-1 (extra parents have identity)
+    const pq = extra.includes(p) ? new THREE.Quaternion() : t.Gq[p];
+    const pp = extra.includes(p) ? place[names[p]] : t.Gp[p];
+    restQuat[i].copy(pq).invert();
+    restPos[i].copy(wp).sub(pp).applyQuaternion(restQuat[i]);
+  }
+  computeRestWorld(t);
+  t.boneInverses = names.map((_, i) => new THREE.Matrix4().compose(t.Gp[i], t.Gq[i], new THREE.Vector3(1, 1, 1)).invert());
   // face-detail subdivision of the hi body (eyes, mouth, nose region)
   t.geos.body_hi = subdivideRegion(t.geos.body_hi, (p) => faceWeight(t, p), 2);
   // ---- clips

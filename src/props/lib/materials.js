@@ -107,7 +107,7 @@ export const GLOW = {
   fluoro_dim: { color: 0xc8e8d8, intensity: 2.2, base: 0x707a74 },
   bulb: { color: 0xffc070, intensity: 5.0, base: 0x4a3010 },
   red: { color: 0xff2a14, intensity: 3.2, base: 0x300404 },
-  lantern: { color: 0xff2a10, intensity: 1.5, base: 0x5a0804 },
+  lantern: { color: 0xff2a10, intensity: 2.4, base: 0x5a0804 },
   lantern_white: { color: 0xfff0d0, intensity: 0.9, base: 0xb0a890 },
   amber: { color: 0xffa83a, intensity: 6.0, base: 0x402000 },
   candle: { color: 0xffb860, intensity: 6.0, base: 0x402008 },
@@ -445,10 +445,24 @@ export function nightEnvTex() {
   return _env;
 }
 
+/** 2x2 atlas of four faded notices (one material for every pole). */
+export function noticeAtlasTex() {
+  return canvasTexture(256, 360, (g, W, H) => {
+    for (let v = 0; v < 4; v++) {
+      g.save();
+      g.translate((v % 2) * 128, (1 - Math.floor(v / 2)) * 180);
+      drawNotice(g, 128, 180, v);
+      g.restore();
+    }
+  }, CLAMP);
+}
 /** Faded A4 notice / poster (fallback when signTex is a stub). */
 export function noticeTex(seed = 1) {
-  return canvasTexture(128, 180, (g, w, h) => {
-    const rng = makeRng(seed);
+  return canvasTexture(128, 180, (g, w, h) => drawNotice(g, w, h, seed), CLAMP);
+}
+function drawNotice(g, w, h, seed) {
+  {
+    const rng = makeRng(seed + 1);
     g.fillStyle = ['#e6dcc4', '#d8d0b8', '#e0d4b0'][seed % 3];
     g.fillRect(0, 0, w, h);
     g.fillStyle = ['#8a2a20', '#2a4a7a', '#2a6a3a'][seed % 3];
@@ -457,5 +471,11 @@ export function noticeTex(seed = 1) {
     for (let i = 0; i < 12; i++) g.fillRect(10, 48 + i * 10, (w - 20) * (0.5 + rng() * 0.5), 3);
     g.fillStyle = 'rgba(160,130,80,0.35)';
     g.fillRect(0, h * 0.6, w, h * 0.4);
-  }, CLAMP);
+    // a few Thai words (hand-lettered notice: buying scrap / room for rent / lost dog)
+    const words = ['รับซื้อของเก่า', 'ห้องว่างให้เช่า', 'สุนัขหาย', 'ประกาศ'];
+    g.fillStyle = '#f0e8d0';
+    g.font = `bold 15px ${FONTS?.sign || 'sans-serif'}`;
+    g.textAlign = 'center';
+    g.fillText(words[seed % 4], w / 2, 29);
+  }
 }

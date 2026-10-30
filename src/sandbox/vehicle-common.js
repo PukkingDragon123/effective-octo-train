@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { paintedMaterial, foliageMaterial, sky, lightPool, GLOBAL_UNIFORMS } from '../render/index.js';
 import { tex } from '../textures/index.js';
 import { makeRng } from '../core/math.js';
+import { settings } from '../core/Settings.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -219,8 +220,9 @@ export function addStreetlight(scene, pos, side = -1, intensity = 30) {
   return { group: g, handle: h };
 }
 
-/** Apply sandbox environment params: hour, rain, fog, wet. */
+/** Apply sandbox environment params: hour, rain, fog, wet, preset (graphics preset). */
 export function applyEnv(params, defaults = {}) {
+  if (params.get('preset')) settings.set('graphicsPreset', params.get('preset'));
   const hour = Number(params.get('hour') ?? defaults.hour ?? 22);
   sky.setHour(hour);
   const rain = Number(params.get('rain') ?? defaults.rain ?? 0.6);

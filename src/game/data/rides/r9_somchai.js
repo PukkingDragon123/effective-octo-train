@@ -22,15 +22,15 @@ export const RIDE_SOMCHAI = {
     radioStatic: 0.15, blinks: false, feetFloat: false,
     payment: { type: 'none', amountTHB: 0, note: { th: 'ไม่มีค่ารถ มีแต่คำลา', en: 'No fare. Only a goodbye.' } },
     smell: 'motor-oil-tiger-balm',
-    extra: ['Meter shows the date of the rainy-season night he died.', 'His mirror image moves half a second late.', 'Amulet warms with a soft gold glow, gentler than with other ghosts.'],
+    extra: ['Meter shows the date of the rainy-season morning he died.', 'His mirror image moves half a second late.', 'Amulet warms with a soft gold glow, gentler than with other ghosts.'],
   },
   specialRules: [
-    { rule: 'r3', phase: 'early', at: 0.06, lookBack: 'sad', setOnLookBack: { fatherSawFace: true }, note: 'He ASKS you to turn. Looking costs a sad line only (he means no harm). Plays dialogue.onLookBack.' },
+    { rule: 'r3', phase: 'early', at: 0.08, lookBack: 'sad', setOnLookBack: { fatherSawFace: true }, note: 'He ASKS you to turn. Looking costs a sad line only (he means no harm). Plays dialogue.onLookBack.' },
     { rule: 'r3', phase: 'gate', lookBack: 'ending:endless', note: 'At the mist gate: rule 3 has no exception.' },
     { rule: 'r2', note: 'Ghost → LEFT. RIGHT plays ending wrong_home (counts as a death).' },
   ],
   encounters: [
-    { id: 'monksAlms', at: 0.42 },
+    { id: 'monksAlms', at: 0.44 },
     { id: 'dawnBirds', at: 0.2, optional: true },
     { id: 'fatherCall', at: 1.0 },
   ],
@@ -54,7 +54,7 @@ export const RIDE_SOMCHAI = {
       {
         id: 'turnToMe',
         essential: true,
-        trigger: { type: 'progress', at: 0.05 },
+        trigger: { type: 'progress', at: 0.08 },
         lines: [
           P('หันมาให้พ่อเห็นหน้าหน่อย', 'Turn so I can see your face.', { tone: 'whisper' }),
           T('ข้อสาม... ห้ามหัน ไม่ว่าจะได้ยินอะไร', "Rule three... never turn. Whatever you hear."),
@@ -73,7 +73,7 @@ export const RIDE_SOMCHAI = {
       {
         id: 'sticker',
         essential: true,
-        trigger: { type: 'progress', at: 0.15 },
+        trigger: { type: 'progress', at: 0.2 },
         lines: [
           P('สติกเกอร์การ์ตูนตรงนั้น ลูกชายลุงแปะไว้ตอนเจ็ดขวบ', 'That cartoon sticker there. My son stuck it on when he was seven.', { emotion: 'smile', action: 'point' }),
           P('เมียบอกให้แกะออก ลุงไม่ยอม', 'My wife told me to peel it off. I wouldn\'t.'),
@@ -82,7 +82,7 @@ export const RIDE_SOMCHAI = {
       {
         id: 'washing',
         essential: true,
-        trigger: { type: 'progress', at: 0.24 },
+        trigger: { type: 'progress', at: 0.27 },
         lines: [
           P('ลุงล้างรถคันนี้ทุกเช้าเลยนะ', 'I washed this cab every single morning.'),
           P('เผื่อลูกกลับบ้าน จะได้เห็นรถพ่อมันสะอาด', "In case my boy came home. So he'd see his dad's car clean.", { emotion: 'sad' }),
@@ -91,11 +91,12 @@ export const RIDE_SOMCHAI = {
       {
         id: 'sonBangkok',
         essential: true,
-        trigger: { type: 'progress', at: 0.32 },
+        trigger: { type: 'progress', at: 0.33 },
         lines: [
           P('ลูกชายลุงอยู่กรุงเทพฯ ทำงานอะไรก็ไม่รู้', "My son's in Bangkok. Doing what, I couldn't tell you."),
-          P('ทะเลาะกันครั้งสุดท้าย... เรื่องโง่ ๆ', 'Our last fight... over something stupid.'),
-          P('ลุงพูดแรงไป... ไม่เคยได้ขอโทษมันเลย', 'I said harsh things... I never got to say sorry.', { emotion: 'sad', pause: 1.2 }),
+          P('ลุงอยากให้มันขับแท็กซี่ต่อจากลุง... มันไม่เอา', "I wanted him to take over the cab... he wouldn't have it."),
+          P('ลุงด่ามันว่า ไปแล้วไม่ต้องกลับมา', "I told him: if you go, don't bother coming back.", { emotion: 'sad' }),
+          P('แล้วมันก็ไม่กลับมาจริง ๆ... ลุงไม่เคยได้ขอโทษมันเลย', 'And he never did... I never got to say sorry.', { emotion: 'sad', pause: 1.2 }),
           T('...ผมก็เหมือนกันครับ', '...neither did I.'),
         ],
       },
@@ -128,7 +129,7 @@ export const RIDE_SOMCHAI = {
       },
       {
         id: 'amulet',
-        trigger: { type: 'progress', at: 0.55 },
+        trigger: { type: 'progress', at: 0.56 },
         lines: [
           P('พระที่ห้อยอยู่นั่น เมียลุงให้ไว้', 'The amulet hanging there. My wife gave it to me.'),
           P('เขาไปก่อนลุงตั้งหลายปี... แต่พระยังห้อยอยู่ตรงนั้น', 'She went years before me... but the amulet stayed right there.', { emotion: 'sad' }),
@@ -138,15 +139,15 @@ export const RIDE_SOMCHAI = {
       {
         id: 'noodle',
         if: { memories: ['m_noodle'] },
-        trigger: { type: 'progress', at: 0.62 },
+        trigger: { type: 'progress', at: 0.64 },
         lines: [
-          P('หิวเส้นเล็กน้ำตกร้านป้าเล็กจัง', "I could murder a bowl of Lek's thin noodles.", { emotion: 'smile' }),
+          P('หิวเส้นเล็กน้ำตกร้านป้าเล็กจัง', "What I wouldn't give for a bowl of Lek's thin noodles.", { emotion: 'smile' }),
           P('ไม่ใส่ถั่วงอกนะ... จำไว้', 'No bean sprouts... remember that.', { emotion: 'smile' }),
         ],
       },
       {
         id: 'photo',
-        trigger: { type: 'progress', at: 0.68 },
+        trigger: { type: 'progress', at: 0.7 },
         lines: [
           P('ที่บังแดดมีรูปเด็กอยู่ใบนึง... ยังอยู่ไหม', "There's a photo of a little boy in the sun visor... still there?"),
           C([

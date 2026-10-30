@@ -9,19 +9,25 @@ import { bus } from '../core/Events.js';
 import { settings } from '../core/Settings.js';
 import { LAYERS } from '../core/layers.js';
 import { clamp, damp, lerp, easeInOut } from '../core/math.js';
-import { audio } from '../audio/index.js';
+import { audio, STATION_NAMES } from '../audio/index.js';
 import { GLOBAL_UNIFORMS } from '../render/index.js';
 import { FONTS } from '../ui/fonts.js';
 
 export const AUTO_GEARS = ['P', 'R', 'N', 'D', '2', 'L'];
 export const MANUAL_GEARS = ['R', 'N', '1', '2', '3', '4', '5'];
+/**
+ * Radio stations, indexed like audio.radio (1..4; 0 = between stations / static).
+ * state.radioStation uses the same numbering (3 = the station that only exists at 03:00).
+ */
+const _SN = STATION_NAMES || {};
 export const STATIONS = [
-  { freq: 'FM 89.50', name: 'ลูกทุ่งมหาชน' },
-  { freq: 'FM 95.00', name: 'ข่าวกลางคืน' },
-  { freq: 'FM 101.25', name: 'ธรรมะรับอรุณ' },
-  { freq: 'FM 103.75', name: 'เพลงเก่าเล่าอดีต' },
-  { freq: 'AM 1260', name: '. . .' },
+  { freq: 'FM 88.00', name: '· · ·', th: '· · ·', en: '(static)' },
+  { freq: _SN[1]?.freq || 'FM 91.5', name: _SN[1]?.th || 'ลูกทุ่งยามดึก', th: _SN[1]?.th || 'ลูกทุ่งยามดึก', en: _SN[1]?.en || 'Late-Night Luk Thung' },
+  { freq: _SN[2]?.freq || 'FM 97.25', name: _SN[2]?.th || 'เพลงเก่าเล่าความหลัง', th: _SN[2]?.th || 'เพลงเก่าเล่าความหลัง', en: _SN[2]?.en || 'Old Songs, Old Stories' },
+  { freq: _SN[3]?.freq || 'FM 103.3', name: _SN[3]?.th || '…', th: _SN[3]?.th || '…', en: _SN[3]?.en || '…' },
+  { freq: _SN[4]?.freq || 'AM 1080', name: _SN[4]?.th || 'ธรรมะยามดึก', th: _SN[4]?.th || 'ธรรมะยามดึก', en: _SN[4]?.en || 'Late-Night Dhamma' },
 ];
+const ENGINE_CRANK = [0.82, 1.05]; // seconds of cranking per engine_start variant (audio/Synth/sfxCar.js)
 
 const LABELS = {
   key_insert: ['เสียบกุญแจ', 'Insert the key'],
@@ -65,7 +71,7 @@ export class TaxiControls {
     this.fareDist = 0;
     this.fareTime = 0;
     this._busOff = bus.on('audio:radio', (d) => {
-      if (!d) return;
+      if (!d || !taxi.isAudioOwner()) return;
       if (typeof d.station === 'number') taxi.state.radioStation = d.station;
       if (typeof d.on === 'boolean') taxi.state.radioOn = d.on;
       this.radioSong = d.song || '';
@@ -94,7 +100,7 @@ export class TaxiControls {
       case 'key': {
         const v = !!value;
         if (v === s.keyInserted) break;
-        if (!v && s.engineOn) this.set('ignition', 'off', { reach: false });
+        if (!v && (s.engineOn || s.ignition !== 'off')) this.set('ignition', 'off', { reach: false });
         s.keyInserted = v;
         if (!v) s.ignition = 'off';
         audio.play('key_insert', pos);
@@ -104,12 +110,27 @@ export class TaxiControls {
         if (!s.keyInserted) break;
         if (value === 'start') {
           if (s.engineOn || this.anim.startTimer > 0) break;
+          // the key passes through ON on its way to START
+          if (s.ignition === 'off' || s.ignition === 'acc') audio.play('ignition', { ...pos, volume: 0.7 });
           s.ignition = 'start';
-          audio.play('engine_start', pos);
-          this.anim.startTimer = 0.9 + Math.random() * 0.5;
+          audio.play('key_turn', pos);
+          const variant = opts.variant ?? (Math.random() < 0.5 ? 0 : 1);
+          const crank = opts.crank ?? ENGINE_CRANK[variant];
+          // the engine loop plays the crank + catch itself (engine_start) when it owns the car;
+          // otherwise play the one-shot here
+          const es = audio.engineSound;
+          if (es && t.isAudioOwner()) {
+            t._engineCranking = true;
+            es.setOn(true, { variant });
+          } else audio.play('engine_start', { ...pos, variant });
+          this.anim.startTimer = crank;
           bus.emit('taxi:control', { control, value: 'start' });
-          await new Promise((r) => setTimeout(r, this.anim.startTimer * 1000));
-          if (s.ignition !== 'start') return;
+          await new Promise((r) => setTimeout(r, crank * 1000));
+          t._engineCranking = false;
+          if (s.ignition !== 'start') {
+            this.anim.startTimer = 0;
+            return;
+          }
           s.ignition = 'on';
           s.engineOn = true;
           this.anim.startTimer = 0;
@@ -124,10 +145,12 @@ export class TaxiControls {
             bus.emit('taxi:engine', { on: false });
           }
           s.ignition = 'off';
-          audio.play('ignition', { ...pos, volume: 0.6 });
+          audio.play('key_turn', { ...pos, volume: 0.8, rate: 0.92 });
         } else {
           s.ignition = value === 'acc' ? 'acc' : 'on';
-          audio.play('ignition', pos);
+          audio.play('key_turn', pos);
+          // relay clunk + dash chime a beat later
+          audio.play('ignition', { ...pos, delay: 0.12 });
         }
         break;
       }
@@ -144,11 +167,14 @@ export class TaxiControls {
         bus.emit('taxi:gear', { gear: g });
         break;
       }
-      case 'handbrake':
-        s.handbrake = value === 'toggle' ? !s.handbrake : !!value;
-        emitValue = s.handbrake;
-        audio.play('handbrake', pos);
+      case 'handbrake': {
+        const v = value === 'toggle' ? !s.handbrake : !!value;
+        if (v === s.handbrake) break;
+        s.handbrake = v;
+        emitValue = v;
+        audio.play('handbrake', { ...pos, variant: v ? 0 : 1 });
         break;
+      }
       case 'headlights': {
         const order = ['off', 'low', 'high'];
         let v = value;
@@ -184,19 +210,29 @@ export class TaxiControls {
       }
       case 'radio': {
         s.radioOn = value === 'toggle' ? !s.radioOn : !!value;
+        if (s.radioOn && !s.radioStation) s.radioStation = 1;
         emitValue = s.radioOn;
         audio.play('radio_click', pos);
-        audio.radio?.setOn?.(s.radioOn && this.hasPower());
+        if (t.isAudioOwner()) {
+          if (s.radioOn && audio.radio && !audio.radio.station) audio.radio.setStation?.(s.radioStation, { sweep: false });
+          audio.radio?.setOn?.(s.radioOn && this.hasPower());
+          t._radioWas = s.radioOn;
+        }
         break;
       }
       case 'radioTune': {
-        const n = STATIONS.length;
-        const v = value === 'next' || value === undefined ? (s.radioStation + 1) % n : clamp(Number(value) | 0, 0, n - 1);
+        // 'next' | 'prev' | station number 0..4 (audio.radio numbering)
+        const n = STATIONS.length - 1;
+        let v;
+        if (value === 'next' || value === undefined) v = (s.radioStation % n) + 1;
+        else if (value === 'prev') v = s.radioStation <= 1 ? n : s.radioStation - 1;
+        else v = clamp(Number(value) | 0, 0, n);
+        if (v === s.radioStation && !opts.force) break;
         s.radioStation = v;
         emitValue = v;
         this.anim.tune += 0.9;
         audio.play('radio_click', { ...pos, volume: 0.5 });
-        audio.radio?.setStation?.(v);
+        if (t.isAudioOwner()) audio.radio?.setStation?.(v, { sweep: s.radioOn });
         break;
       }
       case 'meter': {
@@ -714,7 +750,7 @@ export class TaxiControls {
     const s = t.state;
     const im = t.parts.im;
     const on = s.radioOn && this.hasPower();
-    const st = STATIONS[s.radioStation % STATIONS.length];
+    const st = STATIONS[clamp(s.radioStation | 0, 0, STATIONS.length - 1)];
     const key = `${on}|${s.radioStation}|${this.radioSong || ''}`;
     im.radioCanvas.draw(key, (ctx, W, H) => {
       ctx.fillStyle = '#020403';

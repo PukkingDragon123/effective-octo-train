@@ -162,7 +162,7 @@ export const HIDDEN_LINE = {
 export const PAPER = {
   title: { th: 'กฎสำหรับคนขับกะดึก', en: 'Rules for the Night-Shift Driver' },
   subtitle: { th: '(อ่านให้จำ อย่าทำหาย)', en: '(Learn them. Don\'t lose this.)' },
-  footer: { th: 'ขับดี ๆ นะ ไอ้หนุ่ม  — กง', en: 'Drive carefully, young man.  — Kong' },
+  footer: { th: 'ขับดี ๆ นะ ไอ้หนุ่ม  — อากง', en: 'Drive carefully, young man.  — Ah Kong' },
   // the old man's hand-drawn sketch at the bottom: a fork with arrows
   forkSketch: { left: { th: 'ตาย', en: 'dead' }, right: { th: 'เป็น', en: 'living' } },
 };

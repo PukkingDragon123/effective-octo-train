@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, sagCurve, blob, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
-import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup } from './lib/small.js';
+import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap } from './lib/small.js';
 import { deityHeadGeo, deityBodyGeo, lionGeo } from './lib/figures.js';
 import { chineseRoof } from './shrines.js';
 
@@ -108,8 +108,9 @@ function deityStatue(k, headKit) {
   // throne: lacquered chair with gold trim
   k.add(mat('lacquer'), bbox(0.78, seatH, 0.62, 0.02, 0.2), { color: RED, w: { grime: 0.2, grimeH: 0.15 } });
   k.add(mat('gold'), bbox(0.8, 0.04, 0.64, 0.008, 0.2), { p: [0, seatH - 0.02, 0], color: GOLD, w: false });
-  k.add(mat('lacquer'), bbox(0.78, 0.7, 0.08, 0.02, 0.2), { p: [0, seatH, -0.28], color: RED, w: false });
-  k.add(mat('gold'), G('throneTop', () => bevelBox(0.9, 0.07, 0.1, 0.02, 0.1)), { p: [0, seatH + 0.72, -0.28], color: GOLD, w: false, deform: (p) => { p.y += Math.pow(Math.abs(p.x) / 0.45, 4) * 0.05; } });
+  k.add(mat('lacquer'), bbox(0.78, 1.18, 0.08, 0.02, 0.2), { p: [0, seatH, -0.3], color: RED, w: false, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(lp.x) < 0.3 && lp.y > 0.65 && lp.y < 1.1) { const r = Math.hypot(lp.x, lp.y - 0.88); if (Math.abs(r - 0.2) < 0.02) c.lerp(_gold, 0.9); } } });
+  k.add(mat('gold'), G('throneTop2', () => bevelBox(0.95, 0.08, 0.12, 0.02, 0.08)), { p: [0, seatH + 1.2, -0.3], color: GOLD, w: false, deform: (p) => { p.y += Math.pow(Math.abs(p.x) / 0.475, 3) * 0.09; } });
+  for (const s of [-1, 1]) k.add(mat('gold'), G('throneCurl', () => tube(smoothPath([V(0, 0, 0), V(0.04, 0.06, 0), V(0.0, 0.1, 0), V(-0.03, 0.07, 0)], 8), 0.016, 5, true)), { p: [s * 0.47, seatH + 1.27, -0.3], s: [s, 1, 1], color: GOLD, w: false });
   for (const s of [-1, 1]) k.add(mat('lacquer'), bbox(0.07, 0.3, 0.55, 0.015, 0.15), { p: [s * 0.37, seatH, 0], color: RED, w: false });
   // body
   k.add(mat('statue'), deityBodyGeo(), { p: [0, seatH, -0.02], w: false });
@@ -221,6 +222,7 @@ export function createShrineMaRuay(opts = {}) {
   for (const s of [-1, 1]) {
     k.add(mat('stone'), bbox(3.2, 0.55, 0.22, 0.02, 0.4), { p: [s * 3.45, PH, pz0 - 0.12], color: 0xa29a8a, w: { ground: PH, moss: 0.6, mossLow: 0.6, grime: 0.5 } });
     for (let i = 0; i < 4; i++) k.add(mat('stone'), G('balpost', () => bbox(0.26, 0.7, 0.26, 0.02, 0.2)), { p: [s * (1.95 + i * 1.0), PH, pz0 - 0.12], color: 0x9a9282, w: { ground: PH, moss: 0.7 } });
+    for (let i = 0; i < 3; i++) if (rng() < 0.7) mossCap(k, 0.6 + rng() * 0.3, 0.24, { p: [s * (2.45 + i * 1.0), PH + 0.55, pz0 - 0.12], seed: i + s * 5 });
   }
 
   // ---- main hall ---------------------------------------------------------------------
@@ -388,6 +390,7 @@ export function createShrineMaRuay(opts = {}) {
   // guardian lions on pedestals
   for (const s of [-1, 1]) {
     k.add(mat('stone'), bbox(0.85, 0.9, 0.85, 0.03, 0.3), { p: [s * 2.2, 0, pz0 + 0.6], color: 0x9a9284, w: { mossLow: 0.9, mossH: 0.5, moss: 0.6, grime: 0.6 } });
+    mossCap(k, 0.3, 0.25, { p: [s * 2.2 + 0.25, 0.9, pz0 + 0.88], seed: 30 + s });
     k.add(mat('stone'), lionGeo(s > 0), { p: [s * 2.2, 0.9, pz0 + 0.6], r: -s * 0.18, s: 1.35, color: 0xb0a898, w: { ground: 0.9, grime: 0.3, grimeH: 0.3, moss: 0.55, streak: 0.5 } });
     out.colliders.push({ x: s * 2.2, z: pz0 + 0.6, hx: 0.45, hz: 0.45, yaw: 0 });
   }
@@ -429,7 +432,9 @@ export function createShrineMaRuay(opts = {}) {
   // a subset of lanterns become pooled lights
   out.lanternAnchors.forEach((a, i) => { if (i % 4 === 1) out.lights.push(lightSpec('lantern', a)); });
   // warm "golden shrine" fill from the forecourt (reference 2)
-  out.lights.unshift(lightSpec('shrine_gold', anchor(group, 'shrineGlow', 0, 2.2, pz0 + 1.2), { intensity: 9, distance: 12, pool: false }));
+  out.lights.unshift(lightSpec('shrine_gold', anchor(group, 'shrineGlow', 0, 2.4, pz0 + 1.4), { intensity: 26, distance: 16, pool: true, poolIntensity: 0.6, glow: { size: 1.4, color: 0xffb860, opacity: 0.35 } }));
+  // a warm lamp hidden under the porch roof lighting the facade, sign board and columns
+  out.lights.push(lightSpec('shrine_gold', anchor(group, 'porchLamp', 0, y0 + 3.2, pzCol + 0.6), { intensity: 12, distance: 9, pool: false, glow: false, flicker: 'candle' }));
 
   // ---- signposts at the Y -------------------------------------------------------------------
   // the wedge nose: a little mound with moss and old offerings around the posts

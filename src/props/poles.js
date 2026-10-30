@@ -5,7 +5,7 @@
 // toward +X * lampSide (default +1). For a pole on the LEFT road edge +X faces the road.
 import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, smoothPath, sagCurve, makeRng, noise } from './lib/kit.js';
-import { mat, glowMat, texMat, bugDiffuserTex, noticeTex } from './lib/materials.js';
+import { mat, glowMat, texMat, bugDiffuserTex, noticeAtlasTex } from './lib/materials.js';
 import { lightSpec, attachFlicker } from './lib/lights.js';
 import { G, coil } from './lib/small.js';
 
@@ -25,12 +25,12 @@ function anchor(parent, name, x, y, z, yaw = 0) {
 // ---------------------------------------------------------------------------
 const PIN_PROFILE = [[0, 0], [0.025, 0], [0.03, 0.02], [0.075, 0.035], [0.07, 0.05], [0.04, 0.06], [0.06, 0.08], [0.055, 0.095], [0.035, 0.105], [0.045, 0.125], [0.03, 0.15], [0, 0.155]];
 function pinInsulator(k, p, color) {
-  k.add(mat('galv'), G('pin', () => cyl(0.012, 0.012, 0.08, 6, 0.002)), { p, color: 0x7a7a70 });
-  k.add(mat('ceramic'), G('pinIns', () => lathe(PIN_PROFILE, 12)), { p: [p[0], p[1] + 0.06, p[2]], color, w: { grime: 0.3, grimeH: 0.08, ground: p[1] + 0.06, vary: 0.15 } });
+  k.add(mat('rust'), G('pin', () => cyl(0.012, 0.012, 0.08, 6, 0.002)), { p, color: 0x7a7a70 });
+  k.add(mat('ceramic'), G('pinIns', () => lathe(PIN_PROFILE, 8)), { p: [p[0], p[1] + 0.06, p[2]], color, w: { grime: 0.3, grimeH: 0.08, ground: p[1] + 0.06, vary: 0.15 } });
 }
 const SPOOL_PROFILE = [[0, 0], [0.04, 0], [0.042, 0.01], [0.03, 0.02], [0.028, 0.055], [0.042, 0.065], [0.04, 0.075], [0, 0.075]];
 function spoolInsulator(k, p, color) {
-  k.add(mat('ceramic'), G('spool', () => lathe(SPOOL_PROFILE, 10)), { p, color, w: { grime: 0.25 } });
+  k.add(mat('ceramic'), G('spool', () => lathe(SPOOL_PROFILE, 8)), { p, color, w: { grime: 0.25 } });
 }
 /** Suspension disc string (dead-end / transformer). Hangs along -Y from p unless r given. */
 function discString(k, p, r, n = 3, color = 0x6a4a3a) {
@@ -52,16 +52,16 @@ function fluorescentBracket(k, o) {
   // bent pipe: out, up, out (classic Thai DIY bracket)
   const pts = smoothPath([V(0, 0, 0), V(0.25, 0.08, 0), V(0.5, 0.3, 0), V(reach * 0.8, 0.42, 0), V(reach, 0.38, 0)], 14);
   k.add(mat('rust'), tube(pts, 0.022, 6), { color: 0x8a8070, w: { grime: 0, streak: 0.6, vary: 0.2 } });
-  // pole band clamps
-  k.add(mat('rust'), G('band', () => cyl(0.16, 0.16, 0.05, 10, 0.004, 1, false)), { p: [-0.12, -0.04, 0], color: 0x6a5a4a, w: false });
-  k.add(mat('rust'), G('band', () => cyl(0.16, 0.16, 0.05, 10, 0.004, 1, false)), { p: [-0.12, 0.2, 0], color: 0x6a5a4a, w: false });
+  // pole band clamps (square-ish straps hugging the pole)
+  const pr = o.poleR ?? 0.13, px = o.poleX ?? -0.13;
+  for (const y of [-0.04, 0.2]) k.add(mat('rust'), G('band:' + pr, () => cyl(pr * 1.06, pr * 1.06, 0.05, 4, 0.004, 1, false).rotateY(Math.PI / 4)), { p: [px, y, 0], color: 0x6a5a4a, w: false });
   k.add(mat('rust'), tube([V(0.0, 0.22, 0), V(0.35, 0.22, 0), V(0.5, 0.3, 0)], 0.012, 5), { color: 0x7a6a5a, w: false });
   // fixture: steel channel along Z (perpendicular to the bracket)
   const fx = reach, fy = 0.31;
   const len = 1.25;
-  k.add(mat('metal'), G('fluoTray', () => bevelBox(0.12, 0.06, len, 0.01, 0.2)), { p: [fx, fy, 0], color: o.color ?? 0xd8d4c8, w: { grime: 0, streak: 0.7, streakColor: 0x6a4a2a, vary: 0.25 } });
-  k.add(mat('metal'), G('fluoEnd', () => bbox(0.1, 0.07, 0.03, 0.006, 0.1)), { p: [fx, fy - 0.08, len / 2 - 0.02], color: 0xb8b4a8 });
-  k.add(mat('metal'), G('fluoEnd', () => bbox(0.1, 0.07, 0.03, 0.006, 0.1)), { p: [fx, fy - 0.08, -len / 2 + 0.02], color: 0xb8b4a8 });
+  k.add(mat('rust'), G('fluoTray', () => bevelBox(0.12, 0.06, len, 0.01, 0.2)), { p: [fx, fy, 0], color: o.color ?? 0xd8d4c8, w: { grime: 0, streak: 0.7, streakColor: 0x6a4a2a, vary: 0.25 } });
+  k.add(mat('rust'), G('fluoEnd', () => bbox(0.1, 0.07, 0.03, 0.006, 0.1)), { p: [fx, fy - 0.08, len / 2 - 0.02], color: 0xb8b4a8 });
+  k.add(mat('rust'), G('fluoEnd', () => bbox(0.1, 0.07, 0.03, 0.006, 0.1)), { p: [fx, fy - 0.08, -len / 2 + 0.02], color: 0xb8b4a8 });
   // cable from pole into the fixture, with a drip loop
   k.add(mat('dark'), tube(smoothPath([V(0, -0.3, 0.06), V(0.2, -0.45, 0.08), V(0.45, -0.2, 0.06), V(fx - 0.05, fy + 0.02, 0.1)], 12), 0.006, 4), { color: 0x141414, w: false });
   return { pos: V(fx, fy - 0.1, 0), len };
@@ -102,7 +102,7 @@ function addFluorescentTube(group, k, pos, len, o) {
 function cobraHead(k, o) {
   const reach = o.reach ?? 1.8;
   const pts = smoothPath([V(0, -0.6, 0), V(0, -0.1, 0), V(0.25, 0.18, 0), V(reach * 0.6, 0.32, 0), V(reach, 0.36, 0)], 16);
-  k.add(mat('galv'), tube(pts, (t) => 0.045 - t * 0.012, 8), { color: 0x9a9c98, w: { grime: 0, streak: 0.45, vary: 0.2 } });
+  k.add(mat('rust'), tube(pts, (t) => 0.045 - t * 0.012, 8), { color: 0x9a9c98, w: { grime: 0, streak: 0.45, vary: 0.2 } });
   const hx = reach + 0.25, hy = 0.36;
   // housing: flattened teardrop
   const housing = G('cobra', () => {
@@ -110,8 +110,8 @@ function cobraHead(k, o) {
     g.scale(0.36, 0.22, 0.19);
     return g;
   });
-  k.add(mat('metal'), housing, { p: [hx, hy - 0.03, 0], r: [0, 0, -0.08], color: 0xb8bab2, w: { grime: 0, streak: 0.5, streakColor: 0x4a3a2a, dust: 0.5, dustColor: 0x5a5a40 } });
-  k.add(mat('metal'), G('cobraRim', () => torus(0.5, 0.03, 4, 18).rotateX(Math.PI / 2).scale(0.36, 1, 0.19)), { p: [hx, hy - 0.035, 0], color: 0x8a8c86 });
+  k.add(mat('rust'), housing, { p: [hx, hy - 0.03, 0], r: [0, 0, -0.08], color: 0xb8bab2, w: { grime: 0, streak: 0.5, streakColor: 0x4a3a2a, dust: 0.5, dustColor: 0x5a5a40 } });
+  k.add(mat('rust'), G('cobraRim', () => torus(0.5, 0.03, 4, 18).rotateX(Math.PI / 2).scale(0.36, 1, 0.19)), { p: [hx, hy - 0.035, 0], color: 0x8a8c86 });
   k.add(mat('dark'), G('photocell', () => cyl(0.03, 0.035, 0.05, 8, 0.005)), { p: [hx - 0.05, hy + 0.08, 0], color: 0x2a2a2a });
   return { pos: V(hx, hy - 0.06, 0) };
 }
@@ -253,7 +253,7 @@ export function createElectricPole(opts = {}) {
     // splice closure (black cylinder) + junction box
     if (rng() < 0.6) {
       const cc = poleTop(telY - 0.35);
-      k.add(mat('plastic'), G('splice', () => cyl(0.08, 0.08, 0.5, 10, 0.02)), { p: [cc.x - 0.2, cc.y - 0.25, cc.z], color: 0x1c1c1c, w: { grime: 0, dust: 0.3 } });
+      k.add(mat('dark'), G('splice', () => cyl(0.08, 0.08, 0.5, 10, 0.02)), { p: [cc.x - 0.2, cc.y - 0.25, cc.z], color: 0x1c1c1c, w: { grime: 0, dust: 0.3 } });
     }
     // dangling cables: a couple of loose ends hanging toward the ground
     const nDrop = 1 + Math.floor(rng() * 3);
@@ -279,11 +279,11 @@ export function createElectricPole(opts = {}) {
         const x = (i - (n - 1) / 2) * 0.55;
         const tz = -0.55;
         // tank with cooling fins, lid, bushings
-        k.add(mat('metal'), G('tank', () => cyl(0.23, 0.23, 0.82, 16, 0.02, 4)), {
+        k.add(mat('rust'), G('tank', () => cyl(0.23, 0.23, 0.82, 16, 0.02, 4)), {
           p: [x, 0, tz], color: 0x8a908a, w: { ground: 0, grime: 0.2, grimeH: 0.3, streak: 0.9, streakColor: 0x6a3a1a, vary: 0.2 },
           colorFn: (p, nn, cc, lp) => { if (Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 14)) > 0.8) cc.multiplyScalar(0.72); },
         });
-        k.add(mat('metal'), G('tlid', () => cyl(0.25, 0.25, 0.05, 16, 0.012)), { p: [x, 0.82, tz], color: 0x7a7e78, w: { streak: 0.5 } });
+        k.add(mat('rust'), G('tlid', () => cyl(0.25, 0.25, 0.05, 16, 0.012)), { p: [x, 0.82, tz], color: 0x7a7e78, w: { streak: 0.5 } });
         for (let b = 0; b < 2; b++) {
           k.add(mat('ceramic'), G('bushing', () => lathe([[0, 0], [0.04, 0], [0.04, 0.02], [0.055, 0.03], [0.03, 0.05], [0.05, 0.07], [0.03, 0.09], [0.045, 0.11], [0.02, 0.15], [0, 0.15]], 10)), { p: [x + (b ? 0.09 : -0.09), 0.86, tz + 0.02], color: 0x6a4030, w: false });
         }
@@ -299,23 +299,23 @@ export function createElectricPole(opts = {}) {
     const c = poleTop(2.6);
     const n = 1 + Math.floor(rng() * 3);
     for (let i = 0; i < n; i++) {
-      k.add(mat('metal'), G('meterbox', () => bbox(0.2, 0.3, 0.13, 0.012, 0.15)), { p: [c.x - 0.2 + i * 0.22 - (n - 1) * 0.11, c.y - i * 0.05, c.z + 0.2], color: rng() < 0.5 ? 0xc8c8bc : 0x8a9a9a, w: { grime: 0, streak: 0.8, streakColor: 0x5a3a20 } });
+      k.add(mat('rust'), G('meterbox', () => bbox(0.2, 0.3, 0.13, 0.012, 0.15)), { p: [c.x - 0.2 + i * 0.22 - (n - 1) * 0.11, c.y - i * 0.05, c.z + 0.2], color: rng() < 0.5 ? 0xc8c8bc : 0x8a9a9a, w: { grime: 0, streak: 0.8, streakColor: 0x5a3a20 } });
       k.add(mat('ceramic'), G('meterwin', () => bbox(0.1, 0.1, 0.01, 0.003, 0.1)), { p: [c.x - 0.2 + i * 0.22 - (n - 1) * 0.11, c.y + 0.12 - i * 0.05, c.z + 0.267], color: 0x3a4a48, w: false });
     }
     // conduit down + service cable up
-    k.add(mat('plastic'), tube([V(c.x - 0.05, 0.15, c.z + 0.16), V(c.x - 0.05, c.y, c.z + 0.18)], 0.016, 6), { color: 0x7a8a8a, w: { grime: 0.5, grimeH: 0.5 } });
+    k.add(mat('dark'), tube([V(c.x - 0.05, 0.15, c.z + 0.16), V(c.x - 0.05, c.y, c.z + 0.18)], 0.016, 6), { color: 0x7a8a8a, w: { grime: 0.5, grimeH: 0.5 } });
     k.add(mat('dark'), tube(smoothPath([V(c.x, c.y + 0.3, c.z + 0.2), V(c.x + 0.05, lvY - 1.0, c.z + 0.22), V(c.x, lvY - 0.45, c.z + lvSide * 0.22)], 10), 0.007, 4), { color: 0x161616, w: false });
   }
   // --- ground wire down the pole in PVC ---------------------------------------
   {
     const pts = [];
     for (let y = 0.0; y <= H - 2.4; y += 0.6) pts.push(poleTop(y).add(V(0, 0, -0.17)));
-    k.add(mat('plastic'), tube(pts, 0.011, 5), { color: 0x8a8e88, w: { grime: 0.6, grimeH: 0.8 } });
+    k.add(mat('dark'), tube(pts, 0.011, 5), { color: 0x8a8e88, w: { grime: 0.6, grimeH: 0.8 } });
   }
   // --- pole number tag ---------------------------------------------------------
   {
     const c = poleTop(3.3);
-    k.add(mat('metal'), G('tag', () => bbox(0.12, 0.16, 0.006, 0.004, 0.1)), {
+    k.add(mat('rust'), G('tag', () => bbox(0.12, 0.16, 0.006, 0.004, 0.1)), {
       p: [c.x, c.y, c.z + 0.135], color: rng() < 0.5 ? 0xd8c040 : 0xe0ddd0, w: { grime: 0, streak: 0.5, vary: 0.2 },
       colorFn: (p, n, cc) => { if (n.z > 0.5 && Math.abs(Math.sin(p.y * 90)) > 0.85) cc.multiplyScalar(0.2); },
     });
@@ -323,11 +323,12 @@ export function createElectricPole(opts = {}) {
   // --- stapled paper notices (tattered) ---------------------------------------
   const nNotice = opts.notices ?? (rng() < 0.5 ? 1 + Math.floor(rng() * 2) : 0);
   for (let i = 0; i < nNotice; i++) {
-    const nm = texMat('notice' + ((seed + i) % 4), () => noticeTex((seed + i) % 4), { decal: true });
+    const nm = texMat('noticeAtlas', () => noticeAtlasTex(), { decal: true });
+    const vi = (seed + i) % 4;
     const c = poleTop(1.6 + i * 0.45 + rng() * 0.3);
     const face = rng() < 0.5 ? 1 : -1;
     k.add(nm, G('notice', () => quad(0.21, 0.29, 2, 3)), {
-      p: [c.x + face * 0.142 * (1 - 0.45 * (c.y / H)), c.y, c.z + (rng() - 0.5) * 0.04], r: [0, face * Math.PI / 2, (rng() - 0.5) * 0.15], color: 0xffffff, uv: 'keep',
+      p: [c.x + face * 0.142 * (1 - 0.45 * (c.y / H)), c.y, c.z + (rng() - 0.5) * 0.04], r: [0, face * Math.PI / 2, (rng() - 0.5) * 0.15], color: 0xffffff, uv: 'keep', uvScale: 0.5, uvOffset: [(vi % 2) * 0.5, Math.floor(vi / 2) * 0.5],
       w: { grime: 0.4, grimeH: 0.3, ground: c.y - 0.15, vary: 0.3, moss: 0 },
       deform: (p) => { p.z += Math.sin(p.x * 30) * 0.004 + (p.y < -0.08 ? (p.x + 0.1) * 0.05 : 0); },
     });
@@ -347,7 +348,8 @@ export function createElectricPole(opts = {}) {
       out.lightSpec = lightSpec('sodium', out.lampAnchor);
     } else {
       k.push([c.x + side * 0.13, c.y, c.z], side < 0 ? Math.PI : 0);
-      const b = fluorescentBracket(k, { reach: 1.0, rng });
+      const pw = (0.3 + (0.17 - 0.3) * (ly / H)) / 2;
+      const b = fluorescentBracket(k, { reach: 1.0, rng, poleR: pw * 1.25, poleX: -0.13 });
       out.lampControllers.push(...addFluorescentTube(group, k, b.pos, b.len, { seed, dying: opts.lamp === 'dying', broken: opts.brokenLamp }));
       out.lampAnchor = anchor(group, 'lamp', ...new THREE.Vector3().copy(b.pos).applyMatrix4(k.matrix).toArray());
       k.pop();
@@ -517,7 +519,7 @@ export function createStreetlight(opts = {}) {
       deform: (p) => { const t = p.y / H; p.x *= 1 - 0.3 * t; p.z *= 1 - 0.3 * t; },
     });
     k.push([Math.sin(lean) * (H - 0.9) + 0.07, H - 0.9, 0]);
-    const b = fluorescentBracket(k, { reach: 1.2, rng });
+    const b = fluorescentBracket(k, { reach: 1.2, rng, poleR: 0.095 * 1.0, poleX: -0.07 });
     out.lampControllers.push(...addFluorescentTube(group, k, b.pos, b.len, { seed, dying: kind === 'dying', broken: opts.broken }));
     out.lampAnchor = anchor(group, 'lamp', ...new THREE.Vector3().copy(b.pos).applyMatrix4(k.matrix).toArray());
     k.pop();

@@ -47,7 +47,7 @@ export function brokenScooter(k, o = {}) {
     k.add(mat('metal'), G('ffender', () => new THREE.CylinderGeometry(R + 0.03, R + 0.03, 0.12, 16, 1, true, -0.4, 2.0).rotateZ(Math.PI / 2)), { p: [0, R, 0], color: body, w });
   });
   // leg shield (cracked plastic panel)
-  k.add(mat('plastic'), bevelBox(0.42, 0.55, 0.03, 0.02, 0.1), { p: [0, 0.68, -0.42], r: [0.35, 0, 0.0], color: 0xd8d0c0, w, deform: (p) => { p.z += (p.x * p.x) * 0.6; }, colorFn: (p, n, c, lp) => { if (Math.abs(lp.x - lp.y * 0.4 - 0.03) < 0.006) c.multiplyScalar(0.2); } });
+  k.add(mat('plastic'), bevelBox(0.42, 0.55, 0.03, 0.02, 0.1), { p: [0, 0.68, -0.42], r: [0.35, 0, 0.0], color: body, w, deform: (p) => { p.z += (p.x * p.x) * 0.6; }, colorFn: (p, n, c, lp) => { if (Math.abs(lp.x - lp.y * 0.4 - 0.03) < 0.006) c.multiplyScalar(0.2); } });
   // engine + swingarm + exhaust
   k.add(mat('rust'), G('bengine', () => bevelBox(0.22, 0.24, 0.36, 0.04, 0.1)), { p: [0, 0.32, 0.12], color: 0x5a5450, w: { streak: 0.8, grime: 0.4 } });
   k.add(mat('metal'), tube([V(0.06, 0.38, 0.12), V(0.08, R, 0.6)], 0.025, 6), { color: 0x2a2a2a, w });

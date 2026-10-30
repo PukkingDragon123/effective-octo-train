@@ -44,6 +44,30 @@ const _C = new THREE.Vector3(), _N = new THREE.Vector3(), _U = new THREE.Vector3
 const _raycaster = new THREE.Raycaster();
 _raycaster.layers.enableAll();
 
+/** Every live taxi (for picking which one drives the shared engine / radio sounds). */
+const TAXIS = new Set();
+let _ownerFrame = -1;
+let _owner = null;
+function audioOwner() {
+  if (_ownerFrame === engine.frame && (!_owner || TAXIS.has(_owner))) return _owner;
+  _ownerFrame = engine.frame;
+  let best = null, bestScore = Infinity;
+  const cam = engine.camera.position;
+  for (const t of TAXIS) {
+    // player-driven or the camera in the cabin wins; then autopilot; then the nearest one
+    let score = t.root.position.distanceTo(cam);
+    if (t.controlsEnabled || t.isCameraInside()) score -= 1e6;
+    else if (t.autopilotSpec) score -= 1e3;
+    if (t === _owner) score -= 2; // hysteresis
+    if (score < bestScore) {
+      bestScore = score;
+      best = t;
+    }
+  }
+  _owner = best;
+  return best;
+}
+
 export class Taxi {
   /** opts { world, interactions=false, controls=false } */
   constructor(opts = {}) {
@@ -140,12 +164,17 @@ export class Taxi {
     this.onReach = null;
     /** (paneId, worldPoint) => {} — game hook (player wipe gesture). */
     this.onWipeGlass = null;
-    this._indicatorTick = (on) => audio.play('indicator_tick', { object: this.anchors.steeringWheel, volume: on ? 0.7 : 0.5, rate: on ? 1 : 0.85 });
+    this._indicatorTick = (on) => {
+      if (this.isAudioOwner() || this.isCameraInside()) audio.play('indicator_tick', { object: this.anchors.steeringWheel, variant: on ? 0 : 1, volume: on ? 0.7 : 0.55 });
+    };
     this._onIndicatorTick = this._indicatorTick;
     this._prevVel = new THREE.Vector3();
     this._accLocal = new THREE.Vector3();
     this._gazeCache = { frame: -1, value: null };
     this._engineSoundAttached = false;
+    this._engineCranking = false;
+    this._scrape = null;
+    TAXIS.add(this);
 
     // ---- shadows: exterior casts, everything receives -----------------------------------------
     this.interior.traverse((o) => {
@@ -259,7 +288,12 @@ export class Taxi {
   }
   /** Simulated passenger weight per seat (suspension sag; ghosts weigh nothing). */
   setSeatWeight(seat, kg) {
-    if (seat in this.physicsSim.seatKg) this.physicsSim.seatKg[seat] = Math.max(0, kg || 0);
+    const sk = this.physicsSim.seatKg;
+    if (!(seat in sk)) return;
+    const before = sk[seat];
+    sk[seat] = Math.max(0, kg || 0);
+    // a real body makes the old springs creak (ghosts weigh nothing: no sound either)
+    if (Math.abs(sk[seat] - before) > 15) audio.play('seat_creak', { object: this.seats[seat] || this.root, volume: clamp(Math.abs(sk[seat] - before) / 80, 0.3, 0.9) });
   }
   /** Condensation level 0..1 on a glass ('all' for every pane), e.g. cold ghost presence. */
   setFog(glass, amount) {
@@ -312,6 +346,10 @@ export class Taxi {
     if (this.state.ignition === 'off') await this.setControl('ignition', 'on', opts);
     await new Promise((r) => setTimeout(r, opts.delay ?? 400));
     if (!this.state.engineOn) await this.setControl('ignition', 'start', opts);
+  }
+  /** True for the taxi that currently drives the shared engine / radio sounds (player's or nearest). */
+  isAudioOwner() {
+    return audioOwner() === this;
   }
   /** True when the main camera is inside the cabin. */
   isCameraInside() {
@@ -399,22 +437,51 @@ export class Taxi {
     this.glass.uniforms.uCabin.value.setRGB(0.9, 0.72, 0.48).multiplyScalar(cab * 0.6 + this.lights.dashLevel * 0.02);
     this.glass.setFlow(sim.v);
     this.glass.update(dt);
-    // ---- audio ----
+    // ---- audio (only the owning taxi drives the shared engine / radio voices) ----
+    const owner = this.isAudioOwner();
     const es = audio.engineSound;
-    if (es) {
-      if (!this._engineSoundAttached) {
-        es.attach?.(this.root);
+    if (es && owner) {
+      if (this._engineSoundAttached !== true || es.object !== this.root) {
+        es.attach?.(this.root, this.bodyInner);
         this._engineSoundAttached = true;
       }
-      es.setOn?.(s.engineOn);
+      const want = s.engineOn || this._engineCranking;
+      // engines that were switched on without the key (autopilot, cinematics, direct state) start instantly
+      if (want !== es.on) es.setOn?.(want, { instant: !this._engineCranking });
       es.setRPM?.(sim.rpm);
       es.setLoad?.(sim.engineLoad);
       es.setGear?.(transmission === 'manual' ? s.gear : s.gear === 'D' ? String(sim.autoGear) : s.gear);
-    }
-    if (s.radioOn !== this._radioWas || s.ignition !== this._ignWas) {
-      audio.radio?.setOn?.(s.radioOn && this.controls.hasPower());
-      this._radioWas = s.radioOn;
-      this._ignWas = s.ignition;
+      es.setSpeed?.(Math.abs(sim.v) * 3.6);
+      es.setSurface?.(sim.surface);
+    } else if (!owner) this._engineSoundAttached = false;
+    if (owner) {
+      const radio = audio.radio;
+      if (radio && this._radioAttached !== radio) {
+        radio.attach?.(this.parts.radioKnobVol || this.anchors.radioKnob);
+        this._radioAttached = radio;
+        this._radioWas = undefined;
+      }
+      const radioPower = s.radioOn && this.controls.hasPower();
+      if (radioPower !== this._radioWas) {
+        if (radioPower && radio && !radio.station && s.radioStation) radio.setStation?.(s.radioStation, { sweep: false });
+        radio?.setOn?.(radioPower);
+        this._radioWas = radioPower;
+      }
+    } else this._radioAttached = null;
+    // vegetation scrape while pressed against the wall
+    const scraping = sim.wallContact > 0.05 && Math.abs(sim.v) > 0.6;
+    if (scraping && !this._scrape && audio.loop) this._scrape = audio.loop('bush_scrape', { object: this.root, volume: 0 });
+    if (this._scrape) {
+      const vol = scraping ? clamp(Math.abs(sim.v) / 8, 0.2, 1) * sim.wallContact : 0;
+      this._scrape.setVolume?.(vol, 0.12);
+      this._scrape.setRate?.(clamp(0.8 + Math.abs(sim.v) * 0.03, 0.8, 1.4));
+      if (!scraping) {
+        this._scrapeOff = (this._scrapeOff || 0) + dt;
+        if (this._scrapeOff > 0.6) {
+          this._scrape.stop?.(0.15);
+          this._scrape = null;
+        }
+      } else this._scrapeOff = 0;
     }
     // shadows follow the taxi
     this._fwdUpdate();
@@ -553,13 +620,19 @@ export class Taxi {
       if (g && !g.startsWith('mirror') && g !== 'interior') pane = g;
       // the rear quarter lights count as rear side windows for reflection purposes
     }
-    this.glass.renderReflection(renderer, scene, camera, pane, this.lights.domeLevel, dt || 1 / 60);
+    // the cabin only shows in the glass when it is brighter than the night outside
+    let h = GLOBAL_UNIFORMS.uHour?.value ?? 23;
+    if (h < 18) h += 24;
+    const night = 1 - clamp((h - 28.9) / 1.0, 0, 1);
+    const strength = night * clamp(this.lights.domeLevel + this.lights.dashLevel * 0.35, 0, 1);
+    this.glass.renderReflection(renderer, scene, camera, pane, strength, dt || 1 / 60);
     // in fallback mode glass is on DEFAULT too: hide it from the mirror cameras
     this.mirrors.hide = this.glass._layerMode === false ? this.glass.meshes() : [];
   }
 
   _onCollision(c) {
-    audio.play('scrape', { position: c.point, volume: clamp(c.speed / 6, 0.3, 1) });
+    audio.play('collision_thud', { position: c.point, volume: clamp(c.speed / 6, 0.3, 1) });
+    audio.play('bush_scrape', { position: c.point, volume: clamp(c.speed / 5, 0.3, 1) });
     bus.emit('taxi:collision', { impulse: c.impulse, point: c.point });
     if (this.controlsEnabled || this.isCameraInside()) cameraRig.shake(clamp(c.speed / 8, 0.12, 0.6));
     this._bumpKick = (this._bumpKick || 0) + 2;
@@ -567,11 +640,17 @@ export class Taxi {
 
   _onBump(k) {
     this._bumpKick = (this._bumpKick || 0) + k * 2;
-    if (k > 0.35) audio.play('bump', { object: this.root, volume: k });
+    if (k > 0.35) audio.play('collision_thud', { object: this.root, volume: k * 0.35, rate: 1.3 });
     if (this.isCameraInside() && k > 0.5) cameraRig.shake(k * 0.08);
   }
 
   dispose() {
+    TAXIS.delete(this);
+    if (_owner === this) {
+      _owner = null;
+      _ownerFrame = -1;
+    }
+    this._scrape?.stop?.(0.1);
     this._offUpdate?.();
     this._offPre?.();
     this._offSettings?.();

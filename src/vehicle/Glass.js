@@ -168,9 +168,11 @@ void main() {
     // drop rims refract the dark surroundings; centres gather light
     col *= 1.0 - 0.32 * dropM * (1.0 - dome);
     col += blur * dropM * dome * 0.25;
-    // condensation: milky scatter of the blurred scene + cabin light
-    vec3 milk = blur * 0.85 + uCabin * 0.3 + vec3(0.01, 0.012, 0.013);
-    col = mix(col, milk, fog * 0.7);
+    // condensation: a milky veil that scatters (blurs and dims) what is behind it, lit from
+    // inside by the cabin; bright lights outside still bloom through as soft halos
+    float bl = dot(blur, vec3(0.299, 0.587, 0.114));
+    vec3 milk = blur * (0.42 + 0.4 * smoothstep(0.25, 1.2, bl)) + uCabin * 0.45 + vec3(0.006, 0.007, 0.008);
+    col = mix(col, milk, fog * 0.85);
     // dirt glare (light sources bloom through the grime)
     col = col * (1.0 - dirt * 0.22) + blur * dirt * 0.6;
     col *= uTint;
@@ -688,16 +690,22 @@ export class GlassSystem {
     }
     if (step) this._t = 0;
   }
-  /** Render the interior reflection for one pane (gaze-gated). Called from onPreRender. */
-  renderReflection(renderer, scene, camera, paneId, cabinLevel, dt) {
+  /**
+   * Render the interior reflection for one pane (gaze-gated). Called from onPreRender.
+   * strength 0..1 = how much the lit cabin outshines the night outside (0 = skip the render).
+   */
+  renderReflection(renderer, scene, camera, paneId, strength, dt) {
     const enabled = settings.get('glassReflections') !== false;
+    strength = clamp(strength ?? 1, 0, 1);
     for (const id of this.ids) {
       const u = this.panes[id].uniforms.uReflect;
-      const target = enabled && id === paneId ? 1 : 0;
+      const target = enabled && id === paneId ? strength : 0;
       u.value = lerp(u.value, target, 1 - Math.exp(-6 * dt));
+      if (u.value < 0.004 && target === 0) u.value = 0;
     }
     if (!enabled || !paneId || !this.panes[paneId]) return;
     const p = this.panes[paneId];
+    if (p.uniforms.uReflect.value < 0.01 && strength < 0.01) return;
     if (!this.reflectRT) {
       this.reflectRT = new THREE.WebGLRenderTarget(320, 192, { type: THREE.HalfFloatType });
       this.reflectRT.texture.generateMipmaps = false;

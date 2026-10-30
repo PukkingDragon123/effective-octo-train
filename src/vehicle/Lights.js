@@ -44,7 +44,43 @@ function fallbackBeam(length, angle, color) {
   return mesh;
 }
 
-let headlightOwner = null;
+// ---- GLOBAL_UNIFORMS.uHeadlight* arbitration between every vehicle (taxis, the bike) ----------
+// One headlight drives the fog-scattering uniforms: the player's vehicle (bias) or else the
+// nearest one with its lights on. Every vehicle submits every frame.
+let hlOwner = null;
+let hlScore = Infinity;
+/**
+ * src: any key object; level 0..1; pos/dir world Vector3; cone [cosOuter, cosInner, range] or null;
+ * bias: subtracted from the camera distance (player-driven vehicles pass a large bias).
+ */
+export function submitHeadlight(src, level, pos, dir, cone = null, bias = 0) {
+  const U = GLOBAL_UNIFORMS;
+  const score = level > 0.01 ? pos.distanceTo(engine.camera.position) - bias : Infinity;
+  if (src === hlOwner) hlScore = score;
+  else if (score < hlScore - 0.5) {
+    hlOwner = src;
+    hlScore = score;
+  }
+  if (hlOwner !== src) return;
+  if (score === Infinity) {
+    hlOwner = null;
+    hlScore = Infinity;
+    U.uHeadlightOn.value = 0;
+    return;
+  }
+  U.uHeadlightPos.value.copy(pos);
+  U.uHeadlightDir.value.copy(dir).normalize();
+  U.uHeadlightOn.value = level;
+  if (cone && U.uHeadlightCone) U.uHeadlightCone.value.set(cone[0], cone[1], cone[2], U.uHeadlightCone.value.w || 8);
+}
+/** Drop a vehicle from the arbitration (dispose). */
+export function releaseHeadlight(src) {
+  if (hlOwner !== src) return;
+  hlOwner = null;
+  hlScore = Infinity;
+  GLOBAL_UNIFORMS.uHeadlightOn.value = 0;
+}
+const _cone = [0, 0, 0];
 
 export class TaxiLights {
   constructor(taxi, body, lenses, interiorParts) {
@@ -98,14 +134,22 @@ export class TaxiLights {
     taxi.chassis.add(hp);
     this.headPool = hp;
     // --- dome + dash glow ----------------------------------------------------------------------
-    const dome = new THREE.PointLight(0xffd59a, 0, 2.8, 2);
+    const dome = new THREE.PointLight(0xffd59a, 0, 3.2, 2);
     dome.position.set(0, 1.3, 0.25);
     body.add(dome);
     this.dome = dome;
-    const dash = new THREE.PointLight(0x9cffc8, 0, 1.1, 2);
-    dash.position.set(0.3, 0.92, -0.5);
+    // instrument backlight spilling onto the wheel rim, the driver's hands and chest
+    const dash = new THREE.PointLight(0x8cffc0, 0, 1.6, 2);
+    dash.position.set(0.37, 0.9, -0.5);
     body.add(dash);
     this.dash = dash;
+    // night-adapted eyes: a very faint cool fill that only exists while the camera is in the
+    // cabin, so the dark interior stays readable (never counted in cabinBrightness)
+    const fill = new THREE.PointLight(0x8094a8, 0, 2.6, 2);
+    fill.position.set(0.12, 1.18, -0.05);
+    body.add(fill);
+    this.fill = fill;
+    this.fillLevel = 0;
     this.domeLevel = 0;
     this.dashLevel = 0;
     this.headLevel = 0;
@@ -132,11 +176,14 @@ export class TaxiLights {
     this.spot.distance = high ? 95 : 60;
     this.spot.target.position.set(0, high ? 0.45 : -0.2, -16);
     L.head.emissiveIntensity = hl * (high ? 5 : 3.2) + (mode !== 'off' ? 0.12 : 0);
+    const gy = (phys.groundY ?? 0) + 0.03;
     for (const b of this.beams) {
       b.low.visible = hl > 0.01 && !high;
       b.high.visible = hl > 0.01 && high;
       b.low.userData.setIntensity?.(hl * 0.55);
       b.high.userData.setIntensity?.(hl * 0.75);
+      b.low.userData.setGroundY?.(gy);
+      b.high.userData.setGroundY?.(gy);
     }
     this.headPool.material.opacity = hl * (high ? 0.08 : 0.12);
     // tail / brake / reverse
@@ -172,16 +219,20 @@ export class TaxiLights {
     // dome light (cabinLight or any door open), with override / flicker
     let domeT = state.cabinLight ? 1 : 0;
     const anyDoor = state.doors.fl > 0.05 || state.doors.fr > 0.05 || state.doors.rl > 0.05 || state.doors.rr > 0.05;
-    if (anyDoor && state.cabinLight !== false) domeT = Math.max(domeT, 0.85);
+    // courtesy switch: an open door lights the dome (unless a horror override says otherwise)
+    if (anyDoor) domeT = Math.max(domeT, 0.85);
     if (this.override.cabin !== null) domeT = this.override.cabin;
     if (this.override.flicker > 0) domeT *= Math.random() < this.override.flicker ? 0.05 : 1;
     this.domeLevel = damp(this.domeLevel, domeT, domeT > this.domeLevel ? 30 : 9, dt);
-    this.dome.intensity = this.domeLevel * 0.7;
+    this.dome.intensity = this.domeLevel * 2.4;
     this.parts.im.dome.emissiveIntensity = this.domeLevel * 2.2;
     // dash backlight + gauges
     const dashT = elec * (lightsOn ? 1 : 0.55);
     this.dashLevel = damp(this.dashLevel, dashT, 6, dt);
-    this.dash.intensity = this.dashLevel * 0.05;
+    this.dash.intensity = this.dashLevel * 0.42;
+    const inside = this.taxi.isCameraInside?.() ? 1 : 0;
+    this.fillLevel = damp(this.fillLevel, inside * (1 - this.domeLevel * 0.8), 3, dt);
+    this.fill.intensity = this.fillLevel * 0.3;
     const gIntensity = this.dashLevel * 1.15;
     for (const k in this.parts.im.gauges) this.parts.im.gauges[k].emissiveIntensity = gIntensity;
     this.parts.im.needle.emissiveIntensity = 0.15 + this.dashLevel * 1.4;
@@ -193,31 +244,22 @@ export class TaxiLights {
   }
 
   _updateGlobals(hl, high) {
-    const cam = engine.camera.position;
     this.spot.getWorldPosition(this._tmp);
-    if (hl > 0.01) {
-      if (!headlightOwner || headlightOwner === this || headlightOwner.headLevel <= 0.01 || headlightOwner._tmp.distanceTo(cam) > this._tmp.distanceTo(cam)) headlightOwner = this;
-    } else if (headlightOwner === this) headlightOwner = null;
-    if (headlightOwner === this) {
-      const U = GLOBAL_UNIFORMS;
-      U.uHeadlightPos.value.copy(this._tmp);
-      this.spot.target.getWorldPosition(this._dir).sub(this._tmp).normalize();
-      U.uHeadlightDir.value.copy(this._dir);
-      U.uHeadlightOn.value = hl;
-      if (U.uHeadlightCone) U.uHeadlightCone.value.set(Math.cos(high ? 0.36 : 0.48), Math.cos(high ? 0.12 : 0.2), high ? 70 : 46, U.uHeadlightCone.value.w || 8);
-    } else if (!headlightOwner) {
-      GLOBAL_UNIFORMS.uHeadlightOn.value = 0;
-    }
+    this.spot.target.getWorldPosition(this._dir).sub(this._tmp);
+    _cone[0] = Math.cos(high ? 0.36 : 0.48);
+    _cone[1] = Math.cos(high ? 0.12 : 0.2);
+    _cone[2] = high ? 70 : 46;
+    const t = this.taxi;
+    const bias = t.controlsEnabled || t.isCameraInside?.() ? 1e4 : t.autopilotSpec ? 50 : 0;
+    submitHeadlight(this, hl, this._tmp, this._dir, _cone, bias);
   }
 
   dispose() {
-    if (headlightOwner === this) {
-      headlightOwner = null;
-      GLOBAL_UNIFORMS.uHeadlightOn.value = 0;
-    }
+    releaseHeadlight(this);
     this.spot.removeFromParent();
     this.dome.removeFromParent();
     this.dash.removeFromParent();
+    this.fill.removeFromParent();
     for (const b of this.beams) {
       b.low.removeFromParent();
       b.high.removeFromParent();

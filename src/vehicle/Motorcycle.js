@@ -2,8 +2,7 @@
 // front basket, leg shield, worn seat, round headlight (SpotLight + soft beam),
 // spoked wheels that rotate, simple lean physics along the road, autopilot, audio hooks.
 import * as THREE from 'three';
-import * as R from '../render/index.js';
-import { paintedMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
+import { paintedMaterial, GLOBAL_UNIFORMS, createVolumetricBeam } from '../render/index.js';
 import { tex } from '../textures/index.js';
 import { engine } from '../core/Engine.js';
 import { input } from '../core/Input.js';
@@ -16,6 +15,10 @@ import { LAYOUT } from '../world/layout.js';
 import { MergeBuilder, xform, roundedBox, lathe, rod, tube, GridSurface, deform, pillow, boxUV } from './geom.js';
 import { makeCanvas, toTexture, noiseCanvas } from './VehicleTextures.js';
 import { FONTS } from '../ui/fonts.js';
+import { submitHeadlight, releaseHeadlight } from './Lights.js';
+
+const _hp = new THREE.Vector3(), _hd = new THREE.Vector3();
+const BIKE_CONE = [Math.cos(0.45), Math.cos(0.18), 36];
 
 const T = (k, r) => {
   try {
@@ -269,7 +272,7 @@ export class Motorcycle {
       this.spot.shadow.camera.far = 35;
       this.spot.shadow.bias = -0.0005;
     }
-    this.beam = typeof R.createVolumetricBeam === 'function' ? R.createVolumetricBeam({ color: 0xffe0b0, length: 14, angle: 0.32, intensity: 0, noise: 0.9 }) : null;
+    this.beam = typeof createVolumetricBeam === 'function' ? createVolumetricBeam({ color: 0xffe0b0, length: 14, angle: 0.32, intensity: 0, noise: 0.9 }) : null;
     if (this.beam) {
       this.beam.position.copy(this.spot.position);
       this.beam.rotation.x = -0.05;
@@ -327,6 +330,15 @@ export class Motorcycle {
   }
   setControlsEnabled(v) {
     this.controlsEnabled = !!v;
+  }
+  /** Engine on/off (a parked bike should be switched off so its engine voice stops). */
+  setEngine(on) {
+    this.state.engineOn = !!on;
+    if (!on) this.rpm = 0;
+  }
+  /** Headlight on/off. */
+  setHeadlight(on) {
+    this.state.headlight = !!on;
   }
   /** spec {splineId, s, speed (m/s) | speedKmh, lane, stopAt, place} or null. Returns Promise (stopped). */
   autopilot(spec) {
@@ -414,7 +426,8 @@ export class Motorcycle {
           this.pos.addScaledVector(pr.right, -Math.sign(pr.lateral) * pen);
           this.v *= 0.97;
         }
-        if (Math.abs(pr.lateral) > (pr.width ?? 6.2) / 2) this.v *= 1 - 0.25 * dt;
+        this._offRoad = Math.abs(pr.lateral) > (pr.width ?? 6.2) / 2;
+        if (this._offRoad) this.v *= 1 - 0.25 * dt;
       }
     }
     if (this.world?.getHeight) this.pos.y = damp(this.pos.y, this.world.getHeight(this.pos.x, this.pos.z), 16, dt);
@@ -431,14 +444,9 @@ export class Motorcycle {
     this._headMat.emissiveIntensity = on ? 3 : 0;
     this._tailMat.emissiveIntensity = on ? (brake > 0.05 ? 3 : 1) : 0;
     if (this.beam) this.beam.userData.setIntensity?.(on ? 0.45 : 0);
-    if (on && (this.controlsEnabled || this.autopilotSpec)) {
-      const U = GLOBAL_UNIFORMS;
-      this.spot.getWorldPosition(U.uHeadlightPos.value);
-      const tgt = this.spot.target.getWorldPosition(new THREE.Vector3());
-      U.uHeadlightDir.value.copy(tgt).sub(U.uHeadlightPos.value).normalize();
-      U.uHeadlightOn.value = 1;
-      if (U.uHeadlightCone) U.uHeadlightCone.value.set(Math.cos(0.45), Math.cos(0.18), 36, U.uHeadlightCone.value.w || 8);
-    }
+    this.spot.getWorldPosition(_hp);
+    this.spot.target.getWorldPosition(_hd).sub(_hp);
+    submitHeadlight(this, on ? 1 : 0, _hp, _hd, BIKE_CONE, this.controlsEnabled ? 1e4 : this.autopilotSpec ? 50 : 0);
     // audio
     const bs = audio.bikeSound;
     if (bs) {
@@ -449,6 +457,9 @@ export class Motorcycle {
       bs.setOn?.(engine_);
       bs.setRPM?.(this.rpm);
       bs.setLoad?.(throttle);
+      bs.setGear?.(String(this.gear));
+      bs.setSpeed?.(speed * 3.6);
+      bs.setSurface?.(this._offRoad ? 'gravel' : 'asphalt');
     }
     this.physics.speed = this.v;
     this.physics.rpm = this.rpm;
@@ -471,6 +482,7 @@ export class Motorcycle {
 
   dispose() {
     this._off?.();
+    releaseHeadlight(this);
     this.autopilot(null);
     this.root.removeFromParent();
   }

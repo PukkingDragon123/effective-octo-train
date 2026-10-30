@@ -1,9 +1,13 @@
 // AH KONG (อากง): garage intro, the interactive tutorial, loop restarts, the time-skip
 // offer, his late-night radio cameo and the final reveal at Ma Ruay Shrine.
 // He is an old Thai-Chinese man: gruff, dry humour, uses ลื้อ/อั๊ว (you/I), calls Ton
-// "ไอ้หนุ่ม". He is secretly the shrine's guardian spirit — he never says so.
+// "ไอ้หนุ่ม" (and, when he softens, the Teochew "อาตี๋"). He is secretly the shrine's
+// guardian spirit — he never says so, and he never gives a name: everyone just says อากง.
 //
 // Exports
+//   INTRO_BIKE: [{ id, at, lines:[Line] }]   Ton's thoughts on the playable motorbike ride up the spur
+//                                           road; `at` = progress along LAYOUT spline 'spur' (0..1),
+//                                           spurShrine sits at 0.45, the garage junction at 1
 //   INTRO_GARAGE: [Line]                    arrival cinematic (keys + paper are handed over mid-scene: see `action`/`set`)
 //   TUTORIAL_STEPS: [Step]                  in order. Step = {
 //       id, th, en (Ah Kong's instruction line(s): `lines` array of Line),
@@ -23,7 +27,8 @@
 //       { type:'paper', seconds }                        rules paper raised this long
 //   SEND_OFF: [Line]
 //   GARAGE_IDLE: [Line]                     random nudges if the player dawdles
-//   RESTART_LINES: [{ minLoop, lines:[Line] }] pick the highest minLoop <= saves.data.loops
+//   RESTART_LINES: [{ minLoop, lines:[Line], variants?:[[Line]] }] pick the highest minLoop <= saves.data.loops;
+//                                           when that entry was already heard, play a random `variants` item if any
 //   DEATH_HINTS: { deathType: [Line] }      one hint after a death of that type (said after the restart line)
 //   TIME_SKIP: { offer:Line, choice:Line(choice), accept:[Line], decline:[Line], minDeaths }
 //   RADIO_CAMEO: { hours:[from,to], station, lines:[Line] }
@@ -36,11 +41,19 @@ const T = (th, en, x = {}) => ({ who: 'player', th, en, tone: 'thought', ...x })
 
 export const AH_KONG = CHARACTERS.ahKong;
 
+export const INTRO_BIKE = [
+  { id: 'phone', at: 0.02, lines: [T('ข้อความจากเบอร์แปลก... แล้วผมก็มาจริง ๆ', 'A text from a strange number... and I actually came.')] },
+  { id: 'forest', at: 0.2, lines: [T('ป่านี้... ไม่ได้กลับมาตั้งเจ็ดปี', "This forest... seven years since I've been back.")] },
+  { id: 'spiritHouse', at: 0.42, lines: [T('ศาลพระภูมิ... แม่สอนให้ยกมือไหว้ทุกครั้งที่ผ่าน', 'A spirit house... Mum taught me to wai every time we passed one.')] },
+  { id: 'dogs', at: 0.66, lines: [T('หมาหอน... คนแก่ว่าหมาเห็นในสิ่งที่คนไม่เห็น', "Dogs howling... old folks say dogs see what we can't.")] },
+  { id: 'garageLight', at: 0.9, lines: [T('ไฟนีออนดวงเดียว... อู่ กม.9', 'One fluorescent tube... the KM 9 garage.')] },
+];
+
 export const INTRO_GARAGE = [
   K('มาแล้วเหรอ... นึกว่าจะไม่มาซะแล้ว', "So you came... thought you wouldn't.", { action: 'smoke' }),
   K('ลื้อคือคนที่จะมาขับกะดึกใช่ไหม', "You're the one for the night shift?"),
   Y('ครับ ได้ข้อความมา', 'Yeah. I got a message.'),
-  K('อั๊วชื่อกง เรียกอากงก็ได้', "Name's Kong. Call me Ah Kong.", { action: 'nod' }),
+  K('ใคร ๆ ก็เรียกอั๊วว่าอากง', 'Everyone calls me Ah Kong.', { action: 'nod' }),
   K('หน้าตาลื้อ... คุ้น ๆ นะ', 'Your face... looks familiar.', { pause: 1.2 }),
   K('ช่างเถอะ คนแก่ตาไม่ค่อยดี', "Never mind. An old man's eyes."),
   K('รถคันนั้น เขียวเหลือง เก่าหน่อยแต่ใจถึง', 'That cab. Green and yellow. Old, but she\'s got heart.', { action: 'point' }),
@@ -52,7 +65,7 @@ export const INTRO_GARAGE = [
   K('ยากเพราะคนที่โบกเรียกนั่นแหละ', "It's hard because of who flags you down."),
   Y('ค่าแรงเท่าไหร่ครับ', "What's the pay?"),
   K('ส่งครบทุกคนจนถึงเช้า ลื้อจะได้มากกว่าเงิน', "Get everyone where they're going till morning. You'll get more than money."),
-  K('ซ้ายหรือขวา ส่งให้ถูกทาง อย่าพลาด', 'Left or right. Take each one the right way. Don\'t get it wrong.'),
+  K('ซ้ายหรือขวา ส่งให้ถูกทาง อย่าซี้ซั้ว', 'Left or right. Take each one the right way. No careless guessing.'),
   Y('...แล้วถ้าพลาดล่ะครับ', '...and if I do?'),
   K('ก็กลับมาเจออั๊วที่นี่ไง', "Then you come back here. To me.", { emotion: 'smile', action: 'smoke', pause: 1.0 }),
 ];
@@ -106,7 +119,7 @@ export const TUTORIAL_STEPS = [
   {
     id: 'gear',
     lines: {
-      auto: [K('เข้าเกียร์ดี', 'Put her in D.')],
+      auto: [K('เข้าเกียร์ D', 'Put her in D.')],
       manual: [K('เหยียบคลัตช์ เข้าเกียร์หนึ่ง', 'Clutch in. First gear.')],
     },
     hint: {
@@ -158,7 +171,8 @@ export const TUTORIAL_STEPS = [
   },
   {
     id: 'radio',
-    lines: [K('วิทยุ คลื่นสามเพลงเก่าเพราะ ๆ', 'Radio. Station three plays good old songs.')],
+    lines: [K('วิทยุ เปิดฟังเป็นเพื่อนได้', 'Radio. Keeps you company.')],
+    after: [K('คลื่นสามน่ะ... ปกติมีแต่เสียงซ่า', 'Station three... mostly just static.', { tone: 'whisper' })],
     hint: { th: 'กด 4 เปิดวิทยุ / 5 เปลี่ยนคลื่น', en: 'Press 4 for the radio / 5 to tune', keys: ['4', '5'] },
     waitFor: { type: 'control', control: 'radio', value: true },
   },
@@ -166,7 +180,7 @@ export const TUTORIAL_STEPS = [
     id: 'meterOn',
     lines: [
       K('มิเตอร์ รับคนแล้วต้องกดทุกครั้ง', 'The meter. Every fare, you press it.'),
-      K('ไฟ "ว่าง" สีแดงบนหลังคาจะดับ คนจะได้รู้ว่ารถไม่ว่าง', 'The red "vacant" lamp on the roof goes off, so people know you\'re taken.'),
+      K('ไฟ "ว่าง" สีแดงหน้ากระจกจะดับ คนจะได้รู้ว่ารถไม่ว่าง', 'The red "vacant" lamp in the windscreen goes off, so people know you\'re taken.'),
     ],
     hint: { th: 'กด M เพื่อกดมิเตอร์', en: 'Press M for the meter', keys: ['M'] },
     waitFor: { type: 'control', control: 'meter', value: true },
@@ -222,7 +236,7 @@ export const SEND_OFF = [
 ];
 
 export const GARAGE_IDLE = [
-  K('ยืนทำอะไร รถไม่ขับตัวเองนะ', "What're you standing there for? The cab won't drive itself."),
+  K('อาตี๋ ยืนทำอะไร รถไม่ขับตัวเองนะ', "What're you standing there for, kid? The cab won't drive itself."),
   K('ยุงเยอะ รีบ ๆ หน่อย', 'Mosquitoes are biting. Get a move on.'),
   K('ตุ๊กแกร้องแล้ว... สามทุ่มพอดี', 'There goes the gecko... nine o\'clock on the dot.'),
 ];
@@ -240,7 +254,37 @@ export const RESTART_LINES = [
       K('บางบรรทัดมันซ่อนอยู่ ต้องโดนน้ำหรือโดนไฟถึงจะเห็น', 'Some lines hide. Wet the paper, or hold it to the light.', { tone: 'whisper' }),
     ],
   },
+  {
+    minLoop: 6,
+    lines: [
+      K('ตุ๊กแกร้องเจ็ดทีเหมือนเดิม...', 'The gecko called seven times. Same as always...'),
+      K('คืนนี้เหมือนเดิมทุกอย่าง ยกเว้นลื้อ', "Tonight's the same as every night. Except you."),
+    ],
+  },
+  {
+    minLoop: 7,
+    lines: [
+      K('ไม่ต้องรีบ อั๊วไม่ได้ไปไหน', "No rush. I'm not going anywhere."),
+      K('คนที่รอลื้ออยู่ข้างหน้า... ก็ยังรออยู่', "And whoever's waiting for you up ahead... is still waiting.", { tone: 'whisper' }),
+    ],
+  },
   { minLoop: 8, lines: [K('ลื้อดื้อเหมือนพ่อลื้อเลย', "You're as stubborn as your father.", { emotion: 'smile', pause: 1.0 }), T('...พ่อ?', '...my father?')] },
+  {
+    minLoop: 10,
+    lines: [
+      K('อาตี๋ เคยสงสัยไหม ทำไมอั๊วไม่แก่ไปกว่านี้', 'Ever wonder, kid, why I never get any older?', { emotion: 'smile' }),
+      K('...ไม่ต้องตอบ ไปขับรถ', "...Don't answer. Go and drive."),
+    ],
+  },
+  {
+    minLoop: 12,
+    lines: [K('มาแล้วเหรอ... ชาอยู่บนโต๊ะ กุญแจอยู่ในรถ', "Back, are you... Tea's on the table. Keys are in the car.", { action: 'smoke' })],
+    variants: [
+      [K('ลื้อจำกฎได้หมดแล้ว... ที่เหลือคือใจ', "You know every rule by now... what's left is the heart.")],
+      [K('พ่อลื้อก็ดื้อแบบนี้แหละ ไม่ยอมแพ้อะไรง่าย ๆ', 'Your father was just as stubborn. Never gave up on anything.', { emotion: 'smile' })],
+      [K('ไปเถอะ คืนนี้อาจเป็นคืนสุดท้ายก็ได้', 'Go on. Tonight might be the last one.', { tone: 'whisper' })],
+    ],
+  },
 ];
 
 /** One extra line after a death of that type (helps the player learn). */
@@ -253,7 +297,7 @@ export const DEATH_HINTS = {
   home: [K('บ้านไม่ใช่ที่ที่เราพาคนตายกลับไป', 'Home isn\'t where we take the dead.', { emotion: 'sad' })],
   lookBack: [K('หันไปทำไม... ข้อสามไม่มีข้อยกเว้น', 'Why did you turn... rule three has no exceptions.')],
   ceilingCrawl: [K('ไฟมันดับเอง ก็ปล่อยให้มันมืดไป', 'If the light dies on its own, let it stay dark.')],
-  trunk: [K('เคาะสามที ห้ามจอด ต่อให้ไฟแดงก็ห้าม', 'Three knocks, you don\'t stop. Not even for a red light.')],
+  trunk: [K('เคาะสามที ห้ามจอด ต่อให้ใครโบกก็ห้าม', 'Three knocks, you don\'t stop. Not even if someone waves.')],
   nameCall: [K('เสียงเหมือนคนที่เรารัก... แต่ไม่ใช่', 'It sounds like someone we love... it isn\'t.')],
   radio: [K('เด็กขอให้ปิด ก็ปิดสิ', 'The kid asked you to turn it off. So turn it off.')],
   breath: [K('กำพระให้แน่น มองถนน อย่าหัน', 'Grip the amulet, eyes on the road, don\'t turn.')],
@@ -268,6 +312,7 @@ export const TIME_SKIP = {
   choice: {
     who: 'player', th: 'กลับไปชั่วโมงที่หลง?', en: 'Go back to that hour?', tone: 'thought',
     choice: {
+      id: 'timeSkip',
       options: [
         { key: 'accept', th: 'กลับไปครับ', en: 'Take me back.' },
         { key: 'decline', th: 'เริ่มใหม่ตั้งแต่สามทุ่ม', en: 'Start again from nine.' },
@@ -279,10 +324,10 @@ export const TIME_SKIP = {
   decline: [K('ก็ดี ค่อย ๆ ไปทีละก้าว ไม่ต้องรีบ', 'Good. One step at a time. No hurry.')],
 };
 
-/** Ah Kong's voice on the static station late in the night (station 4, the empty frequency). */
+/** Ah Kong's voice on station 3, the dead frequency, after the father's song hour (04:00–05:00). */
 export const RADIO_CAMEO = {
-  hours: [27, 29],
-  station: 4,
+  hours: [28, 29],
+  station: 3,
   lines: [
     K('ไอ้หนุ่ม... ได้ยินอั๊วไหม', 'Young man... can you hear me?', { tone: 'ghost' }),
     K('ขับดี ๆ นะ ใกล้เช้าแล้ว', 'Drive carefully. Morning\'s close.', { tone: 'ghost' }),
@@ -296,7 +341,7 @@ export const SHRINE_REVEAL = [
   K('คืนนี้ยาวหน่อยนะ ไอ้หนุ่ม', 'Long night, eh, young man.', { tone: 'whisper' }),
   K('พ่อลื้อมาขออั๊วไว้... ขอนั่งรถกับลูกอีกสักเที่ยว', 'Your father came and asked me... for one more ride with his boy.'),
   K('อั๊วก็แค่ยืดคืนให้มันยาวขึ้นหน่อย', 'All I did was stretch the night a little.', { emotion: 'smile' }),
-  K('ไปเถอะ แม่ลื้อรออยู่', "Go on. Your mother's waiting."),
+  K('ไปเถอะ ไปเปิดบ้านลื้อซะ', 'Go on. Go and open up your house.'),
 ];
 
 // Convenience: every step also exposes th/en (its first instruction line; auto variant for

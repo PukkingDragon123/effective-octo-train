@@ -45,7 +45,7 @@ export function sharedMaterials() {
 
 function plateTexture() {
   try {
-    const t = signTex('plate', { text: 'กท 1ท-4521', province: 'กรุงเทพมหานคร' });
+    const t = signTex('plate', { text: 'ทข 4521', province: 'กรุงเทพมหานคร' });
     if (t) return t;
   } catch (e) {
     /* fall through */

@@ -1,7 +1,7 @@
 // Material test bench: painted / foliage / skin materials under a lamp + moon (or dawn sun).
 // params: hour (default 22.5), wet=0..1, cam=front|back (back = looking toward the light for translucency)
 import * as THREE from 'three';
-import { paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, setPaintedParams } from '../render/index.js';
+import { paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, setPaintedParams, setMaterialDebug, postfx } from '../render/index.js';
 import { makeRng } from '../core/math.js';
 
 function leafTex() {
@@ -29,6 +29,10 @@ export default async function ({ engine, cameraRig, params }) {
   const P = (k, d) => (params.get(k) !== null ? params.get(k) : d);
   const hour = parseFloat(P('hour', 22.5));
   const scene = engine.scene;
+  if (P('debug', null)) {
+    setMaterialDebug(P('debug', null));
+    postfx.enabled = false;
+  }
   sky.sunAzimuth = 180; // sun behind the bench (toward -Z from the camera's point of view at cam=back)
   sky.setHour(hour);
   sky.setWeather({ rain: 0, fog: 0, wind: 0.5 }, 0);
@@ -63,11 +67,43 @@ export default async function ({ engine, cameraRig, params }) {
     q.rotation.set(Math.sin(k) * 0.6, k * 0.9, 0);
     scene.add(q);
   }
+  // skinned mesh test (skin + cloth wind on a SkinnedMesh)
+  {
+    const geo = new THREE.CylinderGeometry(0.18, 0.22, 1.4, 16, 12);
+    geo.translate(0, 0.7, 0);
+    const pos = geo.getAttribute('position');
+    const si = [], sw = [];
+    for (let i = 0; i < pos.count; i++) {
+      const t = Math.min(1, Math.max(0, pos.getY(i) / 1.4));
+      si.push(0, 1, 0, 0);
+      sw.push(1 - t, t, 0, 0);
+    }
+    geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    const b0 = new THREE.Bone(), b1 = new THREE.Bone();
+    b1.position.y = 0.7;
+    b0.add(b1);
+    const sk = new THREE.Skeleton([b0, b1]);
+    for (const [k, mat] of [[0, skinMaterial({ color: 0xc08868, pale: 0.0 })], [1, paintedMaterial({ color: 0xd8d4c8, wind: 'cloth', brush: 0.5 })]]) {
+      const sm = new THREE.SkinnedMesh(geo, mat);
+      sm.add(b0.clone ? (k === 0 ? b0 : sk.bones[0].clone()) : b0);
+      const bones = [];
+      sm.traverse((o) => o.isBone && bones.push(o));
+      sm.bind(new THREE.Skeleton(bones));
+      bones[1].rotation.z = 0.5;
+      sm.position.set(-rowW / 2 - 0.6 - k * 0.7, 0, -4.3);
+      sm.castShadow = true;
+      scene.add(sm);
+    }
+  }
   lightPool.add({ position: new THREE.Vector3(-1.5, 3.2, -2.2), color: 0xffa860, intensity: 60, distance: 14, glow: { size: 0.25 }, flicker: 'none' });
   lightPool.add({ position: new THREE.Vector3(3.5, 2.5, -5.5), color: 0xb8e0ff, intensity: 30, distance: 10, glow: { size: 0.2 } });
 
   const eye = new THREE.Object3D();
-  if (P('cam', 'front') === 'back') {
+  if (P('cam', 'front') === 'close') {
+    eye.position.set(-rowW / 2 + 1.6, 1.5, -2.0);
+    eye.lookAt(-rowW / 2 + 1.2, 0.6, -4);
+  } else if (P('cam', 'front') === 'back') {
     eye.position.set(rowW / 2 + 0.5, 1.2, -1.4);
     eye.lookAt(rowW / 2 + 0.8, 1.2, -6);
   } else {

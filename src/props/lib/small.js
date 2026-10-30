@@ -26,6 +26,32 @@ export const PAL = {
   gold: 0xd8a848, red: 0x9a1a14, black: 0x141414, white: 0xe8e4dc,
 };
 
+/**
+ * Cushion of moss sitting on a flat top (reference 1): irregular, slightly bulging, with
+ * ragged edges. Origin = centre of the surface it sits on. w x d footprint.
+ */
+export function mossCap(k, w, d, o = {}) {
+  const seed = o.seed ?? 1;
+  const nx = Math.max(3, Math.min(10, Math.round(w / 0.1))), nz = Math.max(3, Math.min(18, Math.round(d / 0.1)));
+  const key = `moss:${nx}:${nz}`;
+  const g = G(key, () => new THREE.PlaneGeometry(1, 1, nx, nz).rotateX(-Math.PI / 2));
+  k.at(o.p, o.r, o.s, () => {
+    k.add(mat('moss'), g, {
+      s: [w, 1, d], color: o.color ?? 0x5a7a2e, w: { vary: 0.35, grime: 0 }, uv: 'box',
+      deform: (p) => {
+        // pillow: bulges up in the middle, ragged edges tucked down onto the surface
+        const ux = p.x * 2, uz = p.z * 2;
+        const e = noise.noise2D(p.x * 9 * w + seed, p.z * 9 * d - seed);
+        const edge = Math.max(Math.abs(ux), Math.abs(uz));
+        const k2 = 1 - Math.min(1, edge);
+        p.y = 0.004 + (0.03 * Math.sqrt(k2) + 0.008 * e) * (edge < 0.999 ? 1 : 0);
+        if (edge > 0.7) { const sh = 1 - (0.1 + 0.2 * (e * 0.5 + 0.5)) * (edge - 0.7) / 0.3; p.x *= sh; p.z *= sh; }
+      },
+      colorFn: (p, n, c) => { if (noise.noise3D(p.x * 14, p.y * 14, p.z * 14) > 0.35) c.multiplyScalar(1.25); },
+    });
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Bottles, cans, cups, plates
 // ---------------------------------------------------------------------------
@@ -105,21 +131,33 @@ export function plasticChair(k, o = {}) {
   const dusty = { grime: 0.35, grimeH: 0.25, dust: o.dust ?? 0.5, vary: 0.12 };
   k.at(o.p, o.r, o.s, () => {
     const m = mat('plastic');
-    // seat (slightly dished)
-    k.add(m, G('chairSeat', () => bevelBox(0.44, 0.035, 0.42, 0.015, 0.1, 2)), { p: [0, 0.44, 0.02], r: [-0.04, 0, 0], color, w: dusty });
-    // legs: splayed tapered
+    // dished seat with a rolled front edge
+    k.add(m, G('chairSeat2', () => bevelBox(0.46, 0.035, 0.44, 0.016, [0.04, 0.05, 0.04], 2)), {
+      p: [0, 0.43, 0.02], color, w: dusty,
+      deform: (p) => { const u = p.x / 0.23, v = p.z / 0.22; p.y -= 0.018 * (1 - u * u) * (1 - v * v); if (p.z > 0.18) p.y -= (p.z - 0.18) * 0.5; },
+    });
+    // four splayed channel legs
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      k.add(m, G('chairLeg2', () => bbox(0.045, 0.45, 0.035, 0.012, [0.05, 0.08, 0.05])), {
+        p: [sx * 0.205, 0, sz * 0.19], r: [sz * -0.07, 0, sx * 0.07], color, w: dusty,
+        deform: (p) => { const t = p.y / 0.45; p.x *= 1 - 0.25 * (1 - t); p.z *= 1 - 0.25 * (1 - t); },
+      });
+    }
+    // solid curved backrest with horizontal slots
+    k.add(m, G('chairBack2', () => bevelBox(0.44, 0.4, 0.024, 0.012, [0.025, 0.025, 0.05], 2)), {
+      p: [0, 0.68, -0.235], r: [-0.22, 0, 0], color, w: dusty,
+      deform: (p) => { p.z += (p.x * p.x) * 0.55; if (p.y > 0.17) p.y += Math.cos(p.x * 6) * 0.02; },
+      colorFn: (p, n, c, lp) => {
+        const sl = Math.abs(lp.y - 0.04) < 0.13 && Math.abs(lp.x) < 0.15 && Math.abs(Math.sin((lp.y - 0.04) * Math.PI / 0.065)) < 0.45;
+        if (sl) c.multiplyScalar(0.12);
+      },
+    });
+    // rear legs continue up into the back frame
+    for (const sx of [-1, 1]) k.add(m, G('chairPost2', () => bbox(0.04, 0.42, 0.03, 0.012, [0.05, 0.08, 0.05])), { p: [sx * 0.215, 0.45, -0.205], r: [-0.22, 0, 0], color, w: dusty });
+    // curved armrests
     for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        k.add(m, G('chairLeg', () => cyl(0.022, 0.016, 0.45, 6, 0.004)), { p: [sx * 0.2, 0, sz * 0.19], r: [sz * -0.08, 0, sx * 0.08], color, w: dusty });
-      }
+      k.add(m, G('chairArm2', () => tube(smoothPath([V(0, 0.18, -0.2), V(0, 0.2, -0.05), V(0, 0.19, 0.12), V(0, 0.0, 0.2)], 10), 0.017, 5)), { p: [sx * 0.235, 0.44, 0.0], color, w: dusty });
     }
-    // backrest: frame posts + slatted panel
-    for (const sx of [-1, 1]) k.add(m, G('chairPost', () => bbox(0.035, 0.42, 0.03, 0.01, 0.1)), { p: [sx * 0.2, 0.44, -0.2], r: [-0.18, 0, 0], color, w: dusty });
-    for (let i = 0; i < 4; i++) {
-      k.add(m, G('chairSlat', () => bevelBox(0.38, 0.05, 0.022, 0.008, 0.1)), { p: [0, 0.62 + i * 0.075, -0.235 - i * 0.012], r: [-0.18, 0, 0], color, w: dusty });
-    }
-    // arm rests
-    for (const sx of [-1, 1]) k.add(m, G('chairArm', () => bevelBox(0.04, 0.03, 0.4, 0.01, 0.1)), { p: [sx * 0.22, 0.63, 0.0], r: [0.08, 0, 0], color, w: dusty });
   });
 }
 
@@ -128,8 +166,12 @@ export function plasticStool(k, o = {}) {
   const color = o.color ?? PAL.chairRed;
   k.at(o.p, o.r, o.s, () => {
     const g = G('stoolShell', () => {
-      const prof = [[0.0, 0.43], [0.14, 0.43], [0.15, 0.415], [0.165, 0.4], [0.2, 0.02], [0.205, 0.0], [0.19, 0.0], [0.155, 0.39], [0.0, 0.39]];
-      return lathe(prof.reverse(), 24);
+      const prof = [[0.0, 0.39], [0.155, 0.39]];
+      for (let i = 1; i < 12; i++) { const t = i / 12; prof.push([0.155 + 0.035 * t, 0.39 * (1 - t)]); }
+      prof.push([0.19, 0.0], [0.205, 0.0], [0.2, 0.02]);
+      for (let i = 1; i < 12; i++) { const t = i / 12; prof.push([0.2 - 0.035 * t, 0.02 + 0.38 * t]); }
+      prof.push([0.165, 0.4], [0.15, 0.415], [0.14, 0.43], [0.0, 0.43]);
+      return lathe(prof, 40);
     });
     k.add(mat('plastic'), g, {
       color, w: { dust: 0.35, grime: 0.35, grimeH: 0.2, vary: 0.15 },
@@ -460,35 +502,39 @@ export function coil(k, o = {}) {
   });
 }
 
-/** Funeral wreath on a tripod stand: ring of paper flowers with a ribbon sash. */
+/** Funeral wreath (พวงหรีด) on a tripod stand: ring of paper flowers with a diagonal name sash. */
 export function wreath(k, o = {}) {
   const rng = makeRng(o.seed ?? 31);
   const R = o.rad ?? 0.36;
+  const pal = [[0xe0b830, 0xe8e4dc], [0xe8e4dc, 0x8a5aa8], [0xd88a2a, 0xe0c040], [0xe8e4dc, 0xd84a6a]];
+  const [c1, c2] = o.palette ?? pal[Math.floor(rng() * pal.length)];
   k.at(o.p, o.r, o.s, () => {
     const cy = 1.0;
     // stand
     for (const [x, z, rz, rx] of [[-0.25, 0.08, 0.18, 0.1], [0.25, 0.08, -0.18, 0.1], [0, -0.25, 0, -0.2]]) {
       k.add(mat('wood'), G('wstand', () => cyl(0.012, 0.014, 1.15, 5, 0.002)), { p: [x, 0, z], r: [rx, 0, rz], color: 0x8a6a4a, w: { grime: 0.5 } });
     }
-    // ring of flowers: torus with lumpy colour
     const fade = o.faded ?? 0.5;
-    const base = new THREE.Color(o.color ?? 0xe8e4dc);
-    k.add(mat('flower'), G('wring:' + R, () => torus(R, 0.085, 8, 30)), {
-      p: [0, cy, 0], color: base, jitter: 0.03, jitterFreq: 30, w: { grime: 0, vary: 0.3 },
+    // ring of flowers: lumpy torus mixing two flower colours + leaves, wilting with age
+    k.add(mat('flower'), G('wring2:' + R, () => torus(R, 0.09, 9, 32)), {
+      p: [0, cy, 0], color: 0xffffff, jitter: 0.035, jitterFreq: 34, w: { grime: 0, vary: 0.3 },
       colorFn: (p, n, c) => {
-        const v = noise.noise3D(p.x * 26, p.y * 26, p.z * 26 + (o.seed ?? 0));
-        const v2 = noise.noise3D(p.x * 9 + 3, p.y * 9, p.z * 9);
-        if (v > 0.3) c.lerp(_cmari.set(o.accent ?? 0xc8a020), 0.8 * (1 - fade * 0.4));
-        else if (v < -0.35) c.lerp(_cmari.set(v2 > 0 ? 0x7a4a9a : 0x2a5a2a), 0.7 * (1 - fade * 0.4));
-        if (v2 < -0.45) c.lerp(_cmari.set(0x5a4a3a), fade * 0.7); // wilted brown patches
-        c.multiplyScalar(1 - fade * 0.3);
+        const v = noise.noise3D(p.x * 30, p.y * 30, p.z * 30 + (o.seed ?? 0));
+        const v2 = noise.noise3D(p.x * 8 + 3, p.y * 8, p.z * 8);
+        c.set(v > 0.1 ? c1 : c2);
+        if (v < -0.55) c.set(0x2e4a26); // leaves between flowers
+        if (v2 < -0.35) c.lerp(_cmari.set(0x6a5a44), fade * 0.8); // wilted brown patches
+        c.multiplyScalar(1 - fade * 0.35);
       },
     });
-    // dark leafy backing disc + ribbon sash with printed name
-    k.add(mat('flower'), G('wdisc:' + R, () => cyl(R * 0.85, R * 0.85, 0.02, 20, 0.004).rotateX(Math.PI / 2)), { p: [0, cy, -0.03], color: 0x2a3a22, jitter: 0.01, jitterFreq: 30, w: { vary: 0.3, grime: 0 } });
-    for (const sx of [-1, 1]) k.add(mat('cloth_static'), G('wsash', () => quad(0.09, 0.85, 1, 6).translate(0, -0.42, 0)), {
-      p: [sx * 0.1, cy + 0.2, 0.05], r: [0.05, 0, sx * 0.12], color: o.ribbon ?? 0xd8d0c0, w: { grime: 0.25, vary: 0.25 }, uv: 'keep',
-      colorFn: (p, n, c, lp) => { if (Math.abs(lp.x) < 0.025 && lp.y < -0.1 && lp.y > -0.75 && Math.sin(lp.y * 120) > 0.2) c.multiplyScalar(0.25); },
+    // backing disc of green leaves + white satin centre
+    k.add(mat('flower'), G('wdisc2:' + R, () => cyl(R * 0.82, R * 0.82, 0.02, 22, 0.004).rotateX(Math.PI / 2)), { p: [0, cy, -0.03], color: 0x2a3a22, jitter: 0.012, jitterFreq: 30, w: { vary: 0.3, grime: 0 } });
+    k.add(mat('cloth_static'), G('wsatin:' + R, () => new THREE.CircleGeometry(R * 0.55, 20)), { p: [0, cy, -0.005], color: 0xd8d0c4, uv: 'keep', w: { vary: 0.2, grime: 0.2, grimeH: 0.3, ground: cy - R } });
+    // diagonal name sash (printed gold letters)
+    k.add(mat('cloth_static'), G('wsash2:' + R, () => quad(0.1, R * 2.5, 1, 10)), {
+      p: [0, cy, 0.04], r: [0, 0, 0.75], color: o.ribbon ?? 0xe8e2d4, uv: 'keep', w: { vary: 0.25, grime: 0.2 },
+      deform: (p) => { p.z += Math.cos((p.y / (R * 1.25)) * Math.PI * 0.5) * 0.06; },
+      colorFn: (p, n, c, lp) => { if (Math.abs(lp.x) < 0.028 && Math.abs(lp.y) < R * 0.9 && Math.sin(lp.y * 140) > 0.1) c.set(0xb08a30); },
     });
   });
 }

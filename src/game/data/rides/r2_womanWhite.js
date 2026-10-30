@@ -30,11 +30,10 @@ export const RIDE_WOMAN_WHITE = {
     { id: 'upsideDownHead', at: 0.46 },
     { id: 'cabinLightDies', at: 0.6 },
     { id: 'faceAgainstGlass', at: 0.7 },
-    { id: 'twistedNeckReflection', at: 0.82, optional: true },
   ],
   deathOnWrong: 'trueForm',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 150, stretch: 'none' }, // rain: the player drives slower anyway
+  pacing: { cruiseKmh: 40, minSeconds: 120, stretch: 'none' }, // rain: the player drives slower anyway
   dialogue: {
     hail: [P('รอด้วยค่ะ... ช่วยด้วย...', 'Wait for me... please...', { tone: 'ghost', action: 'hail' })],
     greet: [
@@ -50,7 +49,7 @@ export const RIDE_WOMAN_WHITE = {
     beats: [
       {
         id: 'jasmine',
-        trigger: { type: 'progress', at: 0.08 },
+        trigger: { type: 'progress', at: 0.12 },
         lines: [
           P('แถวนี้หอมดอกมะลิจังเลยนะคะ', 'It smells so strongly of jasmine round here.'),
           T('มะลิ... กลิ่นเหมือนในงานศพ', 'Jasmine... like at a funeral.'),
@@ -58,7 +57,7 @@ export const RIDE_WOMAN_WHITE = {
       },
       {
         id: 'whatYear',
-        trigger: { type: 'progress', at: 0.16 },
+        trigger: { type: 'progress', at: 0.19 },
         lines: [
           P('ตอนนี้... พ.ศ. อะไรแล้วคะ', 'What year... is it now?', { pause: 1.2 }),
           P('ไม่เป็นไรค่ะ ฉันจำอะไรไม่ค่อยได้แล้ว', "Never mind. I don't remember much any more."),

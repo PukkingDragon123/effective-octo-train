@@ -57,7 +57,7 @@ class UI {
 
   /** Mount into the #ui element. Safe to call more than once. */
   init(root) {
-    if (this.root && (!root || root === this.root)) return this;
+    if (this.root) return this; // already mounted (direct call + 'ui:init' hook)
     root = root || document.getElementById('ui');
     if (!root) {
       root = document.createElement('div');

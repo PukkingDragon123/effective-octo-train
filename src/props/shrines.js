@@ -114,26 +114,31 @@ export function createSpiritHouse(opts = {}) {
   else if (style === 'chinese') deck = buildChineseShrine(k, rng, age, opts, group, out);
   else deck = buildTwinHouse(k, rng, age, opts);
   // ---- offerings ------------------------------------------------------------
-  const front = style === 'chinese' ? 0.36 : style === 'twin' ? 0.32 : 0.3;
+  const front = style === 'chinese' ? 0.36 : style === 'twin' ? 0.32 : 0.38;
   if (opts.offerings !== false) k.details(() => {
     k.push([0, deck, 0]);
     if (style !== 'chinese') {
       incensePot(k, { p: [0, 0, front], rad: 0.055, seed: seed + 1, color: 0xb0a070, metal: true, legs: true, sticks: 16 });
       for (const sx of [-1, 1]) candle(k, { p: [sx * 0.11, 0, front + 0.03], h: 0.09 + rng() * 0.05, color: rng() < 0.5 ? 0xd8d0b8 : 0xb8241c });
       // red soda bottles with straws, lined along the front edge
-      const nb = 3 + Math.floor(rng() * 4);
-      for (let i = 0; i < nb; i++) bottle(k, { p: [-0.28 + i * (0.11 + rng() * 0.02), 0, front + 0.11 + (rng() - 0.5) * 0.03], straw: true, strawYaw: rng() * 6, kind: 'soda', color: rng() < 0.8 ? PAL.sodaRed : PAL.sodaGreen, s: 0.95 });
-      dancers(k, { p: [0.22, 0, front - 0.08], n: 1, size: 0.9 });
-      dancers(k, { p: [-0.22, 0, front - 0.08], n: 1, size: 0.9 });
+      // a few soda bottles with straws at the front corners (the rest on the ground)
+      const nb = style === 'thai' ? 2 + Math.floor(rng() * 2) : 3;
+      for (let i = 0; i < nb; i++) {
+        const sx = i % 2 ? 1 : -1;
+        const x = style === 'thai' ? sx * (0.4 - Math.floor(i / 2) * 0.08) : -0.3 + i * 0.12;
+        bottle(k, { p: [x, 0, front + (style === 'thai' ? 0.04 : 0.11) - Math.floor(i / 2) * 0.08], straw: true, strawYaw: rng() * 6, kind: 'soda', color: rng() < 0.8 ? PAL.sodaRed : PAL.sodaGreen, s: 0.9 });
+      }
+      dancers(k, { p: [0.24, 0, front - 0.1], n: 1, size: 1.0 });
+      dancers(k, { p: [-0.24, 0, front - 0.1], n: 1, size: 1.0 });
       fruitPlate(k, { p: [-0.12, 0, front - 0.1], kind: rng() < 0.5 ? 'banana' : 'orange', s: 0.7, seed: seed + 3 });
       glassWater(k, { p: [0.12, 0, front - 0.1], s: 0.8 });
-      if (style === 'thai') garland(k, { p: [0, 0.42, 0.24], len: 0.16, s: 1 });
+      if (style === 'thai') garland(k, { p: [0, 0.55, 0.17], len: 0.12, s: 0.9 });
     }
     k.pop();
     // ground-level clutter: zebras, old bottles, dried garlands, more figurines
     const gz = style === 'chinese' ? 0.55 : 0.55;
     zebras(k, { p: [0.0, 0, gz], n: 2 + Math.floor(rng() * 3), spread: 0.75, size: 1.2, seed: seed + 5, moss: age * 0.5 });
-    for (let i = 0; i < 3; i++) bottle(k, { p: [-0.35 + rng() * 0.7, 0, gz + 0.12 + rng() * 0.15], straw: rng() < 0.6, strawYaw: rng() * 6, color: PAL.sodaRed, s: 1 });
+    for (let i = 0; i < 5; i++) bottle(k, { p: [-0.45 + rng() * 0.9, 0, gz + 0.12 + rng() * 0.2], straw: rng() < 0.7, strawYaw: rng() * 6, color: rng() < 0.85 ? PAL.sodaRed : PAL.sodaGreen, s: 1 });
     if (rng() < 0.7) bottle(k, { p: [0.3, 0.03, gz + 0.2], r: [Math.PI / 2, rng() * 6, 0], straw: false, color: 0x6a1010 });
     garland(k, { p: [-0.25, 0.01, gz + 0.05], r: [-Math.PI / 2 + 0.1, rng() * 3, 0], len: 0.14, color: 0x8a7a5a, accent: 0x6a4a2a, rose: 0x4a1a14 });
     dancers(k, { p: [0.32, 0, gz - 0.05], n: 1, size: 1.2 });
@@ -150,7 +155,7 @@ export function createSpiritHouse(opts = {}) {
   out.groundOfferingAnchor = anchor(group, 'groundOffering', 0, 0, 0.6 * S);
   if (style !== 'chinese') for (const a of out.candleAnchors) out.lights.push(lightSpec('candle', a, { intensity: 0.5, offset: new THREE.Vector3(0, 0.05, 0.08) }));
   out.lightSpec = out.lights[0];
-  out.colliders.push(style === 'twin' ? { x: 0, z: 0, hx: 0.55 * S, hz: 0.35 * S, yaw: 0 } : { x: 0, z: 0, hx: 0.38 * S, hz: 0.38 * S, yaw: 0 });
+  out.colliders.push(style === 'twin' ? { x: 0, z: 0, hx: 0.55 * S, hz: 0.35 * S, yaw: 0 } : style === 'thai' ? { x: 0, z: 0, hx: 0.2 * S, hz: 0.2 * S, yaw: 0 } : { x: 0, z: 0, hx: 0.42 * S, hz: 0.36 * S, yaw: 0 });
   return out;
 }
 
@@ -163,8 +168,11 @@ function buildThaiHouse(k, rng, age, opts) {
   k.add(mat('plaster'), bbox(0.17, postH, 0.17, 0.015, 0.25), { p: [0, 0.2, 0], color: white, w: { mossLow: 0.6 * age, mossH: 0.7, streak: 0.5 * age } });
   for (const y of [0.25, postH + 0.05]) k.add(mat('gold'), bbox(0.2, 0.05, 0.2, 0.008, 0.1), { p: [0, y, 0], color: gold });
   // bracket flare under the deck
-  k.add(mat('plaster'), G('flare', () => cyl(0.32, 0.1, 0.16, 4, 0.01).rotateY(Math.PI / 4)), { p: [0, postH + 0.1, 0], color: white, w: { streak: 0.6 * age } });
+  k.add(mat('plaster'), G('flare2', () => cyl(0.44, 0.1, 0.2, 4, 0.01).rotateY(Math.PI / 4)), { p: [0, postH + 0.06, 0], color: white, w: { streak: 0.6 * age } });
   const deck = postH + 0.3;
+  // everything above the deck is built at 1.3x around the deck point (a generous house)
+  k.push([0, deck, 0], null, 1.3);
+  k.push([0, -deck, 0]);
   // deck with balustrade
   k.add(mat('plaster'), bbox(0.78, 0.05, 0.78, 0.012, 0.15), { p: [0, deck - 0.05, 0], color: white, w: { moss: 0.5 * age, dust: 0.2 } });
   k.add(mat('gold'), bbox(0.8, 0.02, 0.8, 0.005, 0.15), { p: [0, deck - 0.065, 0], color: gold });
@@ -220,6 +228,8 @@ function buildThaiHouse(k, rng, age, opts) {
   // garlands draped on the front corners of the balustrade
   for (const sx of [-1, 1]) garland(k, { p: [sx * 0.37, deck + 0.1, 0.37], len: 0.13, color: PAL.jasmine, accent: PAL.marigold });
   flowerString(k, [V(-0.36, deck + 0.1, 0.375), V(-0.2, deck + 0.02, 0.39), V(0, deck - 0.01, 0.39), V(0.2, deck + 0.02, 0.39), V(0.36, deck + 0.1, 0.375)], { color: PAL.marigold, accent: PAL.rose, rad: 0.014 });
+  k.pop();
+  k.pop();
   // faded ribbons tied to the post (ผ้าสามสี)
   wrapBands(k, 0.088, 0.85, 1.05, rng, [0xd04a6a, 0xd8b030, 0x2a8a4a], { square: true });
   return deck;
@@ -317,12 +327,12 @@ function wrapBands(k, r, y0, y1, rng, colors, opts = {}) {
   const bh = (y1 - y0) / n;
   colors.forEach((c, i) => {
     const ya = y0 + i * bh * 0.92, tilt = (rng() - 0.5) * (opts.square ? 0.05 : 0.18);
-    const g = cyl(r + 0.006, r + 0.006, bh * 1.05, 18, 0, 3, false);
+    const g = cyl(r + 0.006 + i * 0.004, r + 0.006 + i * 0.004, bh * 1.08, 24, 0, 4, false);
     k.add(mat('cloth_static'), g, {
       p: [0, ya, 0], r: [tilt, opts.square ? 0 : rng() * 6, tilt * 0.5], color: c, w: { grime: 0.15, vary: 0.25 },
       deform: (p) => {
         const a = Math.atan2(p.z, p.x);
-        let f = 1 + 0.06 * Math.sin(a * 11 + p.y * 30) + 0.04 * Math.sin(a * 5);
+        let f = 1 + 0.018 * Math.sin(a * 11 + p.y * 30) + 0.012 * Math.sin(a * 5);
         if (opts.square) {
           const n = 8, ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
           f *= 1.02 / Math.pow(Math.pow(ca, n) + Math.pow(sa, n), 1 / n) * 0.995;
@@ -381,7 +391,7 @@ export function createClothWrap(radius = 0.8, y0 = 0.8, y1 = 1.6, opts = {}) {
   const k = new Kit(opts.seed ?? 1, { grime: 0, vary: 0.2 });
   const palettes = [[0xd84a7a, 0xe0b830, 0x2a9a5a], [0xc82a2a, 0xe8c040, 0x3a8a3a, 0xd86aa0], [0xe07090, 0xd8c040, 0x30a060]];
   const colors = opts.colors || palettes[Math.floor(rng() * palettes.length)];
-  wrapBands(k, radius, y0, y1, rng, colors, { wind: true });
+  wrapBands(k, radius * 1.03 + 0.012, y0, y1, rng, colors, { wind: true });
   if (opts.garland !== false) {
     // a jasmine/marigold garland hung on the cloth knot
     const ky = y0 + (y1 - y0) * 0.6;

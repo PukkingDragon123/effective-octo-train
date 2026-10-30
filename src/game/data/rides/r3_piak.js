@@ -25,14 +25,14 @@ export const RIDE_PIAK = {
     { rule: 'r3', lookBack: 'warn' },
   ],
   encounters: [
-    { id: 'wireCrawler', at: 0.14 },
-    { id: 'yaiSpeed', at: 0.34 },
+    { id: 'wireCrawler', at: 0.22 },
+    { id: 'yaiSpeed', at: 0.4 },
     { id: 'trunkKnocks', at: 0.62 },
     { id: 'somethingEnormous', at: 0.8, optional: true },
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: ['m_noodle'],
-  pacing: { cruiseKmh: 45, minSeconds: 140, stretch: 'none' },
+  pacing: { cruiseKmh: 45, minSeconds: 100, stretch: 'none' },
   dialogue: {
     hail: [
       P('เฮ้ย! แท็กซี่! หยุด ๆ ๆ', 'Oi! Taxi! Stop, stop, stop!', { tone: 'shout', action: 'hail' }),
@@ -49,7 +49,7 @@ export const RIDE_PIAK = {
     beats: [
       {
         id: 'song1',
-        trigger: { type: 'progress', at: 0.05 },
+        trigger: { type: 'progress', at: 0.13 },
         lines: [
           P('♪ น้ำตาหยดลง... กลางท้องนา... ♪', '♪ My tears fall down... into the paddy... ♪', { tone: 'sing', action: 'sing' }),
           P('ร้องเพราะไหมไอ้หนู ลุงเคยประกวดได้ที่สามนะ', 'Sounds good, eh, kid? I came third in a contest once.', { emotion: 'smile' }),
@@ -66,7 +66,7 @@ export const RIDE_PIAK = {
       },
       {
         id: 'neverScared',
-        trigger: { type: 'progress', at: 0.24 },
+        trigger: { type: 'progress', at: 0.31 },
         lines: [
           P('รู้ไหม ลุงเห็นผีมาเยอะ ไม่เคยกลัวสักที', "You know, I've seen plenty of ghosts. Never once scared."),
           P('...เพราะเมาทุกที', '...because I was always drunk.', { emotion: 'smile', action: 'laugh' }),
@@ -85,7 +85,7 @@ export const RIDE_PIAK = {
       {
         id: 'sleep',
         essential: true, // he must be asleep before the knocks (rule 5 at 0.62)
-        trigger: { type: 'progress', at: 0.48 },
+        trigger: { type: 'progress', at: 0.52 },
         lines: [
           P('ง่วงแล้ว... ขอลุงหลับแป๊บนะ', 'Sleepy... gonna rest my eyes a bit.', { action: 'sleep' }),
           P('ถึงแล้ว... ปลุก... ด้วย... ครอก...', 'Wake me... when we... zzz...', { set: { piakAsleep: true } }),
@@ -108,7 +108,7 @@ export const RIDE_PIAK = {
       },
       {
         id: 'wakeUp',
-        trigger: { type: 'progress', at: 0.86 },
+        trigger: { type: 'progress', at: 0.8 },
         lines: [
           P('หือ? ถึงยัง... ฝันว่ามีคนเคาะท้ายรถ', "Huh? We there yet? Dreamt someone was knocking on the trunk.", { emotion: 'surprise', set: { piakAsleep: false } }),
           Y('...ฝันครับลุง', '...just a dream, Uncle.'),
@@ -154,7 +154,7 @@ export const RIDE_PIAK = {
     ],
     idle: [
       P('อึก!', 'Hic!'),
-      P('♪ ลาก่อนเด้อ... ควายเผือกของพี่... ♪', '♪ Farewell, my dear... my white buffalo... ♪', { tone: 'sing' }),
+      P('♪ ลาก่อนเด้อนาง... ลาก่อนควายเผือก... ♪', '♪ Farewell, my girl... farewell, my white buffalo... ♪', { tone: 'sing' }),
       P('ตอนหนุ่ม ๆ ลุงขับสิบล้อนะ รู้ไหม', 'When I was young I drove ten-wheelers, you know.'),
       P('ป้าเล็กแกใจดีนะ ให้ลุงกินก๋วยเตี๋ยวฟรี', 'Auntie Lek is kind, though. Gives me noodles for free.'),
     ],

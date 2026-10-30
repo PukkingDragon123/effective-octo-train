@@ -141,6 +141,50 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
 * `particles.emit(type, opts)`: GPU instanced, wind-reactive; insects swarm lights
   and the taxi's headlight beams.
 
+#### render — implementation notes for integrators
+* **Light calibration.** The grade runs night exposure ≈ 3.5 (dawn ≈ 1). Lights are three.js
+  physical units: taxi headlight SpotLights ≈ 900–1500 cd, streetlights 250–450 cd
+  (distance 18–22), shrine candles 5–15, cabin light 2–6. Set `GLOBAL_UNIFORMS.uHeadlightPos/
+  uHeadlightDir/uHeadlightOn` every frame (midpoint of the two lamps, beam axis); the fog
+  scattering colour/strength is `uHeadlightColor` (default warm, ×0.12).
+* **Custom shaders**: `#include <dlb_common>`, `<dlb_globals>`, `<dlb_fog_common>`,
+  `<dlb_headlight>` give hashes/noise, all `dlb*` global uniforms (aliases of
+  GLOBAL_UNIFORMS, injected automatically into every material at compile time), and
+  `dlbApplyFog(col, worldPos, gl_FragCoord.xy)`, `dlbFogTransmittance(wp)`,
+  `dlbHeadlightAt(wp)`, `dlbLampLightAt(wp)`, `dlbEnvRadiance(dir, wp, rough)`. A ShaderMaterial
+  with `fog:true` that includes three's fog chunks gets the full fog for free (it needs
+  `UniformsLib.fog` in its uniforms like any three fog material). Additive materials with
+  `fog:true` are only attenuated (never tinted toward the fog colour).
+* **Sky alpha**: the sky dome writes alpha 0 into the scene target and PostFX uses
+  `1 - alpha` as the sun-shaft occlusion mask, so opaque custom shaders must write alpha 1.
+* **Glass pass**: rendered with the camera's layers set to `GLASS` only, autoClear off and
+  shadow-map updates off. Lights owned by render (sky + pooled lights) also enable the GLASS
+  layer; enable it on your own lights if lit glass needs them. `postfx.glass` = `'auto'`
+  (scans for GLASS-layer meshes every 30 frames) | `true` | `false`.
+  `glassUniforms.tSceneBlur` is a quarter-res blur of the opaque frame.
+* **`postfx.params`**: `exposure, painterly, bloom, grain, vignette, chroma, saturation,
+  contrast` are **multipliers** (1 = the player's settings / the hour's grade); `tint` is a
+  colour multiplier; `temperature` is added; `letterbox, fade (+fadeColor), horror, amulet,
+  blur, distortion` are absolute 0..1. `postfx.debugView = 'shafts'|'paint'|'bloom'|'tensor'|'scene'`.
+* **Materials**: extra opts `roughnessMap, aoMap, normalScale, envMapIntensity, puddles (0
+  disables), dirtHeight, mossColor, dirtColor, windHeightScale, flutter, envReflect, rim, sss`.
+  `setPaintedParams(mat, {...})` changes them live (e.g. ghost `pale`). Wind-animated meshes
+  that cast shadows: call `applyWindShadows(root)` once (sets matching depth materials).
+  Wind height is measured from the mesh/instance origin, so put tree/grass pivots at the
+  base (vines/cloth hang below their pivot).
+* **Sky**: `sky.sunAzimuth` (deg, 0 = −Z, 90 = +X) aims the sunrise; `sky.setWetness(v)`;
+  `sky.flash(k)` (lightning, auto during heavy dread rain; `sky.lightning=false` disables);
+  `sky.overrides = {fogDensity}`; `sky.sunVisibility`, `sky.grade` (read by PostFX).
+* **lightPool.add** extra spec: `groundY, poolRadius, poolIntensity, beam (true | {length, angle,
+  intensity, direction}), onFlicker({type:'on'|'off'|'stutter'|'restrike'|'spark', handle,
+  position}), scatter`. Handles also expose `level`, `position`, `setPosition(v)`, `beam`.
+  The 4 nearest lamps feed fog in-scattering + reflections on wet surfaces.
+* **particles.emit** extra opts: `height, groundY, seed, active, autoDispose`; handle
+  `.burst(pos?)` re-triggers sparks. Camera-centred when no position/object: rain, splash,
+  dust, pollen, mist. Rain/splash density follows `uRain`.
+* **createVolumetricBeam({color, length, angle, intensity, noise, groundY})** → Mesh (apex at
+  origin, beam along local −Z); `mesh.userData.setIntensity/setColor/setGroundY`.
+
 ### textures (`src/textures/index.js`)
 * `tex(key, {repeat})`: cached CanvasTexture/DataTexture. Required keys (at least):
   `asphalt asphalt_normal asphalt_rough road_lines concrete concrete_moss concrete_normal moss soil rock rock_normal
@@ -242,6 +286,28 @@ reverb from generated impulse responses). Spatial via PannerNode (HRTF) followin
 `engine.camera`. Buses: master, music, sfx, ambience, voice, ui. Sound ids are
 listed in `src/audio/index.js` (keep the list in sync).
 
+Implementation notes (audio agent):
+* Generators are pure JS (`src/audio/Synth/*`: modal, Karplus-Strong, Klatt-style formant
+  voice, pulse-model engine, granular) rendered in 2 module Web Workers (`Gen.js`) and
+  cached as AudioBuffers (LRU ~72 MB); everything is warmed in the background after
+  `audio.init()`. `new AudioSystem({offline:true}).attachContext(offlineCtx, {sync:true})`
+  runs the same code in an OfflineAudioContext (see `src/sandbox/audio.js`).
+* `audio.init()` is also auto-hooked to the first pointerdown/keydown/touchstart. Calls
+  before init are safe: `play()` is a no-op, `loop()` returns a pending handle that starts
+  on init, subsystem state (engine/ambience/music/radio) is remembered and applied.
+* Extra API: `audio.playBuffer(buf, opts)`, `audio.setEnvironment('forest'|'garage'|'shrine'|'hall')`,
+  `audio.stopAll()`, play opts `variant`, `count`/`interval` (repeat), `muffle`, `reverb`,
+  `pan`, `offset3`, `mustPlay`; `engineSound.setSpeed(kmh)`, `.setSurface(kind)`,
+  `.setOn(on,{instant,stall})`, `.attach(engineObj, bodyObj)`; `ambience.set()` also
+  takes `enabled`, `autoMuffle` (on by default: `insideCar`/`windowsOpen` drive `setMuffle`);
+  `radio.setHour(h)` (also follows bus `game:hour`); `voice.estimate(line)`.
+* Bus events: `audio:ready {sampleRate}`; `audio:radio {on, station, song, title, memory}` —
+  `song` is `'lukthung_N'|'ballad_N'|'dj'|'dhamma'|'father_song'|'static'`, and
+  `memory: 'm_song'` while station 3 plays the father's song (03:00–04:00).
+* Mix: each sound id is loudness-normalised to a per-id target (`Synth/registry.js`
+  `LOUD`); place cabin sounds at the taxi anchors (refDistance ~1 m), world sounds where
+  they happen. Only a brick-wall limiter sits on the master (no glue compressor).
+
 ### ui (`src/ui/index.js`)
 DOM overlay in `#ui`. Elegant and minimal, Thai+English typography; no persistent HUD.
 Full keyboard/gamepad navigation of menus.
@@ -298,5 +364,12 @@ time, other beats or bus-style events listed in `DIALOGUE_EVENTS`), `ENCOUNTERS`
 `ENDINGS`, Ah Kong's `INTRO_GARAGE`/`TUTORIAL_STEPS`/`RESTART_LINES`/`DEATH_HINTS`/`TIME_SKIP`,
 radio `STATIONS`/`SONGS`/`DJ_LINES`/`SPECIAL_BROADCASTS`, world text (`CHAPTERS`, `DEATH_CARDS`,
 `SIGNS`, `POSTERS`, `NOODLE_MENU`, `LOADING_LINES`…) and `CREDITS`. Hours use the 21..30 scale.
+Choice lines use exactly the shape `src/game/Dialogue.js` plays (`line.choice = {id, options,
+defaultKey, timeout?, branches?, setOnPick?}`). Each ride has `pacing {cruiseKmh, minSeconds,
+stretch:'none'|'fog'|'mist', speedCapKmh?}` and beats may be `essential` or gated with
+`if.memories`: ride progress is `min(distance/route, time/minSeconds)` and the fork must not be
+reached before essential beats have played (late routes are only 0.5–1 km long; the fog/mist
+"stretches" the road). Radio station numbers 1..4 match `src/audio/Radio.js`. Story canon notes
+are at the end of `SCHEMA.md`.
 Validate with `node -e "import('./src/sandbox/narrative-validate.js').then(m=>m.runNode())"` or the
-`narrative` sandbox.
+`narrative` sandbox (it also simulates each ride's dialogue timeline and warns on pile-ups).

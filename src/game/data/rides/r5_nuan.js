@@ -22,17 +22,17 @@ export const RIDE_NUAN = {
   },
   specialRules: [
     { rule: 'r4', note: 'Temptation: "don\'t you want to see my face?" Face-gaze timer active.' },
-    { rule: 'r7', at: 0.45, note: 'Name call outside; she tells you not to answer.' },
+    { rule: 'r7', at: 0.52, note: 'Name call outside; she tells you not to answer.' },
     { rule: 'r3', lookBack: 'death' },
   ],
   encounters: [
-    { id: 'krasue', at: 0.06 },
-    { id: 'nameCall', at: 0.45 },
+    { id: 'krasue', at: 0.18 },
+    { id: 'nameCall', at: 0.52 },
     { id: 'krahang', at: 0.72 },
   ],
   deathOnWrong: 'windowAttack',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 140, stretch: 'none' },
+  pacing: { cruiseKmh: 40, minSeconds: 130, stretch: 'fog' },
   dialogue: {
     hail: [P('แวะรับฉันหน่อยได้ไหมจ๊ะ', 'Would you stop for me?', { tone: 'whisper', action: 'hail' })],
     greet: [
@@ -56,7 +56,7 @@ export const RIDE_NUAN = {
       },
       {
         id: 'redMoon',
-        trigger: { type: 'progress', at: 0.18 },
+        trigger: { type: 'progress', at: 0.27 },
         lines: [P('คืนนี้พระจันทร์สีแดงนะ... เห็นไหมจ๊ะ', 'The moon is red tonight... do you see?')],
       },
       {
@@ -66,7 +66,7 @@ export const RIDE_NUAN = {
       },
       {
         id: 'seeMyFace',
-        trigger: { type: 'progress', at: 0.28 },
+        trigger: { type: 'progress', at: 0.32 },
         lines: [
           P('พ่อหนุ่มไม่อยากเห็นหน้าฉันหรือจ๊ะ', "Don't you want to see my face, young man?", { tone: 'whisper', emotion: 'creepy' }),
           P('ผู้ชายทุกคนอยากเห็นทั้งนั้นแหละ', 'Every man always did.', { emotion: 'smile' }),
@@ -76,7 +76,7 @@ export const RIDE_NUAN = {
       {
         id: 'promise',
         essential: true,
-        trigger: { type: 'progress', at: 0.38 },
+        trigger: { type: 'progress', at: 0.43 },
         lines: [
           P('ฉันรอคนคนหนึ่งอยู่ใต้ต้นกล้วยมานานแล้ว', "I've waited under the banana tree for someone, a long time.", { emotion: 'sad' }),
           P('เขาสัญญาว่าจะกลับมา แล้วก็ไม่เคยกลับ', 'He promised he would come back. He never did.'),
@@ -94,7 +94,7 @@ export const RIDE_NUAN = {
       },
       {
         id: 'light',
-        trigger: { type: 'progress', at: 0.58 },
+        trigger: { type: 'progress', at: 0.62 },
         lines: [P('ฉันไม่เคยหนักอะไรเลยนะ... จะนั่งตรงไหนก็ตาม', 'I never weigh anything... wherever I sit.', { tone: 'whisper' })],
       },
       {

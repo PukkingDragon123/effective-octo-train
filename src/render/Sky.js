@@ -71,11 +71,11 @@ const KEYS = [
   }),
   // 04-06 DAWN: indigo -> cyan -> peach, glowing mist, golden sunrise ~05:45
   K(28.5, {
-    zenith: 0x0d1230, mid: 0x1b2347, horizon: 0x343e66, fog: 0x283150, fogDensity: 0.01, fogH: 0.035, fogK: 0.18, fogNoise: 0.55,
-    amb: 0x6a72a8, ambI: 0.3, hemiSky: 0x56609a, hemiGround: 0x1a1a22, hemiI: 0.85, moonC: 0xb0c0f0, moonI: 0.2,
+    zenith: 0x0e1226, mid: 0x1c2240, horizon: 0x363d5c, fog: 0x2a3048, fogDensity: 0.01, fogH: 0.035, fogK: 0.18, fogNoise: 0.55,
+    amb: 0x70769a, ambI: 0.3, hemiSky: 0x5a6090, hemiGround: 0x1a1a22, hemiI: 0.85, moonC: 0xb0c0f0, moonI: 0.2,
     stars: 0.35, clouds: 0.3, cloudC: 0x2a3050, skyVis: 0.85, surreal: 0, dawn: 0.25, moonScatter: 0.4, glow: 0x3a3070, glowI: 0.3,
-    exposure: 2.6, sat: 0.92, contrast: 1.04, temp: -0.06, tint: -0.02, lift: [0.008, 0.008, 0.02], gain: [1.0, 1.0, 1.02],
-    shadowTint: 0x2c2c62, highTint: 0xb0b4e0, split: 0.26,
+    exposure: 2.6, sat: 0.78, contrast: 1.04, temp: -0.06, tint: -0.02, lift: [0.008, 0.008, 0.02], gain: [1.0, 1.0, 1.02],
+    shadowTint: 0x34345a, highTint: 0xb0b4e0, split: 0.26,
   }),
   K(29.1, {
     zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x78a2b0, fog: 0x587c88, fogDensity: 0.008, fogH: 0.024, fogK: 0.22, fogNoise: 0.55,
@@ -92,7 +92,7 @@ const KEYS = [
     shadowTint: 0x3a4a7a, highTint: 0xffc890, split: 0.26,
   }),
   K(29.75, {
-    zenith: 0x46689a, mid: 0x9cb0c0, horizon: 0xf0b078, fog: 0xc09a78, fogDensity: 0.0045, fogH: 0.018, fogK: 0.25, fogNoise: 0.55,
+    zenith: 0x3d64a0, mid: 0x9cb0c0, horizon: 0xf0b078, fog: 0xc09a78, fogDensity: 0.0045, fogH: 0.018, fogK: 0.25, fogNoise: 0.55,
     amb: 0xe0c0a0, ambI: 0.3, hemiSky: 0xb0c4d8, hemiGround: 0x483626, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.28, cloudC: 0xe0a880, skyVis: 0.85, surreal: 0, dawn: 0.9, moonScatter: 0.0, glow: 0xffb060, glowI: 1.2,
     exposure: 0.95, sat: 1.08, contrast: 1.07, temp: 0.14, tint: 0.02, lift: [0.01, 0.006, 0.008], gain: [1.04, 1.0, 0.95],
@@ -136,6 +136,7 @@ uniform float uSunI;
 uniform float uStars, uClouds, uSkyVis, uGlowI;
 uniform vec3 uCloudCol, uGlowCol;
 uniform vec2 uCloudOffset;
+uniform float uSkyAlpha;
 
 float starLayer(vec3 rd, float scale, float thresh, float t) {
   vec3 p = rd * scale;
@@ -210,10 +211,11 @@ void main() {
   {
     vec2 cuv = rd.xz / (yc + 0.09) * 0.55 + uCloudOffset;
     float n = dlbFbm2(cuv * 0.9) * 0.7 + dlbFbm2(cuv * 2.7 + 3.0) * 0.3;
+    n = clamp((n - 0.5) * 2.6 + 0.5, 0.0, 1.0);
     float cov = uClouds;
-    cloudA = smoothstep(1.0 - cov - 0.08, 1.0 - cov + 0.32, n) * smoothstep(0.0, 0.12, y);
+    cloudA = smoothstep(1.0 - cov - 0.06, 1.0 - cov + 0.22, n) * smoothstep(0.0, 0.12, y);
     // silver lining near the moon, warm underside near the sun
-    float edge = smoothstep(0.2, 0.0, abs(n - (1.0 - cov + 0.05)));
+    float edge = smoothstep(0.18, 0.0, abs(n - (1.0 - cov + 0.04)));
     cloudCol += uMoonCol * uMoonI * (exp(-max(1.0 - cm, 0.0) * 12.0) * (0.25 + edge * 0.9)) * 0.35;
     float csun = dot(rd, uSunDirS);
     cloudCol += uGlowCol * uGlowI * (0.25 + 0.75 * exp(-max(1.0 - csun, 0.0) * 4.0)) * (0.25 + edge * 0.6) * (1.0 - smoothstep(0.0, 0.5, yc));
@@ -232,8 +234,9 @@ void main() {
   float sigma = dlbFogDensity + dlbFogHeightDensity * 0.5;
   col += dlbInscatter(cameraPosition, rd, 80.0, sigma, gl_FragCoord.xy);
   col += dlbFlash * vec3(0.12, 0.13, 0.16) * (0.5 + 0.5 * yc);
-  // alpha 0 marks sky pixels (PostFX uses it as the occlusion mask for sun shafts)
-  gl_FragColor = vec4(max(col, vec3(0.0)), 0.0);
+  // alpha 0 marks sky pixels in the main pass (PostFX uses it as the sun-shaft occlusion mask);
+  // other passes (mirrors, probes) get alpha 1.
+  gl_FragColor = vec4(max(col, vec3(0.0)), uSkyAlpha);
 }
 `;
 
@@ -300,6 +303,7 @@ class Sky {
       uSunDirS: { value: new THREE.Vector3(0, -1, 0) }, uSunCol: { value: new THREE.Color() }, uSunI: { value: 0 },
       uStars: { value: 0 }, uClouds: { value: 0.5 }, uSkyVis: { value: 0.6 }, uGlowI: { value: 0 },
       uCloudCol: { value: new THREE.Color() }, uGlowCol: { value: new THREE.Color() }, uCloudOffset: { value: new THREE.Vector2() },
+      uSkyAlpha: { value: 1 },
     };
     injectGlobals(this.uniforms);
     this.dome = new THREE.Mesh(

@@ -17,7 +17,7 @@ export const LIGHT_PRESETS = {
   lantern_white: { color: 0xffe8c8, intensity: 1.4, distance: 5, decay: 2, flicker: 'candle', glow: { size: 0.4, color: 0xfff0d0, opacity: 0.45 }, pool: false, priority: 0 },
   candle: { color: 0xffa040, intensity: 0.6, distance: 3, decay: 2, flicker: 'candle', glow: { size: 0.12, color: 0xffb060, opacity: 0.8 }, pool: false, priority: 0 },
   altar: { color: 0xff3018, intensity: 5, distance: 6, decay: 2, flicker: 'neon', glow: { size: 0.3, color: 0xff2a18, opacity: 0.6 }, pool: false, priority: 1 },
-  delineator: { color: 0xffa83a, intensity: 0.6, distance: 2.5, decay: 2, flicker: 'none', glow: { size: 0.22, color: 0xffb040, opacity: 1.0 }, pool: false, priority: -1, scatter: 0.3 },
+  delineator: { color: 0xffa83a, intensity: 0.8, distance: 3, decay: 2, flicker: 'none', glow: { size: 0.4, color: 0xffb048, opacity: 1.0 }, pool: false, priority: -1, scatter: 0.5 },
   window: { color: 0xffb060, intensity: 4, distance: 8, decay: 2, flicker: 'none', glow: { size: 0.6, color: 0xffb060, opacity: 0.4 }, pool: false, priority: 0 },
   shrine_gold: { color: 0xffc070, intensity: 10, distance: 10, decay: 2, flicker: 'candle', glow: { size: 0.8, color: 0xffc070, opacity: 0.4 }, pool: true, priority: 2 },
 };
