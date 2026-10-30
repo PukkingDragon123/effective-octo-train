@@ -80,13 +80,16 @@ export class Entity {
     if (this.disposed || !(dt > 0)) return;
     this.time += dt;
     for (const t of this._tasks) if (t(dt) === true) this._tasks.delete(t);
-    this.update(dt);
+    this.step(dt);
   }
   /** Run fn(dt) every frame until it returns true. */
   task(fn) {
     this._tasks.add(fn);
     return () => this._tasks.delete(fn);
   }
+  /** Per-frame logic (subclasses). Entities run themselves (engine order 22). */
+  step() {}
+  /** Contract method: entities update themselves every frame, so this is a no-op kept for callers. */
   update() {}
   dispose() {
     if (this.disposed) return;

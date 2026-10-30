@@ -520,8 +520,9 @@ function _defUp(v) {
  * bends toward). Lengths from the rest offsets. Works for animal legs, arms, fingers.
  */
 export function solveTwoBoneIK(A, B, C, target, pole, restUpA = null, restUpB = null) {
-  const la = B.userData.rest.length(), lb = C.userData.rest.length();
   A.updateWorldMatrix(true, false);
+  const ws = A.parent ? A.parent.matrixWorld.getMaxScaleOnAxis() : 1; // rest lengths are in mesh units
+  const la = B.userData.rest.length() * ws, lb = C.userData.rest.length() * ws;
   const pa = _va.setFromMatrixPosition(A.matrixWorld).clone();
   const toT = new THREE.Vector3().subVectors(target, pa);
   let dist = toT.length();

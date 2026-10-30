@@ -265,7 +265,65 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
   * `await preloadTextures(keys?, onProgress?)` generates families in a Web Worker pool (parallel, off the
     main thread); call it behind the loading screen **before** building the world. `preloadSigns(list)`,
     `setTextureQuality(q)` (low/medium = half resolution), `textureStats()`, `isTextureReady(key)`.
-  * Sandboxes: `textures` (gallery: `mode=grid|key|atlas|signs|sign`), `textures-scene` (night road in context).
+  * Sandboxes: `textures` (gallery: `mode=grid|key|atlas|signs|sign`, add `preload=1` to see the photo
+    library), `textures-scene` (night road in context), `textures-catalogue`
+    (`mode=printed&page=N | decals&gore=full|reduced | flowers | foliage`, always preloads).
+* **Photobashed library** (`public/assets/textures/`, ~37 MB WebP, built offline by `tools/photobash/`):
+  CC0 photo scans (Poly Haven, ambientCG, Wikimedia Commons; `docs/credits/textures.md`) + painted
+  overpaint (frequency-separated brushwork over the low frequencies, photo detail kept on top),
+  grime / moss / rust bleed / water streaks, seamless, graded toward the procedural means so materials
+  keep their tuning. `manifest.json` = `{textures:{key:{file,size,srgb,alpha?,wrap?}}, printed:{'kind:variant':
+  {file,px,size,aspect,alpha?,shape}}, decals:{'kind:variant[:reduced]':{...}}}`.
+  * Runtime (`src/textures/photo.js`): `await preloadTextures()` fetches the manifest, loads the photo
+    maps of the requested keys (companions included) and by default every printed / decal image
+    (concurrency 6, behind the loading screen), and skips procedural generation of families the photos
+    fully cover. `tex(key)` then returns the photo texture (same key, same colour-space rules: colour sRGB,
+    `_normal/_rough/_height` NoColorSpace; anisotropy 8, mipmaps, `flipY` so v=1 is the image top like
+    the DataTextures); before / without it the procedural texture is returned. A missing file falls back
+    to procedural with one warning. Low/medium quality halves opaque photo maps. `hasPhotoTexture(key)`,
+    `setPhotoTexturesEnabled(false)` (procedural only), `textureStats().photo`.
+  * Photo-covered keys: all ground (asphalt 2048 + `asphalt_height`, concrete, concrete_moss, moss, soil,
+    gravel, leaf_litter, rock), bark, bark_banyan, wood_old/planks, rust, metal_painted, paint_peel_white/red,
+    roof_tiles, roof_corrugated, gold_leaf, red_lacquer, lantern_paper, taxi_paint (+green/yellow),
+    dash_plastic, leather_seat, fabric_seat, headliner, carpet, fabric_cotton/silk/denim, monk_robe,
+    cloth_red/yellow/green (+cloth_normal), and every FOLIAGE_ATLAS atlas (same cell layout / base / tip).
+    Still procedural: skin, hair, chrome, rubber, glass_dirt, water, noise, puddle, incense_ash, road_lines.
+  * New keys (procedural fallbacks exist): `fabric_sarong` (pha khao ma check), `flower_atlas(_normal)`,
+    `foliage_world(_normal)` (fallback is transparent: swap only when `hasPhotoTexture('foliage_world')`).
+  * `WORLD_FOLIAGE` = the world's 5x5 slot layout (`slots` in SLOT order, `rect(slot)`): a photobashed
+    drop-in for `src/world/foliageAtlas.js` (reference-6 small-leaf clusters, rain tree, torn banana
+    blades, fern, bamboo, palm, grass, elephant ear, vines, shrub, dead twigs, epiphyte, tall grass).
+  * `FLOWER_ATLAS` (generated `flowerLayout.js`, 2048 RGBA, 8x8 cells of 256 px): `cells[] = {name, kind,
+    variant, view:'front'|'side', wilted, color, uv:[u0,v0,u1,v1], pivot:[u,v]}`; front = head face-on (pivot
+    centre), side = three-quarter view (pivot = stem attach, head centre 38% up). Names: jasmine_bud,
+    jasmine, crown_purple, crown_white, marigold, rose_red, rose_white, chrys_white, chrys_yellow,
+    frangipani, lotus_bud, lotus, orchid, leaves, buds, petals, `*_wilted` (jasmine, jasmine_bud,
+    marigold, rose_red, chrys_white, chrys_yellow, frangipani, lotus), ribbon_red/white/yellow/purple
+    (256x512, hang from the top). `flowerCell(name, view, wilted)`. Props use it through
+    `src/props/lib/flowers.js` (`flowerHead`, `flowerCard`, `ribbonTail`: cross-carded heads, one bucket).
+  * Printed matter (`PRINTED_CATALOGUE`, generated `printedCatalogue.js`): `signTex(kind, {variant})`
+    returns the photobashed print (CMYK halftone + misregistration on real paper scans, sun fade, folds,
+    water tide-lines, mould, tape, torn edges); `userData {kind, variant, aspect, size:[m,m], alpha, shape,
+    photo:true}`. Until the image arrives a procedural stand-in is shown and swapped in place. Opts other
+    than variant/km/kmh/dir/weather (custom text) keep the procedural canvas design. Kinds:
+    `poster` movie, movie_2, concert, missing (Boy M), temple_fair, election, lottery, drink, balm ·
+    `calendar` buddha, buddha_2 · `amulet_card` luangpho, phra_somdej · `newspaper` front, classifieds ·
+    `noodle_menu` board · `receipt` taxi, grocery · `fare_chart` taxi · `lottery` temple ·
+    `snack_bag` corn, prawn, squid · `noodle_cup` tomyum, pork (cup wrap) · `drink_label` energy,
+    energy_red, soda_red, soda_green · `cigarette_pack` plaifah, khwanthian · `betel_pack` nokkaew ·
+    `incense_box` jetdao · `candle_pack` dokbua · `joss_paper` gold, hell_note · `offering_label` spirit,
+    condolence · `km_marker` 0..12 (also `signTex('km_marker',{km})`) · `road_sign` curve_left,
+    curve_right, elephant, speed_40/60/80, curve_danger (also via curve_warning {dir} / speed_sign {kmh}) ·
+    `sticker` drive_slow, yantra, cartoon, lucky, no_smoking, merit, meter, no_stop. Plain
+    `calendar/noodle_menu/lottery/receipt` calls use their photo default.
+  * `decalTex(kind, {variant, gore?})`: RGBA decals. `blood_pool` 0-2, `blood_smear` 0-1,
+    `blood_spatter` 0-2, `blood_handprint` 0-1 (1 = dragged), `blood_drip` 0-2 (tiles in u, seam at the
+    top); `settings.gore === 'reduced'` returns the darker, sparser twin. Printed kinds flagged `decal`
+    (posters, stickers, newspaper, receipts, snack bags, joss paper, labels...) also work. `DECAL_KINDS`.
+  * Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` (downloads, records authors),
+    `python3 -I tools/photobash/build.py --raw <dir> [--only surfaces,foliage,flowers,printed,decals]
+    [--keys ...]`, `python3 -I tools/photobash/credits.py --raw <dir>`. Needs Pillow (raqm), numpy, scipy,
+    opencv-python-headless, fonttools.
 
 ### world (`src/world/World.js`)
 * `new World(); await world.build({onProgress, quality})` → `world.group` (add to scene).
