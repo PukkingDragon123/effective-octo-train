@@ -103,6 +103,7 @@ export default async function ({ engine, cameraRig, params }) {
     lineup: [[0, 1.2, n * 0.62 + 1.3], [0, 0.92, 0]],
     lineupClose: [[0, 1.35, 2.4], [0, 1.3, 0]],
     tex: [[0, 1.0, 1.5], [0, 1.0, 0.3]],
+    eye: [[-h0.P.face.eyeX * 0.5, h0.P.eyeY + 0.005, 0.26], [-h0.P.face.eyeX * 0.5, h0.P.eyeY, 0]],
   };
   const camList = (params.get('cams') || params.get('cam') || (view === 'lineup' ? 'lineup' : 'front')).split(',');
   const eye = new THREE.Object3D();
@@ -117,6 +118,7 @@ export default async function ({ engine, cameraRig, params }) {
     cameraRig.attach(eye, null, { yaw: Math.atan2(-dir.x, -dir.z), pitch: Math.asin(dir.y) });
     cameraRig.lookEnabled = false;
     if (name.startsWith('close')) cameraRig.fovOffset = -30;
+    else if (name === 'eye') cameraRig.fovOffset = -45;
     else if (name === 'hands' || name === 'feet' || name === 'torso') cameraRig.fovOffset = -20;
     else cameraRig.fovOffset = -8;
   };

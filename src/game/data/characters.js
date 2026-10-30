@@ -57,6 +57,7 @@ export const CHARACTERS = {
       accessories: ['amulet-necklace'],
       face: { seed: 5601, wrinkles: 0.5, smile: 0.35, eyeSize: 0.45, noseWidth: 0.6, jaw: 0.55, cheek: 0.5 },
       ghost: { pale: 0.35, eyes: 'normal', wet: 0.15, decay: 0.0, bloodStains: 0.0 },
+      noBlink: true,
     },
   },
 
@@ -88,6 +89,7 @@ export const CHARACTERS = {
       accessories: [],
       face: { seed: 2402, wrinkles: 0.0, smile: 0.0, eyeSize: 0.6, noseWidth: 0.4, jaw: 0.35, cheek: 0.35 },
       ghost: { pale: 0.85, eyes: 'normal', wet: 0.9, decay: 0.1, bloodStains: 0.05 },
+      noBlink: true,
     },
   },
 
@@ -135,6 +137,7 @@ export const CHARACTERS = {
       accessories: [],
       face: { seed: 2605, wrinkles: 0.0, smile: 0.35, eyeSize: 0.55, noseWidth: 0.42, jaw: 0.35, cheek: 0.45 },
       ghost: { pale: 0.45, eyes: 'normal', wet: 0.0, decay: 0.0, bloodStains: 0.0 },
+      noBlink: true,
     },
   },
 
@@ -161,11 +164,12 @@ export const CHARACTERS = {
     voice: { gender: 'm', age: 50, pitch: 0.95, rate: 1.05, ghost: 0.35, whisper: false },
     appearance: {
       id: 'saman', sex: 'm', age: 50, height: 1.7, build: 'average', skinTone: 0.45,
-      hair: { style: 'short', color: '#0f0d0c' },
-      outfit: { type: 'shirt-slacks', top: '#b8902e', bottom: '#1d1b22', accent: '#d8c27a', shoes: 'shoes' },
+      hair: { style: 'pompadour', color: '#0f0d0c' },
+      outfit: { type: 'singer', top: '#b8902e', bottom: '#1d1b22', accent: '#d8c27a', shoes: 'shoes' }, // sequinned stage jacket
       accessories: ['cigarette'],
       face: { seed: 5007, wrinkles: 0.35, smile: 0.7, eyeSize: 0.5, noseWidth: 0.5, jaw: 0.55, cheek: 0.5 },
       ghost: { pale: 0.6, eyes: 'normal', wet: 0.0, decay: 0.05, bloodStains: 0.0 },
+      noBlink: true,
     },
   },
 

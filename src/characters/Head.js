@@ -76,9 +76,9 @@ export function headPrims(P, F, spec) {
   add(ellipsoid([0, cY - 0.09 * hs, 0.014 * hs], [0.0765 * hs, 0.09 * hs, 0.093 * hs], R({ k: k(0.02) })));
   add(ellipsoid([0, 0.06 * hs, 0.05 * hs], [0.062 * hs, 0.06 * hs, 0.055 * hs], R({ k: k(0.03) }))); // occipital / back of skull base
   add(ellipsoid(f(0, 0.108, -0.04), [0.066 * hs, 0.056 * hs, 0.052 * hs], R({ k: k(0.03) }))); // forehead
-  for (const sg of [-1, 1]) add(ellipsoid([sg * 0.074 * hs, 0.088 * hs, -0.036 * hs], [0.012 * hs, 0.022 * hs, 0.02 * hs], SUB({ k: k(0.018) }))); // temples
+  for (const sg of [-1, 1]) add(ellipsoid([sg * 0.078 * hs, 0.088 * hs, -0.04 * hs], [0.01 * hs, 0.02 * hs, 0.018 * hs], SUB({ k: k(0.016) }))); // temples
   // ---- face mask: one smooth volume from the cheekbones down to the jaw (keeps the face soft)
-  add(ellipsoid(f(0, 0.012, -0.03), [0.06 * fs * (0.92 + 0.08 * F.jaw), 0.064 * fs, 0.055 * fs], R({ k: k(0.03) })));
+  add(ellipsoid(f(0, 0.014, -0.03), [0.05 * fs * (0.92 + 0.08 * F.jaw), 0.062 * fs, 0.052 * fs], R({ k: k(0.03) })));
   // ---- midface (maxilla + nasal base) and the mouth "muzzle" (teeth arch)
   add(ellipsoid(f(0, 0.026, -0.05), [0.045 * fs, 0.04 * fs, 0.042 * fs], R({ k: k(0.028) })));
   add(ellipsoid(f(0, -0.012, -0.066), [0.03 * fs, 0.025 * fs, 0.026 * fs], R({ k: k(0.024) })));
@@ -87,7 +87,7 @@ export function headPrims(P, F, spec) {
     const cb = F.cheekbone;
     add(ellipsoid(f(sg * 0.048, 0.044, -0.056), [0.02 * fs * cb, 0.014 * fs, 0.02 * fs], R({ k: k(0.022), basis: basisFromEuler(0, sg * 0.55, sg * -0.25) })));
     add(capsule(f(sg * 0.054, 0.045, -0.048), f(sg * 0.062, 0.043, -0.012), 0.0085 * fs, R({ k: k(0.02) })));
-    add(ellipsoid(f(sg * 0.036, 0.006, -0.06), [0.024 * fs * F.cheek, 0.026 * fs, 0.021 * fs * F.cheek], R({ k: k(0.028) })));
+    add(ellipsoid(f(sg * 0.034, 0.008, -0.06), [0.021 * fs * F.cheek, 0.024 * fs, 0.02 * fs * F.cheek], R({ k: k(0.026) })));
     if (F.old > 0.35) add(ellipsoid(f(sg * 0.042, -0.03, -0.05), [0.016 * fs, 0.016 * fs, 0.016 * fs], R({ k: k(0.022) }))); // jowls
   }
   // ---- mandible: ramus (TMJ -> gonion) + body (gonion -> chin) + chin (subtle, well blended)

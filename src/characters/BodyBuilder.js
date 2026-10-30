@@ -722,8 +722,15 @@ export function buildBodyGeometry(spec, P, L, quality = 1) {
     weightFn: (reg, x, y, z, w) => W.weights(reg, x, y, z, w),
     colorFn,
     ao: { strength: 4 },
-    // remove the neck top (covered by the head mesh) and the forearm/ankle ends (covered by hands/feet)
-    clip: (x, y, z) => y < P.headY - 0.006 * s,
+    // remove the bare neck: the head mesh carries the whole neck column down into the shoulders
+    clip: (x, y, z) => {
+      if (y >= P.headY - 0.006 * s) return false;
+      if (y < P.shoulderY - 0.004 * s) return true;
+      const t = clamp((y - P.neckBot[1]) / (P.neckTop[1] - P.neckBot[1]), 0, 1);
+      const az = lerp(P.neckBot[2], P.neckTop[2], t);
+      const r = P.neckR * lerp(1.12, 1.0, t);
+      return Math.hypot(x, (z - az)) > r + 0.007 * s;
+    },
   });
   const parts = [bodyPart];
   const ctx = { spec, P, L, plan, skin, W, garmentColor, colorFn };
