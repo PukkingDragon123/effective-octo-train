@@ -3,6 +3,7 @@
 import { h, enter, leave, clamp01 } from './dom.js';
 import { screen, titleLockup } from './common.js';
 import * as NARRATIVE from '../game/data/index.js';
+import { IncenseScene } from './IncenseScene.js';
 
 export const LOADING_LINES = [
   { th: 'ไม่ว่าจะได้ยินอะไรจากเบาะหลัง อย่าหันไปมอง', en: 'Whatever you hear from the back seat, don’t look.' },
@@ -44,6 +45,17 @@ export class Loading {
         h('div', { class: 'dlb-loading__status' }, this.statusTh, this.statusEn, this.pct)),
       this.line);
     this.ui.layer.appendChild(this.el);
+    // the real thing: a 3D stick burning in Ah Kong's urn (the 2D stick stays as the fallback)
+    try {
+      this.stage = h('div', { class: 'dlb-loading__3d', attrs: { 'aria-hidden': 'true' } });
+      this.el.insertBefore(this.stage, this.el.firstChild);
+      this.scene3d = new IncenseScene(this.stage);
+      this.el.classList.add('has-3d');
+    } catch (e) {
+      console.warn('[loading] 3D incense unavailable', e);
+      this.stage?.remove();
+      this.scene3d = null;
+    }
   }
 
   show(progress = 0, th = '', en = '') {
@@ -64,6 +76,7 @@ export class Loading {
     // the stick burns from its tip (right) toward the red base (left); ash trails behind
     this.burn.style.width = w;
     this.pct.textContent = Math.round(p * 100) + '%';
+    this.scene3d?.setProgress(p);
     this.el.querySelector('.dlb-incense').setAttribute('aria-valuenow', Math.round(p * 100));
     if (th !== undefined) this.statusTh.textContent = th || '';
     if (en !== undefined) this.statusEn.textContent = en || '';
@@ -87,11 +100,64 @@ export class Loading {
     this._timer = setInterval(show, 7200);
   }
 
+  /**
+   * Hold on the burnt-down stick until the player presses something (this is also the gesture
+   * that unlocks audio), then play the hand taking the incense. cue(name) fires on
+   * 'start' | 'reach' | 'grab' | 'pull' so the game can add sound.
+   */
+  async waitForStart(cue = () => {}) {
+    if (!this.el) return;
+    this.el.classList.add('is-ready');
+    this.statusTh.textContent = '';
+    this.statusEn.textContent = '';
+    this.pct.textContent = '';
+    this.start = h('div', { class: 'dlb-loading__start' },
+      h('span', { class: 'th', attrs: { lang: 'th' } }, 'แตะเพื่อเริ่ม'), h('span', { class: 'en' }, 'press any key'));
+    this.el.appendChild(this.start);
+    await new Promise((resolve) => {
+      let raf = 0;
+      const t0 = performance.now();
+      const done = (e) => {
+        if (performance.now() - t0 < 350) return;
+        if (e?.type === 'keydown' && (e.key === '`' || e.repeat)) return;
+        window.removeEventListener('pointerdown', done, true);
+        window.removeEventListener('keydown', done, true);
+        cancelAnimationFrame(raf);
+        resolve();
+      };
+      window.addEventListener('pointerdown', done, true);
+      window.addEventListener('keydown', done, true);
+      const poll = () => {
+        for (const pad of navigator.getGamepads?.() || []) if (pad?.buttons?.some((b) => b.pressed)) return done();
+        raf = requestAnimationFrame(poll);
+      };
+      raf = requestAnimationFrame(poll);
+    });
+    this.start.classList.add('is-gone');
+    try {
+      cue('start');
+    } catch (e) {
+      /* sound is optional */
+    }
+    if (this.scene3d) await this.scene3d.playGrab((n) => {
+      try {
+        cue(n);
+      } catch (e) {
+        /* sound is optional */
+      }
+    });
+  }
+
   async hide() {
     if (!this.el || this.el.hidden) return;
     clearInterval(this._timer);
     this.ui._grain(-1, 'loading');
     await leave(this.el, 1700);
+    this.scene3d?.dispose();
+    this.scene3d = null;
+    this.stage?.remove();
+    this.start?.remove();
+    this.el.classList.remove('has-3d', 'is-ready');
     this.ui._refreshXhair?.();
   }
 }

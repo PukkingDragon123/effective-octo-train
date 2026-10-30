@@ -53,10 +53,15 @@ const walk = (dir) => {
 };
 walk(dist);
 
-for (const rel of files) {
+// .glb is not a served Artifact type: ship models as base64 text (decoded by src/core/artifactShim.js)
+for (let i = 0; i < files.length; i++) {
+  const rel = files[i];
   const out = path.join(stage, rel);
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.copyFileSync(path.join(dist, rel), out);
+  if (rel.endsWith('.glb')) {
+    fs.writeFileSync(out + '.txt', fs.readFileSync(path.join(dist, rel)).toString('base64'));
+    files[i] = rel + '.txt';
+  } else fs.copyFileSync(path.join(dist, rel), out);
 }
 if (audioManifest) fs.writeFileSync(path.join(stage, 'assets', 'audio', 'manifest.json'), JSON.stringify(audioManifest));
 
@@ -68,7 +73,7 @@ const keepHead = head
   .split('\n')
   .filter((l) => !/<meta charset|<meta name="viewport"/.test(l))
   .join('\n');
-const page = `${keepHead.trim()}\n${body.trim()}\n`;
+const page = `${keepHead.trim()}\n<script>window.__DLBIH_GLB_TXT__ = true;</script>\n<style>:root { color-scheme: dark; } body { background: #050607; }</style>\n${body.trim()}\n`;
 fs.writeFileSync(path.join(stage, 'index.html'), page);
 
 // --- batches -----------------------------------------------------------------------------

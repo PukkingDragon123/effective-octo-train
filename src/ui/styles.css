@@ -1250,3 +1250,32 @@
   color: inherit; transform: none;
 }
 .dlb-ui.thai-only .dlb-sub__th { font-size: calc(clamp(24px, 2.2vw, 34px) * var(--sub-scale)); }
+
+/* ---- loading: 3D incense stage ------------------------------------------------------- */
+.dlb-loading__3d { position: absolute; inset: 0; }
+.dlb-loading__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transition: opacity 0.25s linear; }
+.dlb-loading.has-3d::before { display: none; }
+.dlb-loading.has-3d .dlb-incense { display: none; }
+.dlb-loading.has-3d { justify-content: flex-start; }
+.dlb-loading.has-3d .dlb-loading__inner {
+  position: absolute; left: clamp(20px, 7vw, 120px); top: 50%; transform: translateY(-58%);
+  align-items: flex-start; text-align: left; max-width: 44vw;
+}
+.dlb-loading.has-3d .dlb-loading__status { justify-content: flex-start; margin-top: 26px; }
+.dlb-loading.has-3d .dlb-loading__line { text-shadow: 0 1px 2px #000, 0 0 18px #000; }
+.dlb-loading.has-3d.is-ready .dlb-loading__status { opacity: 0; }
+.dlb-loading__start {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--pad-yb, 40px) + 11vh); z-index: 2; text-align: center;
+  color: var(--bone-1, #ece4d2); text-shadow: 0 1px 2px #000, 0 0 16px #000;
+  animation: dlb-start-in 1.6s var(--ease, ease) forwards, dlb-start-pulse 2.8s 1.6s ease-in-out infinite;
+  opacity: 0; transition: opacity 0.5s linear;
+}
+.dlb-loading__start .th { display: block; font-family: var(--f-title); font-size: clamp(24px, 2.6vw, 36px); font-weight: 700; }
+.dlb-loading__start .en { display: block; margin-top: 0.3em; font-size: 13px; color: var(--bone-3, #a89f8c); }
+.dlb-loading__start.is-gone { animation: none; opacity: 0 !important; }
+@keyframes dlb-start-in { to { opacity: 1; } }
+@keyframes dlb-start-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@media (orientation: portrait) {
+  .dlb-loading.has-3d .dlb-loading__inner { left: 0; right: 0; top: max(6vh, env(safe-area-inset-top)); transform: none; align-items: center; text-align: center; max-width: none; }
+  .dlb-loading.has-3d .dlb-loading__status { justify-content: center; }
+}

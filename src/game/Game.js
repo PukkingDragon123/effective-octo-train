@@ -119,7 +119,23 @@ export async function startGame(ctx) {
   installMobileControls(document.getElementById('ui'));
   if (ctx.settings.get('testPanel') !== false) installTestPanel(document.getElementById('ui'));
   ui.showLoading(1, 'พร้อมแล้ว', 'Ready');
-  if (!skipLoading) await new Promise((r) => setTimeout(r, 600));
+  if (!skipLoading) {
+    // the burnt-down stick waits for the player; a hand takes it (audio unlocks on this gesture)
+    const play = (id, opts) => {
+      try {
+        audio.init();
+        audio.play(id, opts);
+      } catch (e) {
+        /* audio optional */
+      }
+    };
+    await ui.loading.waitForStart((n) => {
+      if (n === 'start') play('ching', { volume: 0.55 });
+      else if (n === 'reach') play('breath', { volume: 0.5 });
+      else if (n === 'grab') play('sting_low', { volume: 0.7 });
+      else if (n === 'pull') play('paper_rustle', { volume: 0.35, rate: 0.7 });
+    });
+  }
   ui.hideLoading();
   g.ready = true;
   window.__game.g = g;

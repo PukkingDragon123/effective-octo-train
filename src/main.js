@@ -11,6 +11,9 @@ import { saves } from './core/Save.js';
 import { colliders } from './core/Colliders.js';
 import { installRendering } from './render/index.js';
 import { loadFonts } from './ui/fonts.js';
+import { installArtifactShim } from './core/artifactShim.js';
+
+installArtifactShim();
 
 const params = new URLSearchParams(location.search);
 
