@@ -29,11 +29,30 @@ WHEEL_R = 0.292
 HALF_W = 0.845
 TRACK_F, TRACK_R = 1.46, 1.45
 
-# section segment sample counts between W control points 0..11
-W_SEG = [2, 2, 2, 3, 3, 3, 2, 3, 4, 3, 3]
-W_ROW_OF = np.concatenate([[0], np.cumsum(W_SEG)]).astype(int)  # row index of each ctrl pt
-G_SEG = [1, 5, 5, 3, 3]
-G_ROW_OF = np.concatenate([[0], np.cumsum(G_SEG)]).astype(int)
+# Grid resolution presets. 'geo' is the shipped geometry; 'ref' is a denser copy used only
+# as the smooth normal / projection reference (custom normals are transferred from it).
+RES = {
+    'geo': dict(W_SEG=[1, 2, 2, 2, 2, 2, 2, 3, 3, 2, 2], G_SEG=[1, 4, 4, 3, 2],
+                SIDE_COUNTS=[11, 3, 2, 34, 9, 2, 2], N_FQ=18, N_RQ=16, K_HOOD_CORNER=11, K_LID_CORNER_FROM_END=10),
+    'ref': dict(W_SEG=[3, 4, 4, 4, 5, 5, 3, 5, 6, 4, 4], G_SEG=[2, 8, 8, 5, 4],
+                SIDE_COUNTS=[26, 6, 4, 76, 20, 3, 3], N_FQ=40, N_RQ=36, K_HOOD_CORNER=24, K_LID_CORNER_FROM_END=22),
+}
+W_SEG = G_SEG = SIDE_COUNTS = None
+N_FQ = N_RQ = K_HOOD_CORNER = K_LID_CORNER_FROM_END = None
+W_ROW_OF = G_ROW_OF = None
+
+
+def set_res(name):
+    global W_SEG, G_SEG, SIDE_COUNTS, N_FQ, N_RQ, K_HOOD_CORNER, K_LID_CORNER_FROM_END, W_ROW_OF, G_ROW_OF
+    r = RES[name]
+    W_SEG, G_SEG, SIDE_COUNTS = r['W_SEG'], r['G_SEG'], r['SIDE_COUNTS']
+    N_FQ, N_RQ = r['N_FQ'], r['N_RQ']
+    K_HOOD_CORNER, K_LID_CORNER_FROM_END = r['K_HOOD_CORNER'], r['K_LID_CORNER_FROM_END']
+    W_ROW_OF = np.concatenate([[0], np.cumsum(W_SEG)]).astype(int)
+    G_ROW_OF = np.concatenate([[0], np.cumsum(G_SEG)]).astype(int)
+
+
+set_res('geo')
 
 # W side anchors (y) where columns must exist
 A_SIDE0 = 1.635      # end of front quadrant (bumper/fender seam)
@@ -45,11 +64,6 @@ A_CBASE1 = -1.58     # rear-window base corner
 A_TRUNK = -1.64      # trunk lid front edge
 A_SIDE1 = -1.685     # start of rear quadrant
 SIDE_ANCHORS = [A_SIDE0, A_HOOD, A_ABASE, A_BELT0, A_CBASE0, A_CBASE1, A_TRUNK, A_SIDE1]
-SIDE_COUNTS = [16, 4, 3, 50, 13, 2, 2]  # segments between anchors
-N_FQ = 24   # front quadrant segments
-N_RQ = 22   # rear quadrant segments
-K_HOOD_CORNER = 15   # W column index of the hood's front corner (in the front quadrant)
-K_LID_CORNER_FROM_END = 14  # rear quadrant: lid corner is this many columns before the rear centre
 
 
 # ---------------------------------------------------------------------------------------
@@ -409,7 +423,10 @@ def plan_inward(curve, j, center_y=-0.45):
 class BodyGrid:
     """Holds every half-body grid (for feature placement) and builds the master mesh."""
 
-    def __init__(self):
+    def __init__(self, res='geo'):
+        set_res(res)
+        self.res = res
+        self.W_ROW_OF, self.G_ROW_OF = W_ROW_OF.copy(), G_ROW_OF.copy()
         self.us, self.aidx = W_columns()
         log('W columns', len(self.us), 'rows', W_ROW_OF[-1] + 1)
         self.W = np.array([W_point_rows(u) for u in self.us])     # (nc, nr, 3)
@@ -595,6 +612,7 @@ class BodyGrid:
                     coli.append(i)
                     src.append(srcid)
 
+        set_res(self.res)
         k = self.k
         nc = len(self.us)
         r7 = W_ROW_OF[7]

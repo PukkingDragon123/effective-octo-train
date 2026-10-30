@@ -110,7 +110,7 @@ def slab_x(name, pts_yz, w, x0, x1):
 
 def arch_cutter(name, y, z, r, side):
     x0, x1 = (0.35, 1.3) if side > 0 else (-1.3, -0.35)
-    return lathe(name, [(r, x0), (r, x1)], segments=128, axis='X', center=(0, y, z), cap_ends=True, smooth=False)
+    return lathe(name, [(r, x0), (r, x1)], segments=72, axis='X', center=(0, y, z), cap_ends=True, smooth=False)
 
 
 def mark_cutter(ob):
@@ -168,10 +168,13 @@ class Ext:
     """Builds the exterior; keeps references for parts/interior placement."""
 
     def __init__(self):
-        self.g = tb.BodyGrid()
-        self.master = self.g.build_master('master_ref')
+        self.gref = tb.BodyGrid('ref')
+        self.master = self.gref.build_master('master_ref')
         self.master.hide_render = True
         self.bvh = bvh_of(self.master)
+        self.g = tb.BodyGrid('geo')
+        self.geo = self.g.build_master('master_geo')
+        self.geo.hide_render = True
         self.objs = {}
         self.loops = {}
 
@@ -283,7 +286,7 @@ class Ext:
 
     def build_panels(self):
         g = self.g
-        work = duplicate(self.master, 'work')
+        work = duplicate(self.geo, 'work')
         work.hide_render = False
         seam_kd = kd_of(seam_points(work))
         # delete side-window apertures
@@ -503,7 +506,7 @@ class Ext:
         def tb_front(s):
             return 7.22 + 0.10 * smoothstep(0.55, ue, abs(s))
 
-        P, st = self.param_loop(self.W, -ue, ue, tb_front, tt_front, n_s=120, n_end=8, round_s=0.02)
+        P, st = self.param_loop(self.W, -ue, ue, tb_front, tt_front, n_s=80, n_end=8, round_s=0.02)
         Nn = self.normals_at(P)
         out['body'].append(cookie_cutter('c_fband', P, Nn, 0.04, 0.04))
         out['_loops']['front_band'] = (P, Nn, st)
@@ -518,7 +521,7 @@ class Ext:
         def tb_rear(s):
             return 7.22 + 0.08 * smoothstep(0.5, se, abs(s))
 
-        P, st = self.param_loop(self.Wr, -se, se, tb_rear, tt_rear, n_s=120, n_end=8, round_s=0.02)
+        P, st = self.param_loop(self.Wr, -se, se, tb_rear, tt_rear, n_s=80, n_end=8, round_s=0.02)
         Nn = self.normals_at(P)
         out['body'].append(cookie_cutter('c_rband', P, Nn, 0.04, 0.04))
         out['_loops']['rear_band'] = (P, Nn, st)
