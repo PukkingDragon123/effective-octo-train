@@ -130,7 +130,7 @@ export function installTestPanel(root) {
   btn(row, 'สอนขับ', safe('สอนขับ', () => go('tutorial')));
   btn(row, 'ตายแล้ววน (อู่)', safe('วนลูป', () => go('garage', { restart: true })));
   row = section('รอบรับผู้โดยสาร (Rides)');
-  const names = () => (g.data?.passengers?.PASSENGERS || []).map((p, i) => [i, `${i + 1}. ${g.data?.characters?.CHARACTERS?.[p.characterId]?.nameTH || p.id}`]);
+  const names = () => (Array.isArray(g.data?.passengers?.PASSENGERS) ? g.data.passengers.PASSENGERS : []).map((p, i) => [i, `${i + 1}. ${g.data?.characters?.CHARACTERS?.[p.characterId]?.nameTH || p.id}`]);
   for (const [i, label] of names().length ? names() : Array.from({ length: 9 }, (_, i) => [i, `รอบ ${i + 1}`])) {
     btn(row, label, safe(label, () => go('shift', { ride: i, hour: 21 + i })));
   }
@@ -170,7 +170,13 @@ export function installTestPanel(root) {
     })(),
   );
   row = section('เหตุการณ์ผี (Encounters)');
-  const encIds = (g.data?.encounters?.ENCOUNTERS || []).map((e) => e.id);
+  // ENCOUNTERS is keyed by id; the director may know more (its local defs, the face rat)
+  const asList = (x) => (Array.isArray(x) ? x : x && typeof x === 'object' ? Object.values(x) : []);
+  const encIds = [...new Set([
+    ...asList(g.data?.encounters?.ENCOUNTERS).map((e) => e?.id).filter(Boolean),
+    ...Object.keys(g.data?.encounters?.ENCOUNTERS || {}),
+    ...(typeof g.director?.list === 'function' ? asList(g.director.list()).map((e) => (typeof e === 'string' ? e : e?.id)).filter(Boolean) : []),
+  ])].filter((id) => typeof id === 'string' && !/^\d+$/.test(id));
   select(row, (encIds.length ? encIds : ['none']).map((id) => [id, id]), (id) =>
     safe('เหตุการณ์ ' + id, () => {
       if (!g.director?.start) throw new Error('ระบบเหตุการณ์ยังไม่พร้อม');
@@ -198,7 +204,8 @@ export function installTestPanel(root) {
   });
   btn(row, 'ความทรงจำครบ', safe('ความทรงจำครบ', () => {
     ensureSave();
-    const all = g.data?.memories?.MEMORIES || [];
+    const raw = g.data?.memories?.MEMORIES || [];
+    const all = Array.isArray(raw) ? raw : Object.entries(raw).map(([id, m]) => ({ id, ...m }));
     g.save.memories = all.map((m) => m.id);
     g.persist();
   }));

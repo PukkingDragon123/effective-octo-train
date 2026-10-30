@@ -7,6 +7,7 @@ import * as C from './mat_body.js';
 import * as D from './mat_data.js';
 import * as F from './foliage.js';
 import * as R from './road.js';
+import * as X from './mat_extra.js';
 
 /** { keys:[...], gen:(size)=>{key: raw}, size: default px (scaled by quality) } */
 export const FAMILIES = [
@@ -60,4 +61,8 @@ export const FAMILIES = [
   { keys: ['vine', 'vine_normal'], gen: F.genVine, size: 1024 },
   { keys: ['road_lines', 'road_lines_normal'], gen: R.genRoadLines, size: 512 },
   { keys: ['road_stencils'], gen: R.genRoadStencils, size: 1024, dom: true },
+  // keys added with the photobashed library (public/assets/textures); these generators are fallbacks
+  { keys: ['fabric_sarong', 'fabric_sarong_normal'], gen: X.genSarong, size: 512 },
+  { keys: ['flower_atlas', 'flower_atlas_normal'], gen: X.genFlowerAtlas, size: 1024 },
+  { keys: ['foliage_world', 'foliage_world_normal'], gen: X.genFoliageWorld, size: 64, fixed: true },
 ];

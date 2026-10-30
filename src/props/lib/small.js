@@ -7,6 +7,7 @@ import { mat, glowMat } from './materials.js';
 import { zebraGeo, dancerGeo } from './figures.js';
 import { addAsset, hasAsset } from './assets.js';
 import { labelBand } from './print.js';
+import { flowerHead, flowerCard, ribbonTail, flowerForColor, isWiltedColor } from './flowers.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const gcache = new Map();
@@ -261,38 +262,78 @@ export function shelfUnit(k, o = {}) {
 // ---------------------------------------------------------------------------
 // Offerings
 // ---------------------------------------------------------------------------
-/** Jasmine garland (พวงมาลัย): a drooping loop of buds with a rose + ribbon pendant. */
+/**
+ * Jasmine garland (พวงมาลัย): a drooping loop densely packed with photobashed jasmine-bud cards
+ * (cross-carded around a thread core), bands of the accent flower (marigold / rose / crown flower),
+ * and a pendant of a rose head with satin ribbon tails. Dark (dried) colours use the wilted cards.
+ */
 export function garland(k, o = {}) {
   const L = o.len ?? 0.22;
   const color = o.color ?? PAL.jasmine;
+  const wilted = isWiltedColor(color);
+  const accent = flowerForColor(o.accent ?? PAL.marigold, 'garland');
+  const rng = makeRng(Math.round(L * 1000) + (o.seed ?? 7));
   k.at(o.p, o.r, o.s, () => {
-    const key = 'garland:' + L;
-    const g = G(key, () => {
-      const pts = [];
-      for (let i = 0; i <= 18; i++) {
-        const t = i / 18;
-        const a = t * Math.PI;
-        pts.push(V(Math.cos(a) * 0.04, -Math.sin(a) * L, 0));
-      }
-      return tube(pts, (t, i) => 0.011 + 0.004 * Math.sin(i * 2.7), 5);
-    });
-    k.add(mat('flower'), g, { color, w: { grime: 0, vary: 0.25 }, colorFn: (p, n, c) => { if (noise.noise3D(p.x * 90, p.y * 90, p.z * 90) > 0.45) c.lerp(_cmari.set(o.accent ?? PAL.marigold), 0.8); } });
-    // pendant: rose + tassel ribbons
-    k.add(mat('flower'), G('rose', () => sphere(0.018, 7, 5)), { p: [0, -L - 0.01, 0], color: o.rose ?? PAL.rose, w: false });
+    const pts = [];
+    for (let i = 0; i <= 18; i++) {
+      const t = i / 18;
+      const a = t * Math.PI;
+      pts.push(V(Math.cos(a) * 0.04, -Math.sin(a) * L, 0));
+    }
+    // thread core (hidden under the buds, keeps the silhouette continuous)
+    k.add(mat('flower'), G('garlandcore:' + L, () => tube(pts, 0.0075, 5)), { color: wilted ? 0x5a4a34 : 0xd8d6c0, w: false });
+    const path = smoothPath(pts, 64);
+    let acc = 0;
+    for (let i = 1; i < path.length; i++) {
+      const p0 = path[i - 1], p1 = path[i];
+      acc += p0.distanceTo(p1);
+      if (acc < 0.011) continue;
+      acc = 0;
+      const t = i / (path.length - 1);
+      const tan = p1.clone().sub(p0).normalize();
+      // outward direction around the cord, rotating so buds cover every side
+      const side = new THREE.Vector3(0, 0, 1).applyAxisAngle(tan, i * 2.4 + rng() * 0.6);
+      const band = Math.abs(t - 0.5) < 0.06 || Math.abs(t - 0.2) < 0.03 || Math.abs(t - 0.8) < 0.03;
+      const name = band ? accent.name : 'jasmine_bud';
+      flowerHead(k, name, {
+        p: p1.clone().addScaledVector(side, 0.004), dir: side, size: band ? 0.034 : 0.03, wilted, sides: 1,
+        spin: rng() * 6, tint: band ? accent.tint : 0xffffff, shade: 0.85 + rng() * 0.25,
+      });
+    }
+    // pendant: rose head + satin tails
+    const rose = isWiltedColor(o.rose ?? PAL.rose) ? 'rose_red' : flowerForColor(o.rose ?? PAL.rose).name;
+    flowerHead(k, rose, { p: [0, -L - 0.018, 0.004], dir: [0, -0.3, 1], size: 0.045, wilted: wilted || isWiltedColor(o.rose ?? PAL.rose) });
+    flowerHead(k, 'leaves', { p: [0, -L - 0.03, -0.004], dir: [0, 0, 1], size: 0.05, sides: 1, wilted });
     for (const sx of [-1, 1]) {
-      k.add(mat('cloth_static'), G('ribbon', () => quad(0.012, 0.09).translate(0, -0.045, 0)), { p: [sx * 0.008, -L - 0.02, 0], r: [0, 0, sx * 0.12], color: o.ribbon ?? 0x2a7a3a, w: false, uv: 'keep' });
+      ribbonTail(k, { p: [sx * 0.008, -L - 0.03, 0.002], len: 0.1, color: o.ribbon ?? 0x2a7a3a, yaw: sx * 0.3, swing: sx * 0.12 });
     }
   });
 }
 const _cmari = new THREE.Color();
 
-/** A string of marigolds/jasmine draped along points (Vector3[] in kit space). */
+/** A string of marigolds/jasmine draped along points (Vector3[] in kit space): cross-carded heads on a cord. */
 export function flowerString(k, pts, o = {}) {
   const path = smoothPath(pts, Math.max(8, pts.length * 6));
   const color = o.color ?? PAL.marigold;
-  k.add(mat('flower'), tube(path, (t, i) => (o.rad ?? 0.016) * (0.8 + 0.4 * Math.abs(Math.sin(i * 1.9))), 5), {
-    color, w: { vary: 0.3, grime: 0 }, colorFn: (p, n, c) => { if (o.accent && noise.noise3D(p.x * 40, p.y * 40, p.z * 40) > 0.35) c.lerp(_cmari.set(o.accent), 0.85); },
-  });
+  const wilted = isWiltedColor(color);
+  const main = wilted ? { name: 'marigold', tint: 0xffffff } : flowerForColor(color, 'string');
+  const acc = o.accent != null ? flowerForColor(o.accent, 'string') : null;
+  const rad = o.rad ?? 0.016;
+  k.add(mat('flower'), tube(path, rad * 0.35, 4), { color: wilted ? 0x4a3a24 : 0x3a4a22, w: false });
+  const dense = smoothPath(pts, Math.max(16, pts.length * 24));
+  let d = 0;
+  let n = 0;
+  for (let i = 1; i < dense.length; i++) {
+    const p0 = dense[i - 1], p1 = dense[i];
+    d += p0.distanceTo(p1);
+    if (d < rad * 1.25) continue;
+    d = 0;
+    n++;
+    const tan = p1.clone().sub(p0).normalize();
+    const side = new THREE.Vector3(0, 0, 1).applyAxisAngle(tan, n * 2.2);
+    const pick = acc && noise.noise3D(p1.x * 40, p1.y * 40, p1.z * 40) > 0.35 ? acc : main;
+    flowerHead(k, pick.name, { p: p1, dir: side, size: rad * 2.6, wilted, sides: 1, spin: n * 1.3, tint: pick.tint, shade: 0.85 + 0.2 * Math.abs(Math.sin(n * 7.1)) });
+  }
 }
 
 /** Candle (pillar). o.flame -> emissive flame (glow 'candle'), o.color red/white. */
@@ -390,10 +431,16 @@ export function offeringTray(k, o = {}) {
       const r = 0.075 - i * 0.013;
       k.add(mat('flower'), G('baisri:' + i, () => cyl(r * 0.85, r, 0.04, 12, 0.004, 1, true)), { p: [0, 0.09 + i * 0.035, 0], color: i % 2 ? 0x3a7a2a : 0x2a5a22, w: { vary: 0.2, grime: 0 } });
     }
-    k.add(mat('flower'), G('baisriTop', () => sphere(0.02, 7, 5)), { p: [0, 0.28, 0], color: PAL.jasmine, w: false });
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      k.add(mat('flower'), G('trayflower', () => sphere(0.014, 6, 4)), { p: [Math.cos(a) * 0.09, 0.1, Math.sin(a) * 0.09], color: i % 2 ? PAL.marigold : PAL.rose, w: false });
+    flowerHead(k, 'jasmine', { p: [0, 0.29, 0], dir: [0, 1, 0], size: 0.045 });
+    flowerHead(k, 'jasmine_bud', { p: [0, 0.31, 0], dir: [0, 1, 0], size: 0.03, sides: 2 });
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const dir = [Math.cos(a) * 0.5, 1, Math.sin(a) * 0.5];
+      flowerHead(k, i % 2 ? 'marigold' : 'rose_red', { p: [Math.cos(a) * 0.09, 0.1, Math.sin(a) * 0.09], dir, size: 0.036, spin: a });
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      flowerHead(k, 'crown_purple', { p: [Math.cos(a) * 0.055, 0.2, Math.sin(a) * 0.055], dir: [Math.cos(a), 0.4, Math.sin(a)], size: 0.026, sides: 1 });
     }
   });
 }
@@ -593,37 +640,22 @@ export function wreath(k, o = {}) {
       k.add(mat('wood'), G('wstand', () => cyl(0.012, 0.014, 1.15, 5, 0.002)), { p: [x, 0, z], r: [rx, 0, rz], color: 0x8a6a4a, w: { grime: 0.5 } });
     }
     const fade = o.faded ?? 0.5;
-    const wilt = (c, p) => {
-      const v2 = noise.noise3D(p.x * 8 + 3, p.y * 8, p.z * 8);
-      if (v2 < -0.3) c.lerp(_cmari.set(0x6a5a44), fade * 0.85); // wilted brown patches
-      c.multiplyScalar(1 - fade * 0.3);
-    };
     // straw/foam ring base hidden behind the flowers
     k.add(mat('flower'), G('wbase:' + R, () => torus(R * 0.92, 0.07, 6, 28)), { p: [0, cy, -0.035], color: 0x2a3a22, jitter: 0.02, jitterFreq: 30, w: false });
-    // concentric rings of chrysanthemum heads (outer c1, inner c2) with leaf sprigs between
-    const head = G('fhead2', () => {
-      const g = lathe([[0, -0.012], [0.022, -0.006], [0.03, 0.004], [0.027, 0.014], [0.016, 0.022], [0, 0.026]], 10);
-      const pa = g.attributes.position;
-      for (let i = 0; i < pa.count; i++) {
-        const x = pa.getX(i), z = pa.getZ(i), a = Math.atan2(z, x), r = Math.hypot(x, z);
-        const f = 1 + 0.18 * Math.sin(a * 9) * Math.min(1, r / 0.02); // ruffled petals
-        pa.setX(i, x * f);
-        pa.setZ(i, z * f);
-      }
-      g.rotateX(Math.PI / 2);
-      g.computeVertexNormals();
-      return g;
-    });
+    // concentric rings of photobashed chrysanthemum cards (outer c1, inner c2) with leaf sprigs between
     const rings = [[R * 1.02, 30, c1, 1.25], [R * 0.82, 26, c1, 1.05], [R * 0.62, 20, c2, 0.95], [R * 0.44, 14, c2, 0.85]];
     rings.forEach(([rr, n, col, sc], ri) => {
+      const pick = flowerForColor(col, 'chrys');
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + ri * 0.13 + (rng() - 0.5) * 0.08;
         const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
-        k.add(mat('flower'), head, {
-          p: [x, cy + y, 0.012 + (ri === 1 || ri === 2 ? 0.02 : 0) + (rng() - 0.5) * 0.01], r: [(y / R) * -0.35, (x / R) * 0.35, rng() * 6], s: sc * (0.85 + rng() * 0.3),
-          color: col, w: false, colorFn: (p, nn, c) => wilt(c, p),
+        const wilted = rng() < fade * 0.55;
+        const z = 0.012 + (ri === 1 || ri === 2 ? 0.02 : 0) + (rng() - 0.5) * 0.01;
+        flowerHead(k, pick.name, {
+          p: [x, cy + y, z + 0.01], dir: [(x / R) * 0.35, (y / R) * 0.35, 1], size: 0.075 * sc * (0.85 + rng() * 0.3),
+          wilted, sides: 1, spin: rng() * 6, tint: pick.tint, shade: (1 - fade * 0.3) * (0.85 + rng() * 0.25),
         });
-        if (rng() < 0.45) k.add(mat('flower'), G('wleaf', () => blob(0.035, 0.016, 7, 6, 0.3).rotateX(Math.PI / 2)), { p: [x * 1.04, cy + y * 1.04, -0.005], r: [0, 0, a + (rng() - 0.5)], color: 0x2e4a26, w: false });
+        if (rng() < 0.45) flowerCard(k, 'leaves', { view: 'front', anchor: 'center', p: [x * 1.06, cy + y * 1.06, -0.004], dir: [0, 0, 1], spin: a - Math.PI / 2 + (rng() - 0.5), size: 0.08, wilted: wilted && rng() < 0.5, shade: 0.85 });
       }
     });
     // centre: pleated satin rosette + printed name card

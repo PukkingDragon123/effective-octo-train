@@ -6,6 +6,7 @@ import { mat, nightEnvTex } from './lib/materials.js';
 import { paintedMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
 import { tex } from '../textures/index.js';
 import { G } from './lib/small.js';
+import { flowerHead } from './lib/flowers.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -119,21 +120,29 @@ export function createPond(opts = {}) {
       return g;
     }), { p: [x, WL + 0.012, z], r: rng() * 6, s: r, color: rng() < 0.2 ? 0x6a6a2a : 0x2e5a26, w: { vary: 0.35, moss: 0 }, colorFn: (p, n, cc, lp) => { const rr = Math.hypot(lp.x, lp.z); if (rr > 0.9) cc.multiplyScalar(0.7); if (Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 9)) < 0.08) cc.multiplyScalar(0.8); } });
   }
-  // lotus flowers (pink cups) + seed pods on stalks
-  for (let i = 0; i < 7; i++) {
+  // lotus flowers (photobashed open blooms and buds, cross-carded) + seed pods on curved stalks
+  for (let i = 0; i < 9; i++) {
     const c = clusterC[i % 3];
     const x = c[0] + (rng() - 0.5) * R * 0.5, z = c[1] + (rng() - 0.5) * R * 0.4;
     const h = 0.15 + rng() * 0.35;
-    k.add(mat('flower'), tube([V(x, WL, z), V(x + 0.02, WL + h, z)], 0.008, 4), { color: 0x3a5a2a, w: false });
+    const lean = [(rng() - 0.5) * 0.08, 0, (rng() - 0.5) * 0.08];
+    const top = V(x + lean[0] * h * 2, WL + h, z + lean[2] * h * 2);
+    k.add(mat('flower'), tube([V(x, WL, z), V(x + lean[0] * h, WL + h * 0.6, z + lean[2] * h), top], 0.007, 4), { color: 0x3a5a2a, w: false });
     if (i % 3 === 2) {
-      k.add(mat('flower'), G('seedpod', () => cyl(0.045, 0.025, 0.05, 10, 0.005)), { p: [x + 0.02, WL + h, z], color: 0x5a6a3a, w: false });
+      k.add(mat('flower'), G('seedpod', () => cyl(0.045, 0.025, 0.05, 10, 0.005)), { p: [top.x, top.y, top.z], color: 0x5a6a3a, w: false });
       continue;
     }
-    for (let pI = 0; pI < 10; pI++) {
-      const a = (pI / 10) * Math.PI * 2 + (pI > 4 ? 0.3 : 0);
-      const tilt = pI > 4 ? 0.45 : 0.75;
-      k.add(mat('flower'), G('petal', () => sphere(0.5, 6, 4).scale(0.05, 0.11, 0.02).translate(0, 0.1, 0)), { p: [x + 0.02, WL + h, z], r: [Math.cos(a) * tilt, a, 0, 'YXZ'], color: pI > 4 ? 0xf0b8c8 : 0xe08aa0, w: false });
-    }
+    const bud = i % 4 === 1;
+    const wilted = i === 7;
+    flowerHead(k, bud ? 'lotus_bud' : 'lotus', {
+      p: [top.x, top.y + (bud ? 0.05 : 0.04), top.z], dir: [lean[0] * 2, 1, lean[2] * 2], size: bud ? 0.14 : 0.2,
+      wilted, sides: 2, spin: rng() * 6, shade: 0.9 + rng() * 0.2,
+    });
+  }
+  // a few fallen petals floating on the water
+  for (let i = 0; i < 6; i++) {
+    const c = clusterC[i % 3];
+    flowerHead(k, 'petals', { p: [c[0] + (rng() - 0.5) * R * 0.6, WL + 0.006, c[1] + (rng() - 0.5) * R * 0.5], dir: [0, 1, 0], size: 0.18, sides: 0, spin: rng() * 6 });
   }
   // reed clumps along the bank
   if (opts.reeds !== false) {

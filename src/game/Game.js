@@ -115,9 +115,18 @@ export async function startGame(ctx) {
   g.fsm = new StateMachine(g);
   g.fsm.register(MenuState).register(IntroState).register(GarageState).register(TutorialState).register(ShiftState).register(DeathState).register(EndingState);
 
-  installPause();
-  installMobileControls(document.getElementById('ui'));
-  if (ctx.settings.get('testPanel') !== false) installTestPanel(document.getElementById('ui'));
+  // overlays never block the boot: a broken panel logs and the game still starts
+  for (const [name, fn] of [
+    ['pause', () => installPause()],
+    ['touch controls', () => installMobileControls(document.getElementById('ui'))],
+    ['test panel', () => ctx.settings.get('testPanel') !== false && installTestPanel(document.getElementById('ui'))],
+  ]) {
+    try {
+      fn();
+    } catch (err) {
+      console.error(`[boot] ${name} failed`, err);
+    }
+  }
   ui.showLoading(1, 'พร้อมแล้ว', 'Ready');
   if (!skipLoading) {
     // the burnt-down stick waits for the player; a hand takes it (audio unlocks on this gesture)

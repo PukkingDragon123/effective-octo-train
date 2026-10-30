@@ -2,7 +2,7 @@
 """Build the photobashed texture library.
 
     python3 -I tools/photobash/fetch.py --raw <raw>        # once: download CC0 sources
-    python3 -I tools/photobash/build.py --raw <raw> [--only surfaces,foliage,printed,decals,overlays]
+    python3 -I tools/photobash/build.py --raw <raw> [--only surfaces,foliage,flowers,printed,decals]
                                          [--keys asphalt,bark] [--preview <dir>]
 
 Writes public/assets/textures/<family>/<key>.webp and public/assets/textures/manifest.json
@@ -24,7 +24,7 @@ OUT = os.path.join(ROOT, 'public', 'assets', 'textures')
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--raw', required=True)
-    ap.add_argument('--only', default='surfaces,foliage,printed,decals,overlays')
+    ap.add_argument('--only', default='surfaces,foliage,flowers,printed,decals')
     ap.add_argument('--keys', default='')
     ap.add_argument('--preview', default='')
     a = ap.parse_args()
@@ -51,15 +51,15 @@ def main():
     if 'foliage' in only:
         import foliage
         foliage.build(w, keys)
+    if 'flowers' in only:
+        import flowers
+        flowers.build(w, keys)
     if 'printed' in only:
         import printed
         printed.build(w, keys)
     if 'decals' in only:
         import gore
         gore.build(w, keys)
-    if 'overlays' in only:
-        import overlays
-        overlays.build(w, keys)
     w.save(man_path)
     print(f'done in {time.time() - t0:.0f}s; library {w.total_bytes() / 1e6:.1f} MB')
 

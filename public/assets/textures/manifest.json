@@ -1,7 +1,1428 @@
 {
- "decals": {},
+ "decals": {
+  "blood_drip:0": {
+   "alpha": true,
+   "aspect": 0.5,
+   "bytes": 7108,
+   "file": "decals/blood_drip_0.webp",
+   "gore": "full",
+   "px": [
+    256,
+    512
+   ],
+   "size": [
+    0.3,
+    0.6
+   ]
+  },
+  "blood_drip:0:reduced": {
+   "alpha": true,
+   "aspect": 0.5,
+   "bytes": 6030,
+   "file": "decals/blood_drip_0_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    256,
+    512
+   ],
+   "size": [
+    0.3,
+    0.6
+   ]
+  },
+  "blood_drip:1": {
+   "alpha": true,
+   "aspect": 0.5,
+   "bytes": 6180,
+   "file": "decals/blood_drip_1.webp",
+   "gore": "full",
+   "px": [
+    256,
+    512
+   ],
+   "size": [
+    0.3,
+    0.6
+   ]
+  },
+  "blood_drip:1:reduced": {
+   "alpha": true,
+   "aspect": 0.5,
+   "bytes": 5908,
+   "file": "decals/blood_drip_1_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    256,
+    512
+   ],
+   "size": [
+    0.3,
+    0.6
+   ]
+  },
+  "blood_drip:2": {
+   "alpha": true,
+   "aspect": 0.5,
+   "bytes": 6226,
+   "file": "decals/blood_drip_2.webp",
+   "gore": "full",
+   "px": [
+    256,
+    512
+   ],
+   "size": [
+    0.3,
+    0.6
+   ]
+  },
+  "blood_drip:2:reduced": {
+   "alpha": true,
+   "aspect": 0.5,
+   "bytes": 6112,
+   "file": "decals/blood_drip_2_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    256,
+    512
+   ],
+   "size": [
+    0.3,
+    0.6
+   ]
+  },
+  "blood_handprint:0": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 21462,
+   "file": "decals/blood_handprint_0.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.24,
+    0.24
+   ]
+  },
+  "blood_handprint:0:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18820,
+   "file": "decals/blood_handprint_0_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.24,
+    0.24
+   ]
+  },
+  "blood_handprint:1": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 27552,
+   "file": "decals/blood_handprint_1.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.24,
+    0.24
+   ]
+  },
+  "blood_handprint:1:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 37240,
+   "file": "decals/blood_handprint_1_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.24,
+    0.24
+   ]
+  },
+  "blood_pool:0": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 12442,
+   "file": "decals/blood_pool_0.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    1.2,
+    1.2
+   ]
+  },
+  "blood_pool:0:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 16168,
+   "file": "decals/blood_pool_0_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    1.2,
+    1.2
+   ]
+  },
+  "blood_pool:1": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 12196,
+   "file": "decals/blood_pool_1.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.9,
+    0.9
+   ]
+  },
+  "blood_pool:1:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 15042,
+   "file": "decals/blood_pool_1_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.9,
+    0.9
+   ]
+  },
+  "blood_pool:2": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 14738,
+   "file": "decals/blood_pool_2.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    1.6,
+    1.6
+   ]
+  },
+  "blood_pool:2:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18548,
+   "file": "decals/blood_pool_2_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    1.6,
+    1.6
+   ]
+  },
+  "blood_smear:0": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18512,
+   "file": "decals/blood_smear_0.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.6,
+    0.6
+   ]
+  },
+  "blood_smear:0:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 31552,
+   "file": "decals/blood_smear_0_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.6,
+    0.6
+   ]
+  },
+  "blood_smear:1": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 22058,
+   "file": "decals/blood_smear_1.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.6,
+    0.6
+   ]
+  },
+  "blood_smear:1:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 35184,
+   "file": "decals/blood_smear_1_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.6,
+    0.6
+   ]
+  },
+  "blood_spatter:0": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 34372,
+   "file": "decals/blood_spatter_0.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.8,
+    0.8
+   ]
+  },
+  "blood_spatter:0:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18656,
+   "file": "decals/blood_spatter_0_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.8,
+    0.8
+   ]
+  },
+  "blood_spatter:1": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 35240,
+   "file": "decals/blood_spatter_1.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.5,
+    0.5
+   ]
+  },
+  "blood_spatter:1:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 17720,
+   "file": "decals/blood_spatter_1_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    0.5,
+    0.5
+   ]
+  },
+  "blood_spatter:2": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 34192,
+   "file": "decals/blood_spatter_2.webp",
+   "gore": "full",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    1.2,
+    1.2
+   ]
+  },
+  "blood_spatter:2:reduced": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18720,
+   "file": "decals/blood_spatter_2_reduced.webp",
+   "gore": "reduced",
+   "px": [
+    512,
+    512
+   ],
+   "size": [
+    1.2,
+    1.2
+   ]
+  }
+ },
  "overlays": {},
- "printed": {},
+ "printed": {
+  "amulet_card:luangpho": {
+   "aspect": 0.75,
+   "bytes": 20976,
+   "decal": false,
+   "file": "printed/amulet_card__luangpho.webp",
+   "px": [
+    384,
+    512
+   ],
+   "shape": "rect",
+   "size": [
+    0.064,
+    0.085
+   ]
+  },
+  "amulet_card:phra_somdej": {
+   "aspect": 0.75,
+   "bytes": 22402,
+   "decal": false,
+   "file": "printed/amulet_card__phra_somdej.webp",
+   "px": [
+    384,
+    512
+   ],
+   "shape": "rect",
+   "size": [
+    0.064,
+    0.085
+   ]
+  },
+  "betel_pack:nokkaew": {
+   "aspect": 1.0,
+   "bytes": 52338,
+   "decal": false,
+   "file": "printed/betel_pack__nokkaew.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "rect",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "calendar:buddha": {
+   "alpha": true,
+   "aspect": 0.6667,
+   "bytes": 235338,
+   "decal": false,
+   "file": "printed/calendar__buddha.webp",
+   "px": [
+    512,
+    768
+   ],
+   "shape": "rect",
+   "size": [
+    0.34,
+    0.51
+   ]
+  },
+  "calendar:buddha_2": {
+   "alpha": true,
+   "aspect": 0.6667,
+   "bytes": 236116,
+   "decal": false,
+   "file": "printed/calendar__buddha_2.webp",
+   "px": [
+    512,
+    768
+   ],
+   "shape": "rect",
+   "size": [
+    0.34,
+    0.51
+   ]
+  },
+  "candle_pack:dokbua": {
+   "aspect": 1.4,
+   "bytes": 74208,
+   "decal": false,
+   "file": "printed/candle_pack__dokbua.webp",
+   "px": [
+    448,
+    320
+   ],
+   "shape": "rect",
+   "size": [
+    0.17,
+    0.12
+   ]
+  },
+  "cigarette_pack:khwanthian": {
+   "aspect": 0.7143,
+   "bytes": 64922,
+   "decal": false,
+   "file": "printed/cigarette_pack__khwanthian.webp",
+   "px": [
+    320,
+    448
+   ],
+   "shape": "rect",
+   "size": [
+    0.055,
+    0.077
+   ]
+  },
+  "cigarette_pack:plaifah": {
+   "aspect": 0.7143,
+   "bytes": 60626,
+   "decal": false,
+   "file": "printed/cigarette_pack__plaifah.webp",
+   "px": [
+    320,
+    448
+   ],
+   "shape": "rect",
+   "size": [
+    0.055,
+    0.077
+   ]
+  },
+  "drink_label:energy": {
+   "aspect": 2.6667,
+   "bytes": 121924,
+   "decal": false,
+   "file": "printed/drink_label__energy.webp",
+   "px": [
+    768,
+    288
+   ],
+   "shape": "rect",
+   "size": [
+    0.17,
+    0.064
+   ]
+  },
+  "drink_label:energy_red": {
+   "aspect": 2.6667,
+   "bytes": 119052,
+   "decal": false,
+   "file": "printed/drink_label__energy_red.webp",
+   "px": [
+    768,
+    288
+   ],
+   "shape": "rect",
+   "size": [
+    0.17,
+    0.064
+   ]
+  },
+  "drink_label:soda_green": {
+   "aspect": 2.6667,
+   "bytes": 110664,
+   "decal": false,
+   "file": "printed/drink_label__soda_green.webp",
+   "px": [
+    768,
+    288
+   ],
+   "shape": "rect",
+   "size": [
+    0.17,
+    0.064
+   ]
+  },
+  "drink_label:soda_red": {
+   "aspect": 2.6667,
+   "bytes": 110748,
+   "decal": false,
+   "file": "printed/drink_label__soda_red.webp",
+   "px": [
+    768,
+    288
+   ],
+   "shape": "rect",
+   "size": [
+    0.17,
+    0.064
+   ]
+  },
+  "fare_chart:taxi": {
+   "alpha": true,
+   "aspect": 0.8,
+   "bytes": 44468,
+   "decal": true,
+   "file": "printed/fare_chart__taxi.webp",
+   "px": [
+    512,
+    640
+   ],
+   "shape": "rect",
+   "size": [
+    0.16,
+    0.2
+   ]
+  },
+  "incense_box:jetdao": {
+   "aspect": 1.6,
+   "bytes": 23662,
+   "decal": false,
+   "file": "printed/incense_box__jetdao.webp",
+   "px": [
+    512,
+    320
+   ],
+   "shape": "rect",
+   "size": [
+    0.2,
+    0.125
+   ]
+  },
+  "joss_paper:gold": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 83794,
+   "decal": true,
+   "file": "printed/joss_paper__gold.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "rect",
+   "size": [
+    0.11,
+    0.11
+   ]
+  },
+  "joss_paper:hell_note": {
+   "alpha": true,
+   "aspect": 2.0,
+   "bytes": 147626,
+   "decal": true,
+   "file": "printed/joss_paper__hell_note.webp",
+   "px": [
+    640,
+    320
+   ],
+   "shape": "rect",
+   "size": [
+    0.18,
+    0.09
+   ]
+  },
+  "km_marker:0": {
+   "aspect": 0.6667,
+   "bytes": 25710,
+   "decal": false,
+   "file": "printed/km_marker__0.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:1": {
+   "aspect": 0.6667,
+   "bytes": 28374,
+   "decal": false,
+   "file": "printed/km_marker__1.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:10": {
+   "aspect": 0.6667,
+   "bytes": 26292,
+   "decal": false,
+   "file": "printed/km_marker__10.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:11": {
+   "aspect": 0.6667,
+   "bytes": 26728,
+   "decal": false,
+   "file": "printed/km_marker__11.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:12": {
+   "aspect": 0.6667,
+   "bytes": 26570,
+   "decal": false,
+   "file": "printed/km_marker__12.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:2": {
+   "aspect": 0.6667,
+   "bytes": 27504,
+   "decal": false,
+   "file": "printed/km_marker__2.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:3": {
+   "aspect": 0.6667,
+   "bytes": 27628,
+   "decal": false,
+   "file": "printed/km_marker__3.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:4": {
+   "aspect": 0.6667,
+   "bytes": 26782,
+   "decal": false,
+   "file": "printed/km_marker__4.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:5": {
+   "aspect": 0.6667,
+   "bytes": 25984,
+   "decal": false,
+   "file": "printed/km_marker__5.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:6": {
+   "aspect": 0.6667,
+   "bytes": 27008,
+   "decal": false,
+   "file": "printed/km_marker__6.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:7": {
+   "aspect": 0.6667,
+   "bytes": 27904,
+   "decal": false,
+   "file": "printed/km_marker__7.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:8": {
+   "aspect": 0.6667,
+   "bytes": 27274,
+   "decal": false,
+   "file": "printed/km_marker__8.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "km_marker:9": {
+   "aspect": 0.6667,
+   "bytes": 27104,
+   "decal": false,
+   "file": "printed/km_marker__9.webp",
+   "px": [
+    384,
+    576
+   ],
+   "shape": "rect",
+   "size": [
+    0.42,
+    0.63
+   ]
+  },
+  "lottery:temple": {
+   "alpha": true,
+   "aspect": 2.0,
+   "bytes": 136036,
+   "decal": true,
+   "file": "printed/lottery__temple.webp",
+   "px": [
+    640,
+    320
+   ],
+   "shape": "rect",
+   "size": [
+    0.18,
+    0.09
+   ]
+  },
+  "newspaper:classifieds": {
+   "alpha": true,
+   "aspect": 0.75,
+   "bytes": 371634,
+   "decal": true,
+   "file": "printed/newspaper__classifieds.webp",
+   "px": [
+    768,
+    1024
+   ],
+   "shape": "rect",
+   "size": [
+    0.38,
+    0.5
+   ]
+  },
+  "newspaper:front": {
+   "alpha": true,
+   "aspect": 0.75,
+   "bytes": 385668,
+   "decal": true,
+   "file": "printed/newspaper__front.webp",
+   "px": [
+    768,
+    1024
+   ],
+   "shape": "rect",
+   "size": [
+    0.38,
+    0.5
+   ]
+  },
+  "noodle_cup:pork": {
+   "aspect": 3.0,
+   "bytes": 117660,
+   "decal": false,
+   "file": "printed/noodle_cup__pork.webp",
+   "px": [
+    768,
+    256
+   ],
+   "shape": "rect",
+   "size": [
+    0.29,
+    0.097
+   ]
+  },
+  "noodle_cup:tomyum": {
+   "aspect": 3.0,
+   "bytes": 115362,
+   "decal": false,
+   "file": "printed/noodle_cup__tomyum.webp",
+   "px": [
+    768,
+    256
+   ],
+   "shape": "rect",
+   "size": [
+    0.29,
+    0.097
+   ]
+  },
+  "noodle_menu:board": {
+   "aspect": 0.7143,
+   "bytes": 76960,
+   "decal": false,
+   "file": "printed/noodle_menu__board.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.75,
+    1.05
+   ]
+  },
+  "offering_label:condolence": {
+   "alpha": true,
+   "aspect": 1.5,
+   "bytes": 52844,
+   "decal": true,
+   "file": "printed/offering_label__condolence.webp",
+   "px": [
+    384,
+    256
+   ],
+   "shape": "rect",
+   "size": [
+    0.1,
+    0.067
+   ]
+  },
+  "offering_label:spirit": {
+   "alpha": true,
+   "aspect": 1.5,
+   "bytes": 55946,
+   "decal": true,
+   "file": "printed/offering_label__spirit.webp",
+   "px": [
+    384,
+    256
+   ],
+   "shape": "rect",
+   "size": [
+    0.1,
+    0.067
+   ]
+  },
+  "poster:balm": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 320604,
+   "decal": true,
+   "file": "printed/poster__balm.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:concert": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 361104,
+   "decal": true,
+   "file": "printed/poster__concert.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:drink": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 367568,
+   "decal": true,
+   "file": "printed/poster__drink.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:election": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 325552,
+   "decal": true,
+   "file": "printed/poster__election.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:lottery": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 339818,
+   "decal": true,
+   "file": "printed/poster__lottery.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:missing": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 114048,
+   "decal": true,
+   "file": "printed/poster__missing.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:movie": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 276250,
+   "decal": true,
+   "file": "printed/poster__movie.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:movie_2": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 368316,
+   "decal": true,
+   "file": "printed/poster__movie_2.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "poster:temple_fair": {
+   "alpha": true,
+   "aspect": 0.7143,
+   "bytes": 358348,
+   "decal": true,
+   "file": "printed/poster__temple_fair.webp",
+   "px": [
+    640,
+    896
+   ],
+   "shape": "rect",
+   "size": [
+    0.5,
+    0.7
+   ]
+  },
+  "receipt:grocery": {
+   "alpha": true,
+   "aspect": 0.4571,
+   "bytes": 73438,
+   "decal": true,
+   "file": "printed/receipt__grocery.webp",
+   "px": [
+    256,
+    560
+   ],
+   "shape": "rect",
+   "size": [
+    0.058,
+    0.127
+   ]
+  },
+  "receipt:taxi": {
+   "alpha": true,
+   "aspect": 0.4,
+   "bytes": 83550,
+   "decal": true,
+   "file": "printed/receipt__taxi.webp",
+   "px": [
+    256,
+    640
+   ],
+   "shape": "rect",
+   "size": [
+    0.058,
+    0.145
+   ]
+  },
+  "road_sign:curve_danger": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 27632,
+   "decal": false,
+   "file": "printed/road_sign__curve_danger.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "rect",
+   "size": [
+    1.0,
+    0.5
+   ]
+  },
+  "road_sign:curve_left": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 28492,
+   "decal": false,
+   "file": "printed/road_sign__curve_left.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "diamond",
+   "size": [
+    0.75,
+    0.75
+   ]
+  },
+  "road_sign:curve_right": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 28280,
+   "decal": false,
+   "file": "printed/road_sign__curve_right.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "diamond",
+   "size": [
+    0.75,
+    0.75
+   ]
+  },
+  "road_sign:elephant": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 28462,
+   "decal": false,
+   "file": "printed/road_sign__elephant.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "diamond",
+   "size": [
+    0.75,
+    0.75
+   ]
+  },
+  "road_sign:speed_40": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 41638,
+   "decal": false,
+   "file": "printed/road_sign__speed_40.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "circle",
+   "size": [
+    0.75,
+    0.75
+   ]
+  },
+  "road_sign:speed_60": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 41464,
+   "decal": false,
+   "file": "printed/road_sign__speed_60.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "circle",
+   "size": [
+    0.75,
+    0.75
+   ]
+  },
+  "road_sign:speed_80": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 41688,
+   "decal": false,
+   "file": "printed/road_sign__speed_80.webp",
+   "px": [
+    512,
+    512
+   ],
+   "shape": "circle",
+   "size": [
+    0.75,
+    0.75
+   ]
+  },
+  "snack_bag:corn": {
+   "alpha": true,
+   "aspect": 0.7,
+   "bytes": 200082,
+   "decal": true,
+   "file": "printed/snack_bag__corn.webp",
+   "px": [
+    448,
+    640
+   ],
+   "shape": "rect",
+   "size": [
+    0.14,
+    0.2
+   ]
+  },
+  "snack_bag:prawn": {
+   "alpha": true,
+   "aspect": 0.7,
+   "bytes": 196990,
+   "decal": true,
+   "file": "printed/snack_bag__prawn.webp",
+   "px": [
+    448,
+    640
+   ],
+   "shape": "rect",
+   "size": [
+    0.14,
+    0.2
+   ]
+  },
+  "snack_bag:squid": {
+   "alpha": true,
+   "aspect": 0.7,
+   "bytes": 184448,
+   "decal": true,
+   "file": "printed/snack_bag__squid.webp",
+   "px": [
+    448,
+    640
+   ],
+   "shape": "rect",
+   "size": [
+    0.14,
+    0.2
+   ]
+  },
+  "sticker:cartoon": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 20336,
+   "decal": true,
+   "file": "printed/sticker__cartoon.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:drive_slow": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 22878,
+   "decal": true,
+   "file": "printed/sticker__drive_slow.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:lucky": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 19810,
+   "decal": true,
+   "file": "printed/sticker__lucky.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:merit": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18364,
+   "decal": true,
+   "file": "printed/sticker__merit.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:meter": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 21622,
+   "decal": true,
+   "file": "printed/sticker__meter.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:no_smoking": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 18280,
+   "decal": true,
+   "file": "printed/sticker__no_smoking.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:no_stop": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 19032,
+   "decal": true,
+   "file": "printed/sticker__no_stop.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  },
+  "sticker:yantra": {
+   "alpha": true,
+   "aspect": 1.0,
+   "bytes": 21394,
+   "decal": true,
+   "file": "printed/sticker__yantra.webp",
+   "px": [
+    384,
+    384
+   ],
+   "shape": "sticker",
+   "size": [
+    0.09,
+    0.09
+   ]
+  }
+ },
  "textures": {
   "asphalt": {
    "bytes": 1864188,
@@ -335,6 +1756,28 @@
     512
    ],
    "srgb": false
+  },
+  "flower_atlas": {
+   "alpha": true,
+   "bytes": 475638,
+   "file": "foliage/flower_atlas.webp",
+   "grid": 8,
+   "size": [
+    2048,
+    2048
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "flower_atlas_normal": {
+   "bytes": 77488,
+   "file": "foliage/flower_atlas_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false,
+   "wrap": "clamp"
   },
   "foliage_world": {
    "alpha": true,
@@ -1048,6 +2491,6 @@
    "srgb": false
   }
  },
- "totalBytes": 28581728,
+ "totalBytes": 36794156,
  "version": 1
 }

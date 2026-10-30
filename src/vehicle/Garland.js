@@ -9,7 +9,7 @@
 // brown, ribbons don't).
 import * as THREE from 'three';
 import { paintedMaterial } from '../render/index.js';
-import { signTex } from '../textures/index.js';
+import { signTex, tex, hasPhotoTexture, flowerCell } from '../textures/index.js';
 import { engine } from '../core/Engine.js';
 import { makeRng, clamp, lerp, smoothstep } from '../core/math.js';
 import { hiCanvas, toTexture, maxAnisotropy } from './VehicleTextures.js';
@@ -250,12 +250,26 @@ function flowerAtlas() {
   return tex;
 }
 
-function cardGeometry(cellIdx, w, h, pivotY = 0) {
+// Photobashed flower atlas (tex('flower_atlas'), FLOWER_ATLAS cells) used for the cards when it is
+// loaded; the hand-painted canvas atlas above stays as the fallback (and for the falling petals).
+const PHOTO_CELLS = {
+  [CARD.blossom]: ['jasmine', 'front'], [CARD.crown]: ['crown_purple', 'front'], [CARD.rose]: ['rose_red', 'front'],
+  [CARD.marigold]: ['marigold', 'front'], [CARD.leaf]: ['leaves', 'front'], [CARD.budPair]: ['jasmine_bud', 'side'],
+};
+let _photoCards = null;
+function photoCards() {
+  if (_photoCards === null) _photoCards = hasPhotoTexture('flower_atlas');
+  return _photoCards;
+}
+
+function cardGeometry(cellIdx, w, h, pivotY = 0, canvasAtlas = false) {
   const g = new THREE.PlaneGeometry(w, h);
   g.translate(0, -pivotY * h, 0);
-  const u0 = (cellIdx % 4) / 4, v1 = 1 - Math.floor(cellIdx / 4) / 2, v0 = v1 - 0.5;
+  let u0 = (cellIdx % 4) / 4, v0 = 1 - Math.floor(cellIdx / 4) / 2 - 0.5, du = 0.25, dv = 0.5;
+  const pc = !canvasAtlas && photoCards() && PHOTO_CELLS[cellIdx] && flowerCell(...PHOTO_CELLS[cellIdx]);
+  if (pc) [u0, v0, du, dv] = [pc.uv[0], pc.uv[1], pc.uv[2] - pc.uv[0], pc.uv[3] - pc.uv[1]];
   const uv = g.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * 0.25, v0 + uv.getY(i) * 0.5);
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * du, v0 + uv.getY(i) * dv);
   return g;
 }
 
@@ -306,10 +320,14 @@ let _mats = null;
 function garlandMaterials() {
   if (_mats) return _mats;
   const atlas = flowerAtlas();
+  const photo = photoCards();
+  const pAtlas = photo ? tex('flower_atlas') : atlas;
+  const pNormal = photo ? tex('flower_atlas_normal') : null;
   _mats = {
     bud: paintedMaterial({ map: budTexture(), color: 0xffffff, roughness: 0.55, brush: 0.12, translucency: 0.55, name: 'garland_bud' }),
-    card: paintedMaterial({ map: atlas, color: 0xffffff, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7, brush: 0.1, translucency: 0.5, name: 'garland_card' }),
-    ribbon: paintedMaterial({ map: atlas, color: 0xffffff, side: THREE.DoubleSide, roughness: 0.35, metalness: 0.05, brush: 0.1, name: 'garland_ribbon' }),
+    card: paintedMaterial({ map: pAtlas, normalMap: pNormal, color: 0xffffff, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.62, brush: 0.1, translucency: 0.55, name: 'garland_card' }),
+    petal: paintedMaterial({ map: atlas, color: 0xffffff, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7, brush: 0.1, translucency: 0.5, name: 'garland_petal' }),
+    ribbon: paintedMaterial({ map: pAtlas, color: 0xffffff, side: THREE.DoubleSide, roughness: 0.35, metalness: 0.05, brush: 0.1, name: 'garland_ribbon' }),
     thread: paintedMaterial({ color: 0xd8cfb8, roughness: 0.8, brush: 0.05, name: 'garland_thread' }),
     gold: paintedMaterial({ color: 0xd2a64e, metalness: 0.85, roughness: 0.3, brush: 0.15, name: 'amulet_gold' }),
     silver: paintedMaterial({ color: 0xc8c6c0, metalness: 0.85, roughness: 0.32, brush: 0.15, name: 'amulet_silver' }),
@@ -541,12 +559,21 @@ export class Garland {
         uv[s * 4 + 3] = 0.5 + 0.48 * (1 - s / (n - 1));
         if (s < n - 1) idx.push(s * 2, s * 2 + 1, s * 2 + 2, s * 2 + 1, s * 2 + 3, s * 2 + 2);
       }
-      // ribbon cell is index 5: u 0.25..0.5, v 0.0..0.5
+      // ribbon cell is index 5: u 0.25..0.5, v 0.0..0.5 (canvas atlas), or the photobashed satin
+      // ribbon_red cell: the central band of the tail, from the knot (top) to above the swallowtail cut
+      const rc = photoCards() && flowerCell('ribbon_red', 'front');
       for (let s = 0; s < n; s++) {
-        uv[s * 4] = 0.255;
-        uv[s * 4 + 2] = 0.495;
-        uv[s * 4 + 1] = 0.02 + 0.46 * (s / (n - 1));
-        uv[s * 4 + 3] = 0.02 + 0.46 * (s / (n - 1));
+        if (rc) {
+          const [ru0, rv0, ru1, rv1] = rc.uv;
+          uv[s * 4] = ru0 + (ru1 - ru0) * 0.38;
+          uv[s * 4 + 2] = ru0 + (ru1 - ru0) * 0.62;
+          uv[s * 4 + 1] = uv[s * 4 + 3] = rv1 - (rv1 - rv0) * (0.03 + 0.8 * (s / (n - 1)));
+        } else {
+          uv[s * 4] = 0.255;
+          uv[s * 4 + 2] = 0.495;
+          uv[s * 4 + 1] = 0.02 + 0.46 * (s / (n - 1));
+          uv[s * 4 + 3] = 0.02 + 0.46 * (s / (n - 1));
+        }
       }
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -570,8 +597,8 @@ export class Garland {
     this.group.add(this.threadMesh);
     // ---- falling petals ----
     this.petals = [];
-    const pg = cardGeometry(CARD.petal, 1, 1);
-    this.petalMesh = new THREE.InstancedMesh(pg, M.card, 14);
+    const pg = cardGeometry(CARD.petal, 1, 1, 0, true);
+    this.petalMesh = new THREE.InstancedMesh(pg, M.petal, 14);
     this.petalMesh.frustumCulled = false;
     this.petalMesh.count = 0;
     this.group.add(this.petalMesh);

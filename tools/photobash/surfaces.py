@@ -577,7 +577,7 @@ def cloths(S=1024):
     out.update(finish('fabric_silk', silk, sat['normal'], sat['rough']))
     for key, c in (('cloth_red', '#b82a24'), ('cloth_yellow', '#d6a424'), ('cloth_green', '#24763c')):
         cl = (norm01(lum(sat['color']))[..., None] * 0.55 + 0.55) * hex2rgb(c)
-        fade = sstep(0.55, 0.9, fbm(S, 4, 4, hash(key) % 1000)) * 0.25
+        fade = sstep(0.55, 0.9, fbm(S, 4, 4, sum(map(ord, key)))) * 0.25
         cl = apply_layer(cl, saturate(cl, 0.4) * 1.15, fade)
         out[key] = ('color', match_stats(cl, target(key), 0.7))
     out['cloth_normal'] = ('normal', sat['normal'])

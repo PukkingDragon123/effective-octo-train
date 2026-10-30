@@ -324,8 +324,6 @@ def lib(name):
         'shrub': ('ph_shrub_04', dict(min_area=1200)),
         'narrow': ('ph_shrub_02', dict(min_area=1500, max_aspect=14, taper=True, max_width_ratio=0.3)),
         'arrow': ('ph_potted_plant_02', dict(min_area=20000, solidity=0.5, flip=True)),
-        'round': ('ph_calathea_orbifolia_01', dict(min_area=20000)),
-        'palmate': ('ph_pachira_aquatica_01', dict(min_area=20000, solidity=0.35)),
         'frond': ('ph_fern_02', dict(min_area=8000, solidity=0.15, max_aspect=30, petiole_flip=False)),
         'bipinnate': ('ph_jacaranda_tree', dict(min_area=8000, solidity=0.1, max_aspect=20, petiole_flip=False)),
         'blade': ('acg_Foliage001', dict(min_area=1500, solidity=0.2, max_aspect=200, petiole_flip=False)),

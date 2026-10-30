@@ -9,6 +9,7 @@ import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, sm
 import { mat, glowMat, signMat, texMat, stainTex, crackTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap, forkPlank, useAsset } from './lib/small.js';
+import { flowerHead } from './lib/flowers.js';
 import { jossPaper, card, findPrint, litter } from './lib/print.js';
 import { deityHeadGeo, deityBodyGeo, lionGeo } from './lib/figures.js';
 import { chineseRoof } from './shrines.js';
@@ -357,7 +358,15 @@ export function createShrineMaRuay(opts = {}) {
       for (let i = 0; i < 3; i++) teacup(k, { p: [s * (0.2 + i * 0.08), at, az - 0.22] });
       // vases with flowers (CC0 porcelain vase when loaded, glazed blue tint)
       if (!useAsset(k, s < 0 ? 'ceramic_vase_03' : 'ceramic_vase_01', { p: [s * 1.1, at, az - 0.2], r: s }, { fit: { h: 0.3 }, color: 0xb8c4d8, w: false })) k.add(mat('ceramic'), G('vase', () => lathe([[0, 0], [0.05, 0], [0.07, 0.08], [0.04, 0.18], [0.05, 0.24], [0, 0.22]], 12)), { p: [s * 1.1, at, az - 0.2], color: 0x2a4a8a, w: false });
-      for (let i = 0; i < 6; i++) k.add(mat('flower'), G('vflower', () => sphere(0.03, 6, 5)), { p: [s * 1.1 + (rng() - 0.5) * 0.12, at + 0.3 + rng() * 0.12, az - 0.2 + (rng() - 0.5) * 0.1], color: rng() < 0.5 ? PAL.marigold : 0xd8c040, w: false });
+      // bouquet: stems fanning out of the vase, chrysanthemum / marigold heads, filler leaves
+      for (let i = 0; i < 9; i++) {
+        const a = rng() * Math.PI * 2, r = 0.03 + rng() * 0.06;
+        const tip = [s * 1.1 + Math.cos(a) * r * 1.4, at + 0.32 + rng() * 0.14, az - 0.2 + Math.sin(a) * r];
+        k.add(mat('flower'), tube([V(s * 1.1, at + 0.2, az - 0.2), V(tip[0], tip[1] - 0.03, tip[2])], 0.003, 3), { color: 0x3a5a2a, w: false });
+        const name = i % 3 === 0 ? 'marigold' : i % 3 === 1 ? 'chrys_yellow' : 'chrys_white';
+        flowerHead(k, name, { p: tip, dir: [Math.cos(a) * 0.6, 1, Math.sin(a) * 0.6], size: 0.06, wilted: rng() < 0.2, spin: rng() * 6 });
+      }
+      for (let i = 0; i < 4; i++) flowerHead(k, 'leaves', { p: [s * 1.1 + (rng() - 0.5) * 0.1, at + 0.3, az - 0.2 + (rng() - 0.5) * 0.08], dir: [rng() - 0.5, 0.6, rng() - 0.5], size: 0.1, face: false, sides: 1 });
       // oil lamps (gold cups with glowing wick)
       k.add(mat('gold'), G('oillamp', () => lathe([[0, 0], [0.025, 0], [0.012, 0.04], [0.04, 0.07], [0.045, 0.09], [0, 0.085]], 10)), { p: [s * 0.25, at, az + 0.25], color: GOLD, w: false });
       k.add(glowMat('candle'), G('oilflame', () => lathe([[0, 0], [0.008, 0.008], [0.004, 0.025], [0, 0.04]], 6)), { p: [s * 0.25, at + 0.09, az + 0.25], color: 0xffffff, w: false });
