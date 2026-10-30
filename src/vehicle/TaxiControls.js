@@ -834,7 +834,7 @@ export class TaxiControls {
         ctx.font = `700 ${H * 0.26}px ${FONTS.sign}`;
         ctx.fillText('฿', 8, H * 0.3);
         ctx.font = `700 ${H * 0.2}px ${FONTS.sign}`;
-        ctx.fillText('ไป', 8, H * 0.72);
+        ctx.fillText('บาท', 8, H * 0.74);
       } else {
         ctx.fillStyle = red;
         ctx.font = `700 ${H * 0.52}px ${FONTS.sign}`;
