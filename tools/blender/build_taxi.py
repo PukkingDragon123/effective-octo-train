@@ -24,6 +24,7 @@ import taxi_body as tb
 import taxi_exterior as te
 import taxi_parts as tp
 import taxi_interior as ti
+import weather
 
 ATLASES = ['ext_paint', 'ext_parts', 'int_hard', 'int_soft']
 
@@ -37,7 +38,8 @@ TAXI_ANCHORS = ['driverSeat', 'frontPassengerSeat', 'rearLeftSeat', 'rearRightSe
 
 def parse_args():
     a = vlib.args_after_dashes()
-    opt = dict(bake=True, size=2048, samples=8, out=os.path.join(REPO, 'public', 'assets', 'vehicle'), blend=None)
+    opt = dict(bake=True, size=2048, samples=4, ao=8, out=os.path.join(REPO, 'public', 'assets', 'vehicle'), blend=None,
+               pack=True)
     i = 0
     while i < len(a):
         k = a[i]
@@ -51,6 +53,10 @@ def parse_args():
             opt['out'] = a[i + 1]; i += 1
         elif k == '--blend':
             opt['blend'] = a[i + 1]; i += 1
+        elif k == '--ao':
+            opt['ao'] = int(a[i + 1]); i += 1
+        elif k == '--nopack':
+            opt['pack'] = False
         i += 1
     return opt
 
@@ -94,6 +100,53 @@ def dent(ob, center, radius, depth):
             v.co -= v.normal * depth * f
 
 
+# Triangle budget (~80-120k for the hero model): parts that are seen small or never up close are
+# collapsed; panels, glass, lamps, displays and the dash keep their full meshes.
+DECIMATE = {
+    'wheel_fl': 0.42, 'wheel_fr': 0.42, 'wheel_rl': 0.42, 'wheel_rr': 0.42, 'grille': 0.45,
+    'roof_sign_base': 0.45, 'bumper_inserts': 0.5, 'underbody': 0.35, 'exhaust': 0.5, 'wiper_l': 0.55,
+    'wiper_r': 0.55, 'seal_ws': 0.55, 'seal_rw': 0.55, 'drip_l': 0.5, 'drip_r': 0.5, 'parcel_shelf': 0.45,
+    'floor': 0.6, 'steering_wheel': 0.8, 'centre_stack': 0.8, 'seat_driver': 0.7, 'seat_pass': 0.7,
+    'rear_bench': 0.7, 'doorcard_fl': 0.62, 'doorcard_fr': 0.62, 'doorcard_rl': 0.62, 'doorcard_rr': 0.62,
+    'pillar_trims': 0.7, 'glovebox_lid': 0.75, 'console': 0.8, 'seat_belts': 0.7, 'light_head_l': 0.7,
+    'light_head_r': 0.7, 'headlamp_unit_l': 0.6, 'headlamp_unit_r': 0.6, 'tail_unit_l': 0.6, 'tail_unit_r': 0.6,
+}
+KEEP = {'body', 'door_fl', 'door_fr', 'door_rl', 'door_rr', 'hood', 'trunk', 'dash', 'cluster', 'meter_box',
+        'headliner', 'bead_cover', 'roof_sign', 'vacant_lamp', 'meter_display', 'radio_display', 'cluster_glass',
+        'dome_light'}
+
+
+def decimate_part(o, ratio):
+    n = vlib.tri_count(o)
+    m = o.modifiers.new('Dec', 'DECIMATE')
+    m.decimate_type = 'COLLAPSE'
+    m.ratio = ratio
+    m.use_collapse_triangulate = True
+    vlib.apply_modifiers(o)
+    if o.data.has_custom_normals:
+        with bpy.context.temp_override(object=o, active_object=o, selected_objects=[o]):
+            bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    o.data.shade_smooth()
+    vlib.set_sharp_by_angle(o, 38)
+    o.data.validate()
+    return n - vlib.tri_count(o)
+
+
+def apply_budget(parts):
+    saved = 0
+    for name, o in parts.items():
+        if o.type != 'MESH' or name in KEEP or name.startswith(('glass_', 'needle_', 'gauge_', 'plate_', 'mirror_')):
+            continue
+        n = vlib.tri_count(o)
+        r = DECIMATE.get(name)
+        if r is None:
+            r = 0.6 if n > 700 else None
+        if r is None or r >= 1:
+            continue
+        saved += decimate_part(o, r)
+    log('budget: removed', saved, 'tris')
+
+
 def main():
     opt = parse_args()
     t0 = time.time()
@@ -113,6 +166,9 @@ def main():
     parts_tris = sorted(((n, vlib.tri_count(o)) for n, o in list(X.items()) + list(IN.items())
                          if o.type == 'MESH'), key=lambda x: -x[1])
     log('PARTS', ' '.join(f'{n}:{c}' for n, c in parts_tris[:60]))
+    apply_budget(X)
+    apply_budget(IN)
+    handles = [tuple(centroid(X[f'handle_{k}'])) for k in ('fl', 'fr', 'rl', 'rr')]
 
     # ---------------- weathering ---------------------------------------------------------
     dent(X['door_rl'], (-0.84, -0.62, 0.40), 0.06, 0.006)
@@ -147,8 +203,8 @@ def main():
     in_sep = ['steering_wheel', 'needle_speedo', 'needle_tacho', 'needle_fuel', 'needle_temp', 'gear_lever',
               'handbrake_lever', 'pedal_throttle', 'pedal_brake', 'pedal_clutch', 'glovebox_lid', 'sun_visor_driver',
               'window_crank_fl', 'window_crank_fr', 'window_crank_rl', 'window_crank_rr', 'rearview_mirror',
-              'mirror_rear_surface', 'key_slot', 'meter_display', 'radio_display', 'gauge_speedo_face',
-              'gauge_tacho_face', 'gauge_small_face', 'vacant_lamp', 'cluster_glass']
+              'mirror_rear_surface', 'key_slot', 'meter_display', 'radio_display', 'gauge_speedo',
+              'gauge_tacho', 'gauge_fuel', 'gauge_temp', 'vacant_lamp', 'cluster_glass', 'dome_light']
     for k in in_sep:
         named_nodes[k] = IN.pop(k)
     interior = join([o for o in IN.values()], name='interior')
@@ -257,7 +313,7 @@ def main():
         if bad:
             log('validated (fixed)', o.name)
 
-    # ---------------- UV atlases + bake -----------------------------------------------------
+    # ---------------- UV atlases + painted bake ------------------------------------------------
     for o in [o for o in bpy.data.objects if o.name.startswith('master_')]:
         delete(o)
     out = opt['out']
@@ -266,52 +322,72 @@ def main():
     for a in ATLASES:
         used = vlib.atlas_unwrap(meshes, a, margin=0.003)
         log('atlas', a, len(used), 'objects')
-    atlas_files = {}
+    files, lod_files = {}, {}
     if opt['bake']:
         glass_like = [o for o in meshes if all((m is None) or (m.get('atlas', '') == '') for m in o.data.materials)]
         for o in glass_like:
             o.hide_render = True
-        imgs = vlib.bake_masks([o for o in meshes if o not in glass_like], ATLASES, size=opt['size'],
-                               samples=opt['samples'], out_dir=tex_dir)
+        ctx = weather.Ctx(
+            kind='taxi', axles=[(tb.AXF, tb.AXLE_Z), (tb.AXR, tb.AXLE_Z)], arch_r=0.335, handles=handles,
+            seat_centres=[(0.37, -0.14, 0.52), (-0.37, -0.14, 0.52), (0.37, -0.42, 0.82), (-0.37, -0.42, 0.82),
+                          (0.40, -1.02, 0.49), (-0.40, -1.02, 0.49), (0.0, -1.02, 0.49), (0.40, -1.30, 0.78),
+                          (-0.40, -1.30, 0.78)],
+            heel=(0.40, 0.62), dash=(0.40, 0.95, 0.78), length=4.27)
+        files, lod_files = weather.bake_all([o for o in meshes if o not in glass_like], ATLASES, ctx,
+                                            size=opt['size'], samples=opt['samples'], ao_samples=opt['ao'],
+                                            out_dir=tex_dir, sizes={'int_soft': opt['size'] // 2})
         for o in glass_like:
             o.hide_render = False
-        for a, img in imgs.items():
-            p = os.path.join(tex_dir, f'mask_{a}.jpg')
-            vlib.save_jpeg(img, p, quality=88)
-            atlas_files[a] = p
-            p2 = os.path.join(tex_dir, f'mask_{a}_lod.jpg')
-            vlib.save_jpeg(img, p2, size=512, quality=85)
         log('baked', round(time.time() - t0, 1))
     else:
-        # UV packing is not bit-identical between runs, so older baked masks are never reused:
-        # a --nobake build exports geometry + UVs without mask textures.
-        log('nobake: exporting without mask atlases')
+        log('nobake: exporting flat export materials')
+    used_mats = weather.remap_export(meshes)
+    log('export materials', len(used_mats), used_mats)
 
     if opt['blend']:
         bpy.ops.wm.save_as_mainfile(filepath=opt['blend'])
 
     # ---------------- export full model -------------------------------------------------------
-    mat_atlas = {k: v['atlas'] for k, v in vlib.MAT_DEFS.items() if v['atlas']}
+    export_atlas = {'paint': 'ext_paint', 'chrome': 'ext_parts', 'rubber_black': 'ext_parts', 'lens': 'ext_parts',
+                    'sign_lamp': 'ext_parts', 'plastic_dash': 'int_hard', 'fabric_carpet': 'int_hard',
+                    'vinyl_seat': 'int_soft'}
     glb = os.path.join(out, 'taxi.glb')
     vlib.export_glb(glb, all_objs)
     extras = {'generator': 'tools/blender/build_taxi.py', 'units': 'metres', 'forward': '-Z', 'driverSide': '+X',
-              'maskChannels': {'r': 'ambient occlusion', 'g': 'edge / curvature (wear)', 'b': 'cavity (grime)'},
-              'tris': int(sum(tris.values()))}
-    if atlas_files:
-        vlib.inject_masks(glb, atlas_files, mat_atlas, extras=extras)
+              'textures': 'baseColor = painted, weathered albedo; occlusion/metallicRoughness = ORM atlas',
+              'tris': int(sum(vlib.tri_count(o) for o in meshes))}
+    weather.inject_textures(glb, files, export_atlas, extras=extras)
     vlib.rename_anchor_nodes(glb)
-    log('exported', glb, os.path.getsize(glb) // 1024, 'KB')
+    if opt['pack']:
+        pack_glb(glb)
+    log('exported', glb, os.path.getsize(glb) // 1024, 'KB', 'tris', extras['tris'])
 
     # ---------------- LOD -------------------------------------------------------------------
     for o in all_objs:
         o.name = o.name + '__full'
         if o.type == 'MESH':
             o.data.name = o.name
-    build_lod(named_nodes, out, atlas_files, mat_atlas)
+    build_lod(named_nodes, out, lod_files, export_atlas, opt)
     log('done', round(time.time() - t0, 1))
 
 
-def build_lod(N, out, atlas_files, mat_atlas):
+def pack_glb(path):
+    """gltfpack: vertex-cache / fetch optimisation + KHR_mesh_quantization for normals (float
+    positions and UVs: the game rebuilds glass / mirror geometry in place)."""
+    import subprocess
+    tmp = path + '.pack.glb'
+    cmd = ['npx', '--yes', 'gltfpack@0.21.0', '-i', path, '-o', tmp, '-kn', '-km', '-ke', '-vpf', '-vtf']
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=600, cwd=REPO)
+        os.replace(tmp, path)
+        log('gltfpack ok', path)
+    except Exception as e:
+        log('gltfpack failed (keeping the plain export)', getattr(e, 'stderr', e))
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def build_lod(N, out, lod_files, export_atlas, opt):
     """Exterior-only low LOD (~15k tris) for distance and the menu cinematic."""
     def copy_world(ob, name):
         o = duplicate(ob, name + '_tmp')
@@ -344,22 +420,22 @@ def build_lod(N, out, atlas_files, mat_atlas):
                 'plate_front', 'plate_rear']
     body = join([copy_world(N[n], n + '_c') for n in body_src], name='body')
     # drop tiny / hidden-in-distance details before decimating: keep everything, decimation handles it
-    decimate(body, 7600)
+    decimate(body, 6400)
     glass = join([copy_world(N[n], n + '_c') for n in N if n.startswith('glass_')], name='glass')
-    decimate(glass, 400)
+    decimate(glass, 300)
     interior = copy_world(N['interior'], 'interior_c')
     interior.name = 'interior'
-    decimate(interior, 1500)
+    decimate(interior, 1000)
     nodes = [body, glass, interior]
     for nm in ('light_head_l', 'light_head_r', 'light_tail_l', 'light_tail_r', 'light_brake', 'roof_sign'):
         o = copy_world(N[nm], nm)
         o.name = nm
-        decimate(o, 260)
+        decimate(o, 200)
         nodes.append(o)
     for nm in ('wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr'):
         o = copy_world(N[nm], nm)
         o.name = nm
-        decimate(o, 700)
+        decimate(o, 620)
         set_origin(o, N[nm].matrix_world.translation)
         set_pivot_props(o, (-1, 0, 0), None, 'spin')
         nodes.append(o)
@@ -370,11 +446,9 @@ def build_lod(N, out, atlas_files, mat_atlas):
     log('LOD tris', tot)
     glb = os.path.join(out, 'taxi_lod.glb')
     vlib.export_glb(glb, [root] + nodes)
-    lod_files = {a: p.replace('.jpg', '_lod.jpg') for a, p in atlas_files.items() if a.startswith('ext')
-                 or a == 'int_hard' or a == 'int_soft'}
-    lod_files = {a: p for a, p in lod_files.items() if os.path.exists(p)}
-    if lod_files:
-        vlib.inject_masks(glb, lod_files, mat_atlas, extras={'lodOf': 'taxi.glb', 'tris': int(tot)})
+    weather.inject_textures(glb, lod_files, export_atlas, extras={'lodOf': 'taxi.glb', 'tris': int(tot)})
+    if opt['pack']:
+        pack_glb(glb)
     log('exported', glb, os.path.getsize(glb) // 1024, 'KB')
 
 

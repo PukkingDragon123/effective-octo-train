@@ -19,7 +19,7 @@ TAXI_NODES = [
     'window_crank_fr', 'window_crank_rl', 'window_crank_rr', 'rearview_mirror', 'key_slot', 'wiper_l', 'wiper_r',
     'light_head_l', 'light_head_r', 'light_tail_l', 'light_tail_r', 'light_ind_fl', 'light_ind_fr', 'light_ind_rl',
     'light_ind_rr', 'light_brake', 'light_reverse', 'roof_sign', 'vacant_lamp',
-    'meter_display', 'radio_display', 'gauge_speedo_face', 'gauge_tacho_face', 'gauge_small_face', 'plate_front',
+    'meter_display', 'radio_display', 'gauge_speedo', 'gauge_tacho', 'gauge_fuel', 'gauge_temp', 'plate_front',
     'plate_rear',
 ]
 TAXI_PIVOTS = ['door_fl', 'door_fr', 'door_rl', 'door_rr', 'hood', 'trunk', 'wheel_fl', 'wheel_fr', 'wheel_rl',
@@ -33,7 +33,7 @@ TAXI_ANCHORS = ['driverSeat', 'frontPassengerSeat', 'rearLeftSeat', 'rearRightSe
                 'windowCrankFL', 'amuletHang', 'rearviewMirror', 'mirrorLeft', 'mirrorRight', 'trunk', 'roofTop', 'hood',
                 'headlightL', 'headlightR', 'taillightL', 'taillightR', 'gloveBox', 'sunVisorDriver', 'doorFL', 'doorFR',
                 'doorRL', 'doorRR', 'dashSticker']
-DISPLAY = ['meter_display', 'radio_display', 'gauge_speedo_face', 'gauge_tacho_face', 'gauge_small_face',
+DISPLAY = ['meter_display', 'radio_display', 'gauge_speedo', 'gauge_tacho', 'gauge_fuel', 'gauge_temp',
            'plate_front', 'plate_rear']
 LOD_NODES = ['body', 'glass', 'wheel_fl', 'wheel_fr', 'wheel_rl', 'wheel_rr', 'light_head_l', 'light_head_r',
              'light_tail_l', 'light_tail_r', 'light_brake', 'roof_sign']

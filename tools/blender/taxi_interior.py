@@ -684,12 +684,12 @@ class Interior:
     def _bead_proto():
         verts = []
         # dome bead (the lower half sits in the cover's cord mesh and is never seen): 3 rings of 8
-        segs = 8
+        segs = 7
         r = 0.0098
-        rings_z = [(-0.35, 0.94), (0.30, 0.95), (0.78, 0.62)]
+        rings_z = [(-0.80, 0.60), (0.22, 0.975)]
         for zf, rf in rings_z:
             for j in range(segs):
-                th = 2 * math.pi * (j + 0.5 * (zf > 0.5)) / segs
+                th = 2 * math.pi * (j + 0.5 * (zf > 0.0)) / segs
                 verts.append((r * rf * math.cos(th), r * rf * math.sin(th), r * zf))
         verts.append((0, 0, r))
         faces = []
