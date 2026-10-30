@@ -1,9 +1,12 @@
 # DON'T LOOK BACK IN HORROR (Pukking Dragon)
 
 A Thai supernatural first-person taxi horror game for the browser (Three.js 0.170 + Vite,
-WebGL2). Everything (textures, models, animation, audio, music) is **procedurally
-generated in code**. Bundled OFL fonts come from `@fontsource/*`. The network policy
-blocks external asset sites, so never fetch remote assets at runtime or build time.
+WebGL2). Most content (textures, world, props, animation layers, music, fallback sounds)
+is **generated procedurally in code**. Some assets are reused or downloaded with verified
+licences (CC0, CC BY) and credited in `docs/credits/`: the Quaternius character meshes and
+animations (CC0, reused from the owner's game เฮียผัด), CC0 Poly Haven props, and licensed
+sound recordings in `public/assets/audio/`. Bundled OFL fonts come from `@fontsource/*`.
+Never ship assets with unknown, NC or ND licences.
 
 Read first: `docs/GAME_DESIGN.md` (story, rules, passengers, art and audio direction)
 and `docs/ARCHITECTURE.md` (module contracts, conventions, layers, events, budgets).
@@ -31,4 +34,5 @@ World placement truth: `src/world/layout.js`.
   `/tmp/claude-0/-home-user-effective-octo-train/a0910a86-1464-533c-bd6b-3f5c3909f33b/scratchpad/refs/1.jpg … 6.jpg`
   (1 mossy Thai pavilion/well by day; 2 golden shrine in night mist seen from a car;
   3 night forest drive, masked passenger in the rearview mirror; 4 woman in white by a
-  delineator-lit guardrail; 5 cluttered lived-in Thai room, a mood reference for Ah Kong's garage).
+  delineator-lit guardrail; 5 cluttered lived-in Thai room, a mood reference for Ah Kong's garage;
+  6 THE tree/foliage reference: trees, undergrowth and guardrail lamps at night).

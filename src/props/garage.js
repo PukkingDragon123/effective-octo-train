@@ -9,6 +9,8 @@ import { mat, glowMat, signMat, texMat, stainTex, crackTex, paintingTex, photoTe
 import { lightSpec, attachFlicker, LIGHT_PRESETS } from './lib/lights.js';
 import { G, PAL, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, incensePot, fruitPlate, candle, garland, waterJar } from './lib/small.js';
 import { dancerGeo } from './lib/figures.js';
+import { addAsset, hasAsset, assetShelves, assetSize } from './lib/assets.js';
+import { useAsset } from './lib/small.js';
 import { hangingFluorescent } from './sala.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -28,6 +30,17 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
   while (x < x0 + w - 0.08) {
     const r = rng();
     const zj = z0 + (rng() - 0.5) * d * 0.4;
+    // real (CC0) tins / cleaner bottles / rusty cans when the models are loaded
+    const ra = rng();
+    if (ra < 0.3 && x < x0 + w - 0.24) {
+      const pick = ['can_rusted', 'cleaner_tin_01', 'multi_cleaner_5_litre', 'jug_01'][Math.floor(rng() * (theme === 'parts' ? 2 : 4))];
+      const fit = { can_rusted: { h: 0.12 + rng() * 0.05 }, cleaner_tin_01: { h: 0.13 }, multi_cleaner_5_litre: { h: 0.26 }, jug_01: { h: 0.17 } }[pick];
+      const wid = { can_rusted: 0.12, cleaner_tin_01: 0.1, multi_cleaner_5_litre: 0.21, jug_01: 0.24 }[pick];
+      if (useAsset(k, pick, { p: [x + wid / 2, y, zj], r: (rng() - 0.5) * 1.2 }, { fit, w: { dust: 0.5, grime: 0.15 } })) {
+        x += wid + 0.02;
+        continue;
+      }
+    }
     if (theme !== 'parts' && r < 0.32) {
       const kind = rng() < 0.5 ? 'whisky' : rng() < 0.5 ? 'beer' : 'water';
       bottle(k, { p: [x + 0.04, y, zj], kind, label: rng() < 0.8, color: kind === 'whisky' ? (rng() < 0.5 ? 0x7a4a1a : 0x3a5a2a) : undefined, labelColor: rng() < 0.5 ? 0xd8c8a0 : 0xc84a2a });
@@ -336,10 +349,10 @@ export function createGarage(opts = {}) {
     oilDrum(k, { p: [xR - 0.5, 0, 0.6], color: 0x2a4a7a });
     oilDrum(k, { p: [xR - 0.5, 0, 1.25], rusty: true, color: 0x7a3a1a });
     crate(k, { p: [xR - 0.5, 0.88, 0.9], kind: 'plastic', color: 0x2a6a3a });
-    coil(k, { p: [xR - 0.13, 1.7, -0.6], r: [0, Math.PI / 2, 0], rad: 0.3, thick: 0.014, loops: 5, color: 0x2a6a3a, mat: 'plastic', seed: 8 });
+    coil(k, { p: [xR - 0.13, 1.75, 2.4], r: [0, Math.PI / 2, 0], rad: 0.3, thick: 0.014, loops: 5, color: 0x2a6a3a, mat: 'plastic', seed: 8 });
     // car battery + jerry can
     k.add(mat('plastic'), G('battery', () => bbox(0.3, 0.22, 0.18, 0.01, 0.1)), { p: [xR - 1.4, 0, 0.2], r: 0.3, color: 0x1a1a1a, w: { dust: 0.5 } });
-    k.add(mat('plastic'), G('jerry', () => bbox(0.34, 0.42, 0.16, 0.03, 0.1)), { p: [xR - 1.0, 0, -0.9], r: -0.2, color: 0xa82a1a, w: { grime: 0.5 } });
+    if (!useAsset(k, 'plastic_jerrycan', { p: [xR - 1.0, 0, -0.9], r: -0.2 }, { fit: { h: 0.4 }, color: 0xb83a24, w: { grime: 0.5 } })) k.add(mat('plastic'), G('jerry', () => bbox(0.34, 0.42, 0.16, 0.03, 0.1)), { p: [xR - 1.0, 0, -0.9], r: -0.2, color: 0xa82a1a, w: { grime: 0.5 } });
     // trolley jack
     k.at([1.6, 0, 2.2], -0.6, null, () => {
       k.add(mat('metal'), G('jackbody', () => bbox(0.28, 0.14, 0.7, 0.02, 0.1)), { color: 0xc0281a, w: { grime: 0.5 } });
@@ -365,20 +378,44 @@ export function createGarage(opts = {}) {
     for (let i = 0; i < 4; i++) bottle(k, { p: [bx + 0.55 + i * 0.1, 1.74, zB + 0.24], kind: i % 2 ? 'whisky' : 'small', color: [0x7a4a1a, 0x2a5a2a, 0xa83a1a, 0xc8c0a0][i] });
     // steel cabinet back-right + boxes on top
     k.add(mat('metal'), bbox(0.9, 1.85, 0.45, 0.01, 0.3), { p: [1.6, 0, zB + 0.33], color: 0x6a7a7a, w: { grime: 0.6, streak: 0.7, dust: 0.6 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(lp.x) < 0.012) c.multiplyScalar(0.25); } });
-    for (let i = 0; i < 3; i++) k.add(mat('paper'), G('cbox' + i, () => bbox(0.5 - i * 0.08, 0.28, 0.38, 0.01, 0.15)), { p: [1.6 + (rng() - 0.5) * 0.1, 1.85 + i * 0.28, zB + 0.33], r: (rng() - 0.5) * 0.3, color: 0xa8845a, w: { dust: 0.8 } });
+    if (hasAsset('cardboard_box_01')) {
+      const bs = assetSize('cardboard_box_01');
+      for (let i = 0; i < 2; i++) addAsset(k, 'cardboard_box_01', { p: [1.6 + (rng() - 0.5) * 0.12, 1.85 + i * bs.y * 0.82, zB + 0.33], r: Math.PI / 2 + (rng() - 0.5) * 0.3, s: 0.82, w: { dust: 0.8, grime: 0.1 } });
+    } else for (let i = 0; i < 3; i++) k.add(mat('paper'), G('cbox' + i, () => bbox(0.5 - i * 0.08, 0.28, 0.38, 0.01, 0.15)), { p: [1.6 + (rng() - 0.5) * 0.1, 1.85 + i * 0.28, zB + 0.33], r: (rng() - 0.5) * 0.3, color: 0xa8845a, w: { dust: 0.8 } });
     // hubcaps + fan belts on the back wall
     for (let i = 0; i < 3; i++) k.add(mat('galv'), G('hubcap', () => lathe([[0, 0.03], [0.1, 0.025], [0.17, 0.01], [0.18, 0]], 18).rotateX(Math.PI / 2)), { p: [2.5 + i * 0.4, 1.4 + (i % 2) * 0.35, zB + 0.11], color: 0xb0b0a8, w: { grime: 0, dust: 0.4, streak: 0.4 } });
     for (let i = 0; i < 4; i++) k.add(mat('rubber'), G('belt' + i, () => torus(0.12 + i * 0.03, 0.008, 3, 20).scale(0.6, 1.3, 1)), { p: [3.55, 1.95 - i * 0.03, zB + 0.13], color: 0x1a1a1a, w: false });
     // buckets + broom + creeper board + cardboard on the floor
     k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [0.6, 0, zB + 0.45], color: 0x2a5a9a, w: { grime: 0.5 } });
     k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [0.9, 0, zB + 0.5], color: 0xd8b030, w: { grime: 0.5 } });
-    k.add(mat('wood'), tube([V(0, 0.02, 0), V(0.02, 1.25, -0.25)], 0.012, 5), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a6a40, w: false });
-    k.add(mat('flower'), G('broomhead', () => cyl(0.02, 0.12, 0.35, 8, 0, 1, true)), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a7a50, w: false });
+    if (!useAsset(k, 'plastic_broom', { p: [xL + 0.62, 0.02, zF - 1.35], r: [0, 0.4, -0.22] }, { color: 0xe0e0d8, w: { dust: 0.4 } })) {
+      k.add(mat('wood'), tube([V(0, 0.02, 0), V(0.02, 1.25, -0.25)], 0.012, 5), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a6a40, w: false });
+      k.add(mat('flower'), G('broomhead', () => cyl(0.02, 0.12, 0.35, 8, 0, 1, true)), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a7a50, w: false });
+    }
     k.add(mat('paper'), G('cardboardfloor', () => bbox(0.9, 0.01, 1.6, 0.002, 0.3)), { p: [1.3, 0.0, 2.3], r: 0.35, color: 0x9a7a52, w: { grime: 0.8, grimeH: 0.05 } });
     k.add(mat('wood'), G('creeper', () => bbox(0.4, 0.04, 0.95, 0.01, 0.2)), { p: [2.5, 0.07, 2.1], r: -0.5, color: 0x6a4a30, w: { grime: 0.5 } });
     // clothesline with rags across the back-left corner
     k.add(mat('dark'), tube(sagCurveG(V(xL + 0.15, 2.5, zB + 0.8), V(xL + 2.2, 2.5, zB + 0.15)), 0.004, 3), { color: 0x2a2a2a, w: false });
     for (let i = 0; i < 3; i++) k.add(mat('cloth_static'), G('ragh' + i, () => quad(0.3, 0.42, 2, 3).translate(0, -0.21, 0)), { p: [xL + 0.55 + i * 0.6, 2.44 - i * 0.02, zB + 0.68 - i * 0.2], r: [0, 0.32, 0], color: [0x6a7a8a, 0xb8a888, 0x8a3a2a][i], uv: 'keep', w: { vary: 0.3 }, deform: (p) => { p.z += Math.sin(p.x * 12) * 0.02; } });
+  });
+
+  // ---- real (CC0) models when loaded: steel rack on the right wall, propane tank by the bench,
+  //      hand truck by the right column, a metal stool at the bench --------------------------
+  if (hasAsset('worn_metal_rack')) {
+    const rx = xR - 0.44, rz = -0.62;
+    addAsset(k, 'worn_metal_rack', { p: [rx, 0, rz], r: -Math.PI / 2, w: { dust: 0.6, grime: 0.5, streak: 0.4 } });
+    const sz = assetSize('worn_metal_rack');
+    const shelves = assetShelves('worn_metal_rack').filter((y) => y > 0.2 && y < sz.y - 0.05);
+    // clutter on each shelf: rack local +X = garage -Z after the yaw; fillShelf works in world X,
+    // so push a frame turned back to rack space
+    k.details(() => k.at([rx, 0, rz], -Math.PI / 2, null, () => shelves.forEach((y, i) => fillShelf(k, -sz.x / 2 + 0.03, y, 0, sz.x - 0.06, sz.z * 0.8, rng, i % 2 ? 'parts' : 'mixed'))));
+    out.colliders.push({ x: rx, z: rz, hx: sz.z / 2, hz: sz.x / 2, yaw: 0 });
+  }
+  k.details(() => {
+    useAsset(k, 'propane_tank', { p: [bx + 1.55, 0, bz + 0.05], r: 0.6 }, { fit: { h: 0.55 }, w: { grime: 0.5, streak: 0.5 } });
+    useAsset(k, 'metal_stool_02', { p: [bx - 0.2, 0, bz + 0.72], r: 0.3 }, { fit: { h: 0.62 }, w: { dust: 0.3, grime: 0.4 } });
+    if (useAsset(k, 'hand_truck', { p: [xR - 0.75, 0, zF - 0.85], r: [-0.18, -0.5, 0, 'YXZ'] }, { w: { grime: 0.5, streak: 0.5 } })) out.colliders.push({ x: xR - 0.75, z: zF - 0.85, r: 0.3 });
+    useAsset(k, 'cement_bag', { p: [-0.2, 0.12, zB + 1.15], r: [0, 0.2, 0] }, { fit: { w: 0.42 }, w: { dust: 0.8 } });
   });
 
   group.add(k.build({ name: 'garage', detailDistance: 45 }));
