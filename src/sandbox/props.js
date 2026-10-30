@@ -1,5 +1,5 @@
 // Props night gallery.
-//   ?sandbox=props&item=<name|all>&hour=22&dist=8&yaw=20&h=1.6&ty=1&fov=60&fill=1&fog=0.02
+//   ?sandbox=props&item=<name|all>&hour=22&dist=8&yaw=20&h=1.6&ty=1&fov=60&fill=1&fog=0.02&assets=1
 // item names: see ITEMS below (or a factory name like createSala). eye=1 puts the camera
 // at human eye height (1.6 m). yaw = degrees around the target (0 = in front, +Z side).
 import * as THREE from 'three';
@@ -37,9 +37,14 @@ function signsDemo() {
     ['shop_sign', { th: 'ร้านค้า', en: 'SHOP' }], ['village_sign', { th: 'บ้านห้วยทราย', en: 'Ban Huai Sai' }],
   ];
   const lights = [];
-  kinds.forEach(([k, o], i) => {
-    const r = P.createSignPost(k, { ...o, seed: i });
-    r.object.position.set((i - (kinds.length - 1) / 2) * 1.6, 0, 0);
+  // lay the signs out side by side by their real face widths
+  const built = kinds.map(([k, o], i) => P.createSignPost(k, { ...o, seed: i, bent: false }));
+  const widths = built.map((r) => Math.max(0.5, r.faceSize?.[0] ?? 1));
+  const total = widths.reduce((a, b) => a + b + 0.35, -0.35);
+  let x = -total / 2;
+  built.forEach((r, i) => {
+    r.object.position.set(x + widths[i] / 2, 0, 0);
+    x += widths[i] + 0.35;
     g.add(r.object);
   });
   return { object: g, lights };
@@ -69,6 +74,8 @@ const ITEMS = {
   sala1: { build: () => P.createSala({ variant: 1, seed: 1 }), view: { dist: 9, yaw: 25, h: 1.6, ty: 1.4 } },
   sala2: { build: () => P.createSala({ variant: 2, seed: 2 }), view: { dist: 9, yaw: -25, h: 1.6, ty: 1.4 } },
   shrine: { build: () => P.createShrineMaRuay({}), view: { dist: 22, yaw: 0, h: 1.4, ty: 2.5, tz: -14 }, road: 'through' },
+  shrine_close: { build: () => P.createShrineMaRuay({}), view: { dist: 7.5, yaw: 12, h: 1.65, ty: 2.2, tz: -14 }, road: 'through' },
+  signs_close: { build: () => signsDemo(), view: { dist: 4.2, yaw: 0, h: 1.7, ty: 1.7, tx: -3.2 } },
   garage: { build: () => P.createGarage({}), view: { dist: 9, yaw: 10, h: 1.65, ty: 1.4 } },
   busstop: { build: () => P.createBusStop({ seed: 2 }), view: { dist: 6, yaw: 25, h: 1.6, ty: 1.3 } },
   noodle: { build: () => P.createNoodleStall({ seed: 3 }), view: { dist: 6, yaw: 20, h: 1.6, ty: 1.1 } },
@@ -109,6 +116,11 @@ const ITEMS = {
 export default async function ({ engine, cameraRig, params }) {
   const scene = engine.scene;
   const itemName = params.get('item') || 'all';
+  // CC0 models (the game calls this at boot before world.build()); assets=0 shows the fallbacks
+  if (params.get('assets') !== '0') {
+    const st = await P.loadPropAssets();
+    if (st.failed.length) console.warn('[props sandbox] assets failed:', st.failed.join(', '));
+  }
   const hour = Number(params.get('hour') ?? 22);
   sky.setHour(hour);
   sky.setWeather?.({ rain: Number(params.get('rain') ?? 0), fog: Number(params.get('fog') ?? 0), wind: 0.3 }, 0);

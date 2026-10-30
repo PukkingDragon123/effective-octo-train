@@ -76,8 +76,9 @@ function check(name, r, req) {
   return missing;
 }
 
-export default async function ({ engine }) {
+export default async function ({ engine, params }) {
   const report = { ok: [], fail: {}, stats: {}, errors: [] };
+  if (params.get('assets') !== '0') report.assetLoad = await P.loadPropAssets();
   const run = (name, fn, req) => {
     try {
       const t0 = performance.now();
@@ -97,7 +98,7 @@ export default async function ({ engine }) {
   for (const k of P.DRESSING_KINDS) run('dress_' + k, () => P.createDressing(k, { seed: 1 }), ['colliders[]']);
   run('wirespan', () => P.createWireSpan([V(0, 8, 0), V(0.6, 8, 0)], [V(0, 8, -30), V(0.6, 8, -30)], { seed: 2 }), []);
   run('cloth', () => { const o = P.createClothWrap(0.8, 0.8, 1.6, { seed: 2 }); return { object: o }; }, []);
-  report.assets = typeof P.loadPropAssets === 'function' ? (P.propAssetsStatus?.() ?? 'present') : 'none';
+  report.assets = P.propAssetsStatus();
   window.__propsCheck = report;
   engine.camera.position.set(0, 50, 80);
   engine.camera.lookAt(0, 0, 0);

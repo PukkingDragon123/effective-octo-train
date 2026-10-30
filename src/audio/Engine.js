@@ -1,13 +1,15 @@
 // AudioCore: everything that touches a (Base)AudioContext — master chain
-// (glue compressor + limiter), category buses, cabin muffle, convolution reverbs
-// built from generated impulse responses (forest / car cabin / garage / shrine /
-// hall), the buffer cache fed by the synthesis service, and voice playback
-// (one-shots, loops, retriggered loops) with spatial panners.
+// (limiter), category buses, cabin muffle, convolution reverbs built from
+// generated impulse responses (forest / car cabin / garage / shrine / hall), the
+// buffer cache fed by the synthesis service, recorded-sample playback (via a
+// SampleBank: a random recorded variant replaces the synth when one exists), and
+// voice playback (one-shots, loops, retriggered loops) with spatial panners.
 //
 // Works with AudioContext and OfflineAudioContext alike (offline tests).
 import { GenService } from './Gen.js';
 import { SOUNDS } from './Synth/registry.js';
 import { Spatial } from './Spatial.js';
+import { sampleLoudness } from './Samples.js';
 
 export const BUS_NAMES = ['music', 'sfx', 'ambience', 'voice', 'ui', 'radio'];
 const MAX_VOICES = 56;
@@ -100,6 +102,9 @@ export class Voice {
     this.startTime = 0;
     this.params = {};
     this.retrigger = null; // {interval, next, alt, count}
+    this.norm = 1; // loudness-matching gain (recorded samples)
+    this.rateMul = 1; // per-recording playback-rate base
+    this.sample = null; // resolved recording ({key, file, ...}) when playing a sample
   }
 
   /** Build the node chain and start once the buffer exists. */
@@ -110,14 +115,15 @@ export class Voice {
     const t0 = Math.max(ctx.currentTime, when ?? ctx.currentTime);
     const bus = core.buses[opts.bus || def.bus || 'sfx'] || core.buses.sfx;
     const gain = ctx.createGain();
-    const baseGain = (def.gain ?? 1) * this.volume;
+    const baseGain = (def.gain ?? 1) * this.norm * this.volume;
     const fadeIn = opts.fadeIn ?? (this.loop ? 0.25 : 0);
     if (fadeIn > 0) {
       gain.gain.setValueAtTime(0, t0);
       gain.gain.linearRampToValueAtTime(baseGain, t0 + fadeIn);
     } else gain.gain.value = baseGain;
     this.gain = gain;
-    const stereo = buffer && buffer.numberOfChannels > 1;
+    // stereo synth buffers are ambience-like (not spatialised); stereo recordings of positional sounds still are
+    const stereo = buffer && buffer.numberOfChannels > 1 && (!this.sample || def.stereo || def.stereoCenter);
     const spatial = !!(opts.position || opts.object) && !stereo && opts.spatial !== false;
     const muffled = opts.muffle ?? (spatial ? !def.cabin : false);
     let tail = gain;
@@ -148,14 +154,40 @@ export class Voice {
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.loop = this.loop && !this.retrigger;
-      src.playbackRate.value = this.rate;
+      const ls = buffer._loopStart || 0;
+      const le = buffer._loopEnd || buffer.duration;
+      if (src.loop && buffer._loopEnd) {
+        src.loopStart = ls;
+        src.loopEnd = le;
+      }
+      const rate = this.rate * this.rateMul;
+      src.playbackRate.value = rate;
       if (this.detune) src.detune.value = this.detune;
-      src.connect(gain);
-      const off = this.loop ? (opts.offset ?? Math.random() * buffer.duration) % buffer.duration : opts.offset || 0;
-      src.start(t0, off);
+      const seg = opts._seg;
+      if (seg) {
+        // one-shot slice of a loop recording, with its own fade envelope
+        const env = ctx.createGain();
+        const d = seg.dur / Math.max(0.01, rate);
+        const fi = Math.min(seg.fadeIn ?? 0.04, d * 0.3);
+        const fo = Math.min(seg.fadeOut ?? 0.25, d * 0.4);
+        env.gain.setValueAtTime(fi > 0.005 ? 0 : 1, t0);
+        if (fi > 0.005) env.gain.linearRampToValueAtTime(1, t0 + fi);
+        env.gain.setValueAtTime(1, t0 + d - fo);
+        env.gain.linearRampToValueAtTime(0, t0 + d);
+        src.connect(env);
+        env.connect(gain);
+        this.segEnv = env;
+        src.start(t0, seg.offset);
+        src.stop(t0 + d + 0.02);
+        this.duration = d;
+      } else {
+        src.connect(gain);
+        const off = this.loop ? (opts.offset != null ? opts.offset : ls + Math.random() * (le - ls)) : opts.offset || 0;
+        src.start(t0, Math.max(0, Math.min(off, buffer.duration - 0.001)));
+        this.duration = (buffer.duration - (this.loop ? 0 : opts.offset || 0)) / Math.max(0.01, rate);
+      }
       src.onended = () => this._ended(src);
       this.src = src;
-      this.duration = buffer.duration / Math.max(0.01, this.rate);
       if (!this.loop && this.duration > 0) core._scheduleCleanup(this, t0 + this.duration + 0.1);
     }
     this.startTime = t0;
@@ -180,7 +212,7 @@ export class Voice {
     } catch (e) {
       /* ignore */
     }
-    for (const n of [this.gain, this.send, this.panNode]) {
+    for (const n of [this.gain, this.send, this.panNode, this.segEnv]) {
       try {
         n?.disconnect();
       } catch (e) {
@@ -217,13 +249,13 @@ export class Voice {
     this.volume = v;
     if (!this.gain) return;
     const ctx = this.core.ctx;
-    const g = (this.def.gain ?? 1) * v;
+    const g = (this.def.gain ?? 1) * this.norm * v;
     this.gain.gain.cancelScheduledValues(ctx.currentTime);
     this.gain.gain.setTargetAtTime(g, ctx.currentTime, Math.max(0.005, ramp / 3));
   }
   setRate(r) {
     this.rate = r;
-    if (this.src && !this.retrigger) this.src.playbackRate.setTargetAtTime(r, this.core.ctx.currentTime, 0.03);
+    if (this.src && !this.retrigger) this.src.playbackRate.setTargetAtTime(r * this.rateMul, this.core.ctx.currentTime, 0.03);
   }
   setParam(name, v) {
     this.params[name] = v;
@@ -261,6 +293,7 @@ export class AudioCore {
     this.offline = typeof OfflineAudioContext !== 'undefined' && ctx instanceof OfflineAudioContext;
     this.sync = opts.sync ?? this.offline;
     this.gen = opts.gen || new GenService({ sync: this.sync });
+    this.samples = opts.samples || null; // SampleBank (recorded variants preferred over synthesis)
     this.cache = new Map(); // key -> AudioBuffer
     this.cacheBytes = 0;
     this.maxCacheBytes = opts.maxCacheBytes ?? 88 * 1024 * 1024;
@@ -485,12 +518,13 @@ export class AudioCore {
   /** Warm the cache in the background (low priority). */
   warm(ids, { variants = 'all', loops = false } = {}) {
     const jobs = [];
+    const sm = this.samples;
     for (const id of ids) {
       const def = SOUNDS[id];
       if (!def) continue;
       const nv = variants === 'all' ? def.vars || 1 : Math.min(variants, def.vars || 1);
-      for (let v = 0; v < nv; v++) if (!this.hasSfx(id, v, false)) jobs.push(this.sfxBuffer(id, v, false, 2));
-      if (loops && def.loopable && !this.hasSfx(id, 0, true)) jobs.push(this.sfxBuffer(id, 0, true, 2));
+      if (!sm?.covers(id, 'play')) for (let v = 0; v < nv; v++) if (!this.hasSfx(id, v, false)) jobs.push(this.sfxBuffer(id, v, false, 2));
+      if (loops && def.loopable && !this.hasSfx(id, 0, true) && !sm?.covers(id, 'loop')) jobs.push(this.sfxBuffer(id, 0, true, 2));
     }
     return Promise.all(jobs.map((j) => Promise.resolve(j).catch(() => null)));
   }
@@ -513,7 +547,8 @@ export class AudioCore {
   // ---- playback -----------------------------------------------------------
   /** One-shot. Returns a Voice handle (starts when its buffer is ready). */
   play(id, opts = {}) {
-    const def = SOUNDS[id];
+    const sm = opts.synth || !this.samples ? null : this.samples.resolve(id, opts, 'play');
+    const def = SOUNDS[id] || (sm && this.samples.defFor(id, sm.key));
     if (!def) {
       if (!this._warned) this._warned = {};
       if (!this._warned[id]) {
@@ -533,11 +568,23 @@ export class AudioCore {
         ended: handles[handles.length - 1].ended, duration: 0, handles,
       };
     }
+    if (sm) return this._playSample(id, def, sm, opts);
+    return this._playSynth(id, def, opts);
+  }
+
+  _playSynth(id, def, opts, voice = null) {
     const v = this._pickVariant(id, def, opts);
-    const voice = new Voice(this, id, def, { ...opts });
-    if (opts.rate == null && opts.randomize !== false) voice.rate = 1 + (Math.random() - 0.5) * 0.06;
+    if (!voice) {
+      voice = new Voice(this, id, def, { ...opts });
+      if (opts.rate == null && opts.randomize !== false) voice.rate = 1 + (Math.random() - 0.5) * 0.06;
+      this._addVoice(voice);
+    } else {
+      voice.sample = null;
+      voice.norm = 1;
+      voice.rateMul = 1;
+      voice.opts._seg = null;
+    }
     const when = this.ctx.currentTime + (opts.delay || 0);
-    this._addVoice(voice);
     const b = this.sfxBuffer(id, v, false, 0);
     if (b instanceof Promise) {
       const t0 = this.ctx.currentTime;
@@ -547,6 +594,64 @@ export class AudioCore {
         voice._start(buf, when);
       }).catch(() => voice._dispose());
     } else voice._start(b, when);
+    return voice;
+  }
+
+  /** Segment (slice of a loop recording) for a one-shot. */
+  _segment(sm, buf) {
+    const seg = sm.seg || {};
+    const ls = buf._loopStart || 0;
+    const le = buf._loopEnd || buf.duration;
+    const len = le - ls;
+    if (seg.beats) {
+      const period = len / seg.beats;
+      const k = Math.floor(Math.random() * seg.beats);
+      return { offset: ls + k * period, dur: Math.min(period, buf.duration - ls - k * period), fadeIn: 0.004, fadeOut: Math.min(0.08, period * 0.1) };
+    }
+    const dur = Math.min(seg.dur ?? 4, len);
+    return { offset: ls + Math.random() * Math.max(0, len - dur), dur, fadeIn: seg.fadeIn ?? 0.08, fadeOut: seg.fadeOut ?? Math.min(0.6, dur * 0.2) };
+  }
+
+  /** One-shot from a recording (falls back to the synth if it cannot be fetched/decoded). */
+  _playSample(id, def, sm, opts) {
+    const samples = this.samples;
+    const voice = new Voice(this, id, def, { ...opts });
+    voice.sample = sm;
+    voice.rateMul = sm.rate;
+    // small pitch variation per hit (recordings repeat more obviously than synthesis)
+    const jitter = opts.randomize === false ? 1 : 1 + (Math.random() - 0.5) * (opts.rate == null ? 0.07 : 0.025);
+    voice.rate = (opts.rate ?? 1) * jitter;
+    this._addVoice(voice);
+    const when = this.ctx.currentTime + (opts.delay || 0);
+    const target = sampleLoudness(id, sm.key);
+    const start = (buf, at) => {
+      voice.norm = samples.normGain(buf, target);
+      if (sm.mode === 'segment') voice.opts._seg = this._segment(sm, buf);
+      samples.stats.plays++;
+      voice._start(buf, at);
+    };
+    const b = samples.get(sm, 0);
+    if (!(b instanceof Promise)) {
+      start(b, when);
+      return voice;
+    }
+    const synthReady = SOUNDS[id] && !SOUNDS[id].fixedVariants && this.hasSfx(id, this.lastVariant[id] ?? 0);
+    if (synthReady) {
+      // the recording is still loading: use the cached synth this time
+      this._playSynth(id, SOUNDS[id], opts, voice);
+      return voice;
+    }
+    const t0 = this.ctx.currentTime;
+    b.then((buf) => {
+      if (voice.stopped) return;
+      if (!buf) {
+        if (SOUNDS[id]) this._playSynth(id, SOUNDS[id], opts, voice);
+        else voice._dispose();
+        return;
+      }
+      if (this.ctx.currentTime - t0 > 0.9 + (opts.delay || 0) && !opts.mustPlay) return voice._dispose();
+      start(buf, Math.max(this.ctx.currentTime, when));
+    });
     return voice;
   }
 
@@ -561,10 +666,47 @@ export class AudioCore {
 
   /** Looping sound. Buffer loop if the def is loopable, else retriggered one-shots. */
   loop(id, opts = {}) {
-    const def = SOUNDS[id];
+    const sm = opts.synth || !this.samples ? null : this.samples.resolve(id, opts, 'loop');
+    const def = SOUNDS[id] || (sm && this.samples.defFor(id, sm.key));
     if (!def) return this.play(id, opts);
     const voice = new Voice(this, id, def, { ...opts, _loop: true });
     this._addVoice(voice);
+    if (sm && (sm.mode === 'loop' || sm.mode === 'loopShot')) {
+      // seamless recorded loop (or a sample-only one-shot looped whole)
+      const samples = this.samples;
+      voice.sample = sm;
+      voice.rateMul = sm.rate;
+      const target = sampleLoudness(id, sm.key);
+      const when = this.ctx.currentTime + (opts.delay || 0);
+      const go = (buf) => {
+        if (voice.stopped) return;
+        if (!buf) {
+          // recording unavailable: synth loop in the same voice
+          voice.sample = null;
+          voice.rateMul = 1;
+          if (def.loopable) {
+            Promise.resolve(this.sfxBuffer(id, opts.variant ?? 0, true, 0)).then((sb) => voice._start(sb, Math.max(this.ctx.currentTime, when))).catch(() => voice._dispose());
+          } else if (def.loopInterval) {
+            voice.retrigger = { interval: opts.interval ?? def.loopInterval, next: this.ctx.currentTime, alt: !!def.loopAlternate, n: 0 };
+            voice._start(null);
+          } else voice._dispose();
+          return;
+        }
+        voice.norm = samples.normGain(buf, target);
+        samples.pin(buf._file);
+        voice.ended.then(() => samples.unpin(buf._file));
+        samples.stats.plays++;
+        voice._start(buf, Math.max(this.ctx.currentTime, when));
+      };
+      const b = samples.get(sm, 0);
+      if (b instanceof Promise) b.then(go);
+      else go(b);
+      return voice;
+    }
+    if (sm && sm.mode === 'retrigger') {
+      voice.sample = sm;
+      this.samples.prefetch([sm.key], 0);
+    }
     if (def.loopable) {
       const b = this.sfxBuffer(id, opts.variant ?? 0, true, 0);
       const when = this.ctx.currentTime + (opts.delay || 0);
@@ -590,15 +732,40 @@ export class AudioCore {
       let guard = 0;
       while (r.next < until && guard++ < 8) {
         const variant = r.alt ? r.n % (v.def.vars || 1) : this._pickVariant(v.id, v.def, {});
-        const b = this.sfxBuffer(v.id, variant, false, 0);
         const when = Math.max(this.ctx.currentTime, r.next);
-        if (!(b instanceof Promise)) {
+        let b = null;
+        let norm = 1;
+        if (v.sample) {
+          // recorded hits (tick/tock alternate through the files like the synth variants)
+          const sm = this.samples.resolve(v.id, { variant, sampleVariant: r.alt ? variant : undefined }, 'play');
+          const sb = sm && this.samples.get(sm, 0);
+          if (sb && !(sb instanceof Promise)) {
+            b = sb;
+            norm = this.samples.normGain(sb, sampleLoudness(v.id, sm.key));
+          } else if (!sm) v.sample = null;
+        }
+        if (!b && !v.sample) {
+          const sb = this.sfxBuffer(v.id, variant, false, 0);
+          if (!(sb instanceof Promise)) b = sb;
+        }
+        if (b) {
           const src = this.ctx.createBufferSource();
           src.buffer = b;
           src.playbackRate.value = (v.params.pitch ?? 1) * (1 + (Math.random() - 0.5) * 0.02);
-          src.connect(v.gain);
+          if (norm !== 1) {
+            const g = this.ctx.createGain();
+            g.gain.value = norm;
+            src.connect(g);
+            g.connect(v.gain);
+            src.onended = () => {
+              src.disconnect();
+              g.disconnect();
+            };
+          } else {
+            src.connect(v.gain);
+            src.onended = () => src.disconnect();
+          }
           src.start(when);
-          src.onended = () => src.disconnect();
         }
         r.n++;
         r.next += r.interval / Math.max(0.05, v.rate);

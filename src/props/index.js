@@ -11,6 +11,13 @@
 //   walkSurfaces:    [{x,z,hx,hz,yaw,y} | {ramp:true,...,y0,y1}]  raised floors (local) the
 //                    on-foot controller can use for ground height (sala floor, shrine platform...)
 //
+// ASSETS (optional, async, once at boot)
+//   await loadPropAssets()  -> loads the CC0 Poly Haven models in public/assets/props/ (plastic
+//   monobloc chairs, old tyres, crates, drums, LPG/propane tanks, steel rack, stools, cans...,
+//   credits: docs/credits/props.md). Call it BEFORE world.build(); every factory stays
+//   synchronous and uses the models when they are loaded, else its procedural fallback.
+//   propAssetsStatus() -> {loaded, failed, pending}; hasPropAsset(id).
+//
 // CONVENTIONS
 // * Units metres, Y up, prop origin on the ground. Every roadside prop's FRONT faces local +Z
 //   (the side you walk up to = the road side). roadsideYaw(travelYaw, side) turns it to the road.
@@ -67,7 +74,8 @@
 //       lights, colliders}
 // createVillageStop({seed, houseDistance=24}) -> {object, walkTarget, waitSpot, windowAnchor,
 //       lampAnchor, seats, lights, colliders}
-// createSignPost(kind, {...signTex opts, seed, bent, age}) -> {object, signAnchor, colliders}
+// createSignPost(kind, {...signTex opts, seed, bent, age, scale, height}) -> {object, signAnchor,
+//       colliders, faceSize} (face = upright quad sized from signTex userData, alpha-tested)
 // createConvexMirror({seed, height, size}) -> {object, mirrorAnchor, mirror, colliders}
 // createIncensePot({seed, size, stand, sticks, metal}) -> {object, smokeAnchor, colliders}
 // createPond({seed, radius=6, lotus, reeds}) -> {object, waterMesh, waterLevel, colliders}
@@ -121,6 +129,7 @@ export const createForestTemple = lit(temple.createForestTemple);
 export const createPond = pond.createPond;
 export const createDressing = lit(dressing.createDressing, 1);
 export { LIGHT_PRESETS, lightSpec, flickerValue } from './lib/lights.js';
+export { loadPropAssets, propAssetsStatus, hasAsset as hasPropAsset, PROP_ASSETS } from './lib/assets.js';
 
 /**
  * Yaw that turns a prop (front = local +Z) toward the road.

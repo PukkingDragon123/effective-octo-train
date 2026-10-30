@@ -94,7 +94,7 @@ export function createNoodleStall(opts = {}) {
     k.add(mat('ceramic'), G('broth', () => cyl(0.225, 0.225, 0.005, 18, 0)), { p: [-0.55, 1.36, 0.05], color: 0x4a2a14, w: false });
     k.add(mat('galv'), tube([V(0, 0, 0), V(0.05, 0.2, 0.05), V(0.1, 0.38, 0.1)], 0.007, 4), { p: [-0.4, 1.3, 0.1], color: 0xa8a8a0, w: false }); // ladle
     // LPG tank under the cart
-    k.add(mat('metal'), G('lpg', () => cyl(0.16, 0.16, 0.55, 14, 0.06, 2)), { p: [-1.05, 0, 0.15], color: 0xb02a1a, w: { grime: 0.6, streak: 0.5 } });
+    if (!useAsset(k, 'small_lpg_tank', { p: [-1.08, 0, 0.15], r: 2.4 }, { fit: { h: 0.58 }, w: { grime: 0.5, streak: 0.4 } })) k.add(mat('metal'), G('lpg', () => cyl(0.16, 0.16, 0.55, 14, 0.06, 2)), { p: [-1.05, 0, 0.15], color: 0xb02a1a, w: { grime: 0.6, streak: 0.5 } });
     k.add(mat('dark'), tube(smoothPath([V(-1.05, 0.58, 0.15), V(-0.95, 0.75, 0.25), V(-0.75, 0.8, 0.2), V(-0.62, 0.9, 0.1)], 8), 0.008, 4), { color: 0x1a1a1a, w: false });
     // menu board hanging off the case
     k.add(signMat('noodle_menu', {}), G('menu', () => quad(0.55, 0.75)), { p: [0.95, 1.2, 0.18], r: [0, -0.5, 0.03], color: 0xd8d0b8, uv: 'keep', w: { vary: 0.3 } });
@@ -154,7 +154,8 @@ export function createNoodleStall(opts = {}) {
     for (let i = 0; i < ns; i++) {
       const a = (i / ns) * Math.PI * 2 + 0.4 + r;
       const sx = x + Math.cos(a) * 0.62, sz = z + Math.sin(a) * 0.48;
-      plasticStool(k, { p: [sx, 0, sz], color: i % 2 ? PAL.chairRed : PAL.chairBlue });
+      // the second table has old round metal stools (CC0 model when loaded)
+      if (!(ti === 1 && useAsset(k, 'metal_stool_02', { p: [sx, 0, sz], r: a * 1.7 }, { fit: { h: 0.46 }, w: { grime: 0.45, dust: 0.2 } }))) plasticStool(k, { p: [sx, 0, sz], color: i % 2 ? PAL.chairRed : PAL.chairBlue });
       out.customerSpots.push(anchor(group, 'cust' + ti + '_' + i, sx, 0.44, sz, Math.atan2(sx - x, sz - z)));
     }
   });
@@ -165,6 +166,10 @@ export function createNoodleStall(opts = {}) {
     trashBag(k, { p: [-2.6, 0, -1.5], s: 0.7 });
     k.add(mat('plastic'), G('bucketN', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [-1.75, 0, -1.4], color: 0x2a8a9a, w: { grime: 0.5 } });
     k.add(mat('cloth_static'), G('dogmat', () => bevelBox(0.7, 0.03, 0.5, 0.015, 0.1)), { p: [2.3, 0, 0.6], r: 0.3, color: 0x6a5a48, jitter: 0.01, jitterFreq: 12, w: { grime: 0.4 } });
+    // wicker baskets of greens / limes on a crate, a big glazed pot of pickled chillies
+    useAsset(k, 'wicker_basket_02', { p: [2.4, 0.6, -1.6], r: 0.5 }, { fit: { w: 0.4 }, w: { grime: 0.2 } });
+    useAsset(k, 'wicker_basket_01', { p: [0.95, 0.0, -1.75], r: -0.3 }, { fit: { w: 0.42 }, w: { grime: 0.3 } });
+    useAsset(k, 'ceramic_pot', { p: [-2.2, 0, -0.8], r: 1.1 }, { fit: { h: 0.42 }, w: { grime: 0.4, moss: 0.2 } });
   });
   group.add(k.build({ name: 'noodleStall', detailDistance: 40 }));
   return out;
