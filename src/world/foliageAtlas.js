@@ -421,13 +421,46 @@ function paintDeadTwigs(g, S, rng) {
 
 // ----------------------------------------------------------------------------------
 let _atlas = null;
+const _pre = {}; // pixels painted ahead of time by the boot worker (atlasWorker.js)
+
+/** A 2D canvas here or in a worker. */
+export function makeCanvas(w, h) {
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    return c;
+  }
+  return new OffscreenCanvas(w, h);
+}
+
+/** Pixels painted elsewhere (the boot worker): { atlas: {size, data}, flats: {data} }. */
+export function adoptAtlasPixels(kind, entry) {
+  if (!_pre[kind]) _pre[kind] = entry;
+}
 
 /** Build (once) and return the foliage atlas DataTexture. size = atlas px (2048 high / 1024 low). */
 export function foliageAtlas(size = ATLAS_SIZE) {
   if (_atlas) return _atlas;
+  const pre = _pre.atlas && _pre.atlas.size === size ? _pre.atlas.data : null;
+  const flipped = pre || atlasPixels(size);
+  const tex = new THREE.DataTexture(flipped, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  tex.name = 'worldFoliageAtlas';
+  _atlas = tex;
+  return tex;
+}
+
+/** Paint the atlas; returns RGBA rows bottom-up (DataTexture layout). */
+export function atlasPixels(size = ATLAS_SIZE) {
   const S = size / ATLAS_GRID;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
+  const canvas = makeCanvas(size, size);
   const g = canvas.getContext('2d', { willReadFrequently: true });
   const rng = makeRng(77123);
   const paint = (slot, fn) => {
@@ -465,17 +498,7 @@ export function foliageAtlas(size = ATLAS_SIZE) {
   const row = size * 4;
   const flipped = new Uint8Array(img.data.length);
   for (let y = 0; y < size; y++) flipped.set(img.data.subarray(y * row, (y + 1) * row), (size - 1 - y) * row);
-  const tex = new THREE.DataTexture(flipped, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.magFilter = THREE.LinearFilter;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  tex.anisotropy = 4;
-  tex.needsUpdate = true;
-  tex.name = 'worldFoliageAtlas';
-  _atlas = tex;
-  return tex;
+  return flipped;
 }
 
 /** Spread opaque colours into transparent texels (keeps alpha). passes = max distance in px. */
@@ -538,12 +561,29 @@ function dilate(d, w, h, passes) {
 // the fog. Two horizontal strips (v 0..0.5 and 0.5..1), each tileable along u.
 // ----------------------------------------------------------------------------------
 let _flats = null;
+const FLATS_W = 2048, FLATS_H = 1024;
 export function silhouetteTexture() {
   if (_flats) return _flats;
-  const Wd = 2048, Hh = 1024, SH = Hh / 2;
-  const canvas = document.createElement('canvas');
-  canvas.width = Wd;
-  canvas.height = Hh;
+  const Wd = FLATS_W, Hh = FLATS_H;
+  const flipped = (_pre.flats && _pre.flats.data) || silhouettePixels();
+  const tex = new THREE.DataTexture(flipped, Wd, Hh, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  tex.name = 'worldSilhouettes';
+  _flats = tex;
+  return tex;
+}
+
+/** Paint the tree-line silhouette strips; returns RGBA rows bottom-up. */
+export function silhouettePixels() {
+  const Wd = FLATS_W, Hh = FLATS_H, SH = Hh / 2;
+  const canvas = makeCanvas(Wd, Hh);
   const g = canvas.getContext('2d', { willReadFrequently: true });
   const rng = makeRng(31337);
   for (let strip = 0; strip < 2; strip++) {
@@ -645,18 +685,7 @@ export function silhouetteTexture() {
   const row = Wd * 4;
   const flipped = new Uint8Array(img.data.length);
   for (let y = 0; y < Hh; y++) flipped.set(img.data.subarray(y * row, (y + 1) * row), (Hh - 1 - y) * row);
-  const tex = new THREE.DataTexture(flipped, Wd, Hh, THREE.RGBAFormat, THREE.UnsignedByteType);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.generateMipmaps = true;
-  tex.anisotropy = 4;
-  tex.needsUpdate = true;
-  tex.name = 'worldSilhouettes';
-  _flats = tex;
-  return tex;
+  return flipped;
 }
 
 function crown(g, rng, x, y, r, col) {

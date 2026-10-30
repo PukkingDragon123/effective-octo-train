@@ -146,6 +146,8 @@ vec3 dlbFogTint(vec3 rd) {
 // light scattered toward the camera by the headlight beam and nearby lamps
 vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
   vec3 acc = vec3(0.0);
+  // the medium drifts with the wind: beams and lamp halos show rolling mist, not a flat glow
+  vec3 drift = vec3(dlbWindDir.x, 0.06, dlbWindDir.y) * dlbTime * (0.45 + dlbWindStrength * 1.4);
   if (dlbHeadlightOn > 0.001) {
     float range = dlbHeadlightCone.z;
     float tmax = min(d, range + 4.0);
@@ -160,9 +162,13 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
       float ld = length(lv);
       vec3 l = lv / max(ld, 1e-3);
       float cone = smoothstep(dlbHeadlightCone.x, dlbHeadlightCone.y, dot(l, dlbHeadlightDir));
+      if (cone <= 0.0) continue; // outside the beam: nothing to scatter
       float att = 1.0 / (1.0 + 0.07 * ld * ld) * (1.0 - smoothstep(range * 0.55, range, ld)) * smoothstep(0.4, 2.5, ld);
       float ph = 0.06 + dlbPhaseHG(dot(l, -rd), 0.55) * 0.6;
-      sum += cone * att * ph * exp(-sigma * t);
+      // volumetric texture: mist density inside the beam (~2.5 m swirls drifting through the light)
+      float m = dlbFogNoise3((ro + rd * t - drift) * 0.4);
+      float dens = 0.2 + 1.6 * m;
+      sum += cone * att * ph * dens * exp(-sigma * t);
     }
     acc += dlbHeadlightColor * (sum * dt * dlbHeadlightOn * (sigma * 20.0 + 0.04));
   }
@@ -181,7 +187,9 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
     float H = sqrt(h2 + R * R);
     float I = (atan((tm + b) / h) - atan(b / h)) / h - (atan((tm + b) / H) - atan(b / H)) / H;
     float dist = sqrt(c);
-    acc += lc * (max(I, 0.0) * 0.0011 * (sigma * 16.0 + 0.012) * exp(-sigma * dist * 0.5));
+    // patchy halo: mist density where the view ray passes the lamp (drifts with the wind)
+    float mh = dlbFogNoise3((ro + rd * clamp(-b, 0.0, d) - drift * 0.7) * 0.3);
+    acc += lc * (max(I, 0.0) * 0.0011 * (sigma * 16.0 + 0.012) * exp(-sigma * dist * 0.5) * (0.4 + 1.2 * mh));
   }
   return acc;
 }

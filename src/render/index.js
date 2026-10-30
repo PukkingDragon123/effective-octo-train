@@ -75,10 +75,11 @@ export function installRendering(engine) {
   renderer.toneMapping = THREE.NoToneMapping; // PostFX does its own grade
   renderer.setClearColor(0x000000, 1);
   postfx.sky = sky;
-  // headlight scattering ray-march steps by quality
+  // headlight scattering ray-march steps by quality (the post / pixel-ratio savings buy
+  // more steps: the beam's drifting mist resolves with less jitter)
   const applyQuality = () => {
-    const preset = settings.get('graphicsPreset') || 'high';
-    const steps = { low: 4, medium: 6, high: 8, ultra: 10 }[preset] ?? 8;
+    const preset = settings.get('graphicsPreset') || 'medium';
+    const steps = { low: 5, medium: 8, high: 10, ultra: 12 }[preset] ?? 8;
     GLOBAL_UNIFORMS.uHeadlightCone.value.w = settings.get('volumetrics') === false ? Math.min(steps, 4) : steps;
   };
   applyQuality();

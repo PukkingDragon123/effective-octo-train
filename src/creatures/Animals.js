@@ -221,6 +221,11 @@ function dogSculpt() {
   return GEO.dog;
 }
 
+/** The cached sculpted geometry of an animal kind (prewarm: run through prebuildSculpts). */
+export function animalGeometry(kind) {
+  return SPECIES[kind]?.sculpt() || null;
+}
+
 // ------------------------------------------------------------------------------------ species
 const SPECIES = {
   elephant: {

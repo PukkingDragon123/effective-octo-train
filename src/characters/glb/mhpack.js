@@ -24,24 +24,45 @@ export function arr(d) {
 }
 
 const texCache = new Map();
-function loadTex(file, srgb = true) {
-  const url = assetURL('assets/characters/mh/tex/' + file);
-  if (texCache.has(url)) return texCache.get(url);
-  const p = new Promise((resolve) => {
+// decode off the main thread (createImageBitmap: flipped, straight alpha, raw colours) so neither the
+// load nor the first GPU upload of a 2048 skin stalls a frame; <img> TextureLoader as the fallback
+const BITMAP_OK = typeof createImageBitmap === 'function' && typeof fetch === 'function' &&
+  !(typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '') && !(Number((navigator.userAgent.match(/Version\/(\d+)/) || [])[1]) >= 17));
+function setupTex(t, srgb) {
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = 8;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.generateMipmaps = true;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+function loadTexImg(url, srgb, file) {
+  return new Promise((resolve) => {
     new THREE.TextureLoader().load(
       url,
-      (t) => {
-        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-        t.anisotropy = 8;
-        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-        t.generateMipmaps = true;
-        t.minFilter = THREE.LinearMipmapLinearFilter;
-        resolve(t);
-      },
+      (t) => resolve(setupTex(t, srgb)),
       undefined,
       () => { console.warn('[characters-mh] texture failed', file); resolve(null); },
     );
   });
+}
+function loadTex(file, srgb = true) {
+  const url = assetURL('assets/characters/mh/tex/' + file);
+  if (texCache.has(url)) return texCache.get(url);
+  const p = !BITMAP_OK
+    ? loadTexImg(url, srgb, file)
+    : fetch(url)
+        .then((r) => (r.ok ? r.blob() : null))
+        .then((b) => (b ? createImageBitmap(b, { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : null))
+        .then((bmp) => {
+          if (!bmp) throw new Error('missing');
+          const t = new THREE.Texture(bmp);
+          t.flipY = false; // flipped by createImageBitmap (same orientation as TextureLoader's flipY)
+          t.premultiplyAlpha = false;
+          return setupTex(t, srgb);
+        })
+        .catch(() => loadTexImg(url, srgb, file));
   texCache.set(url, p);
   return p;
 }

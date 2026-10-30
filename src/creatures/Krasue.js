@@ -17,7 +17,7 @@ const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quater
 let ORGANS = null;
 
 /** Sculpted organs (cached): heart, two lungs, liver lump, windpipe. Local space: neck base at 0, down = -Y. */
-function organGeometries() {
+export function organGeometries() {
   if (ORGANS) return ORGANS;
   const mk = (fn, cell = 0.007) => {
     const S = new Sculpt({ cell });

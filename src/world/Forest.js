@@ -1,8 +1,10 @@
-// Forest: scatters every species along the road corridor and draws them with a handful of
-// global InstancedMeshes (one per species-variant-LOD part, sharing one instance-matrix
-// buffer per variant-LOD). Every few frames the instances near the focus are re-selected
-// by distance into LOD0 / LOD1 / cross-billboard impostors (rendered from the real trees
-// at build time) or culled, so draw calls stay ~constant (~120) wherever you are.
+// Forest: scatters every species along the road corridor (per terrain tile, so a progressive
+// world build can plant tiles in any order) and draws them with one THREE.BatchedMesh per
+// material (ForestBatch.js: ~10 draw calls per pass, every instance culled against each
+// camera: main view, mirrors, shadows). Without WEBGL_multi_draw it falls back to one
+// InstancedMesh per species-variant-LOD part. Every few frames the instances near the focus
+// are re-selected by distance into LOD0 / LOD1 / cross-billboard impostors (rendered from the
+// real trees at build time) or culled. Road-edge litter (RoadEdge.js) is near field only.
 import * as THREE from 'three';
 import { paintedMaterial, foliageMaterial } from '../render/index.js';
 import { tex } from '../textures/index.js';
@@ -14,6 +16,7 @@ import { chainPatch, inject } from './shaderUtil.js';
 import { W } from './constants.js';
 import { WORLD_ASSETS } from './assets.js';
 import { BatchPool, canBatch } from './ForestBatch.js';
+import { EDGE_SPECIES } from './RoadEdge.js';
 
 const CELL = W.forestCell;
 const _pm = new THREE.Matrix4(), _pq = new THREE.Quaternion(), _pq2 = new THREE.Quaternion(), _pe = new THREE.Euler();
@@ -65,6 +68,7 @@ const KIND_LOD = {
   ground: { lod0: 14, lod1: W.lod.groundCull, cull: W.lod.groundCull, impostor: false, keepMin: 0.25 },
   rock: { lod0: 24, lod1: 62, cull: 62, impostor: false, keepMin: 0.8 },
   vine: { lod0: 55, lod1: 55, cull: 55, impostor: false, keepMin: 0.6 },
+  edge: { lod0: 40, lod1: 40, cull: 38, impostor: false, keepMin: 0.6 }, // road-edge litter: near field only
 };
 
 export class Forest {
@@ -90,9 +94,9 @@ export class Forest {
   }
 
   _pool(mat, cast) {
-    const key = mat.uuid + (cast ? '|c' : '|n');
-    let p = this.pools.get(key);
-    if (!p) this.pools.set(key, (p = new BatchPool(mat, cast, `forest_${mat.name || 'mat'}${cast ? '_cast' : ''}`)));
+    let p = this.pools.get(mat.uuid);
+    if (!p) this.pools.set(mat.uuid, (p = new BatchPool(mat, false, `forest_${mat.name || 'mat'}`)));
+    if (cast) p.cast = true; // shadow passes draw only the instances that cast
     return p;
   }
 
@@ -118,6 +122,7 @@ export class Forest {
   }
 
   _leafMatFor(name) {
+    if (name.startsWith('edge')) return this.mats.ground;
     if (name === 'fern' || name === 'grass' || name === 'elephantEar' || name === 'shrub') return this.mats.ground;
     if (name === 'vine') return this.mats.vine;
     return this.mats.leaves;
@@ -160,11 +165,19 @@ export class Forest {
       const list = [];
       for (const [part, geo] of Object.entries(parts)) {
         if (!geo) continue;
-        const pool = this._pool(this._partMat(rec, part), this._partCast(rec, li));
-        list.push({ pool, li: pool.add(geo) });
+        const cast = this._partCast(rec, li);
+        const pool = this._pool(this._partMat(rec, part), cast);
+        list.push({ pool, li: pool.add(geo), cast, alt: -1, part });
       }
       return { batched: true, parts: list, count: 0 };
     });
+    // small render targets (mirrors) may draw the next LOD of a part from the same pool
+    if (rec.lods.length > 1) {
+      for (const q of rec.lods[0].parts) {
+        const lo = rec.lods[1].parts.find((x) => x.part === q.part && x.pool === q.pool);
+        if (lo) q.alt = lo.li;
+      }
+    }
   }
 
   _instancedLods(rec) {
@@ -238,6 +251,13 @@ export class Forest {
     for (let v = 0; v < 4; v++) {
       const geo = rockGeometry(rrng, 1);
       this._addVariant('rock', v, { lods: [{ bark: geo }, { bark: geo.userData.lod1 }], kind: 'rock', height: 1, radius: 1.2 }, { mat: this.mats.rock });
+    }
+    // road-edge detail (gravel, asphalt chips, leaf litter, twigs): near field only
+    for (const [name, spec] of Object.entries(EDGE_SPECIES)) {
+      for (let v = 0; v < spec.variants; v++) {
+        const built = spec.build(makeRng(7700 + v * 31 + name.length * 7), v);
+        this._addVariant(name, v, { lods: built.lods, kind: 'edge', height: 0.2, radius: 0.6 }, { cast: false });
+      }
     }
     // scanned forest-floor models (optional, CC0): rocks, stumps, root clusters
     this.ph = { rocks: [], stumps: [], roots: [] };
@@ -543,7 +563,7 @@ export class Forest {
 
   _emit(rec, x, z, yaw, scale, rnd, o) {
     const T = this.world.terrain;
-    const y = (o.y ?? T.sample(x, z)) + (o.dy ?? 0);
+    const y = (o.y ?? (o.ground === 'road' ? this.world.getHeight(x, z) : T.sample(x, z))) + (o.dy ?? 0);
     const m = _pm;
     const q = _pq.setFromEuler(_pe.set(o.tiltX ?? 0, yaw, o.tiltZ ?? 0, 'YXZ'));
     if (o.lean) {
@@ -575,11 +595,28 @@ export class Forest {
     rec.n = n + 1;
     const ck = cellKey(Math.floor(x / CELL), Math.floor(z / CELL));
     let c = this.cells.get(ck);
-    if (!c) this.cells.set(ck, (c = { v: [], i: [] }));
-    c.v.push(rec.index);
-    c.i.push(n);
+    if (!c) this.cells.set(ck, (c = { v: [], i: [], nv: [], ni: [] }));
+    // near-only kinds (ground cover, rocks, road-edge litter...) in their own list: far cells skip it
+    if (rec.rule.cull != null) {
+      c.nv.push(rec.index);
+      c.ni.push(n);
+    } else {
+      c.v.push(rec.index);
+      c.i.push(n);
+    }
     this.totalInstances++;
-    this._dirty = true;
+    const R = (this.world.drawDistance ?? 150) + 2 * CELL;
+    if (Math.abs(x - this._last.x) < R && Math.abs(z - this._last.z) < R) this._dirty = true;
+  }
+
+  /** Plant whatever waited for a terrain tile that turned out to have no ground (outside the corridor). */
+  flushTile(tx, tz) {
+    const key = this.world.terrain._tileKey(tx, tz);
+    this._scattered.add(key);
+    const wait = this._deferred.get(key);
+    if (!wait) return;
+    this._deferred.delete(key);
+    for (const a of wait) this._emit(...a);
   }
 
   /** Clearings, scatter context and the road-following layers (reach trees, vine curtains). */
@@ -636,6 +673,8 @@ export class Forest {
       }
     }
 
+    this._scatterRoadEdge();
+
     // vine curtains: their own sequence (the per-tile layers draw from per-tile generators)
     {
       const rng = makeRng(31337 * 7 + 11);
@@ -654,6 +693,54 @@ export class Forest {
           const sc = Math.min(1, maxDrop / len);
           if (sc < 0.35) continue;
           this._place('vine', Math.floor(rng() * 3), p.x, p.z, rng() * 6.28, sc, rng, { y: top });
+        }
+      }
+    }
+  }
+
+  /**
+   * Near-field detail where the asphalt meets the shoulder: chips of broken asphalt on the
+   * crumbled lip, gravel and pebbles, drifts of fallen leaves, dead twigs (both edges of every road).
+   */
+  _scatterRoadEdge() {
+    const world = this.world, T = world.terrain, road = world.road;
+    if (!this.byName.edgeGravel || !world.getHeight) return;
+    const rng = makeRng(424242);
+    const hw = W.halfWidth;
+    const creek = T.creek;
+    for (const sp of road.splines.values()) {
+      for (const side of [-1, 1]) {
+        for (let s = 2 + rng() * 2; s < sp.length - 2; s += 0.8 + rng() * 1.2) {
+          if (creek && sp.id === 'main' && Math.abs(s - creek.sB) < (T.bridgeLen || 26) / 2 + 3) continue;
+          const r = rng();
+          let name, lat, sc;
+          if (r < 0.2) {
+            name = 'edgeChips';
+            lat = hw - 0.12 + rng() * 0.45;
+            sc = 0.8 + rng() * 0.5;
+          } else if (r < 0.55) {
+            name = 'edgeGravel';
+            lat = hw + 0.05 + rng() * 0.9;
+            sc = 0.7 + rng() * 0.6;
+          } else if (r < 0.85) {
+            name = 'edgeLitter';
+            lat = rng() < 0.25 ? hw - 0.35 + rng() * 0.3 : hw + 0.15 + rng() * 1.3;
+            sc = 0.7 + rng() * 0.6;
+          } else {
+            name = 'edgeTwigs';
+            lat = hw + 0.3 + rng() * 1.3;
+            sc = 0.8 + rng() * 0.5;
+          }
+          const v = Math.floor(rng() * 4);
+          const yaw = rng() * Math.PI * 2;
+          const p = sp.pointAt(s, side * lat);
+          // never inside another road (junction mouths, the fork), on pads or in water
+          const nr = T.nearestRoad(p.x, p.z);
+          if (!nr.sp || nr.e < -0.45) continue;
+          const blk = this._blocked(p.x, p.z, 0.2);
+          if (blk && !blk.soft) continue;
+          if (this._water(p.x, p.z) < 0.5) continue;
+          this._place(name, v, p.x, p.z, yaw, sc, rng, { ground: 'road', dy: name === 'edgeChips' ? -0.006 : 0 });
         }
       }
     }
@@ -865,7 +952,8 @@ export class Forest {
     if (!this.variants.length || !this.cells.size) return;
     this._timer += dt;
     const moved = Math.hypot(focus.x - this._last.x, focus.z - this._last.z);
-    if (moved < W.forestUpdateMove && this._timer < W.forestUpdateTurn && !this._dirty) return;
+    // new instances (background build) are picked up at the regular re-selection pace
+    if (moved < W.forestUpdateMove && this._timer < W.forestUpdateTurn && !(this._dirty && this._timer > 0.2)) return;
     this._timer = 0;
     this._dirty = false;
     this._last.copy(focus);
@@ -889,6 +977,8 @@ export class Forest {
     }
     const fx = focus.x, fz = focus.z;
     const R = dd + CELL;
+    let nearMax = 0;
+    for (const rec of this.variants) if (rec.rule.cull != null) nearMax = Math.max(nearMax, rec._cull);
     const c0x = Math.floor((fx - R) / CELL), c1x = Math.floor((fx + R) / CELL);
     const c0z = Math.floor((fz - R) / CELL), c1z = Math.floor((fz + R) / CELL);
     const vars = this.variants;
@@ -897,62 +987,69 @@ export class Forest {
         const cell = this.cells.get(cellKey(cx, cz));
         if (!cell) continue;
         const ccx = (cx + 0.5) * CELL - fx, ccz = (cz + 0.5) * CELL - fz;
-        if (Math.hypot(ccx, ccz) > R) continue;
-        const cv = cell.v, ci = cell.i;
-        for (let k = 0; k < cv.length; k++) {
-          const rec = vars[cv[k]];
-          const i = ci[k];
-          if (rec.rnd[i] > rec._keep) continue;
-          const dx = rec.x[i] - fx, dz = rec.z[i] - fz;
-          const d = Math.sqrt(dx * dx + dz * dz);
-          if (d > rec._cull) continue;
-          let slot;
-          let fade = 1;
-          if (d < rec._l0 || (rec.lodCount === 1 && !rec.impostor)) slot = rec.lods[0];
-          else if (d < rec._l1 && rec.lodCount > 1) slot = rec.lods[1];
-          else if (rec.impostor && d >= rec._l1) slot = rec.impostor;
-          else slot = rec.lods[rec.lodCount - 1];
-          if (rec.rule.cull) fade = smoothstep(rec._cull, rec._cull - 7, d);
-          if (fade <= 0.02) continue;
-          if (slot.batched) {
-            const parts = slot.parts;
-            for (let q = 0; q < parts.length; q++) parts[q].pool.push(parts[q].li, rec.m, i * 16, fade);
-            slot.count++;
-            continue;
-          }
-          const n = slot.count;
-          if (n >= slot.cap) this._ensure(slot, n + 1);
-          const dst = slot.attr.array, src = rec.m;
-          const o = n * 16, s0 = i * 16;
-          if (slot.shared) {
-            // impostor: instance matrix x (lift y0, scale size) of the variant's card
-            const I = rec.impostorInfo, sz = I.size, y0 = I.y0;
-            for (let j = 0; j < 12; j++) dst[o + j] = src[s0 + j] * sz;
-            dst[o + 3] = 0;
-            dst[o + 7] = 0;
-            dst[o + 11] = 0;
-            dst[o + 12] = src[s0 + 12] + src[s0 + 4] * y0;
-            dst[o + 13] = src[s0 + 13] + src[s0 + 5] * y0;
-            dst[o + 14] = src[s0 + 14] + src[s0 + 6] * y0;
-            dst[o + 15] = 1;
-            const ia = slot.imp.array, k4 = n * 4;
-            ia[k4] = I.u0;
-            ia[k4 + 1] = I.v0;
-            ia[k4 + 2] = I.c;
-            ia[k4 + 3] = 0;
+        const cd = Math.hypot(ccx, ccz);
+        if (cd > R) continue;
+        for (let list = 0; list < 2; list++) {
+          if (list === 1 && cd - CELL * 0.71 > nearMax) break;
+          const cv = list ? cell.nv : cell.v, ci = list ? cell.ni : cell.i;
+          for (let k = 0; k < cv.length; k++) {
+            const rec = vars[cv[k]];
+            const i = ci[k];
+            if (rec.rnd[i] > rec._keep) continue;
+            const dx = rec.x[i] - fx, dz = rec.z[i] - fz;
+            const d = Math.sqrt(dx * dx + dz * dz);
+            if (d > rec._cull) continue;
+            let slot;
+            let fade = 1;
+            if (d < rec._l0 || (rec.lodCount === 1 && !rec.impostor)) slot = rec.lods[0];
+            else if (d < rec._l1 && rec.lodCount > 1) slot = rec.lods[1];
+            else if (rec.impostor && d >= rec._l1) slot = rec.impostor;
+            else slot = rec.lods[rec.lodCount - 1];
+            if (rec.rule.cull) fade = smoothstep(rec._cull, rec._cull - 7, d);
+            if (fade <= 0.02) continue;
+            if (slot.batched) {
+              const parts = slot.parts;
+              for (let q = 0; q < parts.length; q++) {
+                const pt = parts[q];
+                pt.pool.push(pt.li, rec.m, i * 16, fade, pt.cast, pt.alt, rec.rule.cull != null);
+              }
+              slot.count++;
+              continue;
+            }
+            const n = slot.count;
+            if (n >= slot.cap) this._ensure(slot, n + 1);
+            const dst = slot.attr.array, src = rec.m;
+            const o = n * 16, s0 = i * 16;
+            if (slot.shared) {
+              // impostor: instance matrix x (lift y0, scale size) of the variant's card
+              const I = rec.impostorInfo, sz = I.size, y0 = I.y0;
+              for (let j = 0; j < 12; j++) dst[o + j] = src[s0 + j] * sz;
+              dst[o + 3] = 0;
+              dst[o + 7] = 0;
+              dst[o + 11] = 0;
+              dst[o + 12] = src[s0 + 12] + src[s0 + 4] * y0;
+              dst[o + 13] = src[s0 + 13] + src[s0 + 5] * y0;
+              dst[o + 14] = src[s0 + 14] + src[s0 + 6] * y0;
+              dst[o + 15] = 1;
+              const ia = slot.imp.array, k4 = n * 4;
+              ia[k4] = I.u0;
+              ia[k4 + 1] = I.v0;
+              ia[k4 + 2] = I.c;
+              ia[k4 + 3] = 0;
+              slot.count = n + 1;
+              continue;
+            }
+            if (fade < 1) {
+              for (let j = 0; j < 12; j++) dst[o + j] = src[s0 + j] * fade;
+              dst[o + 12] = src[s0 + 12];
+              dst[o + 13] = src[s0 + 13];
+              dst[o + 14] = src[s0 + 14];
+              dst[o + 15] = 1;
+            } else {
+              for (let j = 0; j < 16; j++) dst[o + j] = src[s0 + j];
+            }
             slot.count = n + 1;
-            continue;
           }
-          if (fade < 1) {
-            for (let j = 0; j < 12; j++) dst[o + j] = src[s0 + j] * fade;
-            dst[o + 12] = src[s0 + 12];
-            dst[o + 13] = src[s0 + 13];
-            dst[o + 14] = src[s0 + 14];
-            dst[o + 15] = 1;
-          } else {
-            for (let j = 0; j < 16; j++) dst[o + j] = src[s0 + j];
-          }
-          slot.count = n + 1;
         }
       }
     }

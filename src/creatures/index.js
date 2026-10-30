@@ -33,10 +33,13 @@ import { ForestGiant } from './ForestGiant.js';
 import { GiantHand } from './GiantHand.js';
 import { PhiTaiHong } from './PhiTaiHong.js';
 import { WindowGhost } from './WindowGhost.js';
-import { createAnimal, Quadruped, DOG_COATS } from './Animals.js';
-import { createFaceRat, FaceRat } from './FaceRat.js';
-import { createEgretFlock, EgretFlock } from './Birds.js';
+import { createAnimal, Quadruped, DOG_COATS, animalGeometry } from './Animals.js';
+import { createFaceRat, FaceRat, faceRatGeometry } from './FaceRat.js';
+import { createEgretFlock, EgretFlock, egretGeometry } from './Birds.js';
 import { HandRig, handGeometry } from './hand.js';
+import { organGeometries } from './Krasue.js';
+import { prebuildSculpts, nextSlice } from './sculpt.js';
+import { detailTextureAsync } from './skin.js';
 import { SPECS, human } from './humans.js';
 import { paneFrame, panePoint, toBody, dirToBody, bodyOf, humanoidFacing } from './taxiGeo.js';
 
@@ -79,16 +82,26 @@ export function createWindowGhost(opts = {}) {
 }
 
 /**
- * Build the sculpted geometries ahead of time (one per idle slice) so the first elephant / dog /
- * hand / face rat never hitches a frame. kinds: subset of ['hand','dog','elephant','elephantCalf','rat','egret'].
+ * Build the sculpted geometries and their detail textures ahead of time so the first elephant / dog /
+ * hand / face rat / egret / krasue never hitches a frame. Every SDF build and texture runs in ~4 ms
+ * slices between rendered frames (sculpt.js prebuildSculpts, skin.js detailTextureAsync); only the
+ * cheap entity assembly (materials, rigs) runs whole, once per kind, to warm the rest.
+ * kinds: subset of ['hand','dog','rat','elephant','elephantCalf','egret','krasue'].
  */
-export async function prewarmCreatures(kinds = ['hand', 'dog', 'rat', 'elephant', 'elephantCalf', 'egret']) {
-  const idle = () => new Promise((r) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(() => r(), { timeout: 1500 }) : setTimeout(r, 30)));
+export async function prewarmCreatures(kinds = ['hand', 'dog', 'rat', 'elephant', 'elephantCalf', 'egret', 'krasue']) {
+  const geo = {
+    hand: () => handGeometry({ fingerScale: 1.32, bony: 0.8, nails: 0.17, forearm: 2.6, thickness: 0.88, cell: 0.026 }),
+    dog: () => animalGeometry('dog'), elephant: () => animalGeometry('elephant'), elephantCalf: () => animalGeometry('elephantCalf'),
+    rat: () => faceRatGeometry(), egret: () => egretGeometry(), krasue: () => organGeometries(),
+  };
+  const detail = { hand: ['ghostSkin'], dog: ['fur'], elephant: ['hide'], elephantCalf: ['hide'], rat: ['fur', 'ghostSkin'], krasue: ['organ'] };
   for (const k of kinds) {
-    await idle();
     try {
-      if (k === 'hand') handGeometry({ fingerScale: 1.32, bony: 0.8, nails: 0.17, forearm: 2.6, thickness: 0.88, cell: 0.026 });
-      else if (k === 'dog' || k === 'elephant' || k === 'elephantCalf') createAnimal(k).dispose();
+      for (const d of detail[k] || []) await detailTextureAsync(d);
+      if (geo[k]) await prebuildSculpts(geo[k]);
+      await nextSlice();
+      // the rest of the entity (materials, rig, textures painted on canvases) is light: warm it once
+      if (k === 'dog' || k === 'elephant' || k === 'elephantCalf') createAnimal(k).dispose();
       else if (k === 'rat') createFaceRat().dispose();
       else if (k === 'egret') createEgretFlock(1).dispose();
     } catch (e) {

@@ -20,21 +20,28 @@ const vec = (s, d) => (s ? V(...s.split(',').map(Number)) : d);
 const smooth = (u) => u * u * (3 - 2 * u);
 
 /** Workaround (characters module, MakeHuman people): the teeth / tongue proxies are bound outside the
- *  head (a crown on the scalp with long spikes). Mouths stay closed here, so collapse them to a point. */
+ *  head (a crown on the scalp with long spikes). Mouths stay closed here, so collapse them onto one
+ *  vertex: position, skin binding and morph row all copied, so they stay a single point when skinned. */
 export function hideMouthParts(h) {
   const g = h?.body?.geometry;
-  const ap = g?.attributes?.apart, pos = g?.attributes?.position;
+  const A = g?.attributes;
+  const ap = A?.apart, pos = A?.position;
   if (!ap || !pos || g.userData.itchMouthHidden) return 0;
+  const si = A.skinIndex, sw = A.skinWeight, am = A.amorph, nor = A.normal;
   let n = 0, first = -1;
   for (let i = 0; i < pos.count; i++) {
     const p = ap.getX(i);
     if (p > 4.5 && p < 6.5) {
       if (first < 0) first = i;
       pos.setXYZ(i, pos.getX(first), pos.getY(first), pos.getZ(first));
+      if (nor) nor.setXYZ(i, nor.getX(first), nor.getY(first), nor.getZ(first));
+      if (si) si.setXYZW(i, si.getX(first), si.getY(first), si.getZ(first), si.getW(first));
+      if (sw) sw.setXYZW(i, sw.getX(first), sw.getY(first), sw.getZ(first), sw.getW(first));
+      if (am) am.setX(i, -1);
       n++;
     }
   }
-  pos.needsUpdate = true;
+  for (const a of [pos, nor, si, sw, am]) if (a) a.needsUpdate = true;
   g.userData.itchMouthHidden = true;
   return n;
 }

@@ -50,11 +50,21 @@ void main() {
   float ax = vAxial;
   float fall = smoothstep(0.0, 0.06, ax) * (1.0 - smoothstep(0.45, 1.0, ax)) / (1.0 + ax * ax * 6.0);
   vec3 drift = vec3(dlbWindDir.x, 0.15, dlbWindDir.y) * dlbTime * (0.25 + dlbWindStrength);
+  // drifting mist + fine dust (3D noise lattice: one fetch per octave)
   float n = dlbFogNoise3(vWP * 0.9 - drift) * 0.6 + dlbFogNoise3(vWP * 2.3 + drift * 1.7) * 0.4;
   float dust = mix(1.0, 0.35 + n * 1.3, uNoise);
+  // light shafts: noise on the direction from the apex is constant along every ray of the
+  // cone, so the beam breaks into streaks fanning out of the lamp; they shimmer slowly
+  vec3 rel = vWP - vApexW;
+  vec3 rdir = rel / max(length(rel), 1e-3);
+  float sh = dlbFogNoise3(rdir * 9.0 + vec3(0.0, dlbTime * 0.035, dlbTime * 0.02) - drift * 0.02);
+  float shafts = mix(1.0, 0.3 + 1.4 * sh * sh * (3.0 - 2.0 * sh), uNoise * 0.85);
+  // hot, slightly whiter core near the lamp (bright light reads warm-white, the haze keeps its colour)
+  float core = (1.0 - smoothstep(0.04, 0.3, ax)) * smoothstep(0.0, 0.05, ax);
+  vec3 col = mix(uColor, vec3(max(uColor.r, max(uColor.g, uColor.b))) * vec3(1.0, 0.95, 0.86), core * 0.45);
   float fogK = 0.15 + dlbFogDensity * 14.0 + dlbFogHeightDensity * 1.5;
   float T = dlbFogTransmittance(vWP);
-  vec3 c = uColor * uIntensity * soft * fall * dust * fogK * T;
+  vec3 c = col * uIntensity * soft * fall * dust * shafts * fogK * T * (1.0 + core * 0.6);
   gl_FragColor = vec4(c, 1.0);
 }
 `;

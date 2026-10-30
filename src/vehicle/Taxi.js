@@ -22,6 +22,7 @@ import { TaxiControls, STATIONS } from './TaxiControls.js';
 import { DIM } from './TaxiBody.js';
 import { getVehicleAssets } from './VehicleAssets.js';
 import { buildTaxiFromGLB } from './TaxiGLB.js';
+import { collectRefs, mergeStaticMeshes, DetailCuller } from './optimize.js';
 import { Garland, AmuletCluster, GARLAND_UNIFORMS } from './Garland.js';
 import { TaxiBlood } from './Blood.js';
 
@@ -113,6 +114,24 @@ export class Taxi {
     }
     this.model = ext.glb ? 'glb' : 'procedural';
     this.ext = ext;
+    this._detailCull = null;
+    if (ext.glb) {
+      // generic draw-call pass (node names untouched): static leaf meshes merged per material; the
+      // moving / referenced parts (doors, wheels, pivots, displays, mounts...) are left alone. Pane and
+      // mirror PARENTS are only attachment points, so their static siblings may still merge.
+      try {
+        const refs = collectRefs([{ ...ext, shell: null, panes: null }, int.parts]);
+        this.modelStats = mergeStaticMeshes(ext.shell, refs);
+        const P = int.parts;
+        this._detailCull = new DetailCuller([
+          ...Object.values(P.pedals || {}), ...Object.values(P.needles || {}).map((n) => n.pivot), ...Object.values(P.cranks || {}),
+          ...Object.values(P.innerHandles || {}), ...Object.values(P.lockPins || {}),
+          P.gear, P.gearGate, P.handbrake, P.keySlot, P.stalkLights, P.stalkWipers, P.radioKnobVol, P.radioKnobTune,
+        ]);
+      } catch (e) {
+        console.warn('[vehicle] static merge skipped', e);
+      }
+    }
     this.bodyInner.add(ext.shell);
     for (const w of ext.wheels) this.chassis.add(w.pivot);
     this.interior = int.group;
@@ -740,6 +759,8 @@ export class Taxi {
   _preRender(renderer, scene, camera, dt) {
     // skip when far away from the camera
     const d = _v.copy(this.root.position).distanceTo(camera.position);
+    // pedals, needles, cranks, levers, the key: invisible from outside beyond a few metres
+    if (this._detailCull) this._detailCull.set(d > 3.5 && !this.isCameraInside());
     if (d < 14) this.mirrors.update(renderer, scene, camera, cameraRig, engine.frame);
     // gaze-gated glass reflection (only when the camera is in the cabin)
     let pane = null;

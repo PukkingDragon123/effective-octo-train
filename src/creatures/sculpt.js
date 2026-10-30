@@ -7,6 +7,11 @@
 //   const S = new Sculpt({ cell: 0.02 });
 //   S.capsule([0,0,0], [0,1,0], 0.1, 0.08, { bone: 'finger1', k: 0.03, tag: 1 });
 //   const { geometry } = S.build({ bones, color: (x,y,z,nx,ny,nz,tag,ao) => [r,g,b] });
+//
+// Builds are resumable (a generator under the hood): `await S.buildAsync(opts)` runs the same build in
+// ~4 ms slices between frames, and `prebuildSculpts(fn)` runs any synchronous builder function that
+// calls S.build() (once or several times) so that every build happens in slices, never blocking a
+// visible frame; the builder's own result cache then holds the geometry.
 import * as THREE from 'three';
 
 const { sqrt, min, max, abs, exp, hypot } = Math;
@@ -150,6 +155,44 @@ export class Sculpt {
    * Returns { geometry, boneDefs, stats }.
    */
   build(opts = {}) {
+    const R = Sculpt._replay;
+    if (R) {
+      // prebuildSculpts(): hand back a slice-built result of this very sculpt, or defer it
+      const sig = this._signature(opts);
+      if (R.done.has(sig)) return R.done.get(sig);
+      throw new DeferredBuild(this, opts, sig);
+    }
+    const it = this._steps(opts);
+    let r;
+    while (!(r = it.next()).done);
+    return r.value;
+  }
+
+  /** Data identity of a build (cell, primitive stack, bones, options); closures are not compared. */
+  _signature(opts) {
+    const f = (v) => (typeof v === 'number' ? v.toFixed(5) : String(v));
+    let s = f(this.cell) + '|' + this.prims.length + '|' + (this.disp ? f(this.disp.bb ? this.disp.bb.join(',') : 'd') : '');
+    for (const p of this.prims) s += ';' + p.op + ',' + f(p.k) + ',' + p.bone + ',' + p.tag + ',' + f(p.wk) + ',' + p.bb.map(f).join(',');
+    s += '|' + (opts.bones || []).map((b) => b.name + ':' + b.pos.map(f).join(',')).join(';');
+    s += '|' + f(opts.relax ?? 2) + ',' + f(opts.sigma ?? -1) + ',' + f(opts.maxBones ?? 4) + ',' + (opts.color ? 1 : 0);
+    return s;
+  }
+
+  /** The same build, in time slices of `budget` ms between frames. Resolves to the build result. */
+  async buildAsync(opts = {}, budget = 4) {
+    const it = this._steps(opts);
+    let t0 = performance.now();
+    for (;;) {
+      const r = it.next();
+      if (r.done) return r.value;
+      if (performance.now() - t0 > budget) {
+        await nextSlice();
+        t0 = performance.now();
+      }
+    }
+  }
+
+  *_steps(opts) {
     const t0 = performance.now();
     const cell = this.cell;
     const add = this.prims.filter((p) => p.op === 'add');
@@ -181,24 +224,28 @@ export class Sculpt {
             data[idx] = sub ? smax(cur, -d, k) : inter ? smax(cur, d, k) : smin(cur, d, k);
           }
         }
+        yield;
       }
     }
     if (this.disp) {
       const { fn } = this.disp;
-      for (let kk = 0; kk < nz; kk++) for (let j = 0; j < ny; j++) {
-        let idx = j * sy + kk * sz;
-        for (let i = 0; i < nx; i++, idx++) {
-          const d = data[idx];
-          if (d > cell * 3 || d < -cell * 3) continue;
-          data[idx] = d - fn(ox + i * cell, oy + j * cell, oz + kk * cell);
+      for (let kk = 0; kk < nz; kk++) {
+        for (let j = 0; j < ny; j++) {
+          let idx = j * sy + kk * sz;
+          for (let i = 0; i < nx; i++, idx++) {
+            const d = data[idx];
+            if (d > cell * 3 || d < -cell * 3) continue;
+            data[idx] = d - fn(ox + i * cell, oy + j * cell, oz + kk * cell);
+          }
         }
+        yield;
       }
     }
     const grid = { nx, ny, nz, data, h: cell, ox, oy, oz };
     grid.sample = (x, y, z) => sampleGrid(grid, x, y, z);
     // ---- mesh
-    const mesh = surfaceNets(grid);
-    relaxAndProject(mesh, grid, opts.relax ?? 2);
+    const mesh = yield* surfaceNets(grid);
+    yield* relaxAndProject(mesh, grid, opts.relax ?? 2);
     const vc = mesh.count;
     const P = mesh.positions;
     const nrm = new Float32Array(vc * 3);
@@ -206,9 +253,10 @@ export class Sculpt {
     for (let v = 0; v < vc; v++) {
       gradient(grid, P[v * 3], P[v * 3 + 1], P[v * 3 + 2], g3);
       nrm[v * 3] = g3[0]; nrm[v * 3 + 1] = g3[1]; nrm[v * 3 + 2] = g3[2];
+      if ((v & 4095) === 4095) yield;
     }
     // face-normal sanity blend (sharp creases)
-    blendFaceNormals(mesh, nrm, 0.35);
+    yield* blendFaceNormals(mesh, nrm, 0.35);
     // ---- skin weights + tags (nearest primitive)
     const boneDefs = opts.bones || [];
     const boneIndex = new Map(boneDefs.map((b, i) => [b.name, i]));
@@ -252,6 +300,7 @@ export class Sculpt {
       for (let q = 0; q < 4; q++) skinW[v * 4 + q] /= wsum;
       for (const bi of touched) acc[bi] = 0;
       void tot;
+      if ((v & 1023) === 1023) yield;
     }
     // ---- AO (cheap SDF probe) + colours
     const ao = new Float32Array(vc);
@@ -267,11 +316,13 @@ export class Sculpt {
         w *= 0.7;
       }
       ao[v] = clamp01(1 - (occ / ws) * 1.6);
+      if ((v & 4095) === 4095) yield;
     }
     if (colors) {
       for (let v = 0; v < vc; v++) {
         const c = opts.color(P[v * 3], P[v * 3 + 1], P[v * 3 + 2], nrm[v * 3], nrm[v * 3 + 1], nrm[v * 3 + 2], tags[v], ao[v]);
         colors[v * 3] = c[0]; colors[v * 3 + 1] = c[1]; colors[v * 3 + 2] = c[2];
+        if ((v & 4095) === 4095) yield;
       }
     }
     const geo = new THREE.BufferGeometry();
@@ -293,6 +344,53 @@ export class Sculpt {
     geo.userData.shared = true;
     return { geometry: geo, boneDefs, tags, stats: { verts: vc, tris: mesh.indices.length / 3, ms: performance.now() - t0, grid: [nx, ny, nz] } };
   }
+}
+
+// ------------------------------------------------------------------------------- time slicing
+class DeferredBuild extends Error {
+  constructor(sculpt, opts, sig) {
+    super('deferred sculpt build');
+    this.sculpt = sculpt;
+    this.opts = opts;
+    this.sig = sig;
+  }
+}
+Sculpt._replay = null;
+
+/** Wait until the next frame has been rendered (rAF, then a task after the paint). */
+export function nextSlice() {
+  return new Promise((r) => {
+    if (typeof requestAnimationFrame === 'function' && !(typeof document !== 'undefined' && document.hidden)) requestAnimationFrame(() => setTimeout(r, 0));
+    else setTimeout(r, 16);
+  });
+}
+
+/**
+ * Run a synchronous builder (any function that creates Sculpts and calls build(), e.g. a cached
+ * geometry factory) with every build done in time slices between frames. The builder is replayed:
+ * each S.build() it reaches is computed with buildAsync() and handed back (matched by the sculpt's
+ * data signature) on the next pass, so its own caching code runs exactly as in a synchronous build.
+ * Builders must be deterministic (they are: no Math.random in sculpt setup). Resolves to the
+ * builder's return value.
+ */
+export async function prebuildSculpts(fn, budget = 4) {
+  const done = new Map(); // signature -> build result
+  for (let pass = 0; pass < 64; pass++) {
+    const prev = Sculpt._replay;
+    Sculpt._replay = { done };
+    let deferred = null, value;
+    try {
+      value = fn();
+    } catch (e) {
+      if (!(e instanceof DeferredBuild)) throw e;
+      deferred = e;
+    } finally {
+      Sculpt._replay = prev;
+    }
+    if (!deferred) return value;
+    done.set(deferred.sig, await deferred.sculpt.buildAsync(deferred.opts, budget));
+  }
+  throw new Error('[sculpt] prebuild: too many builds');
 }
 
 // ---------------------------------------------------------------------------------------- grid
@@ -323,7 +421,7 @@ function gradient(g, x, y, z, out) {
 const CUBE_EDGES = [0, 1, 0, 2, 0, 4, 1, 3, 1, 5, 2, 3, 2, 6, 3, 7, 4, 5, 4, 6, 5, 7, 6, 7];
 const CXYZ = [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1];
 
-function surfaceNets(g) {
+function* surfaceNets(g) {
   const { nx, ny, nz, data, h, ox, oy, oz } = g;
   const sy = nx, sz = nx * ny;
   const vmap = new Int32Array(nx * ny * nz).fill(-1);
@@ -353,6 +451,7 @@ function surfaceNets(g) {
       pos.push(ox + (i + sx / n) * h, oy + (j + s2 / n) * h, oz + (k + s3 / n) * h);
       vmap[idx] = vc++;
     }
+    if (j === ny - 2) yield;
   }
   const tris = [];
   const P = pos;
@@ -374,23 +473,29 @@ function surfaceNets(g) {
       if ((data[idx + sy] < 0) !== inside) quad(vmap[idx - 1 - sz], vmap[idx - sz], vmap[idx], vmap[idx - 1], inside);
       if ((data[idx + sz] < 0) !== inside) quad(vmap[idx - 1 - sy], vmap[idx - sy], vmap[idx], vmap[idx - 1], !inside);
     }
+    if (j === ny - 2) yield;
   }
   return { positions: new Float32Array(pos), indices: new Uint32Array(tris), count: vc };
 }
 
-function adjacency(mesh) {
+function* adjacency(mesh) {
   const { indices, count } = mesh;
   const sets = Array.from({ length: count }, () => []);
   for (let t = 0; t < indices.length; t += 3) {
     const a = indices[t], b = indices[t + 1], c = indices[t + 2];
     sets[a].push(b, c); sets[b].push(a, c); sets[c].push(a, b);
+    if (t % 30000 === 0) yield;
   }
-  return sets.map((s) => Array.from(new Set(s)));
+  for (let v = 0; v < count; v++) {
+    sets[v] = Array.from(new Set(sets[v]));
+    if ((v & 4095) === 4095) yield;
+  }
+  return sets;
 }
 
-function relaxAndProject(mesh, grid, iters) {
+function* relaxAndProject(mesh, grid, iters) {
   const P = mesh.positions, vc = mesh.count;
-  const adj = (mesh.adj = adjacency(mesh));
+  const adj = (mesh.adj = yield* adjacency(mesh));
   const g = [0, 0, 0];
   const np = new Float32Array(P.length);
   for (let it = 0; it < iters; it++) {
@@ -405,6 +510,7 @@ function relaxAndProject(mesh, grid, iters) {
       const dn = dx * g[0] + dy * g[1] + dz * g[2];
       dx -= dn * g[0]; dy -= dn * g[1]; dz -= dn * g[2];
       np[v * 3] = x + dx * 0.6; np[v * 3 + 1] = y + dy * 0.6; np[v * 3 + 2] = z + dz * 0.6;
+      if ((v & 4095) === 4095) yield;
     }
     P.set(np);
   }
@@ -415,11 +521,12 @@ function relaxAndProject(mesh, grid, iters) {
       gradient(grid, x, y, z, g);
       const s = Math.max(-grid.h, Math.min(grid.h, d));
       P[v * 3] = x - g[0] * s; P[v * 3 + 1] = y - g[1] * s; P[v * 3 + 2] = z - g[2] * s;
+      if ((v & 4095) === 4095) yield;
     }
   }
 }
 
-function blendFaceNormals(mesh, nrm, w) {
+function* blendFaceNormals(mesh, nrm, w) {
   const P = mesh.positions, I = mesh.indices, vc = mesh.count;
   const fn = new Float32Array(vc * 3);
   for (let t = 0; t < I.length; t += 3) {
@@ -428,6 +535,7 @@ function blendFaceNormals(mesh, nrm, w) {
     const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
     for (const q of [a, b, c]) { fn[q] += nx; fn[q + 1] += ny; fn[q + 2] += nz; }
+    if (t % 30000 === 0) yield;
   }
   for (let v = 0; v < vc; v++) {
     const l = hypot(fn[v * 3], fn[v * 3 + 1], fn[v * 3 + 2]) || 1;

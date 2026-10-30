@@ -271,6 +271,12 @@ function tailTexture() {
   return t;
 }
 
+/** The face rat's cached sculpts for the current gore setting (prewarm: run through prebuildSculpts). */
+export function faceRatGeometry() {
+  const gore = settings.get('gore') === 'reduced' ? 'reduced' : 'full';
+  return [bodyGeo(), headGeo(gore)];
+}
+
 // ---------------------------------------------------------------- entity
 export class FaceRat extends Entity {
   constructor(opts = {}) {

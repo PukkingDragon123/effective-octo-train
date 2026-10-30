@@ -132,6 +132,7 @@ uniform vec3 uGain;
 uniform vec3 uShadowTint;
 uniform vec3 uHighTint;
 uniform float uSplit;
+uniform float uHiSat;
 uniform vec3 uColorMul;
 uniform float uBloom;
 uniform float uShafts;
@@ -219,7 +220,9 @@ void main() {
     col = mix(lo, hi, step(pv, col));
   }
   l = dlbLuma(col);
-  float sat = uSaturation * (1.0 - uHorror * 0.8);
+  // night: the dark world stays muted, lit practicals (lamps, shrine, cabin, headlight
+  // pools) keep their colour -> richer warm lights against the cold night
+  float sat = uSaturation * (1.0 - uHorror * 0.8) * (1.0 + uHiSat * smoothstep(0.18, 0.7, l) * (1.0 - smoothstep(0.85, 1.0, l)));
   col = max(mix(vec3(l), col, sat), vec3(0.0));
   // amulet: warm golden aura
   if (uAmulet > 0.0) {

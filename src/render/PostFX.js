@@ -169,6 +169,7 @@ class PostFX {
       uExposure: { value: 1 }, uSaturation: { value: 1 }, uContrast: { value: 1 }, uTemperature: { value: 0 }, uTint: { value: 0 },
       uLift: { value: new THREE.Vector3() }, uGamma: { value: new THREE.Vector3(1, 1, 1) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uShadowTint: { value: new THREE.Color(1, 1, 1) }, uHighTint: { value: new THREE.Color(1, 1, 1) }, uSplit: { value: 0 },
+      uHiSat: { value: 0 },
       uColorMul: { value: new THREE.Color(1, 1, 1) },
       uBloom: { value: 0.05 }, uShafts: { value: 0 }, uShaftCol: { value: new THREE.Color() },
       uVignette: { value: 0.6 },
@@ -461,9 +462,13 @@ class PostFX {
           b.uSun.value.set(sx, sy);
           b.tSrc.value = this.shaftA.texture;
           b.uLength.value = 0.85;
+          b.uJitter.value = 1;
           this._pass(renderer, this.matShaftBlur, this.shaftB);
+          // second pass smooths the first one's jitter instead of adding its own pattern
+          // (the quarter-res dither otherwise shows as fine diagonal hatching in the haze)
           b.tSrc.value = this.shaftB.texture;
           b.uLength.value = 0.35;
+          b.uJitter.value = 0;
           this._pass(renderer, this.matShaftBlur, this.shaftA);
         }
       }
@@ -487,9 +492,12 @@ class PostFX {
       fu.uShadowTint.value.copy(grade.shadowTint);
       fu.uHighTint.value.copy(grade.highlightTint);
       fu.uSplit.value = grade.split;
+      // practical-light colour at night (fades out through dawn)
+      fu.uHiSat.value = 0.22 * (1 - clamp((sky.hour - 28.4) / 1.0, 0, 1));
     } else {
       fu.uLift.value.set(0, 0, 0);
       fu.uSplit.value = 0;
+      fu.uHiSat.value = 0;
     }
     // brightness setting also lifts the deepest shadows a touch
     const lb = Math.max(0, cfg.brightness - 1) * 0.02;

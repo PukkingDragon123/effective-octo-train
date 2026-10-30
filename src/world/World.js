@@ -13,8 +13,12 @@ import { tex } from '../textures/index.js';
 import { sampleTextureRed } from './shaderUtil.js';
 import { Ambience } from './Ambience.js';
 import { loadWorldAssets } from './assets.js';
-import { autoProgressive, menuRoute, nearRoute, storyKey, runInBackground, SYNC_RADIUS } from './Progressive.js';
+import { autoProgressive, menuRoute, nearRoute, storyKey, runInBackground, SYNC_RADIUS, SYNC_PROPS_RADIUS } from './Progressive.js';
+import { prefetchAtlas, atlasReady } from './atlasPrefetch.js';
 export { loadWorldAssets };
+
+// paint the leaf atlas in a worker while the rest of the game boots (see atlasPrefetch.js)
+prefetchAtlas();
 
 export { RoadSpline, RoadNetwork };
 
@@ -171,6 +175,8 @@ export class World {
         lap('assets');
       }
       const { Forest } = await import('./Forest.js');
+      await atlasReady(25000);
+      lap('atlasWait');
       this.forest = new Forest(this, { density: this.density });
       await this.forest.build((f, th, en) => prog(0.4 + f * 0.4, th || 'กำลังปลูกป่า…', en || 'Growing the forest…'));
       this.group.add(this.forest.group);
@@ -179,7 +185,7 @@ export class World {
 
     // ---- props & landmarks ---------------------------------------------------------------------
     if (this.placement) {
-      const sync = progressive ? (x, z) => nearRoute(this._route, x, z, SYNC_RADIUS) : null;
+      const sync = progressive ? (x, z) => nearRoute(this._route, x, z, SYNC_PROPS_RADIUS) : null;
       await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'), { defer: !progressive && !!opts.deferProps, sync });
       this.propsReady = this.placement.ready;
       this.group.add(this.placement.group);
@@ -213,18 +219,24 @@ export class World {
     const jobs = [];
     for (const [tx, tz] of laterTiles) {
       jobs.push({
+        x: tx + T / 2,
+        z: tz + T / 2,
         key: storyKey(this.road, LAYOUT, tx + T / 2, tz + T / 2, tmp) - 40, // ground before the props on it
         run: () => {
+          if (this._disposed) return;
           const tile = this.terrain.buildTile(tx, tz);
           if (tile && this.forest) this.forest.scatterTile(tile);
+          else if (this.forest) this.forest.flushTile(tx, tz);
         },
       });
     }
-    for (const j of this.placement?.jobs() || []) jobs.push({ key: storyKey(this.road, LAYOUT, j.x, j.z, tmp), run: j.run });
+    for (const j of this.placement?.jobs() || []) jobs.push({ x: j.x, z: j.z, key: storyKey(this.road, LAYOUT, j.x, j.z, tmp), run: () => !this._disposed && j.run() });
     const t0 = performance.now();
     this.buildTimes.backgroundJobs = jobs.length;
     this.ready = this.propsReady = runInBackground(jobs, {
       sliceMs: 8,
+      // whatever the camera is near (a resumed save, a teleport) is built first
+      focus: () => (this._focusSeen ? this._focus : null),
       onSlice: () => this.placement?.settleChunks(),
       onDone: () => {
         this.placement?.settleChunks(true);
@@ -301,6 +313,8 @@ export class World {
   /** Streaming / culling / LOD / wind. focus = Vector3 (camera or taxi). */
   update(dt, focus) {
     if (!this.built || !focus) return;
+    this._focus.copy(focus);
+    this._focusSeen = true;
     const dd = this.drawDistance;
     if (this.terrain) this.terrain.update(focus, dd);
     for (const p of this.roadPieces) {
@@ -320,6 +334,7 @@ export class World {
   }
 
   dispose() {
+    this._disposed = true;
     this._settingsOff?.();
     this.ambience?.dispose();
     this.placement?.dispose?.();

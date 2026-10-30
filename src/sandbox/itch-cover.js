@@ -1,6 +1,6 @@
 // itch.io cover (630x500 / 1260x1000): inside the taxi at night. Ton has turned in the driver's
-// seat and looks back over his shoulder at the woman in white in the rear-left seat; she stares into
-// the camera. Dim warm dome light, green dash glow, fog and dark forest through the glass. The title
+// seat and looks back over his shoulder at the woman in white, perched in the middle of the back seat;
+// she stares into the camera (rear-right, inside the cabin). Dim warm dome light, fog and forest outside. The title
 // is composited afterwards (tools/itch/compose.py), so the render has no text.
 // window.__itch.frames = number of camera views; frame(i) renders view i (tools/itch/render.mjs).
 //   ?sandbox=itch-cover&views=px,py,pz;lx,ly,lz;fov|...  (taxi body space)  &seat=rearLeft|rearCenter
@@ -56,6 +56,9 @@ export default async function ({ engine, cameraRig, params }) {
   sky.setWeather({ rain: 0, fog: num('fog', 0.6), wind: 0.1 }, 0);
   sky.setWetness?.(num('wet', 0.6));
   if (params.get('fogd') != null) sky.overrides.fogDensity = num('fogd', 0.04);
+  // the cabin has a roof: keep the sky's flat ambient low so the dome lamp does the lighting
+  sky.overrides.ambI = num('ambI', 0.05);
+  sky.overrides.hemiI = num('hemiI', 0.2);
   postfx.params.exposure = num('exp', 1);
   postfx.params.grain = 0;
 
@@ -115,7 +118,12 @@ export default async function ({ engine, cameraRig, params }) {
     keyInserted: true, ignition: 'on', engineOn: true, handbrake: true, gear: 'N', headlights: 'low', cabinLight: true,
     radioOn: true, radioStation: 3, meterOn: true, vacantLamp: false, wipers: 0,
   });
-  taxi.setCabinOverride?.(num('dome', 0.18), 0);
+  taxi.setCabinOverride?.(num('dome', 0.6), 0);
+  // the lamp lens glows, but its point light (5 cm under the headliner) would flood the roof: the face
+  // cones below carry its light instead
+  engine.onUpdate(() => {
+    if (taxi.lights?.dome) taxi.lights.dome.intensity = num('domeLight', 0);
+  }, 95);
   try {
     taxi.glass?.fillFog?.('all', num('condense', 0.1));
   } catch (e) {
@@ -129,7 +137,7 @@ export default async function ({ engine, cameraRig, params }) {
 
   // ---------------------------------------------------------------- Ton, turned back in the driver's seat
   // a held "turn in the seat" pose: torso twist toward the back-left, left shoulder dropped back
-  const twist = num('twist', 1.3);
+  const twist = num('twist', 1.5);
   ACTIONS.itchTurnBack = {
     dur: 0, period: 1, fadeIn: 0, fadeOut: 0,
     pose(h) {
@@ -139,7 +147,8 @@ export default async function ({ engine, cameraRig, params }) {
       h.rig.addEuler(I.spine_03, num('chestPitch', -0.02), twist * 0.36, num('tilt', 0.04));
     },
   };
-  const ton = createHumanoid({ ...CHARACTERS.player.appearance });
+  const tonSpec = CHARACTERS.player.appearance;
+  const ton = createHumanoid({ ...tonSpec, hair: { ...tonSpec.hair, style: params.get('thair') || 'short' } });
   hideMouthParts(ton);
   ton.sitAt(taxi.seats.driver, { pose: 'drive', blend: 0.01 });
   ton.root.position.x += num('tonx', -0.12); // leaning in toward the gap between the front seats
@@ -157,12 +166,24 @@ export default async function ({ engine, cameraRig, params }) {
 
   // ---------------------------------------------------------------- the woman in white, back seat
   const seat = params.get('seat') || 'rearCenter';
-  const ww = createHumanoid({ ...CHARACTERS.womanWhite.appearance, noBlink: true });
+  const wwSpec = CHARACTERS.womanWhite.appearance;
+  const ww = createHumanoid({ ...wwSpec, ghost: { ...wwSpec.ghost, wet: num('wet2', 0.5) }, noBlink: true });
   hideMouthParts(ww);
   ww.sitAt(taxi.seats[seat], { pose: 'sitCar', blend: 0.01 });
+  const wtwist = num('wtwist', -0.9);
+  ACTIONS.itchTurnWW = {
+    dur: 0, period: 1, fadeIn: 0, fadeOut: 0,
+    pose(h) {
+      const I = h.t.index;
+      h.rig.addEuler(I.spine_01, 0, wtwist * 0.22, 0);
+      h.rig.addEuler(I.spine_02, 0, wtwist * 0.3, 0);
+      h.rig.addEuler(I.spine_03, 0, wtwist * 0.36, 0);
+    },
+  };
+  ww.play('itchTurnWW', { loop: true });
   ww.root.position.x += num('wox', -0.05); // perched on the edge of the seat, leaning toward the gap
   ww.root.position.z += num('woz', -0.12);
-  ww.setGhost({ still: 1, stare: 1, noBlink: 1, breathStop: 1, uncanny: num('uncanny', 0.3), veins: num('veins', 0), hairOverFace: num('hof', 0), headRoll: num('roll', 0.1), headPitch: num('pitch', 0.12), unlimited: 1 }, 100);
+  ww.setGhost({ still: 1, stare: num('stare', 0.5), noBlink: 1, breathStop: 1, uncanny: num('uncanny', 0), veins: num('veins', 0), hairOverFace: num('hof', 0), headRoll: num('roll', 0.1), headPitch: num('pitch', 0.12), unlimited: 1 }, 100);
   ww.setExpression({ smile: num('smile', 0.0), creepy: num('creepy', 0.25), sad: num('wsad', 0.2) });
   ww.bodyLean = { x: num('leanx', 0), y: num('lean', 0.3) };
 
@@ -210,7 +231,7 @@ export default async function ({ engine, cameraRig, params }) {
   // Ton's gaze: her face, pulled a little toward the lens so his face turns to the camera (&tblend)
   const tonGaze = new THREE.Object3D();
   scene.add(tonGaze);
-  const tblend = num('tblend', 0.3);
+  const tblend = num('tblend', 0.7);
   engine.onUpdate(() => {
     const a = ww.bones.Head.getWorldPosition(V(0, 0, 0));
     const b = eye.getWorldPosition(V(0, 0, 0));
@@ -220,21 +241,36 @@ export default async function ({ engine, cameraRig, params }) {
   ww.lookAt(params.get('wlook') === 'ton' ? ton.bones.Head : eye, { weight: 1, speed: 30, unlimited: true });
 
   // ---------------------------------------------------------------- light
-  // the dome lamp's light as a warm cone pointed down at the two faces (the headliner right next to
-  // the bulb stays dim, so the title can sit on it); &dome is the lamp's own glow / spill
-  const domeAt = taxi.anchorLocal('cabinLight').add(V(0, -0.05, 0));
-  const cone = new THREE.SpotLight(0xffcf94, num('key', 2.2), 2.6, num('cone', 1.05), 0.75, 2);
-  cone.position.copy(domeAt);
-  cone.target.position.set(num('kx', 0.02), num('ky', 0.95), num('kz', 0.62));
-  body.add(cone, cone.target);
+  // the dome lamp's light as two narrow warm cones from the lamp onto the two faces, so the headliner
+  // right next to the bulb stays dark (the title sits on it); &dome is the lamp's own glow / spill
+  const domeAt = taxi.anchorLocal('cabinLight').add(V(0, -0.06, 0.02));
+  const faceSpot = (color, intensity, target, angle) => {
+    const sp = new THREE.SpotLight(color, intensity, 2.2, angle, 0.85, 2);
+    sp.position.copy(domeAt);
+    sp.target.position.copy(target);
+    body.add(sp, sp.target);
+    return sp;
+  };
+  faceSpot(0xffc78c, num('tkey', 1.6), V(num('tkx', 0.24), num('tky', 1.02), num('tkz', 0.16)), num('tcone', 0.5));
+  faceSpot(0xffe0bc, num('key', 1.3), V(num('kx', -0.12), num('ky', 0.98), num('kz', 0.9)), num('cone', 0.5));
   // a faint warm bounce from the dress / seat onto her face (from below)
-  const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.12), 1.0, 2);
+  const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.1), 1.0, 2);
   wkey.position.set(num('wkx', -0.05), num('wky', 0.85), num('wkz', 0.75));
   body.add(wkey);
   // cold moon spill through the rear glass (separates her wet hair from the dark)
   const rim = new THREE.PointLight(0x8aa4c8, num('rim', 0.5), 2.4, 2);
   rim.position.set(num('rx', -0.45), num('ry', 1.25), num('rz', 1.45));
   body.add(rim);
+  // an old, nicotine-dark headliner (set dressing: the cream one glows under the lamp)
+  body.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (m?.name === 'taxi_headliner' && !m.userData.itchDark) {
+        m.color.multiplyScalar(num('liner', 0.42));
+        m.userData.itchDark = true;
+      }
+    }
+  });
 
   const setView = (v) => {
     if (v.head) {

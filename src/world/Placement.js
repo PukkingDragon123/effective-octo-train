@@ -19,6 +19,7 @@ import { LANDMARK_NAMES } from './layout.js';
 import { ChunkBatcher } from './Batch.js';
 
 const TAG = 'world';
+const SMALL_PIECE_DIST = 85; // offerings / small shrines are not drawn beyond this (m)
 // set pieces the game reads as soon as the menu is up (the intro's spirit house, the fork shrine)
 const SYNC_LANDMARKS = new Set(['shrineMaRuay', 'spurShrine', 'spurStart', 'spurJunction', 'shrineApproach', 'fatherLamp']);
 const POLE_E = 1.0; // pole distance beyond the asphalt edge (m)
@@ -356,11 +357,16 @@ export class Placement {
       : Promise.resolve();
   }
 
-  /** Remaining work after a progressive build: [{x, z, run()}] (landmarks + dressing items). */
+  /**
+   * Remaining work after a progressive build: [{x, z, run()}] (landmarks + dressing items).
+   * A deferred landmark builds itself the moment game code reads its prop / anchors (a resumed
+   * shift can go straight to any pickup), so nothing ever sees a half-built landmark.
+   */
   jobs() {
     const out = [];
     for (const k of this._laterL || []) {
       const lm = this.world.landmarks[k];
+      this._lazyLandmark(lm);
       out.push({ x: lm.pos.x, z: lm.pos.z, kind: 'landmark', run: () => this._landmarkSafe(lm) });
     }
     for (const i of this._laterI || []) {
@@ -369,6 +375,45 @@ export class Placement {
     }
     this._laterL = this._laterI = null;
     return out;
+  }
+
+  _lazyLandmark(lm) {
+    if (lm._built) return;
+    const ensure = () => {
+      if (!lm._built) {
+        this._landmarkSafe(lm);
+        this.group.updateMatrixWorld(true);
+      }
+    };
+    const anchors = lm.anchors || {};
+    let prop = lm.prop ?? null, props = lm.props;
+    // anchors: a proxy until the landmark exists (then the real object again)
+    lm.anchors = new Proxy(anchors, {
+      get: (t, k) => (ensure(), t[k]),
+      has: (t, k) => (ensure(), k in t),
+      ownKeys: (t) => (ensure(), Reflect.ownKeys(t)),
+      getOwnPropertyDescriptor: (t, k) => (ensure(), Reflect.getOwnPropertyDescriptor(t, k)),
+    });
+    Object.defineProperty(lm, 'prop', { configurable: true, enumerable: true, get: () => (ensure(), prop), set: (v) => (prop = v) });
+    Object.defineProperty(lm, 'props', { configurable: true, enumerable: true, get: () => (ensure(), props), set: (v) => (props = v) });
+    lm._unlazy = () => {
+      delete lm.prop;
+      delete lm.props;
+      lm.prop = prop;
+      if (props !== undefined) lm.props = props;
+      lm.anchors = anchors;
+      delete lm._unlazy;
+    };
+    // the two world shortcuts the game reads directly
+    const w = this.world;
+    if (lm.kind === 'accident_curve' && !Object.getOwnPropertyDescriptor(w, 'memorialHelmet')?.get) {
+      let v = w.memorialHelmet;
+      Object.defineProperty(w, 'memorialHelmet', { configurable: true, enumerable: true, get: () => (ensure(), v), set: (x) => (v = x) });
+    }
+    if (lm.kind === 'noodle_shop' && !Object.getOwnPropertyDescriptor(w, 'noodleCounter')?.get) {
+      let v = w.noodleCounter;
+      Object.defineProperty(w, 'noodleCounter', { configurable: true, enumerable: true, get: () => (ensure(), v), set: (x) => (v = x) });
+    }
   }
 
   /** Merge chunks that got new props and have been quiet for a few scheduler slices. */
@@ -389,6 +434,7 @@ export class Placement {
   _landmarkSafe(lm) {
     if (!lm || lm._built) return;
     lm._built = true;
+    lm._unlazy?.();
     const tl0 = performance.now();
     try {
       this._buildLandmark(lm);
@@ -452,7 +498,7 @@ export class Placement {
     if (opts.batch) this.batcher.add(o, pos.x, pos.z);
     else {
       this.group.add(o);
-      this.pieces.push({ object: o, x: pos.x, z: pos.z, r: opts.r ?? 30 });
+      this.pieces.push({ object: o, x: pos.x, z: pos.z, r: opts.r ?? 30, near: !!opts.near });
     }
     o.updateMatrixWorld(true);
     if (result.colliders) this._colliders(result.colliders, pos, yaw, opts.colliderSpace === 'world');
@@ -533,16 +579,16 @@ export class Placement {
           const off = (i - 1.5) * 1.25;
           const p = pos.clone().addScaledVector(right, off);
           p.y = this._ground(p.x, p.z);
-          const r = add(P.createSpiritHouse({ style: styles[i], size: 0.75 + (i % 2) * 0.2, seed: seed + i, age: 0.9 }), p, yaw + (i - 1.5) * 0.08);
+          const r = add(P.createSpiritHouse({ style: styles[i], size: 0.75 + (i % 2) * 0.2, seed: seed + i, age: 0.9 }), p, yaw + (i - 1.5) * 0.08, { near: true });
           if (!main) main = r;
           else extra.push(r);
         }
         const z1 = pos.clone().addScaledVector(right, -2.6);
         z1.y = this._ground(z1.x, z1.z);
-        extra.push(add(P.createDressing('zebra_statues', { seed: seed + 9 }), z1, yaw + 0.3));
+        extra.push(add(P.createDressing('zebra_statues', { seed: seed + 9 }), z1, yaw + 0.3, { near: true }));
         const z2 = pos.clone().addScaledVector(right, 2.6);
         z2.y = this._ground(z2.x, z2.z);
-        extra.push(add(P.createDressing('red_soda_bottles', { seed: seed + 10 }), z2, yaw));
+        extra.push(add(P.createDressing('red_soda_bottles', { seed: seed + 10 }), z2, yaw, { near: true }));
         break;
       }
       case 'sacred_tree':
@@ -637,7 +683,7 @@ export class Placement {
         main = add(P.createVillageStop({ seed }), pos, yaw, { r: 50 });
         break;
       case 'spirit_house':
-        main = add(P.createSpiritHouse({ style: 'thai', seed, age: 0.8 }), pos, yaw, { r: 25 });
+        main = add(P.createSpiritHouse({ style: 'thai', seed, age: 0.8 }), pos, yaw, { near: true });
         break;
       case 'junction':
       case 'spur_start':
@@ -675,7 +721,7 @@ export class Placement {
     wrap.position.copy(pos);
     wrap.rotation.y = lm.yaw;
     tree.parent.add(wrap);
-    this.pieces.push({ object: wrap, x: pos.x, z: pos.z, r: 30 });
+    this.pieces.push({ object: wrap, x: pos.x, z: pos.z, r: 30, near: true });
     colliders.addCircle(pos.x, pos.z, Math.max(0.6, r * 0.95), { tag: TAG });
     this.colliderCount++;
     // offerings in front of the trunk, toward the road
@@ -686,11 +732,11 @@ export class Placement {
       p.y = this._ground(p.x, p.z);
       return p;
     };
-    const sh = this._put(P.createSpiritHouse({ style: 'thai', size: 0.85, seed: seed + 5, age: 0.85 }), at(1.1, -1.1), lm.yaw, { r: 30 });
+    const sh = this._put(P.createSpiritHouse({ style: 'thai', size: 0.85, seed: seed + 5, age: 0.85 }), at(1.1, -1.1), lm.yaw, { near: true });
     const list = [['zebra_statues', 0.5, 0.6], ['red_soda_bottles', 0.4, 1.3], ['thai_dancer_figurine', 0.35, -0.2], ['offering_tray', 0.6, 0.1], ['candles', 0.45, 0.9], ['garland', 0, 0]];
     list.forEach(([k, f, s2], i) => {
       if (k === 'garland') return;
-      this._put(P.createDressing(k, { seed: seed + 11 + i }), at(f, s2), lm.yaw + (i - 2) * 0.2, { r: 30 });
+      this._put(P.createDressing(k, { seed: seed + 11 + i }), at(f, s2), lm.yaw + (i - 2) * 0.2, { near: true });
     });
     const result = { object: tree, tree, clothWrap: wrap, spiritHouse: sh, trunkRadius: r, colliders: [] };
     lm.anchors.offering = sh.offeringAnchor || null;
@@ -716,14 +762,14 @@ export class Placement {
     wrap.position.copy(pos);
     wrap.rotation.y = lm.yaw;
     this.group.add(wrap);
-    this.pieces.push({ object: wrap, x: pos.x, z: pos.z, r: 25 });
+    this.pieces.push({ object: wrap, x: pos.x, z: pos.z, r: 25, near: true });
     const fwd = new THREE.Vector3(Math.sin(lm.yaw), 0, Math.cos(lm.yaw));
     const p = pos.clone().addScaledVector(fwd, r + 0.45);
     p.y = this._ground(p.x, p.z);
-    const tray = this._put(P.createDressing('offering_tray', { seed: seed + 2 }), p, lm.yaw, { r: 25 });
+    const tray = this._put(P.createDressing('offering_tray', { seed: seed + 2 }), p, lm.yaw, { near: true });
     const p2 = pos.clone().addScaledVector(fwd, r + 0.4).add(new THREE.Vector3(Math.cos(lm.yaw) * 0.5, 0, -Math.sin(lm.yaw) * 0.5));
     p2.y = this._ground(p2.x, p2.z);
-    this._put(P.createDressing('candles', { seed: seed + 3 }), p2, lm.yaw, { r: 25 });
+    this._put(P.createDressing('candles', { seed: seed + 3 }), p2, lm.yaw, { near: true });
     colliders.addCircle(pos.x, pos.z, 0.3, { tag: TAG });
     this.colliderCount++;
     return { object: tree, tree, clothWrap: wrap, offering: tray.object, colliders: [] };
@@ -888,9 +934,10 @@ export class Placement {
   update(dt, focus) {
     const dd = this.world.drawDistance ?? 150;
     this.batcher.update(focus, dd + 10);
+    const nearD = Math.min(dd, SMALL_PIECE_DIST);
     for (const p of this.pieces) {
-      const d = Math.hypot(p.x - focus.x, p.z - focus.z) - p.r;
-      p.object.visible = d < dd;
+      const d = Math.hypot(p.x - focus.x, p.z - focus.z);
+      p.object.visible = p.near ? d < nearD : d - p.r < dd;
     }
   }
 

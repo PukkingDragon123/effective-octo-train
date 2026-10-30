@@ -5,6 +5,7 @@
 // for derivative bump mapping (sharp wrinkles, pores, fur streaks without a normal map).
 import * as THREE from 'three';
 import { paintedMaterial } from '../render/index.js';
+import { nextSlice } from './sculpt.js';
 
 const CACHE = new Map();
 
@@ -50,17 +51,34 @@ function worley(x, y, P, s, out) {
   return out;
 }
 
-function makeTex(size, fn) {
-  const data = new Uint8Array(size * size * 4);
+/** rows of a detail texture (a generator: yields after every 16 rows so it can run in slices) */
+function* texRows(size, fn, data) {
   const px = [0.5, 0.5, 0.5, 0.5];
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    fn(x / size, y / size, px);
-    const o = (y * size + x) * 4;
-    data[o] = Math.max(0, Math.min(255, px[0] * 255));
-    data[o + 1] = Math.max(0, Math.min(255, px[1] * 255));
-    data[o + 2] = Math.max(0, Math.min(255, px[2] * 255));
-    data[o + 3] = Math.max(0, Math.min(255, px[3] * 255));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      fn(x / size, y / size, px);
+      const o = (y * size + x) * 4;
+      data[o] = Math.max(0, Math.min(255, px[0] * 255));
+      data[o + 1] = Math.max(0, Math.min(255, px[1] * 255));
+      data[o + 2] = Math.max(0, Math.min(255, px[2] * 255));
+      data[o + 3] = Math.max(0, Math.min(255, px[3] * 255));
+    }
+    if ((y & 15) === 15) yield;
   }
+}
+let _deferTex = null; // detailTextureAsync(): capture (size, fn) instead of painting synchronously
+function makeTex(size, fn) {
+  if (_deferTex) {
+    _deferTex.size = size;
+    _deferTex.fn = fn;
+    throw _deferTex;
+  }
+  const data = new Uint8Array(size * size * 4);
+  const it = texRows(size, fn, data);
+  while (!it.next().done);
+  return texFromData(data, size);
+}
+function texFromData(data, size) {
   const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.magFilter = THREE.LinearFilter;
@@ -132,6 +150,34 @@ export function detailTexture(kind) {
       o[3] = h;
     });
   }
+  CACHE.set(kind, t);
+  return t;
+}
+
+/** detailTexture(kind) painted in ~4 ms slices between frames (prewarm); same pixels, same cache. */
+export async function detailTextureAsync(kind, budget = 4) {
+  if (CACHE.has(kind)) return CACHE.get(kind);
+  const req = { size: 0, fn: null };
+  _deferTex = req;
+  try {
+    detailTexture(kind);
+  } catch (e) {
+    if (e !== req) throw e;
+  } finally {
+    _deferTex = null;
+  }
+  if (CACHE.has(kind) || !req.fn) return CACHE.get(kind);
+  const data = new Uint8Array(req.size * req.size * 4);
+  const it = texRows(req.size, req.fn, data);
+  let t0 = performance.now();
+  while (!it.next().done) {
+    if (performance.now() - t0 > budget) {
+      await nextSlice();
+      t0 = performance.now();
+    }
+  }
+  if (CACHE.has(kind)) return CACHE.get(kind); // somebody needed it synchronously meanwhile
+  const t = texFromData(data, req.size);
   CACHE.set(kind, t);
   return t;
 }

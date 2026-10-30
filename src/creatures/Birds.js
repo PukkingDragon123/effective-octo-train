@@ -9,6 +9,10 @@ import { Sculpt } from './sculpt.js';
 import { Entity, TAU, noise, rand } from './util.js';
 
 let GEO = null;
+/** egret body + wing sculpts and their material (cached; prewarm: run through prebuildSculpts) */
+export function egretGeometry() {
+  return geos();
+}
 function geos() {
   if (GEO) return GEO;
   const B = new Sculpt({ cell: 0.009 });
