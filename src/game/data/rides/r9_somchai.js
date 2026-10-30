@@ -36,10 +36,13 @@ export const RIDE_SOMCHAI = {
   ],
   deathOnWrong: 'home',
   memoryHooks: ['m_photo', 'm_sticker', 'm_amulet', 'm_helmet', 'm_noodle', 'm_letter', 'm_song'],
+  // fatherLamp → fork is only ~460 m. The dawn mist folds the road (Ah Kong is stretching the
+  // night) so the last ride lasts ~4 minutes; the sky still eases 05:00 → 05:40 over it.
+  pacing: { cruiseKmh: 30, speedCapKmh: 35, minSeconds: 230, stretch: 'mist' },
   dialogue: {
     hail: [P('...แท็กซี่', '...taxi.', { tone: 'whisper', action: 'hail' })],
     greet: [
-      P('ขอโทษนะ... รถคันนี้ยังวิ่งอยู่ไหม', 'Excuse me... is this cab still running?'),
+      P('ไปไหมครับ... ทางศาลเจ้า', 'Going my way...? Towards the shrine?'),
       T('เสียงนี้...', 'That voice...', { pause: 1.0 }),
       P('รถสวยนะ ดูแลดีเหมือนเจ้าของเก่าเลย', "Nice cab. Looked after, the way its old owner did.", { emotion: 'smile' }),
     ],
@@ -50,7 +53,8 @@ export const RIDE_SOMCHAI = {
     beats: [
       {
         id: 'turnToMe',
-        trigger: { type: 'progress', at: 0.06 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.05 },
         lines: [
           P('หันมาให้พ่อเห็นหน้าหน่อย', 'Turn so I can see your face.', { tone: 'whisper' }),
           T('ข้อสาม... ห้ามหัน ไม่ว่าจะได้ยินอะไร', "Rule three... never turn. Whatever you hear."),
@@ -68,7 +72,8 @@ export const RIDE_SOMCHAI = {
       },
       {
         id: 'sticker',
-        trigger: { type: 'progress', at: 0.16 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.15 },
         lines: [
           P('สติกเกอร์การ์ตูนตรงนั้น ลูกชายลุงแปะไว้ตอนเจ็ดขวบ', 'That cartoon sticker there. My son stuck it on when he was seven.', { emotion: 'smile', action: 'point' }),
           P('เมียบอกให้แกะออก ลุงไม่ยอม', 'My wife told me to peel it off. I wouldn\'t.'),
@@ -76,7 +81,8 @@ export const RIDE_SOMCHAI = {
       },
       {
         id: 'washing',
-        trigger: { type: 'progress', at: 0.26 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.24 },
         lines: [
           P('ลุงล้างรถคันนี้ทุกเช้าเลยนะ', 'I washed this cab every single morning.'),
           P('เผื่อลูกกลับบ้าน จะได้เห็นรถพ่อมันสะอาด', "In case my boy came home. So he'd see his dad's car clean.", { emotion: 'sad' }),
@@ -84,7 +90,8 @@ export const RIDE_SOMCHAI = {
       },
       {
         id: 'sonBangkok',
-        trigger: { type: 'progress', at: 0.34 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.32 },
         lines: [
           P('ลูกชายลุงอยู่กรุงเทพฯ ทำงานอะไรก็ไม่รู้', "My son's in Bangkok. Doing what, I couldn't tell you."),
           P('ทะเลาะกันครั้งสุดท้าย... เรื่องโง่ ๆ', 'Our last fight... over something stupid.'),
@@ -108,23 +115,45 @@ export const RIDE_SOMCHAI = {
           P('♪ ทางกลับบ้าน ไกลแค่ไหน ใจยังรอ... ♪', '♪ However long the road back home, my heart still waits... ♪', { tone: 'sing', action: 'sing' }),
         ],
       },
+      // --- these three only play if Ton found that memory: the player's searching is answered
+      {
+        id: 'helmet',
+        if: { memories: ['m_helmet'] },
+        trigger: { type: 'progress', at: 0.48 },
+        lines: [
+          P('เช้ามืดวันนั้นฝนตกหนัก... ลุงไม่น่าขี่มอเตอร์ไซค์ออกไปเลย', "That morning it poured... I should never have taken the bike out.", { emotion: 'sad' }),
+          P('แค่จะไปซื้อพวงมาลัยใหม่มาแขวนหน้ารถ', 'Only to buy a fresh garland for the mirror.'),
+          T('...พวงมาลัยให้ลูกแคล้วคลาด', '...a garland to keep his son safe.', { pause: 1.0 }),
+        ],
+      },
       {
         id: 'amulet',
         trigger: { type: 'progress', at: 0.55 },
         lines: [
           P('พระที่ห้อยอยู่นั่น เมียลุงให้ไว้', 'The amulet hanging there. My wife gave it to me.'),
-          P('บอกให้ห้อยไว้ คุ้มครองคนขับ', 'Told me to keep it there. To protect whoever drives.'),
+          P('เขาไปก่อนลุงตั้งหลายปี... แต่พระยังห้อยอยู่ตรงนั้น', 'She went years before me... but the amulet stayed right there.', { emotion: 'sad' }),
+          P('บอกให้ห้อยไว้ คุ้มครองคนขับ', 'She said keep it there. To protect whoever drives.'),
+        ],
+      },
+      {
+        id: 'noodle',
+        if: { memories: ['m_noodle'] },
+        trigger: { type: 'progress', at: 0.62 },
+        lines: [
+          P('หิวเส้นเล็กน้ำตกร้านป้าเล็กจัง', "I could murder a bowl of Lek's thin noodles.", { emotion: 'smile' }),
+          P('ไม่ใส่ถั่วงอกนะ... จำไว้', 'No bean sprouts... remember that.', { emotion: 'smile' }),
         ],
       },
       {
         id: 'photo',
-        trigger: { type: 'progress', at: 0.66 },
+        trigger: { type: 'progress', at: 0.68 },
         lines: [
           P('ที่บังแดดมีรูปเด็กอยู่ใบนึง... ยังอยู่ไหม', "There's a photo of a little boy in the sun visor... still there?"),
           C([
             { key: 'yes', th: 'ยังอยู่ครับ', en: "It's still there." },
             { key: 'silent', th: '(เงียบ)', en: '(say nothing)' },
           ], {
+            id: 'somchai_photo',
             timeout: 7,
             defaultKey: 'silent',
             branches: {
@@ -135,7 +164,18 @@ export const RIDE_SOMCHAI = {
         ],
       },
       {
+        id: 'letter',
+        if: { memories: ['m_letter'] },
+        trigger: { type: 'progress', at: 0.78 },
+        lines: [
+          P('ลุงเคยเขียนจดหมายถึงลูก... ลุงเขียนไม่เก่งหรอก', "I wrote my boy a letter once... I'm no good with words."),
+          P('ไม่กล้าส่ง ยัดไว้ในลิ้นชักหน้ารถนั่นแหละ', 'Never had the nerve to send it. Stuffed it in the glovebox.'),
+          T('ผมอ่านแล้วครับ...', 'I read it...', { pause: 1.2 }),
+        ],
+      },
+      {
         id: 'whichWay',
+        essential: true,
         trigger: { type: 'event', event: 'forkApproach' },
         lines: [
           P('ลุงไม่แน่ใจแล้วว่าบ้านอยู่ทางไหน', "I'm not sure any more which way is home.", { tone: 'whisper' }),
@@ -176,12 +216,13 @@ export const RIDE_SOMCHAI = {
     forgiveChoice: C([
       { key: 'sorry', th: 'ขอโทษครับพ่อ', en: "I'm sorry, Dad." },
       { key: 'drive', th: '(ขับต่อไป)', en: '(drive on)' },
-    ], { timeout: 12, defaultKey: 'drive', prompt: { th: 'พูดอะไรกับพ่อสักคำ...', en: 'Say something to Dad...' } }),
+    ], { id: 'somchai_forgive', timeout: 12, defaultKey: 'drive', prompt: { th: 'พูดอะไรกับพ่อสักคำ...', en: 'Say something to Dad...' } }),
     forgive: [
       Y('ขอโทษครับพ่อ', "I'm sorry, Dad.", { emotion: 'sad' }),
       S('somchai', '...พ่อก็ขอโทษนะลูก', "...I'm sorry too, son.", { pause: 1.2 }),
       S('somchai', 'พ่อไม่เคยโกรธต้นเลย ไม่เคยเลย', 'I was never angry with you, Ton. Never.'),
-      S('somchai', 'กลับไปหาแม่นะ... แล้วล้างรถให้พ่อด้วย', 'Go home to your mum... and wash the car for me.', { emotion: 'smile' }),
+      S('somchai', 'ไปไหว้แม่ที่วัดบ้างนะ... บอกแม่ว่าพ่อตามไปแล้ว', 'Visit your mum at the temple... tell her I have gone to find her.', { emotion: 'smile' }),
+      S('somchai', 'แล้วล้างรถให้พ่อด้วยนะลูก', 'And wash the car for me, son.', { emotion: 'smile' }),
       S('somchai', 'ไปเถอะลูก... พระอาทิตย์ขึ้นแล้ว', 'Go on, son... the sun is up.', { emotion: 'smile', pause: 2.0 }),
     ],
     // Didn't look back (with or without the choice): he walks into the mist.

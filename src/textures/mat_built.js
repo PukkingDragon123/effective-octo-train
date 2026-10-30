@@ -568,7 +568,7 @@ export function genIncenseAsh(S = 512) {
   const fine = fbm(w, h, { cells: 90, octaves: 2, seed: 2202 });
   const H = field(n, (i) => 0.5 + low[i] * 0.08 + fine[i] * 0.03);
   const img = new Img(w, h);
-  gradientMap(img, field(n, (i) => 0.5 + low[i] * 0.4 + fine[i] * 0.25), [[0, '#4e4a46'], [0.4, '#77726c'], [0.75, '#9b968e'], [1, '#bab5ac']]);
+  gradientMap(img, field(n, (i) => 0.5 + low[i] * 0.45 + fine[i] * 0.3), [[0, '#3e3a36'], [0.4, '#6a6560'], [0.75, '#938e86'], [1, '#c2bdb2']]);
   // fallen sticks (thin, red-brown, grey burnt tips)
   const sticks = new Float32Array(n), tips = new Float32Array(n);
   for (let c = 0; c < 22 * k * k; c++) {
@@ -581,13 +581,20 @@ export function genIncenseAsh(S = 512) {
   tint(img, tips, '#5a5450', 0.8);
   // standing stubs seen from above
   const stubs = new Float32Array(n), stubC = new Float32Array(n);
-  for (let c = 0; c < 70 * k * k; c++) {
-    const x = rng() * w, y = rng() * h;
-    disc(stubs, w, h, x, y, 3.2 * k, 1, 'max', 1);
-    disc(stubC, w, h, x, y, 1.5 * k, 1, 'max', 1);
+  // clustered bundles of red joss-stick ends (seen from above)
+  for (let b = 0; b < 26 * k * k; b++) {
+    const bx = rng() * w, by = rng() * h, br = (6 + rng() * 22) * k;
+    const cnt = 4 + Math.floor(rng() * 16);
+    for (let c = 0; c < cnt; c++) {
+      const a = rng() * TAU, r = Math.sqrt(rng()) * br;
+      const x = bx + Math.cos(a) * r, y = by + Math.sin(a) * r;
+      disc(stubs, w, h, x, y, 2.4 * k, 1, 'max', 1);
+      disc(stubC, w, h, x, y, 1.1 * k, 1, 'max', 1);
+    }
   }
-  tint(img, stubs, '#a83a30', 0.9);
-  tint(img, stubC, '#2a1a16', 0.8);
+  tint(img, blur(stubs, w, h, Math.round(4 * k), 1), '#2a2420', 0.35); // soot around bundles
+  tint(img, stubs, '#b2362c', 0.95);
+  tint(img, stubC, '#3a2622', 0.8);
   // ash curls
   const curls = new Float32Array(n);
   for (let c = 0; c < 50 * k * k; c++) {

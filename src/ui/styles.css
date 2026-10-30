@@ -1190,3 +1190,20 @@
   .dlb-ui *::before,
   .dlb-ui *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; }
 }
+
+/* Thai line breaking for cinematic text: break at the spaces between clauses (never inside
+   a word the dictionary does not know) and balance the lines. */
+.dlb-ending__text-th,
+.dlb-ending__name-th,
+.dlb-death__th,
+.dlb-chapter__th,
+.dlb-confirm__th,
+.dlb-loading__line .th,
+.dlb-cr-note,
+.dlb-cr-dedic,
+.dlb-cr-thanks,
+.dlb-hint__th { word-break: keep-all; overflow-wrap: anywhere; text-wrap: balance; }
+.dlb-ending__text-en,
+.dlb-death__en,
+.dlb-sub__th,
+.dlb-sub__en { text-wrap: balance; }

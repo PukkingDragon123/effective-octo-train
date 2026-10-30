@@ -59,6 +59,7 @@ export const MEMORIES = [
     text: [
       { th: 'พระองค์เล็ก เลี่ยมกรอบทองเก่า ๆ อุ่นในมือ', en: 'A small amulet in an old gold frame. Warm in my hand.' },
       { th: 'แม่ห้อยให้พ่อตั้งแต่ก่อนผมเกิด', en: 'Mum hung it here for Dad before I was born.' },
+      { th: 'แม่ไม่อยู่แล้ว... แต่พระของแม่ยังอยู่', en: "Mum's gone... but her amulet is still here." },
     ],
     pencil: { th: 'พระแม่ อุ่นเวลามีผี', en: "Mum's amulet. warms near ghosts." },
   },

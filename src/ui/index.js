@@ -68,7 +68,8 @@ class UI {
     this.layer = root;
     root.classList.add('dlb-ui');
     root.dataset.device = input.lastDevice || 'keyboard';
-    const fv = { '--f-title': FONTS.title, '--f-body': FONTS.body, '--f-sign': FONTS.sign, '--f-lcd': FONTS.lcd, '--f-hand': FONTS.hand, '--f-display': FONTS.display || FONTS.sign };
+    // Cormorant has no Thai glyphs: let Thai inside title-styled text fall back to thin Kanit
+    const fv = { '--f-title': FONTS.title.replace(/,\s*'Times New Roman'/, ", 'Kanit', 'Times New Roman'"), '--f-body': FONTS.body, '--f-sign': FONTS.sign, '--f-lcd': FONTS.lcd, '--f-hand': FONTS.hand, '--f-display': FONTS.display || FONTS.sign };
     for (const k in fv) root.style.setProperty(k, fv[k]);
     root.style.setProperty('--grain-url', `url("${grainUrl()}")`);
     if (isSoftwareRendering()) root.classList.add('dlb-lite');

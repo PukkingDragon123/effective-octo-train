@@ -30,6 +30,9 @@ export const RIDE_BUA = {
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: ['m_photo', 'm_helmet'],
+  // marketLamp → fork is only ~680 m but carries ~2 min of the night's warmest talk plus the
+  // elephants. Old woman aboard + blue-hour mist: cap the speed and let the mist stretch the road.
+  pacing: { cruiseKmh: 35, speedCapKmh: 45, minSeconds: 170, stretch: 'mist' },
   gives: { item: 'garland', flag: 'garland', at: 'beat:garland' },
   dialogue: {
     hail: [P('พ่อคุณ... จอดให้ยายหน่อยลูก', 'Dear boy... stop for Grandma, love.', { action: 'hail' })],
@@ -43,6 +46,7 @@ export const RIDE_BUA = {
     beats: [
       {
         id: 'chai',
+        essential: true,
         trigger: { type: 'progress', at: 0.08 },
         lines: [
           P('ไอ้ชายมันขับแท็กซี่สีนี้แหละ มาซื้อมาลัยยายทุกเช้า', 'Chai drove a cab this colour. Bought my garlands every morning.'),
@@ -52,7 +56,8 @@ export const RIDE_BUA = {
       },
       {
         id: 'hisSon',
-        trigger: { type: 'progress', at: 0.2 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.22 },
         lines: [
           P('มันชอบเอามาลัยแขวนหน้ารถ บอกว่าให้ลูกชายแคล้วคลาด', 'He hung it by the mirror. Said it was to keep his son safe.'),
           P('ลูกชายมันไปอยู่กรุงเทพฯ ไม่เคยกลับมาเลย', 'His son went off to Bangkok. Never came back.', { emotion: 'sad' }),
@@ -60,6 +65,7 @@ export const RIDE_BUA = {
             { key: 'me', th: '...ผมเองครับยาย', en: "...that's me, Grandma." },
             { key: 'silent', th: '(เงียบ)', en: '(say nothing)' },
           ], {
+            id: 'bua_thatsMe',
             timeout: 8,
             defaultKey: 'silent',
             setOnPick: { me: { buaKnowsTon: true } },
@@ -88,7 +94,8 @@ export const RIDE_BUA = {
       },
       {
         id: 'garland',
-        trigger: { type: 'progress', at: 0.52 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.56 },
         lines: [
           P('นี่ ยายให้พวงมาลัย เอาไปแขวนหน้ารถ', "Here. Grandma's giving you a garland. Hang it up front.", { action: 'giveItem' }),
           P('แทนพวงของไอ้ชายมันนะลูก', 'In place of Chai\'s, love.', { emotion: 'sad' }),
@@ -104,7 +111,8 @@ export const RIDE_BUA = {
       },
       {
         id: 'funeral',
-        trigger: { type: 'progress', at: 0.78 },
+        essential: true,
+        trigger: { type: 'progress', at: 0.8 },
         lines: [
           P('ไอ้ชายมันเสียตอนหน้าฝน ตรงโค้งนั่นแหละ', 'Chai died in the rains. On that curve back there.', { emotion: 'sad' }),
           P('งานศพมันน่ะ... ลูกชายมันไม่มา', 'At his funeral... his son never came.'),

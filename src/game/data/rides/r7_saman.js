@@ -34,6 +34,7 @@ export const RIDE_SAMAN = {
   ],
   deathOnWrong: 'windowAttack',
   memoryHooks: ['m_song'],
+  pacing: { cruiseKmh: 40, minSeconds: 170, stretch: 'fog' }, // ~1.1 km: the shrine fog stretches the road
   dialogue: {
     hail: [P('ฮัลโหล! แท็กซี่! ทางนี้ครับพี่น้อง!', 'Hello! Taxi! Over here, brothers and sisters!', { tone: 'shout', action: 'wave' })],
     greet: [
@@ -65,13 +66,13 @@ export const RIDE_SAMAN = {
         id: 'joke1',
         trigger: { type: 'progress', at: 0.16 },
         lines: [
-          P('ทายซิ ผีอะไรกลัวฝนตก', "Riddle me this: what ghost is scared of rain?"),
+          P('ทายซิ ผีอะไรชอบนั่งแท็กซี่', 'Riddle me this: what kind of ghost loves taxis?'),
           C([
-            { key: 'what', th: 'ผีอะไรครับ', en: 'What ghost?' },
+            { key: 'what', th: 'ผีอะไรครับ', en: 'What kind?' },
             { key: 'silent', th: '(เงียบ)', en: '(say nothing)' },
-          ], { timeout: 5, defaultKey: 'silent' }),
-          P('ผีเสื้อไง! ปีกเปียก!', "A butterfly! Phi-suea, 'ghost-shirt'! Wet wings!", { emotion: 'smile', action: 'laugh' }),
-          P('ฮ่า ๆ ๆ ... ไม่ขำเหรอ', 'Ha ha ha... not funny?', { pause: 1.0 }),
+          ], { id: 'saman_riddle', timeout: 5, defaultKey: 'silent' }),
+          P('ผี-โดยสารไง! ฮ่า ๆ ๆ', "A passen-GHOST! Ha ha ha!", { emotion: 'smile', action: 'laugh' }),
+          P('...ไม่ขำเหรอ', '...not funny?', { pause: 1.0 }),
           P('ตอนผมยังมีชีวิต... เอ๊ย ตอนผมยังดัง คนดูขำนะ', 'Back when I was alive... er, I mean, famous, the crowd laughed.'),
         ],
       },
@@ -93,6 +94,7 @@ export const RIDE_SAMAN = {
       },
       {
         id: 'mySong',
+        essential: true, // points the player at memory m_song
         trigger: { type: 'progress', at: 0.5 },
         lines: [
           P('ตีสามแล้ว... คลื่นสามจะเปิดเพลงผม', "Past three... station three'll play my song now."),
@@ -107,7 +109,7 @@ export const RIDE_SAMAN = {
           P('ไอ้หนู... อย่าหันนะ', "Kid... don't turn around.", { tone: 'whisper' }),
           P('ที่หายใจรดคอเอ็งอยู่น่ะ... ไม่ใช่ลุงนะ', "Whatever's breathing on your neck... it isn't me.", { tone: 'whisper', emotion: 'fear' }),
           P('กำพระไว้ มองถนน เดี๋ยวลุงร้องเพลงกล่อมให้', "Hold your amulet, eyes on the road. I'll sing you through it."),
-          P('♪ หลับตาเถิดหนา ฟ้ายังไม่สาง... ♪', '♪ Close your eyes, my dear, the dawn is still far... ♪', { tone: 'sing', action: 'sing' }),
+          P('♪ อย่าเหลียวหลังไป... ทางข้างหน้ายังรอ... ♪', "♪ Don't look behind you... the road ahead still waits... ♪", { tone: 'sing', action: 'sing' }),
         ],
       },
       {

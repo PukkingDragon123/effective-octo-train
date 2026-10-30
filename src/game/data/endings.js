@@ -36,7 +36,7 @@ export const ENDINGS = {
         id: 'alms',
         note: 'The road opens onto Huai Sai at sunrise. A line of monks with alms bowls. Ton stops, kneels, offers sticky rice.',
         lines: [
-          S('monk', 'ยถา วาริวหา ปูรา...', 'Yatha varivaha pura...', { tone: 'sing' }),
+          S('monk', 'ยถา วาริวหา ปูรา ปริปูเรนฺติ สาครํ...', 'Yatha varivaha pura paripurenti sagaram...', { tone: 'sing', speakerTH: 'พระ', speakerEN: 'Monk' }),
           N('ผมกรวดน้ำให้พ่อ', 'I pour the water of merit for my father.'),
         ],
       },
@@ -48,7 +48,7 @@ export const ENDINGS = {
     ],
     epilogue: [
       { th: 'เช้านั้น ต้นล้างรถเขียวเหลืองคันเก่า', en: 'That morning, Ton washed the old green-and-yellow cab.' },
-      { th: 'แล้วขับกลับไปหาแม่', en: 'Then he drove home to his mother.' },
+      { th: 'แล้วขับกลับไปเปิดหน้าต่างบ้านหลังเก่า', en: 'Then he drove home, and opened the windows of the old house.' },
     ],
     creditsExtra: [{ th: 'ทุกเส้นทางไปจบที่ศาลเจ้ามารวย', en: 'Every road ends at Ma Ruay Shrine.' }],
     unlocks: ['endingDawn'],
@@ -72,8 +72,9 @@ export const ENDINGS = {
         id: 'years',
         note: 'Hard cut: the garage, fluorescent tube flickering. An older Ton (grey stubble) smokes beside the taxi. A motorbike headlight comes up the spur road. A young stranger rides in.',
         lines: [
-          S('player', 'อีกรอบแล้วสินะ', 'Again, huh?', { tone: 'normal' }),
-          S('player', 'กุญแจอยู่นี่ กฎอยู่ในกระดาษ อ่านให้จำ', 'Keys are here. Rules are on the paper. Learn them.', { tone: 'normal' }),
+          N('อีกคืนแล้วสินะ', 'Another night, then.'),
+          S('player', 'มาขับกะดึกใช่ไหม... มาแล้วก็ดี', "Here for the night shift? ...Good. You came."),
+          S('player', 'กุญแจอยู่นี่ กฎอยู่ในกระดาษ อ่านให้จำ', 'Keys are here. Rules are on the paper. Learn them.'),
         ],
       },
     ],
@@ -114,7 +115,7 @@ export const ENDINGS = {
     ],
     epilogue: [
       { th: 'บางคืนก็ยาวพอให้พ่อกับลูก ได้นั่งรถคันเดียวกันอีกครั้ง', en: 'Some nights are long enough for a father and son to share one more ride.' },
-      { th: 'ต้นกลับบ้าน และล้างรถทุกเช้า', en: 'Ton went home, and washed the car every morning.' },
+      { th: 'ต้นกลับบ้าน ไปไหว้พ่อกับแม่ที่วัด และล้างรถทุกเช้า', en: 'Ton went home. He visited his parents at the temple, and washed the car every morning.' },
     ],
     creditsExtra: [
       { th: 'ด้วยความระลึกถึงพ่อทุกคนที่พูดไม่เก่ง', en: 'For every father who was never good with words.' },

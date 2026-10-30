@@ -2,6 +2,7 @@
 // robe (patchwork), tri-colour shrine cloths (red / yellow / green satin).
 import { makeRng } from '../core/math.js';
 import { fbm, worley, blur, line, disc, cellTable, crack } from './noise.js';
+
 import {
   Img, gradientMap, strokes, shade, normalMap, grayBytes, colorOut, dataOut, tint, modulate, sstep, smask, field, blotches, adjust, rgb, bleed,
 } from './painter.js';
@@ -138,6 +139,33 @@ function folds(w, h, seed, k, dir = 'v') {
   return out;
 }
 
+/**
+ * Paint cloth folds with brush strokes: long dark creases and light ridges along the fold
+ * direction, then a smear pass. pal = [dark, mid, light, highlight]. Returns a height field.
+ */
+function paintFolds(img, pal, seed, k, dir = 'v', sheen = 0.5) {
+  const { w, h } = img;
+  const n = w * h;
+  const ang = dir === 'v' ? Math.PI / 2 : 0;
+  const low = fbm(w, h, { cells: 3, octaves: 4, seed: seed + 9 });
+  gradientMap(img, field(n, (i) => 0.5 + low[i] * 0.3), [[0, pal[0]], [0.5, pal[1]], [1, pal[2]]]);
+  const dark = rgb(pal[0]), light = rgb(pal[2]), hi = rgb(pal[3]);
+  const set = (c) => (x, y, r, out) => {
+    const v = 0.85 + r() * 0.3;
+    out[0] = c[0] * v;
+    out[1] = c[1] * v;
+    out[2] = c[2] * v;
+  };
+  strokes(img, { seed: seed + 1, color: set(dark), len: [90 * k, 260 * k], width: [3 * k, 9 * k], opacity: 0.5, coverage: 0.5, angle: ang, angleJitter: 0.1, curve: 0.18, bristles: 6, bristleAmt: 0.4 });
+  strokes(img, { seed: seed + 2, color: set(light), len: [70 * k, 220 * k], width: [4 * k, 12 * k], opacity: 0.4, coverage: 0.45, angle: ang, angleJitter: 0.1, curve: 0.18, bristles: 8, bristleAmt: 0.5 });
+  strokes(img, { seed: seed + 3, color: set(hi), len: [40 * k, 140 * k], width: [2 * k, 5 * k], opacity: 0.35 * sheen * 2, coverage: 0.18, angle: ang, angleJitter: 0.08, curve: 0.15, bristles: 5 });
+  strokes(img, { seed: seed + 4, len: [24 * k, 60 * k], width: [6 * k, 14 * k], opacity: 0.3, coverage: 0.6, angle: ang, angleJitter: 0.15, valueJitter: 0.03, smear: 0.4 });
+  const H = new Float32Array(n);
+  const d = img.d;
+  for (let i = 0; i < n; i++) H[i] = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.55 + d[i * 4 + 2] * 0.15;
+  return blur(H, w, h, Math.max(1, Math.round(2 * k)), 2);
+}
+
 function clothFinish(img, H, n, w, h, k, seed, sheen) {
   if (sheen) {
     const fl = blur(H, w, h, Math.round(3 * k), 1);
@@ -149,48 +177,43 @@ function clothFinish(img, H, n, w, h, k, seed, sheen) {
 export function genFabricCotton(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const wv = weave(w, h, Math.round(160 * k), false, 3400);
-  const fo = folds(w, h, 3401, k);
   const low = fbm(w, h, { cells: 3, octaves: 4, seed: 3402 });
   const img = new Img(w, h);
-  gradientMap(img, field(n, (i) => 0.4 + wv.H[i] * 0.2 + fo[i] * 0.3 + low[i] * 0.1), [[0, '#9c968a'], [0.5, '#cbc5b7'], [1, '#e6e1d4']]);
+  const H = paintFolds(img, ['#a59f92', '#cbc5b7', '#e2ddcf', '#f2eee4'], 3401, k, 'v', 0.2);
+  modulate(img, field(n, (i) => wv.H[i] - 0.5), 0.08);
   const rng = makeRng(3403);
-  tint(img, blotches(w, h, rng, 6, 10 * k, 40 * k, low, 0.2), '#a89a7a', 0.35);
-  clothFinish(img, wv.H, n, w, h, k, 3404, 0);
-  const H = field(n, (i) => wv.H[i] * 0.05 + fo[i] * 0.3);
-  return { fabric_cotton: colorOut(img), fabric_cotton_normal: dataOut(normalMap(H, w, h, 10 * k), w, h) };
+  tint(img, blotches(w, h, rng, 6, 10 * k, 40 * k, low, 0.2), '#a89a7a', 0.3);
+  const N = field(n, (i) => wv.H[i] * 0.04 + H[i] * 0.5);
+  return { fabric_cotton: colorOut(img), fabric_cotton_normal: dataOut(normalMap(N, w, h, 10 * k), w, h) };
 }
 
 export function genFabricSilk(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const wv = weave(w, h, Math.round(220 * k), true, 3500);
-  const fo = folds(w, h, 3501, k);
   const shot = fbm(w, h, { cells: [2, 8], octaves: 3, seed: 3502 });
   const img = new Img(w, h);
-  gradientMap(img, field(n, (i) => 0.35 + fo[i] * 0.45 + wv.H[i] * 0.08 + shot[i] * 0.1), [[0, '#7c7568'], [0.5, '#c2b9a8'], [1, '#f0e8d6']]);
-  // silk sheen streaks along the folds (warp-faced)
-  tint(img, field(n, (i) => sstep(0.7, 0.98, fo[i]) * 0.6), '#ffffff', 0.35, 'screen');
+  const H = paintFolds(img, ['#8a8272', '#c2b9a8', '#e6dccb', '#ffffff'], 3501, k, 'v', 0.7);
   tint(img, smask(shot, 0.1, 0.6, 0.25), '#d6c08a', 0.3); // shot-silk warm shift
-  clothFinish(img, wv.H, n, w, h, k, 3503, 0.4);
-  const H = field(n, (i) => wv.H[i] * 0.02 + fo[i] * 0.35);
+  modulate(img, field(n, (i) => wv.H[i] - 0.5), 0.04);
+  const N = field(n, (i) => wv.H[i] * 0.02 + H[i] * 0.5);
   return {
     fabric_silk: colorOut(img),
-    fabric_silk_normal: dataOut(normalMap(H, w, h, 10 * k), w, h),
-    fabric_silk_rough: dataOut(grayBytes(field(n, (i) => 0.35 - fo[i] * 0.1 + wv.H[i] * 0.05), w, h), w, h),
+    fabric_silk_normal: dataOut(normalMap(N, w, h, 10 * k), w, h),
+    fabric_silk_rough: dataOut(grayBytes(field(n, (i) => 0.42 - H[i] * 0.15 + wv.H[i] * 0.05), w, h), w, h),
   };
 }
 
 export function genFabricDenim(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const wv = weave(w, h, Math.round(150 * k), true, 3600);
-  const fo = folds(w, h, 3601, k);
   const low = fbm(w, h, { cells: 3, octaves: 4, seed: 3602 });
   const img = new Img(w, h);
-  gradientMap(img, field(n, (i) => 0.4 + wv.warpM[i] * 0.25 + wv.slub[i] * 0.15 + fo[i] * 0.15), [[0, '#16203a'], [0.45, '#2a3d63'], [0.8, '#4a6088'], [1, '#8e9cb4']]);
-  tint(img, field(n, (i) => (1 - wv.warpM[i]) * 0.5), '#9aa0aa', 0.45); // white weft
-  tint(img, field(n, (i) => sstep(0.6, 0.95, fo[i]) * sstep(-0.2, 0.4, low[i]) * 0.6), '#a8b4c8', 0.4); // fading on fold crests
-  clothFinish(img, wv.H, n, w, h, k, 3603, 0);
-  const H = field(n, (i) => wv.H[i] * 0.06 + fo[i] * 0.3);
-  return { fabric_denim: colorOut(img), fabric_denim_normal: dataOut(normalMap(H, w, h, 10 * k), w, h) };
+  const H = paintFolds(img, ['#16203a', '#2c3f66', '#4a6088', '#8a9ab4'], 3601, k, 'v', 0.3);
+  modulate(img, field(n, (i) => wv.warpM[i] - 0.5), 0.18);
+  tint(img, field(n, (i) => (1 - wv.warpM[i]) * 0.35), '#9aa0aa', 0.4); // white weft
+  tint(img, field(n, (i) => sstep(0.55, 0.85, H[i] * 2.2) * sstep(-0.2, 0.4, low[i]) * 0.5), '#a8b4c8', 0.4); // fading on fold crests
+  const N = field(n, (i) => wv.H[i] * 0.06 + H[i] * 0.5);
+  return { fabric_denim: colorOut(img), fabric_denim_normal: dataOut(normalMap(N, w, h, 10 * k), w, h) };
 }
 
 // MONK ROBE — saffron-ochre "rice paddy" patchwork: rectangular panels joined by stitched
@@ -198,7 +221,6 @@ export function genFabricDenim(S = 512) {
 export function genMonkRobe(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const wv = weave(w, h, Math.round(140 * k), false, 3700);
-  const fo = folds(w, h, 3701, k);
   const low = fbm(w, h, { cells: 3, octaves: 4, seed: 3702 });
   // paddy layout: 5 columns, alternating 2/3 rows, with narrow strips between
   const colsX = [0, 0.06, 0.3, 0.36, 0.64, 0.7, 0.94, 1];
@@ -218,13 +240,13 @@ export function genMonkRobe(S = 512) {
     }
   }
   const img = new Img(w, h);
-  gradientMap(img, field(n, (i) => 0.35 + fo[i] * 0.35 + (pid[i] - 0.5) * 0.2 + wv.H[i] * 0.08 + low[i] * 0.1), [[0, '#6a3410'], [0.35, '#9a5418'], [0.65, '#c07224'], [1, '#d99a44']]);
+  const Hf = paintFolds(img, ['#6a3410', '#a85c1c', '#c87a2a', '#e8a850'], 3705, k, 'v', 0.3);
+  modulate(img, field(n, (i) => (pid[i] - 0.5) + (wv.H[i] - 0.5) * 0.5), 0.12);
   tint(img, seam, '#5a2c0e', 0.55);
   // stitch dashes along seams
   tint(img, field(n, (i) => seam[i] > 0.6 && ((i % w) + ((i / w) | 0)) % (6 * k) < 2.5 * k ? 0.6 : 0), '#e0a050', 0.5);
   tint(img, smask(low, 0.2, 0.7, 0.4), '#e4b06a', 0.3); // sun-faded
-  clothFinish(img, wv.H, n, w, h, k, 3704, 0);
-  const H = field(n, (i) => wv.H[i] * 0.04 + fo[i] * 0.3 - seam[i] * 0.02);
+  const H = field(n, (i) => wv.H[i] * 0.04 + Hf[i] * 0.5 - seam[i] * 0.02);
   return { monk_robe: colorOut(img), monk_robe_normal: dataOut(normalMap(H, w, h, 10 * k), w, h) };
 }
 
@@ -233,25 +255,24 @@ export function genMonkRobe(S = 512) {
 export function genCloths(S = 512) {
   const w = S, h = S, n = w * h, k = S / 512;
   const wv = weave(w, h, Math.round(200 * k), true, 3800);
-  const fo = folds(w, h, 3801, k, 'h');
   const low = fbm(w, h, { cells: 3, octaves: 4, seed: 3802 });
   const out = {};
   const pals = {
-    cloth_red: [['#4a0a0c', '#8e1a1c', '#c43a30', '#e2725a'], '#d8a090'],
-    cloth_yellow: [['#6a4a08', '#b68a14', '#e0b62c', '#f4dc78'], '#ecdcb0'],
-    cloth_green: [['#0c3218', '#17602e', '#2a8a46', '#78c08a'], '#b4d0b0'],
+    cloth_red: [['#4a0a0c', '#9a1e1e', '#c84030', '#f08a6a'], '#d8a090'],
+    cloth_yellow: [['#6a4a08', '#bc8e16', '#e2b82e', '#fae48a'], '#ecdcb0'],
+    cloth_green: [['#0c3218', '#196430', '#2e8c48', '#86cc96'], '#b4d0b0'],
   };
   const stain = field(n, (i) => sstep(0.55, 1.0, ((i / w) | 0) / h + low[i] * 0.2) * 0.6);
+  let H = null;
   for (const [key, [p, fade]] of Object.entries(pals)) {
     const img = new Img(w, h);
-    gradientMap(img, field(n, (i) => 0.25 + fo[i] * 0.55 + wv.H[i] * 0.06 + low[i] * 0.1), [[0, p[0]], [0.4, p[1]], [0.75, p[2]], [1, p[3]]]);
-    tint(img, field(n, (i) => sstep(0.75, 0.98, fo[i]) * 0.5), '#ffffff', 0.3, 'screen');
+    const Hf = paintFolds(img, p, 3803, k, 'h', 0.8);
+    if (!H) H = Hf;
+    modulate(img, field(n, (i) => wv.H[i] - 0.5), 0.05);
     tint(img, smask(low, 0.15, 0.7, 0.45), fade, 0.4);
     tint(img, stain, '#3a2a1c', 0.4);
-    clothFinish(img, wv.H, n, w, h, k, 3803, 0);
     out[key] = colorOut(img);
   }
-  const H = field(n, (i) => wv.H[i] * 0.02 + fo[i] * 0.35);
-  out.cloth_normal = dataOut(normalMap(H, w, h, 10 * k), w, h);
+  out.cloth_normal = dataOut(normalMap(field(n, (i) => wv.H[i] * 0.02 + H[i] * 0.5), w, h, 10 * k), w, h);
   return out;
 }
