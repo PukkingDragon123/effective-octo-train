@@ -112,7 +112,7 @@ export class Ambience {
       this.beds[def.name] = b;
     }
     const bank = core.samples;
-    if (bank && bank.state !== 'failed') {
+    if (bank && (bank.state === 'loading' || bank.state === 'ready')) {
       // wait (bounded) for the manifest, then choose recorded vs synthesized per slot
       Promise.race([bank.ready, new Promise((r) => setTimeout(r, 3000))]).then(() => this._decide());
     } else this._decide();

@@ -5,6 +5,7 @@ import { mat, glowMat, signMat, texMat, graffitiTex, crackTex, stainTex, clockTe
 import { lightSpec, attachFlicker } from './lib/lights.js';
 import { G, PAL, plasticChair, plasticStool, bottle, can, oilDrum, trashBag, crate, garland } from './lib/small.js';
 import { chofa } from './shrines.js';
+import { posterStack, litter, card, findPrint, missingPoster, snackBag } from './lib/print.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function anchor(parent, name, x, y, z, yaw = 0) {
@@ -260,6 +261,21 @@ export function createSala(opts = {}) {
   });
   out.clockAnchor = anchor(group, 'clock', ...clockPos);
 
+  // ---- printed matter: torn layered posters on the front pillars, a newspaper left on the
+  //      bench, wrappers / receipts / lottery stubs on the floor --------------------------------
+  k.details(() => {
+    for (const x of pillarXs) {
+      // front face of each front pillar (+Z) and the inner face of one back pillar
+      posterStack(k, { p: [x, FH + 1.3 + rng() * 0.25, pz + 0.123], w: 0.2, n: 2 + Math.floor(rng() * 3), seed: seed * 7 + Math.round(x * 10), spread: 0.04 });
+    }
+    posterStack(k, { p: [pillarXs[0] + 0.123, FH + 1.9, -pz + 0.02], r: Math.PI / 2, w: 0.2, n: 3, seed: seed * 11 + 3, spread: 0.04, top: missingPoster() });
+    const news = findPrint([['newspaper'], ['newspaper_local']], rng);
+    if (news) card(k, news.kind, news.opts, { p: [-bw / 2 + 0.9, benchY + 0.006, -pz + 0.32], r: [-Math.PI / 2, 0, 0.4, 'XYZ'], scale: 0.85, fold: 0.1, seed: seed + 5, wt: { vary: 0.3, dust: 0.3 } });
+    litter(k, 0, 0.2, Math.min(W, D) * 0.45, { n: variant === 2 ? 14 : 9, y: FH, seed: seed + 13 });
+    litter(k, W / 2 + 0.3, pz + 0.7, 0.7, { n: 5, y: 0, seed: seed + 17 });
+    if (variant === 2) snackBag(k, { p: [px - 0.4, benchY + 0.01, 0.2], r: [-1.35, 0.4, 0, 'YXZ'], seed: seed + 2 });
+  });
+
   // ---- loose furniture + litter ---------------------------------------------------------
   k.details(() => {
     const chairCols = [PAL.chairRed, PAL.chairBlue, PAL.chairWhite, PAL.chairGreen];
@@ -394,6 +410,13 @@ export function createBusStop(opts = {}) {
   out.lampAnchor = anchor(group, 'lamp', fl.anchorPos.x, fl.anchorPos.y, fl.anchorPos.z);
   out.lightSpec = lightSpec('dying', out.lampAnchor, { intensity: 14 });
   out.lights.push(out.lightSpec);
+  // posters layered on the side panels (missing-child poster freshest on top), litter on the pad
+  k.details(() => {
+    posterStack(k, { p: [W / 2 + 0.018, 1.25, 0.15], r: Math.PI / 2, w: 0.36, n: 4, seed: seed * 5 + 1, spread: 0.18, top: missingPoster() });
+    posterStack(k, { p: [-W / 2 + 0.018, 1.3, -0.1], r: Math.PI / 2, w: 0.34, n: 3, seed: seed * 5 + 2, spread: 0.15 });
+    posterStack(k, { p: [-W / 2 - 0.018, 1.2, 0.2], r: -Math.PI / 2, w: 0.34, n: 2, seed: seed * 5 + 3, spread: 0.12 });
+    litter(k, 0, 0.25, 1.5, { n: 10, y: 0.1, seed: seed + 21 });
+  });
   // litter + a stray chair
   k.details(() => {
     plasticChair(k, { p: [-W / 2 - 0.6, 0.0, 0.5], r: 0.8, color: PAL.chairWhite, dust: 0.8 });

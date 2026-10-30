@@ -18,7 +18,7 @@ import { glassDirtTex, makeCanvas, toTexture } from './VehicleTextures.js';
 import { setupPortalCamera } from './Mirrors.js';
 import { FONTS } from '../ui/fonts.js';
 import { DIM, belt } from './TaxiBody.js';
-import { paintGlassBlood, smearGlassBlood } from './Blood.js';
+import { paintGlassBlood, smearGlassBlood, handPath } from './Blood.js';
 import { makeRng } from '../core/math.js';
 
 const _plane = new THREE.Plane();
@@ -194,23 +194,6 @@ void main() {
     alpha = clamp(fog * 0.7 + dropM * (0.25 + 0.35 * (1.0 - dome)) + dirt * 0.25 + fres * 0.18 + 0.05 + smearStreak * 0.1, 0.0, 1.0);
     col += vec3(0.25) * dropM * dome * dome;
   }
-  // blood on the glass: thick fresh blood is opaque and lit by the cabin (refracts nothing);
-  // thin films tint what is behind them a deep red; wet sheen on the thick parts
-  if (uBloodOn > 0.5) {
-    vec4 bl = texture2D(tBlood, vM);
-    float th = bl.a;
-    if (th > 0.004) {
-      vec3 behind = uHasScene > 0.5 ? col : vec3(0.02);
-      vec3 film = behind * vec3(0.55, 0.06, 0.05);
-      float lit = 0.22 + dot(uCabin, vec3(0.6)) + (uHasScene > 0.5 ? dot(texture2D(tSceneBlur, gl_FragCoord.xy / uResolution).rgb, vec3(0.2)) : 0.0);
-      vec3 body = bl.rgb * lit;
-      vec3 b = mix(film, body, smoothstep(0.3, 0.85, th));
-      b += vec3(0.5, 0.36, 0.33) * fres * smoothstep(0.35, 0.9, th) * 0.5;
-      float k = smoothstep(0.01, 0.3, th);
-      col = mix(col, b, k);
-      alpha = max(alpha, k);
-    }
-  }
   // interior reflection (gaze-gated portal render)
   if (uReflect > 0.001) {
     vec4 rp = uReflectMatrix * vec4(vWP, 1.0);
@@ -220,6 +203,23 @@ void main() {
       float k = (fres * 1.5 + 0.035) * uReflect * (1.0 - fog * 0.75);
       col += refl * k;
       alpha = max(alpha, clamp(k * 3.0, 0.0, 1.0));
+    }
+  }
+  // blood on the glass (over everything: refracts nothing). Thick fresh blood is near-opaque,
+  // dark crimson, lit only a little by the cabin; thin films stain what is behind them deep
+  // red (multiplicative, so they never turn pink); a wet glint on the thick parts.
+  if (uBloodOn > 0.5) {
+    vec4 bl = texture2D(tBlood, vM);
+    float th = bl.a;
+    if (th > 0.004) {
+      vec3 film = col * vec3(0.32, 0.025, 0.03);
+      float lit = 0.32 + dot(uCabin, vec3(0.28)) + (uHasScene > 0.5 ? dot(texture2D(tSceneBlur, gl_FragCoord.xy / uResolution).rgb, vec3(0.12)) : 0.0);
+      vec3 body = bl.rgb * lit * 1.3;
+      vec3 b = mix(film, body, smoothstep(0.35, 0.9, th));
+      b += vec3(0.42, 0.3, 0.28) * fres * smoothstep(0.4, 0.95, th) * 0.45;
+      float k = smoothstep(0.01, 0.28, th);
+      col = mix(col, b, k);
+      alpha = max(alpha, k);
     }
   }
   // a little fog on the glass itself when seen from far away (exterior shots)
@@ -614,29 +614,23 @@ export class GlassSystem {
       g.fillStyle = '#000';
       g.fillRect(0, 0, W, H);
     } else if (kind === 'handprint') {
-      // palm + five fingers
-      g.beginPath();
-      g.ellipse(0, s * 0.25, s * 0.38, s * 0.45, 0, 0, Math.PI * 2);
+      // palm + fingers in one connected shape
+      g.restore();
+      handPath(g, x, y, s, opts.angle ?? 0);
+      g.fillStyle = `rgba(255,255,255,${a})`;
       g.fill();
-      const fingers = [[-0.34, -0.35, 0.09, 0.42, -0.35], [-0.16, -0.58, 0.085, 0.5, -0.1], [0.04, -0.64, 0.085, 0.52, 0.02], [0.22, -0.56, 0.08, 0.46, 0.12], [0.45, 0.02, 0.085, 0.36, 0.9]];
-      for (const [fx, fy, fw, fl, fa] of fingers) {
-        g.save();
-        g.translate(fx * s, fy * s);
-        g.rotate(fa);
-        g.beginPath();
-        g.ellipse(0, -fl * s * 0.45, fw * s, fl * s * 0.55, 0, 0, Math.PI * 2);
-        g.fill();
-        g.restore();
-      }
       // drag smear downward
       if (opts.drag) {
+        g.save();
+        g.translate(x, y);
+        g.rotate(opts.angle ?? 0);
         const grd = g.createLinearGradient(0, 0, 0, s * 1.6);
         grd.addColorStop(0, `rgba(255,255,255,${a * 0.6})`);
         grd.addColorStop(1, 'rgba(255,255,255,0)');
         g.fillStyle = grd;
         g.fillRect(-s * 0.4, 0, s * 0.8, s * 1.6);
+        g.restore();
       }
-      g.restore();
     } else if (kind === 'face') {
       g.beginPath();
       g.ellipse(0, 0, s * 0.42, s * 0.6, 0, 0, Math.PI * 2);

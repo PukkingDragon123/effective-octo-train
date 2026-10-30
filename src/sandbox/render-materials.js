@@ -1,8 +1,12 @@
 // Material test bench: painted / foliage / skin materials under a lamp + moon (or dawn sun).
 // params: hour (default 22.5), wet=0..1, cam=front|back (back = looking toward the light for translucency)
 import * as THREE from 'three';
-import { paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, setPaintedParams, setMaterialDebug, postfx } from '../render/index.js';
+import {
+  paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, setPaintedParams, setMaterialDebug, postfx,
+  bloodDecalMaterial, silhouetteMaterial, applyWindShadows, particles,
+} from '../render/index.js';
 import { makeRng } from '../core/math.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 function leafTex() {
   const c = document.createElement('canvas');
@@ -95,6 +99,39 @@ export default async function ({ engine, cameraRig, params }) {
       sm.castShadow = true;
       scene.add(sm);
     }
+  }
+  // leaf-cluster cards merged into one geometry with per-card pivots (rigid per-card flutter)
+  {
+    const cards = [];
+    const rng = makeRng(17);
+    for (let k = 0; k < 10; k++) {
+      const g = new THREE.PlaneGeometry(0.7, 0.7);
+      g.rotateX((rng() - 0.5) * 1.2);
+      g.rotateY(rng() * Math.PI);
+      const c = new THREE.Vector3((rng() - 0.5) * 1.2, 1.6 + rng() * 1.0, (rng() - 0.5) * 0.8);
+      g.translate(c.x, c.y, c.z);
+      const piv = new Float32Array(4 * 4);
+      const ph = rng();
+      for (let v = 0; v < 4; v++) piv.set([c.x, c.y, c.z, ph], v * 4);
+      g.setAttribute('aLeafPivot', new THREE.BufferAttribute(piv, 4));
+      cards.push(g);
+    }
+    const merged = mergeGeometries(cards);
+    const tree = new THREE.Mesh(merged, foliageMaterial({ map: leafTex(), translucency: 0.9, color: 0x8a9a70, leafPivot: true, windStrength: 2 }));
+    tree.position.set(rowW / 2 + 2.4, 0, -5);
+    tree.castShadow = true;
+    scene.add(tree);
+    applyWindShadows(tree);
+  }
+  // blood pool on the floor + a dripping point + a tree-line silhouette flat behind everything
+  {
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0).rotateX(-Math.PI / 2), bloodDecalMaterial({ seed: 0.42, smear: 0.5 }));
+    pool.position.set(-0.4, 0.012, -2.6);
+    scene.add(pool);
+    particles.emit('blood', { position: new THREE.Vector3(-0.4, 1.6, -2.8), count: 5, radius: 0.02, height: 1.6, groundY: 0.01 });
+    const flat = new THREE.Mesh(new THREE.PlaneGeometry(30, 6).translate(0, 3, 0), silhouetteMaterial({ color: 0x2a3428, alphaTest: 0, fogScale: 2 }));
+    flat.position.set(0, 0, -14);
+    scene.add(flat);
   }
   lightPool.add({ position: new THREE.Vector3(-1.5, 3.2, -2.2), color: 0xffa860, intensity: 60, distance: 14, glow: { size: 0.25 }, flicker: 'none' });
   lightPool.add({ position: new THREE.Vector3(3.5, 2.5, -5.5), color: 0xb8e0ff, intensity: 30, distance: 10, glow: { size: 0.2 } });

@@ -165,13 +165,37 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
 * **`postfx.params`**: `exposure, painterly, bloom, grain, vignette, chroma, saturation,
   contrast` are **multipliers** (1 = the player's settings / the hour's grade); `tint` is a
   colour multiplier; `temperature` is added; `letterbox, fade (+fadeColor), horror, amulet,
-  blur, distortion` are absolute 0..1. `postfx.debugView = 'shafts'|'paint'|'bloom'|'tensor'|'scene'`.
+  blur, distortion, blood` are absolute 0..1; `sharpen` is a multiplier.
+  `postfx.debugView = 'shafts'|'paint'|'bloom'|'tensor'|'scene'|'grade'`.
+* **Sharpness** (owner directive): scene RT at full drawing-buffer resolution, MSAA 4× on
+  high/ultra, 2× on medium, FXAA-lite on low; alpha-tested painted/foliage materials use
+  alpha-to-coverage; every material texture gets max anisotropic filtering at compile time
+  (`crispTexture(t)` / `crispMaterialTextures(mat)` for textures assigned later). The painterly
+  filter is a small-radius anisotropic Kuwahara at full res on high (half res medium/low),
+  blended only on flat tonal areas (edge/detail mask), strength ≈ `0.6·painterly^1.25`.
+  A contrast-adaptive sharpening pass follows the grade: **`settings.sharpen`** (0..1,
+  default 0.5 when the key is missing; please add it to the core defaults and the UI).
+  Grain, canvas texture, fade, letterbox and dither are added after sharpening.
+* **Blood & gore**: `postfx.params.blood` (0..1 lens splatter, runs, dried rims) and
+  `postfx.bloodSplash(amount)` (one-shot: new pattern, holds ~1.5 s, fades ~5 s). Particle type
+  `'blood'` (burst = spray + droplets with gravity landing on `groundY`, `direction` opt /
+  `handle.setDirection(v)`; otherwise drips from the point). `bloodDecalMaterial({seed, smear,
+  wetness, coverage, opacity})` for pooled / smeared blood on a flat quad (uv spans the decal).
+  All read `settings.get('gore') ?? 'full'`; `'reduced'` = darker, greyer, sparser (`GORE_UNIFORM`).
+* **silhouetteMaterial({color, map, alphaMap, alphaTest, fogScale, light, headlight, sway})**:
+  painted 2D flats (distant tree lines) lit only by ambient/moon/beams and fogged as if
+  `fogScale`× further away, so stacked layers separate into planes of mist.
 * **Materials**: extra opts `roughnessMap, aoMap, normalScale, envMapIntensity, puddles (0
   disables), dirtHeight, mossColor, dirtColor, windHeightScale, flutter, envReflect, rim, sss`.
   `setPaintedParams(mat, {...})` changes them live (e.g. ghost `pale`). Wind-animated meshes
   that cast shadows: call `applyWindShadows(root)` once (sets matching depth materials).
   Wind height is measured from the mesh/instance origin, so put tree/grass pivots at the
-  base (vines/cloth hang below their pivot).
+  base (vines/cloth hang below their pivot). Per-instance wind phase comes from the instance
+  translation. **Leaf cards**: `foliageMaterial({leafPivot:true})` + a geometry attribute
+  `aLeafPivot` (vec4: card pivot xyz in object space, w = phase 0..1) gives rigid per-card
+  flutter layered on the tree sway (works merged + instanced, and in wind shadows).
+  `headlightBoost` (foliage default 0.35) adds a pale-green fill inside the headlight beam;
+  translucency glows pale yellow-green when a light is behind the leaves.
 * **Sky**: `sky.sunAzimuth` (deg, 0 = −Z, 90 = +X) aims the sunrise; `sky.setWetness(v)`;
   `sky.flash(k)` (lightning, auto during heavy dread rain; `sky.lightning=false` disables);
   `sky.overrides = {fogDensity}`; `sky.sunVisibility`, `sky.grade` (read by PostFX).
@@ -179,9 +203,12 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
   intensity, direction}), onFlicker({type:'on'|'off'|'stutter'|'restrike'|'spark', handle,
   position}), scatter`. Handles also expose `level`, `position`, `setPosition(v)`, `beam`.
   The 4 nearest lamps feed fog in-scattering + reflections on wet surfaces.
-* **particles.emit** extra opts: `height, groundY, seed, active, autoDispose`; handle
-  `.burst(pos?)` re-triggers sparks. Camera-centred when no position/object: rain, splash,
-  dust, pollen, mist. Rain/splash density follows `uRain`.
+* **particles.emit** extra opts: `height, groundY, seed, active, autoDispose, direction`; handle
+  `.burst(pos?)` re-triggers sparks / blood, `.setDirection(v)`. Camera-centred when no
+  position/object: rain, splash, dust, pollen, spores, mist. Rain/splash density follows `uRain`.
+  dust / pollen / spores are only visible inside the headlight cone, near lamps or at dawn.
+  `leaves`: `setIntensity(v<1)` thins the fall, `v>1` is a gust (downwind push + faster
+  tumble, integrated so nothing pops). Extra types: `spores`, `blood`.
 * **createVolumetricBeam({color, length, angle, intensity, noise, groundY})** → Mesh (apex at
   origin, beam along local −Z); `mesh.userData.setIntensity/setColor/setGroundY`.
 
@@ -232,6 +259,25 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
 * `world.update(dt, focusPos)`: chunk visibility, LOD, wind, streetlight assignment.
 * `world.setDensity(f)`: rebuild or thin the forest (settings `foliageDensity`).
 * `world.surfaceAt(x,z)` → `'asphalt'|'gravel'|'grass'|'wood'|'concrete'|'puddle'`.
+
+#### world — implementation notes for integrators
+* `await world.build({onProgress, forest, props, ambience, deferProps})`. Call `preloadTextures()` first.
+  `deferProps: true` resolves after the essential set pieces (garage, shrine, spur, accident curve,
+  noodle stall, elephant crossing) + all dressing; the rest finish in the background:
+  `await world.propsReady` before reading their anchors. `world.buildTimes` / `world.placement.stats`.
+* `world.landmarks[key]`: `{key, kind, pos, yaw (prop yaw, front faces the road), travelYaw, roadRef:{id,s},
+  side, sideSign, waitPos (shoulder), stopPos (left lane, 2.2 m past the landmark), stopYaw, facing,
+  footprint, roadHeight, prop (factory result), props? (multi-prop landmarks), anchors:{...every
+  Object3D anchor of the prop}}`. Extras: `shrineMaRuay.centre` (building centre; `pos` is the prop
+  origin = fork point F), `shrineMaRuay.shrineOpts {setback, noseZ, handSpawn}`,
+  `elephantCrossing.trail {from, to, roadS}` + `anchors.trailL/trailR/crossing` (the lane there is
+  kept free of props), sacred trees `prop = {tree, clothWrap, spiritHouse, trunkRadius}`.
+* `world.fork = {pos (shrine centre), point (F), yaw, axisYaw, ghostSplineId:'ghost', humanSplineId:'human',
+  decisionS, mainS, splitS (nose distance), setback, shrine}`.
+* `world.memorialHelmet` (helmet anchor at the accident memorial), `world.noodleCounter` (stall counter anchor).
+* `world.ambience`: falling leaves / gust bursts / spores / headlit motes / fireflies / lamp moths
+  (render particles); `world.ambience.setEnabled(false)` mutes it.
+* Colliders are registered with tag `'world'` (props + roadside trunks). Ghost road has no power poles.
 
 ### props (`src/props/index.js`)
 Factories return `{ object, ...anchors }` in **local space** (the world places them).
@@ -302,8 +348,23 @@ header of `src/props/index.js`. Integration rules for the world / gameplay:
   * Only one taxi (the player's, else the nearest) drives `audio.engineSound` / `audio.radio`; one vehicle
     (player's, else nearest with lights on) owns `GLOBAL_UNIFORMS.uHeadlight*` (`submitHeadlight` in `Lights.js`).
   * `Motorcycle`: `setEngine(on)`, `setHeadlight(on)` (switch a parked bike off), `speedKmh`, `physics.frozen`.
+  * **Professional models:** `await loadVehicleAssets()` (before `new Taxi` / `new Motorcycle`) loads
+    `public/assets/vehicle/taxi.glb` / `moto.glb` when present; the vehicle then builds from the GLB
+    (`taxi.model === 'glb'`), otherwise from the procedural fallback. Node contract in `src/vehicle/TaxiGLB.js`
+    (body, glass_*, mirror_*_surface, hinged parts with origins on their pivots, light_*, display quads,
+    anchor empties named like `TAXI_ANCHORS`) and `Motorcycle._bindGLB` (wheel_front/rear, steering, light_head/tail,
+    anchor empties). Missing nodes get invisible stand-ins. `setVehicleAssets({taxi})` injects a scene (tests).
+  * Cabin decorations (JS, both model paths): jasmine garland + amulets on chains on the mirror (verlet
+    swing: braking, cornering, bumps), `taxi.addDashGarland(opts)` (Grandma Bua's), `taxi.garlandWilt` /
+    `GARLAND_UNIFORMS.uWilt` 0..1 (browning, more petals drop).
+  * Gore (`settings.gore` 'full'|'reduced'): `addGlassMark(pane, 'blood_handprint'|'blood_smear'|'blood_drip'|'blood_splatter', uv, opts)`
+    (drips creep down; wipers smear it), `'clear_blood'`; `taxi.setInteriorBlood(seat, amount)` (seat ids:
+    driver frontPassenger rearLeft rearRight rearCenter floorFront floorRear floorDriver), `taxi.bleedRoof(amount)`,
+    `taxi.clearBlood()`.
+  * Meter / radio digits are drawn as 7-segment shapes; Thai text uses `FONTS.*` (stroked for LED weight).
   * Sandboxes: `vehicle` (exterior), `vehicle-interior` (driver POV), `vehicle-bike`, `vehicle-shape`
-    (bare body; `studio=1`), `vehicle-common` (helpers). Common params: `hour rain fog preset`.
+    (bare body; `studio=1`), `vehicle-glbtest` (GLB binder test with a stand-in scene), `vehicle-common` (helpers).
+    Common params: `hour rain fog preset procedural=1`.
 
 ### characters (`src/characters/index.js`)
 * Procedural **skinned** humans: SDF-sculpted bodies (smooth-union capsules and

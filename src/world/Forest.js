@@ -57,7 +57,7 @@ function texSafe(key, opts) {
 const KIND_LOD = {
   big: { lod0: W.lod.big0, lod1: W.lod.big1, impostor: true, keepMin: 0.7 },
   mid: { lod0: W.lod.small0, lod1: 70, impostor: true, keepMin: 0.55 },
-  small: { lod0: 30, lod1: 60, cull: 64, impostor: false, keepMin: 0.4 },
+  small: { lod0: 24, lod1: 52, cull: 56, impostor: false, keepMin: 0.4 },
   ground: { lod0: 14, lod1: W.lod.groundCull, cull: W.lod.groundCull, impostor: false, keepMin: 0.25 },
   rock: { lod0: 24, lod1: 62, cull: 62, impostor: false, keepMin: 0.8 },
   vine: { lod0: 55, lod1: 55, cull: 55, impostor: false, keepMin: 0.6 },
@@ -429,6 +429,7 @@ export class Forest {
           const tx = side * tg.z, tz = -side * tg.x; // toward the road
           const yaw = Math.atan2(-tz, tx) + (rng() - 0.5) * 0.8;
           this._place('reachTree', Math.floor(rng() * 5), p.x, p.z, yaw, 0.78 + rng() * 0.4, rng, { dy: -0.05, lean: { x: tx, z: tz, a: 0.03 + rng() * 0.1 } });
+          if (e < 5.2 && rng() < 0.75) this._place('roots', Math.floor(rng() * 3), p.x, p.z, yaw + (rng() - 0.5) * 0.5, 0.8 + rng() * 0.4, rng, { dy: 0 });
           this.colliders.push({ x: p.x, z: p.z, r: 0.4 });
         }
       }
@@ -498,7 +499,7 @@ export class Forest {
             }
             continue;
           }
-          if (zb > 0.35 && r < 0.42 && nr.e > 2.6) {
+          if (zb > 0.35 && r < (nr.e < 9 ? 0.16 : 0.4) && nr.e > 2.6) {
             this._place('bamboo', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng, { dy: -0.1 });
             continue;
           }
@@ -586,8 +587,8 @@ export class Forest {
 
     // ---------------- vine curtains over the road edges (under overhanging crowns) ----------
     for (const sp of road.splines.values()) {
-      for (let s = 6; s < sp.length - 6; s += 5 + rng() * 9) {
-        if (rng() < 0.35) continue;
+      for (let s = 6; s < sp.length - 6; s += 7 + rng() * 12) {
+        if (rng() < 0.6) continue;
         const side = rng() < 0.5 ? -1 : 1;
         const lat = side * (W.halfWidth + 0.6 + rng() * 2.2);
         const p = sp.pointAt(s, lat);

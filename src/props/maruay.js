@@ -9,6 +9,7 @@ import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, sm
 import { mat, glowMat, signMat, texMat, stainTex, crackTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap, forkPlank, useAsset } from './lib/small.js';
+import { jossPaper, card, findPrint, litter } from './lib/print.js';
 import { deityHeadGeo, deityBodyGeo, lionGeo } from './lib/figures.js';
 import { chineseRoof } from './shrines.js';
 
@@ -367,7 +368,11 @@ export function createShrineMaRuay(opts = {}) {
       const a = rng() * 6.28, r = Math.sqrt(rng()) * 0.045;
       k.add(mat('wood'), G('fstick', () => bbox(0.008, 0.32, 0.003, 0.001, 0.4)), { p: [0.62 + Math.cos(a) * r, at + 0.06, az + 0.22 + Math.sin(a) * r], r: [(rng() - 0.5) * 0.15, rng() * 3, (rng() - 0.5) * 0.15], color: 0xc89a5a, w: false });
     }
-    for (let i = 0; i < 3; i++) k.add(mat('paper'), G('gpaper', () => bbox(0.16, 0.06, 0.11, 0.002, 0.1)), { p: [-0.65 + i * 0.03, at + i * 0.06, az + 0.2], r: rng() * 0.3, color: 0xd8b040, w: false });
+    // joss paper stacks on the altar (printed gold foil), merit stickers on the canister
+    if (!jossPaper(k, { p: [-0.68, at, az + 0.2], r: 0.2, n: 14, loose: 2, seed: seed + 21 })) for (let i = 0; i < 3; i++) k.add(mat('paper'), G('gpaper', () => bbox(0.16, 0.06, 0.11, 0.002, 0.1)), { p: [-0.65 + i * 0.03, at + i * 0.06, az + 0.2], r: rng() * 0.3, color: 0xd8b040, w: false });
+    jossPaper(k, { p: [0.95, at, az + 0.25], r: -0.3, n: 9, loose: 1, seed: seed + 22 });
+    const mst = findPrint([['sticker', /merit|lucky|yantra/]], rng);
+    if (mst) card(k, mst.kind, mst.opts, { p: [0.62, at + 0.12, az + 0.22 + 0.056], r: [0, 0, 0.04], w: 0.05, bend: 0.005, seed: 3, wt: false });
     // brass offering pot on the altar + the caretaker's tea corner inside the hall (CC0 models)
     useAsset(k, 'brass_pot_01', { p: [-0.35, at, az - 0.1], r: 0.4 }, { fit: { w: 0.2 }, w: false });
     if (useAsset(k, 'chinese_tea_table', { p: [HW / 2 - 0.9, y0, hz + 0.7], r: -0.3 }, { fit: { h: 0.45 }, w: { dust: 0.4, grime: 0.3 } })) {
@@ -434,6 +439,12 @@ export function createShrineMaRuay(opts = {}) {
     k.add(glowMat('ember'), G('furnaceEmber', () => bbox(0.36, 0.08, 0.3, 0.02, 0.1)), { p: [0, 0.36, 0.25], color: 0xffffff, w: false });
     k.add(mat('brick'), G('chimney', () => bbox(0.4, 1.1, 0.4, 0.02, 0.2)), { p: [0, 1.3, -0.1], color: 0x8a3220, w: { streak: 0.9, streakColor: 0x0e0a08, grime: 0 } });
     chineseRoofTiny(k, [0, 2.4, -0.1]);
+  });
+  // joss paper waiting to be burnt by the furnace + charred scraps blown across the forecourt
+  k.details(() => {
+    jossPaper(k, { p: [fx - 0.75, 0, fz + 0.55], r: 0.6, n: 18, loose: 5, seed: seed + 31 });
+    jossPaper(k, { p: [fx - 0.45, 0.0, fz + 0.95], r: 2.1, n: 6, loose: 4, seed: seed + 32 });
+    litter(k, 0, pz0 + 2.2, 2.6, { n: 8, y: 0, seed: seed + 33 });
   });
   out.furnaceAnchor = anchor(group, 'furnace', fx, 0.5, fz + 0.45);
   out.lights.push(lightSpec('candle', anchor(group, 'furnaceGlow', fx + 0.15, 0.45, fz + 0.5), { color: 0xff5a1a, intensity: 1.2, distance: 3.5 }));

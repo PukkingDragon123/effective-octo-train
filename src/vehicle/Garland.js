@@ -566,6 +566,7 @@ export class Garland {
     tg.translate(0, 0.5, 0);
     this.threadMesh = new THREE.InstancedMesh(tg, M.thread, Math.max(1, this.threadEdges.length));
     this.threadMesh.frustumCulled = false;
+    this.threadMesh.count = this.threadEdges.length;
     this.group.add(this.threadMesh);
     // ---- falling petals ----
     this.petals = [];

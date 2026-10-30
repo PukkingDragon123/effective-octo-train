@@ -41,7 +41,7 @@ const DECAL_SHAPE = /* glsl */ `
     pc.x /= 1.0 - 0.45 * smear;
     float ang = atan(pc.y, pc.x);
     float r = length(pc);
-    float edge = (0.42 + 0.22 * cover) * (1.0 + 0.22 * (dlbFbm2(vec2(ang * 1.6, sd * 3.1)) - 0.5) + 0.1 * (dlbNoise2(pc * 7.0 + sd) - 0.5));
+    float edge = (0.5 + 0.28 * cover) * (1.0 + 0.22 * (dlbFbm2(vec2(ang * 1.6, sd * 3.1)) - 0.5) + 0.1 * (dlbNoise2(pc * 7.0 + sd) - 0.5));
     float pool = smoothstep(edge, edge - 0.025, r);
     float thick = smoothstep(edge, edge * 0.35, r);
     // smear: streaky drag marks toward +u, thinning out
@@ -70,8 +70,8 @@ const DECAL_SHAPE = /* glsl */ `
     dlbBloodThick = max(thick, max(sm * 0.45, drops * 0.6));
     dlbBloodRim = a * (1.0 - smoothstep(0.0, 0.18, thick)) * pool;
     // fresh dark crimson in the middle, almost black-brown dried rim, darker / greyer when reduced
-    vec3 fresh = mix(vec3(0.16, 0.006, 0.01), vec3(0.075, 0.002, 0.006), dlbBloodThick);
-    vec3 dried = vec3(0.035, 0.006, 0.005);
+    vec3 fresh = mix(vec3(0.085, 0.003, 0.005), vec3(0.04, 0.0015, 0.003), dlbBloodThick);
+    vec3 dried = vec3(0.022, 0.004, 0.003);
     vec3 bc = mix(fresh, dried, dlbBloodRim * 0.8);
     bc = mix(bc, vec3(dot(bc, vec3(0.3, 0.59, 0.11))) * vec3(1.3, 0.8, 0.8), dlbGore * 0.5) * (1.0 - dlbGore * 0.35);
     diffuseColor.rgb = bc * diffuseColor.rgb;

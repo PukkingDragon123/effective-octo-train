@@ -11,6 +11,7 @@ import { mat, glowMat, signMat } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { G, PAL, bottle, candle, incensePot, garland, flowerString, fruitPlate, zebras, dancers, plate, glassWater, teacup, offeringTray, lantern } from './lib/small.js';
 import { elderGeo, dancerGeo } from './lib/figures.js';
+import { jossPaper, card, findPrint } from './lib/print.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function anchor(parent, name, x, y, z, yaw = 0) {
@@ -153,6 +154,13 @@ export function createSpiritHouse(opts = {}) {
     if (rng() < 0.7) bottle(k, { p: [0.3, 0.03, gz + 0.2], r: [Math.PI / 2, rng() * 6, 0], straw: false, color: 0x6a1010 });
     garland(k, { p: [-0.25, 0.01, gz + 0.05], r: [-Math.PI / 2 + 0.1, rng() * 3, 0], len: 0.14, color: 0x8a7a5a, accent: 0x6a4a2a, rose: 0x4a1a14 });
     dancers(k, { p: [0.32, 0, gz - 0.05], n: 1, size: 1.2 });
+    // printed offerings: a stack of gold joss paper, lottery tickets left for a lucky number,
+    // a little amulet card tucked against the post base
+    jossPaper(k, { p: [-0.42, 0, gz + 0.32], r: rng() * 6, n: 5, loose: 2, seed: seed + 9 });
+    const lot = findPrint([['lottery']], rng);
+    if (lot) for (let i = 0; i < 2; i++) card(k, lot.kind, lot.opts, { p: [0.18 + i * 0.05, 0.004 + i * 0.001, gz + 0.38 + i * 0.03], r: [-Math.PI / 2, 0, rng() * 6, 'XYZ'], curl: 0.008, seed: seed + 50 + i, wt: { grime: 0.4, ground: -0.4, vary: 0.3 } });
+    const bc = findPrint([['buddha_card'], ['amulet_card']], rng);
+    if (bc && style === 'thai') card(k, bc.kind, bc.opts, { p: [0.02, 0.215, 0.087], r: [-0.25, 0, 0.05], scale: 1.2, seed: seed + 60, wt: false });
   });
   k.pop();
   group.add(k.build({ name: 'spiritHouse', detailDistance: opts.detailDistance ?? 32 }));

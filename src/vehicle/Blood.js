@@ -18,7 +18,7 @@ const reduced = () => settings.get('gore') === 'reduced';
 function palette() {
   return reduced()
     ? { core: [34, 10, 10], body: [52, 16, 15], edge: [66, 26, 22], hi: [96, 54, 48], alpha: 0.8, density: 0.45 }
-    : { core: [58, 2, 6], body: [104, 6, 14], edge: [142, 16, 22], hi: [196, 86, 80], alpha: 1, density: 1 };
+    : { core: [46, 2, 5], body: [86, 4, 10], edge: [118, 10, 16], hi: [168, 74, 66], alpha: 1, density: 1 };
 }
 const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 
@@ -68,17 +68,25 @@ function blobPath(g, rng, x, y, r, rough = 0.35, n = 22) {
   g.closePath();
 }
 
-function handPath(g, x, y, s, rot) {
+/**
+ * Palm + four fingers + thumb as one path: every finger is a rounded capsule that starts
+ * inside the palm (no floating 'paw' pads). Fingers point to -y.
+ */
+export function handPath(g, x, y, s, rot, spread = 1) {
   g.save();
   g.translate(x, y);
   g.rotate(rot);
   g.beginPath();
-  g.ellipse(0, s * 0.25, s * 0.38, s * 0.45, 0, 0, Math.PI * 2);
-  const f = [[-0.34, -0.35, 0.09, 0.42, -0.35], [-0.16, -0.58, 0.085, 0.5, -0.1], [0.04, -0.64, 0.085, 0.52, 0.02], [0.22, -0.56, 0.08, 0.46, 0.12], [0.45, 0.02, 0.085, 0.36, 0.9]];
-  for (const [fx, fy, fw, fl, fa] of f) {
-    const cx = fx * s + Math.sin(fa) * fl * s * 0.45, cy = fy * s - Math.cos(fa) * fl * s * 0.45;
-    g.moveTo(cx + fw * s, cy);
-    g.ellipse(cx, cy, fw * s, fl * s * 0.55, fa, 0, Math.PI * 2);
+  g.ellipse(0, s * 0.22, s * 0.36, s * 0.42, 0, 0, Math.PI * 2);
+  // [base x, base y, length, half width, angle]
+  const F = [[-0.25, -0.08, 0.5, 0.078, -0.2], [-0.085, -0.13, 0.62, 0.082, -0.06], [0.075, -0.13, 0.66, 0.082, 0.05], [0.225, -0.08, 0.55, 0.076, 0.17], [0.3, 0.3, 0.46, 0.09, 1.05]];
+  for (const [bx, by, len, hw, a0] of F) {
+    const a = a0 * spread;
+    const dx = Math.sin(a), dy = -Math.cos(a);
+    const L = len * s, half = L / 2 + s * 0.06;
+    const cx = bx * s + dx * (L / 2 - s * 0.06), cy = by * s + dy * (L / 2 - s * 0.06);
+    g.moveTo(cx + Math.cos(a) * hw * s, cy + Math.sin(a) * hw * s);
+    g.ellipse(cx, cy, hw * s, half, a, 0, Math.PI * 2);
   }
   g.restore();
 }
@@ -136,7 +144,7 @@ export function paintGlassBlood(pane, kind, uv, opts = {}) {
     const path = (opts.path || [{ x: uv.x ?? uv[0], y: uv.y ?? uv[1] }, { x: (uv.x ?? uv[0]) + 0.18 * Math.cos(opts.angle ?? -0.3), y: (uv.y ?? uv[1]) + 0.18 * Math.sin(opts.angle ?? -0.3) }]).map((p) => [p.x * W, (1 - p.y) * H]);
     const fingers = opts.fingers ?? 4;
     for (let f = 0; f < fingers; f++) {
-      const off = (f - (fingers - 1) / 2) * s * 0.18;
+      const off = (f - (fingers - 1) / 2) * s * 0.12;
       for (let pass = 0; pass < 3; pass++) {
         g.beginPath();
         for (let i = 0; i < path.length; i++) {
@@ -150,8 +158,8 @@ export function paintGlassBlood(pane, kind, uv, opts = {}) {
         }
         g.lineCap = 'round';
         g.lineJoin = 'round';
-        g.strokeStyle = pass === 0 ? css(P.body, 0.75 * P.alpha) : pass === 1 ? css(P.core, 0.4 * P.alpha) : css(P.hi, 0.12 * P.alpha);
-        g.lineWidth = s * (pass === 0 ? 0.15 : pass === 1 ? 0.07 : 0.02);
+        g.strokeStyle = pass === 0 ? css(P.body, rng.range(0.55, 0.85) * P.alpha) : pass === 1 ? css(P.core, 0.5 * P.alpha) : css(P.hi, 0.1 * P.alpha);
+        g.lineWidth = s * (pass === 0 ? rng.range(0.15, 0.2) : pass === 1 ? 0.08 : 0.02);
         g.stroke();
       }
       // the heavy start of the stroke
@@ -364,7 +372,7 @@ function stainTexture(kind) {
       f = clamp(f, 0, 1);
       // colour: dark core, brighter fresh body, dark dried tide line at the edge
       const edge = smoothstep(0.0, 0.08, f) * (1 - smoothstep(0.08, 0.2, f));
-      const core = smoothstep(0.4, 0.9, f);
+      const core = 0.55 + 0.45 * smoothstep(0.25, 0.75, f) * (kind === 'splat' ? 0.6 : 1);
       const i = (y * S + x) * 4;
       const t = rng() * 0.08;
       img.data[i] = lerp(lerp(P.body[0], P.core[0], core), P.core[0] * 0.6, edge) * (1 - t);

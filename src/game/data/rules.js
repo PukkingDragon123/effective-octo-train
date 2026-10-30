@@ -76,6 +76,11 @@ export const RULE_PARAMS = {
   // r16: one more in the mirror than got in
   extraPassengerSeconds: [12, 20], // how long the extra reflection stays
   extraPassengerStopSpeedKmh: 3,
+  // replies (see RULE_BREAKS and SCHEMA.md "Replies")
+  lureSeconds: 2.5, // flags.lure = 'r3'|'r4': the camera drifts toward the forbidden look this long
+  lureYawDegPerSec: 22, // drift speed; any deliberate look input cancels it
+  windowCreepPerSec: 0.08, // r14 invite: the window winds itself down this fast...
+  windowCreepCrankSeconds: 3, // ...until the player cranks it up again within this
 };
 
 export const RULES = [
@@ -241,6 +246,24 @@ export const RULES = [
     params: { durationSeconds: RULE_PARAMS.extraPassengerSeconds, stopSpeedKmh: RULE_PARAMS.extraPassengerStopSpeedKmh },
   },
 ];
+
+/**
+ * What happens when a REPLY breaks a rule (flags.ruleBreak = rule id, set by a dialogue option).
+ * Gameplay listens to bus 'dialogue:line' (line.set.ruleBreak), lets the rest of that branch play
+ * (it is the thing's answer), then applies the entry and clears flags.ruleBreak:
+ *   outcome   the ENCOUNTERS[...].outcomes key to play when the rule's encounter is running
+ *   death     DEATH_CARDS key (death cinematic) — or, with `escalate`, the death if the escalation fails
+ *   escalate  a rule escalation instead of instant death:
+ *             'windowCreep'    the window winds itself down (RULE_PARAMS.windowCreep*); crank it up or die
+ *             'backSeatVoice'  the radio voice moves to the back seat and calls "ต้น… หันมาสิ" (a rule-3 test)
+ */
+export const RULE_BREAKS = {
+  r7: { outcome: 'answer', death: 'nameCall' },
+  r11: { outcome: 'answer', death: 'count444' },
+  r14: { outcome: 'invite', escalate: 'windowCreep', death: 'windowArm' },
+  r15: { outcome: 'answer', escalate: 'backSeatVoice', death: 'lookBack' },
+  r16: { outcome: 'asked', death: 'extraPassenger' },
+};
 
 /** Only legible when the paper is wet (rain) or held near the cabin light, from loop 2 on. */
 export const HIDDEN_LINE = {

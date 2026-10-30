@@ -211,6 +211,24 @@ export const CHARACTERS = {
     },
   },
 
+  extraChild: {
+    id: 'extraChild',
+    nameTH: '(เด็กในกระจก)',
+    nameEN: '(the child in the mirror)',
+    role: 'Rule r16: one more passenger in the rear-view mirror than got in. Seen ONLY in the mirror, never named.',
+    voice: { gender: 'f', age: 8, pitch: 1.38, rate: 0.8, ghost: 0.8, whisper: true },
+    appearance: {
+      id: 'extraChild', sex: 'f', age: 8, height: 1.24, build: 'thin', skinTone: 0.3,
+      hair: { style: 'bob', color: '#0e0c0b' }, // the old regulation schoolgirl bob
+      // an older-pattern uniform than Boy M's: sun-yellowed blouse, faded navy pleated skirt
+      outfit: { type: 'school-uniform', top: '#e6dfc8', bottom: '#2a3048', accent: '#2a3048', shoes: 'shoes' },
+      accessories: [],
+      face: { seed: 808, wrinkles: 0.0, smile: 0.4, eyeSize: 1.08, noseWidth: 0.92, jaw: 0.92, cheek: 1.04 },
+      ghost: { pale: 0.8, eyes: 'black', wet: 0.4, decay: 0.15, bloodStains: 0.2 },
+      noBlink: true,
+    },
+  },
+
   // --- voice-only speakers -----------------------------------------------------------
   radio: {
     id: 'radio',

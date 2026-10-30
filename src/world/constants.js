@@ -20,7 +20,7 @@ export const W = {
     big1: 80, // mid-detail big trees, impostors beyond
     small0: 26, // understory full detail
     smallCull: 62, // understory culled
-    groundCull: 38, // ferns / grass / ground cover culled
+    groundCull: 33, // ferns / grass / ground cover culled
   },
   bridgeDeckDrop: 0, // deck top relative to road height
 };

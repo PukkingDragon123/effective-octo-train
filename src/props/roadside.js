@@ -11,6 +11,7 @@ import {
 } from './lib/small.js';
 import { brokenScooter } from './dressing.js';
 import { chineseRoof, thaiRoofTier } from './shrines.js';
+import { posterStack, litter, card, findPrint, missingPoster, snackBag, noodleCup, jossPaper } from './lib/print.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function anchor(parent, name, x, y, z, yaw = 0) {
@@ -158,6 +159,25 @@ export function createNoodleStall(opts = {}) {
       if (!(ti === 1 && useAsset(k, 'metal_stool_02', { p: [sx, 0, sz], r: a * 1.7 }, { fit: { h: 0.46 }, w: { grime: 0.45, dust: 0.2 } }))) plasticStool(k, { p: [sx, 0, sz], color: i % 2 ? PAL.chairRed : PAL.chairBlue });
       out.customerSpots.push(anchor(group, 'cust' + ti + '_' + i, sx, 0.44, sz, Math.atan2(sx - x, sz - z)));
     }
+  });
+  // ---- packaging + printed matter: snack strips hanging from the frame, noodle cups stacked on
+  //      the case, drinks on the tables, receipts / wrappers / napkins under the tables -----------
+  k.details(() => {
+    const zb = 0.1 - td / 2 + 0.05;
+    for (const [sx, n] of [[0.95, 5], [1.22, 4]]) {
+      k.add(mat('plastic'), G('snackstrip:' + n, () => quad(0.035, n * 0.19 + 0.08, 1, 4).translate(0, -(n * 0.19 + 0.08) / 2, 0)), { p: [sx, th - 0.02, zb], color: 0xd8d0c0, uv: 'keep', w: false });
+      for (let i = 0; i < n; i++) snackBag(k, { p: [sx, th - 0.22 - i * 0.19, zb + 0.02], r: [0.06 * (i % 2 ? 1 : -1), (rng() - 0.5) * 0.3, (rng() - 0.5) * 0.12], w: 0.13, seed: seed * 13 + i + Math.round(sx * 10) });
+    }
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 3 - (i % 2); j++) noodleCup(k, { p: [-0.25 + i * 0.11, 1.52 + j * 0.1, cz + (i % 2 ? 0.06 : -0.05)], r: rng() * 6, seed: i });
+    tables.forEach(([x, z], ti) => {
+      bottle(k, { p: [x + 0.3, 0.68, z - 0.18], kind: ti ? 'water' : 'soda', straw: !ti, labelYaw: rng() * 6 });
+      if (!ti) bottle(k, { p: [x + 0.38, 0.68, z - 0.05], kind: 'beer', labelYaw: rng() * 6 });
+      litter(k, x, z, 0.85, { n: 6, y: 0, seed: seed * 3 + ti });
+    });
+    litter(k, -0.4, cz + 0.9, 1.0, { n: 5, y: 0, seed: seed + 41 });
+    // a price sticker sheet + lottery stub taped to the cooler lid
+    const st = findPrint([['sticker']], rng);
+    if (st) card(k, st.kind, st.opts, { p: [1.25 + Math.sin(0.2) * 0.1, 0.481, -0.1 + Math.cos(0.2) * 0.1], r: [-Math.PI / 2, 0, 0.2 + 0.3, 'XYZ'], scale: 1.4, curl: 0.004, seed: 3 });
   });
   // ---- clutter: crates, trash bag, bucket, broom, a sleeping dog's mat ----------------------------
   k.details(() => {
@@ -643,6 +663,16 @@ export function createAccidentMemorial(opts = {}) {
     // drinks, a toy car, shoes
     for (let i = 0; i < 4; i++) bottle(k, { p: [-0.6 + rng() * 1.2, 0, 0.3 + rng() * 0.3], straw: rng() < 0.5, color: rng() < 0.7 ? PAL.sodaRed : PAL.sodaGreen });
     shoes(k, { p: [0.75, 0, 0.1], r: 0.6, color: 0x2a2a3a, messy: true });
+    // printed things people leave: a yellowed newspaper clipping pinned inside the shelter,
+    // amulet cards and lottery tickets on the stand, joss paper, a wet crumpled page
+    const news = findPrint([['newspaper'], ['newspaper_local']], rng);
+    if (news) card(k, news.kind, news.opts, { p: [0.334, 1.0, -0.64], r: [0, Math.PI / 2, 0.06], w: 0.2, curl: 0.012, seed: seed + 3, wt: { vary: 0.35, grime: 0.3, ground: 0.8 } });
+    const bc = findPrint([['buddha_card'], ['amulet_card']], rng);
+    if (bc) for (const s of [-1, 1]) card(k, bc.kind, bc.opts, { p: [s * 0.07, 0.752, -0.41], r: [-Math.PI / 2 + 0.25, 0, s * 0.2, 'XYZ'], scale: 1.3, seed: seed + 4 + s, wt: false });
+    const lot = findPrint([['lottery']], rng);
+    if (lot) for (let i = 0; i < 3; i++) card(k, lot.kind, lot.opts, { p: [-0.3 + i * 0.04, 0.0045, 0.05 + i * 0.05], r: [-Math.PI / 2, 0, rng() * 6, 'XYZ'], curl: 0.006, crumple: 0.002, seed: seed + 8 + i, wt: { grime: 0.5, ground: -0.4 } });
+    jossPaper(k, { p: [0.5, 0, -0.35], r: 0.8, n: 4, loose: 3, seed: seed + 12 });
+    if (news) card(k, news.kind, news.opts, { p: [1.05, 0.006, 0.55], r: [-Math.PI / 2, 0, 2.2, 'XYZ'], scale: 0.7, fold: 0.1, crumple: 0.006, seed: seed + 13, wt: { grime: 0.7, grimeH: 0.3, ground: -0.3, vary: 0.4 } });
   });
   // wreaths (faded, one fallen)
   wreath(k, { p: [-0.95, 0, -0.75], r: 0.35, seed: seed + 7, faded: 0.7, accent: 0xc8a020 });
@@ -695,9 +725,21 @@ export function createGhostGate(opts = {}) {
   // two thick old posts on stone footings, slightly leaning inward
   for (const s of [-1, 1]) {
     k.add(mat('stone'), bbox(0.75, 0.4, 0.75, 0.05, 0.3), { p: [s * px, 0, 0], color: 0x6a665c, jitter: 0.02, jitterFreq: 6, w: { mossLow: 1, mossH: 0.5 } });
-    k.add(mat('wood'), cyl(0.2, 0.24, Hh, 10, 0.01, 8), { p: [s * px, 0.35, 0], r: [0, 0, -s * 0.02], color: 0x4a3c30, jitter: 0.012, jitterFreq: 3, w: { ground: 0.35, grime: 0.6, mossLow: 0.8, mossH: 1.2, streak: 0.4 } });
+    k.add(mat('wood'), cyl(0.2, 0.24, Hh, 18, 0.01, 10), {
+      p: [s * px, 0.35, 0], r: [0, 0, -s * 0.02], color: 0x4a3c30, jitter: 0.012, jitterFreq: 3, w: { ground: 0.35, grime: 0.6, mossLow: 0.8, mossH: 1.2, streak: 0.4 },
+      // weather checks: dark vertical splits running up the old timber
+      colorFn: (p, n, c, lp) => { const a = Math.atan2(lp.z, lp.x); if (Math.abs(Math.sin(a * 5 + Math.sin(lp.y * 1.3) * 0.4)) > 0.985) c.multiplyScalar(0.35); },
+    });
     // sacred cloth wrapped round each post
     k.add(mat('cloth_static'), G('postcloth', () => cyl(0.235, 0.235, 0.5, 14, 0, 2, false)), { p: [s * px, 1.2, 0], color: 0xe8e4d8, w: { vary: 0.3, grime: 0.3 }, jitter: 0.008, jitterFreq: 20 });
+    // stone drum base (lathe) the post sits in, carved cap where it meets the tie beam
+    k.add(mat('stone'), G('gdrum', () => lathe([[0, 0], [0.36, 0], [0.37, 0.05], [0.33, 0.09], [0.34, 0.16], [0.3, 0.22], [0.27, 0.26], [0, 0.26]], 18)), { p: [s * px, 0.38, 0], color: 0x7a766a, jitter: 0.01, jitterFreq: 7, w: { moss: 0.8, mossLow: 0.6, grime: 0.4 } });
+    k.add(mat('wood'), G('gcap', () => lathe([[0.21, 0], [0.25, 0.04], [0.25, 0.08], [0.22, 0.1], [0.27, 0.16], [0.27, 0.2], [0, 0.2]], 14)), { p: [s * px, Hh - 0.78, 0], color: 0x3e3228, w: { moss: 0.5 } });
+    // curved knee braces from the post up to the lintel (hand-adzed, square-ish section)
+    for (const zs of [-1, 1]) {
+      const pts = smoothPath([V(s * px - s * 0.12, Hh - 1.45, zs * 0.05), V(s * px - s * 0.35, Hh - 0.75, zs * 0.06), V(s * px - s * 0.95, Hh + 0.03, zs * 0.06)], 14);
+      k.add(mat('wood'), tube(pts, (t) => 0.07 - t * 0.02, 4), { color: 0x45382c, jitter: 0.006, jitterFreq: 9, w: { moss: 0.5, streak: 0.4 } });
+    }
     out.colliders.push({ x: s * px, z: 0, r: 0.4 });
   }
   // lintel (curved slightly, cracked) + lower tie beam + small roof

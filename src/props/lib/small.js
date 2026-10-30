@@ -6,6 +6,7 @@ import { bevelBox, bbox, lathe, cyl, sphere, tube, torus, quad, smoothPath, blob
 import { mat, glowMat } from './materials.js';
 import { zebraGeo, dancerGeo } from './figures.js';
 import { addAsset, hasAsset } from './assets.js';
+import { labelBand } from './print.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const gcache = new Map();
@@ -106,9 +107,14 @@ export function bottle(k, o = {}) {
     k.add(mat(kind === 'oil' || kind === 'water' ? 'plastic' : 'ceramic'), g, { color: col, w: { grime: 0.3, grimeH: 0.08, vary: 0.2 } });
     // label band
     if (o.label !== false && kind !== 'small') {
-      const lc = o.labelColor ?? (kind === 'soda' ? 0xe8e0d0 : kind === 'beer' ? 0xd8c070 : 0xe0d8c0);
       const r0 = BOTTLE_PROFILES[kind][2][0] + 0.0015;
-      k.add(mat('plastic'), G('label:' + kind, () => cyl(r0, r0, 0.05, 10, 0, 1, false)), { p: [0, kind === 'soda' ? 0.04 : 0.06, 0], color: lc, w: { grime: 0.2, vary: 0.25 } });
+      const ly = kind === 'soda' ? 0.04 : 0.06, lh = kind === 'soda' ? 0.055 : 0.07;
+      // printed (photobashed) label wrapped round the bottle when the texture library has one
+      const re = { soda: /red_soda|soda/, water: /water/, beer: /beer/, whisky: /whisky/, oil: /coffee|energy|oil/ }[kind];
+      if (!labelBand(k, r0, lh, ly + lh / 2, { re, seed: Math.round((o.p?.[0] ?? 0) * 100 + (o.p?.[2] ?? 0) * 37), yaw: o.labelYaw ?? 0 })) {
+        const lc = o.labelColor ?? (kind === 'soda' ? 0xe8e0d0 : kind === 'beer' ? 0xd8c070 : 0xe0d8c0);
+        k.add(mat('plastic'), G('label:' + kind, () => cyl(r0, r0, 0.05, 10, 0, 1, false)), { p: [0, ly, 0], color: lc, w: { grime: 0.2, vary: 0.25 } });
+      }
     }
     // cap
     const top = BOTTLE_PROFILES[kind].at(-1)[1];
@@ -587,27 +593,58 @@ export function wreath(k, o = {}) {
       k.add(mat('wood'), G('wstand', () => cyl(0.012, 0.014, 1.15, 5, 0.002)), { p: [x, 0, z], r: [rx, 0, rz], color: 0x8a6a4a, w: { grime: 0.5 } });
     }
     const fade = o.faded ?? 0.5;
-    // ring of flowers: lumpy torus mixing two flower colours + leaves, wilting with age
-    k.add(mat('flower'), G('wring2:' + R, () => torus(R, 0.09, 9, 32)), {
-      p: [0, cy, 0], color: 0xffffff, jitter: 0.035, jitterFreq: 34, w: { grime: 0, vary: 0.3 },
-      colorFn: (p, n, c) => {
-        const v = noise.noise3D(p.x * 30, p.y * 30, p.z * 30 + (o.seed ?? 0));
-        const v2 = noise.noise3D(p.x * 8 + 3, p.y * 8, p.z * 8);
-        c.set(v > 0.1 ? c1 : c2);
-        if (v < -0.55) c.set(0x2e4a26); // leaves between flowers
-        if (v2 < -0.35) c.lerp(_cmari.set(0x6a5a44), fade * 0.8); // wilted brown patches
-        c.multiplyScalar(1 - fade * 0.35);
-      },
+    const wilt = (c, p) => {
+      const v2 = noise.noise3D(p.x * 8 + 3, p.y * 8, p.z * 8);
+      if (v2 < -0.3) c.lerp(_cmari.set(0x6a5a44), fade * 0.85); // wilted brown patches
+      c.multiplyScalar(1 - fade * 0.3);
+    };
+    // straw/foam ring base hidden behind the flowers
+    k.add(mat('flower'), G('wbase:' + R, () => torus(R * 0.92, 0.07, 6, 28)), { p: [0, cy, -0.035], color: 0x2a3a22, jitter: 0.02, jitterFreq: 30, w: false });
+    // concentric rings of chrysanthemum heads (outer c1, inner c2) with leaf sprigs between
+    const head = G('fhead2', () => {
+      const g = lathe([[0, -0.012], [0.022, -0.006], [0.03, 0.004], [0.027, 0.014], [0.016, 0.022], [0, 0.026]], 10);
+      const pa = g.attributes.position;
+      for (let i = 0; i < pa.count; i++) {
+        const x = pa.getX(i), z = pa.getZ(i), a = Math.atan2(z, x), r = Math.hypot(x, z);
+        const f = 1 + 0.18 * Math.sin(a * 9) * Math.min(1, r / 0.02); // ruffled petals
+        pa.setX(i, x * f);
+        pa.setZ(i, z * f);
+      }
+      g.rotateX(Math.PI / 2);
+      g.computeVertexNormals();
+      return g;
     });
-    // backing disc of green leaves + white satin centre
-    k.add(mat('flower'), G('wdisc2:' + R, () => cyl(R * 0.82, R * 0.82, 0.02, 22, 0.004).rotateX(Math.PI / 2)), { p: [0, cy, -0.03], color: 0x2a3a22, jitter: 0.012, jitterFreq: 30, w: { vary: 0.3, grime: 0 } });
-    k.add(mat('cloth_static'), G('wsatin:' + R, () => new THREE.CircleGeometry(R * 0.55, 20)), { p: [0, cy, -0.005], color: 0xd8d0c4, uv: 'keep', w: { vary: 0.2, grime: 0.2, grimeH: 0.3, ground: cy - R } });
-    // diagonal name sash (printed gold letters)
-    k.add(mat('cloth_static'), G('wsash2:' + R, () => quad(0.1, R * 2.5, 1, 10)), {
-      p: [0, cy, 0.04], r: [0, 0, 0.75], color: o.ribbon ?? 0xe8e2d4, uv: 'keep', w: { vary: 0.25, grime: 0.2 },
-      deform: (p) => { p.z += Math.cos((p.y / (R * 1.25)) * Math.PI * 0.5) * 0.06; },
-      colorFn: (p, n, c, lp) => { if (Math.abs(lp.x) < 0.028 && Math.abs(lp.y) < R * 0.9 && Math.sin(lp.y * 140) > 0.1) c.set(0xb08a30); },
+    const rings = [[R * 1.02, 30, c1, 1.25], [R * 0.82, 26, c1, 1.05], [R * 0.62, 20, c2, 0.95], [R * 0.44, 14, c2, 0.85]];
+    rings.forEach(([rr, n, col, sc], ri) => {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + ri * 0.13 + (rng() - 0.5) * 0.08;
+        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+        k.add(mat('flower'), head, {
+          p: [x, cy + y, 0.012 + (ri === 1 || ri === 2 ? 0.02 : 0) + (rng() - 0.5) * 0.01], r: [(y / R) * -0.35, (x / R) * 0.35, rng() * 6], s: sc * (0.85 + rng() * 0.3),
+          color: col, w: false, colorFn: (p, nn, c) => wilt(c, p),
+        });
+        if (rng() < 0.45) k.add(mat('flower'), G('wleaf', () => blob(0.035, 0.016, 7, 6, 0.3).rotateX(Math.PI / 2)), { p: [x * 1.04, cy + y * 1.04, -0.005], r: [0, 0, a + (rng() - 0.5)], color: 0x2e4a26, w: false });
+      }
     });
+    // centre: pleated satin rosette + printed name card
+    k.add(mat('cloth_static'), G('wrosette:' + R, () => {
+      const g = new THREE.CircleGeometry(R * 0.33, 36, 0, Math.PI * 2);
+      const pa = g.attributes.position;
+      for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), a = Math.atan2(y, x), r = Math.hypot(x, y); pa.setZ(i, Math.sin(a * 16) * 0.008 * (r / (R * 0.33)) - r * 0.08); }
+      g.computeVertexNormals();
+      return g;
+    }), { p: [0, cy, 0.03], color: 0xe2dcd0, uv: 'keep', w: { vary: 0.2, grime: 0.3, grimeH: 0.4, ground: cy - R } });
+    k.add(mat('paper'), G('wcard', () => bbox(R * 0.42, R * 0.18, 0.004, 0.002, 0.1)), { p: [0, cy - R * 0.09, 0.035], color: 0xd8c890, w: { vary: 0.3 }, colorFn: (p, nn, c, lp) => { if (nn.z > 0.5 && Math.abs(lp.y - R * 0.09) < R * 0.045 && Math.sin(lp.x * 260) > -0.2) c.set(0x7a5a20); } });
+    // ribbon bow on top + two long tails hanging below with gold-printed letters
+    const rib = o.ribbon ?? 0xe8e2d4;
+    for (const sx of [-1, 1]) {
+      k.add(mat('cloth_static'), G('wbow', () => sphere(0.05, 8, 6).scale(1.2, 0.6, 0.3)), { p: [sx * 0.05, cy + R + 0.03, 0.05], r: [0, 0, sx * 0.4], color: rib, w: { vary: 0.25 } });
+      k.add(mat('cloth'), G('wtail:' + R, () => quad(0.07, R * 1.5, 1, 8).translate(0, -R * 0.75, 0)), {
+        p: [sx * 0.1, cy - R * 0.55, 0.06], r: [0.05, sx * 0.15, sx * 0.08], color: rib, uv: 'keep', w: { vary: 0.25, grime: 0.3, grimeH: 0.3, ground: cy - R * 2 },
+        deform: (p) => { p.z += Math.sin(p.y * 9) * 0.012; },
+        colorFn: (p, nn, c, lp) => { if (Math.abs(lp.x) < 0.02 && lp.y < -0.06 && lp.y > -R * 1.35 && Math.sin(lp.y * 120) > 0.2) c.set(0xb08a30); },
+      });
+    }
   });
 }
 

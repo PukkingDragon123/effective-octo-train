@@ -4,7 +4,8 @@
 // Every text is { th, en } (en may be a translation note for purely Thai signage).
 //
 // Exports: GAME_TITLE, PHONE_MESSAGE, SIGNS, SHOP_SIGNS, POSTERS, NOODLE_MENU, GARAGE_CALENDAR,
-//   TAXI_TEXT, PAPER_TITLE, CHAPTERS, DEATH_CARDS, DEATH_FOOTER, LOADING_LINES, MENU_TEXT, HOUR_WORDS
+//   TAXI_TEXT, PAPER_TITLE, CHAPTERS, CHAPTER_TITLE_MAX_LOOP, DEATH_CARDS, DEATH_FOOTER, LOADING_LINES,
+//   MENU_TEXT, HOUR_WORDS
 import { PAPER } from './rules.js';
 
 export const GAME_TITLE = {
@@ -29,41 +30,53 @@ export const HOUR_WORDS = {
 };
 
 /**
- * Chapter cards on each hour change: ui.chapter({ time, th, en }).
- * Rule for writers: evoke the hour, never reveal the passenger's nature or the rule event
- * (identifying human vs ghost is the game).
+ * Chapter cards on each hour change: ui.chapter({ time, word, th, en }).
+ * Thai-first and nearly wordless: the card is the hour (`word` + digits, the UI draws both) plus an
+ * optional 2–4-word title (`th`). Show the title only while saves.data.loops <= CHAPTER_TITLE_MAX_LOOP;
+ * on later nights the card is just the hour (the night is the same night).
+ * Rule for writers: evoke the hour, never reveal the passenger's nature or the rule event.
  */
+export const CHAPTER_TITLE_MAX_LOOP = 0;
 export const CHAPTERS = [
-  { hour: 21, time: '21:00', th: 'สามทุ่ม — ใครโบกก็ต้องรับ', en: 'Nine O\'Clock — Whoever Waves, You Stop' },
-  { hour: 22, time: '22:00', th: 'สี่ทุ่ม — กลิ่นมะลิ', en: 'Ten O\'Clock — The Scent of Jasmine' },
-  { hour: 23, time: '23:00', th: 'ห้าทุ่ม — ร้านที่ไม่เคยปิด', en: 'Eleven O\'Clock — The Stall That Never Closes' },
-  { hour: 24, time: '00:00', th: 'เที่ยงคืน — ป้ายรถเมล์ร้าง', en: 'Midnight — The Empty Bus Stop' },
-  { hour: 25, time: '01:00', th: 'ตีหนึ่ง — ใต้ต้นกล้วย', en: 'One A.M. — Beneath the Banana Leaves' },
-  { hour: 26, time: '02:00', th: 'ตีสอง — เจริญพร โยม', en: 'Two A.M. — Blessings, Layman' },
-  { hour: 27, time: '03:00', th: 'ตีสาม — เพลงเก่าเล่าความหลัง', en: 'Three A.M. — An Old Song' },
-  { hour: 28, time: '04:00', th: 'ตีสี่ — พวงมาลัยหน้ารถ', en: 'Four A.M. — A Garland for the Mirror' },
-  { hour: 29, time: '05:00', th: 'ตีห้า — เสาไฟต้นสุดท้าย', en: 'Five A.M. — The Last Streetlight' },
-  { hour: 30, time: '06:00', th: 'หกโมงเช้า — รุ่งสาง', en: 'Six A.M. — Dawn' },
+  { hour: 21, time: '21:00', word: 'สามทุ่ม', th: 'กะดึก', en: 'Night Shift' },
+  { hour: 22, time: '22:00', word: 'สี่ทุ่ม', th: 'กลิ่นมะลิ', en: 'Jasmine' },
+  { hour: 23, time: '23:00', word: 'ห้าทุ่ม', th: 'ร้านไม่เคยปิด', en: 'The Stall That Never Closes' },
+  { hour: 24, time: '00:00', word: 'เที่ยงคืน', th: 'ป้ายรถเมล์ร้าง', en: 'The Empty Bus Stop' },
+  { hour: 25, time: '01:00', word: 'ตีหนึ่ง', th: 'ใต้ต้นกล้วย', en: 'Under the Banana Tree' },
+  { hour: 26, time: '02:00', word: 'ตีสอง', th: 'เจริญพร', en: 'Blessings' },
+  { hour: 27, time: '03:00', word: 'ตีสาม', th: 'เพลงเก่า', en: 'An Old Song' },
+  { hour: 28, time: '04:00', word: 'ตีสี่', th: 'พวงมาลัย', en: 'A Garland' },
+  { hour: 29, time: '05:00', word: 'ตีห้า', th: 'เสาไฟต้นสุดท้าย', en: 'The Last Streetlight' },
+  { hour: 30, time: '06:00', word: 'หกโมงเช้า', th: 'รุ่งสาง', en: 'Dawn' },
 ];
 
-/** Death screen text: ui.deathCard(DEATH_CARDS[type]). `rule` names the rule that was broken, if any. */
+/**
+ * Death screen text: ui.deathCard(DEATH_CARDS[type]). ONE short Thai line each. `rule` names the
+ * rule that was broken, if any. Every death sends the night back to 21:00 (DEATH_FOOTER).
+ */
 export const DEATH_CARDS = {
   giantHand: { th: 'ทางซ้าย ไม่ใช่ทางของคนเป็น', en: 'The left road is not for the living.', rule: 'r2' },
-  trueForm: { th: 'บางใบหน้า ไม่ควรถูกมอง', en: 'Some faces are not meant to be seen.', rule: 'r4' },
-  roadFold: { th: 'ถนนพับกลับมา หาคนที่ถูกทิ้งไว้', en: 'The road folds back for those you leave behind.', rule: 'r1' },
-  windowAttack: { th: 'คนตาย ไม่อยากไปทางคนเป็น', en: 'The dead do not want the road of the living.', rule: 'r2' },
+  trueForm: { th: 'คุณมองหน้าเขา', en: 'You looked at the face.', rule: 'r4' },
+  roadFold: { th: 'ถนนพับกลับมาหาคนที่ถูกทิ้ง', en: 'The road folds back for the one you left.', rule: 'r1' },
+  windowAttack: { th: 'คนตายไม่อยากไปทางคนเป็น', en: 'The dead will not take the road of the living.', rule: 'r2' },
   dragBack: { th: 'เขาแค่อยากกลับบ้าน', en: 'He only wanted to go home.', rule: 'r2' },
-  home: { th: 'บ้าน ไม่ใช่ที่ของคนตาย', en: 'Home is no place for the dead.', rule: 'r2' },
+  home: { th: 'บ้านไม่ใช่ที่ของคนตาย', en: 'Home is no place for the dead.', rule: 'r2' },
   lookBack: { th: 'คุณหันไปมอง', en: 'You looked back.', rule: 'r3' },
-  ceilingCrawl: { th: 'ความมืดนั้น ไม่ได้ว่างเปล่า', en: 'The dark was not empty.', rule: 'r9' },
+  ceilingCrawl: { th: 'ความมืดไม่ได้ว่างเปล่า', en: 'The dark was not empty.', rule: 'r9' },
   trunk: { th: 'คุณจอด', en: 'You stopped.', rule: 'r5' },
   nameCall: { th: 'คุณขานรับ', en: 'You answered.', rule: 'r7' },
-  radio: { th: 'เพลงนั้น ไม่มีวันจบ', en: 'The song never ended.', rule: 'r6' },
-  breath: { th: 'สิ่งที่หายใจอยู่ข้างหลัง ได้เห็นหน้าคุณแล้ว', en: 'What breathed behind you has seen your face.', rule: 'r8' },
+  radio: { th: 'เพลงนั้นไม่มีวันจบ', en: 'The song never ended.', rule: 'r6' },
+  breath: { th: 'มันเห็นหน้าคุณแล้ว', en: 'It has seen your face.', rule: 'r8' },
   yaiSpeed: { th: 'ไม่มีใครวิ่งชนะยาย', en: 'Nobody outruns Granny.', rule: null },
-  crash: { th: 'ถนนเส้นนี้ ไม่ให้อภัยคนใจร้อน', en: 'This road does not forgive the hurried.', rule: null },
+  crash: { th: 'ถนนนี้ไม่ให้อภัยคนใจร้อน', en: 'This road does not forgive the hurried.', rule: null },
+  roadFigure: { th: 'คุณจอดให้มัน', en: 'You stopped for it.', rule: 'r12' },
+  roofHanger: { th: 'คุณปัดมันลงมาเอง', en: 'You wiped it down yourself.', rule: 'r13' },
+  count444: { th: 'มันนับถึงสิบก่อนคุณ', en: 'It reached ten first.', rule: 'r11' },
+  windowArm: { th: 'คุณเปิดกระจกให้มัน', en: 'You let it in.', rule: 'r14' },
+  extraPassenger: { th: 'คุณทักมัน', en: 'You spoke to it.', rule: 'r16' },
 };
-export const DEATH_FOOTER = { th: 'สามทุ่ม · อู่ กม.9', en: '21:00 · KM 9 Garage' };
+/** Under every death card: the loop. */
+export const DEATH_FOOTER = { th: 'สามทุ่ม… อีกครั้ง', en: "Nine o'clock… again" };
 
 /** Road signs and set-dressing text (signTex kinds in parentheses). */
 export const SIGNS = {
@@ -181,17 +194,16 @@ export const TAXI_TEXT = {
 /** Title block of Ah Kong's rules paper (the rules themselves are in rules.js). */
 export const PAPER_TITLE = PAPER.title;
 
-/** Lines shown while loading (and on the death card, randomly). */
+/** Lines shown while loading (and, rarely, on the death card). Short, half-remembered wisdom. */
 export const LOADING_LINES = [
-  { th: 'กระจกบอกความจริง มากกว่าตา', en: 'Mirrors tell more truth than eyes.' },
-  { th: 'คนเป็นหายใจ แล้วกระจกจะเป็นฝ้า', en: 'The living breathe, and the glass fogs.' },
-  { th: 'ถ้าพระในมือร้อนขึ้น คนข้างหลังไม่ใช่คน', en: 'If the amulet grows warm, whoever is behind you is not human.' },
+  { th: 'กระจกไม่โกหก', en: 'Mirrors do not lie.' },
+  { th: 'คนเป็นหายใจ กระจกถึงเป็นฝ้า', en: 'The living breathe, and the glass fogs.' },
+  { th: 'พระร้อนในมือ... คนข้างหลังไม่ใช่คน', en: "The amulet grows warm... whoever's behind you isn't human." },
   { th: 'ผ่านศาล บีบแตรสองที', en: 'Passing a shrine? Two honks.' },
-  { th: 'คนตายจำราคาเก่า จำโรงพยาบาลที่ปิดไปแล้ว', en: 'The dead remember old prices, and hospitals long closed.' },
-  { th: 'รถไม่ยุบ... ก็ไม่มีใครนั่งอยู่จริง', en: "If the car doesn't sink... nobody's really sitting there." },
-  { th: 'ร้านป้าเล็กเปิดทั้งคืน กาแฟแก้วละยี่สิบ', en: "Auntie Lek's is open all night. Coffee, twenty baht." },
-  { th: 'ตุ๊กแกร้องเจ็ดที...', en: 'The gecko calls seven times...' },
-  { th: 'บางบรรทัดในกระดาษ ต้องเปียกก่อนถึงจะอ่านออก', en: 'Some lines on the paper only show when it gets wet.' },
+  { th: 'คนตายจำราคาเก่า', en: 'The dead remember old prices.' },
+  { th: 'รถไม่ยุบ... ก็ไม่มีใครนั่ง', en: "The car doesn't sink... nobody's sitting there." },
+  { th: 'ตุ๊กแกร้องเจ็ดที', en: 'The gecko calls seven times.' },
+  { th: 'พลิกกระดาษดูด้วย', en: 'Turn the paper over.' },
   { th: 'อย่าหัน', en: "Don't look back." },
 ];
 

@@ -11,6 +11,7 @@ import { G, PAL, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, pl
 import { dancerGeo } from './lib/figures.js';
 import { addAsset, hasAsset, assetShelves, assetSize } from './lib/assets.js';
 import { useAsset } from './lib/small.js';
+import { card, findPrint, snackBag, noodleCup, posterStack, litter } from './lib/print.js';
 import { hangingFluorescent } from './sala.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -30,6 +31,14 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
   while (x < x0 + w - 0.08) {
     const r = rng();
     const zj = z0 + (rng() - 0.5) * d * 0.4;
+    // packaging: snack bags standing and noodle cups (printed, photobashed wrappers)
+    const rp = rng();
+    if (theme !== 'parts' && rp < 0.16 && x < x0 + w - 0.18) {
+      if (rp < 0.09 ? snackBag(k, { p: [x + 0.07, y, zj], r: (rng() - 0.5) * 0.6, w: 0.13, seed: Math.round(x * 100 + y * 10) }) : noodleCup(k, { p: [x + 0.05, y, zj], r: rng() * 6 }) && noodleCup(k, { p: [x + 0.05, y + 0.1, zj], r: rng() * 6 })) {
+        x += 0.16;
+        continue;
+      }
+    }
     // real (CC0) tins / cleaner bottles / rusty cans when the models are loaded
     const ra = rng();
     if (ra < 0.3 && x < x0 + w - 0.24) {
@@ -297,6 +306,15 @@ export function createGarage(opts = {}) {
     k.add(mat('plastic'), G('clockRim', () => cyl(0.16, 0.16, 0.045, 20, 0.01).rotateX(Math.PI / 2)), { color: 0x2a2a2a, w: { dust: 0.5, grime: 0 } });
     k.add(texMat('clock', () => clockTex(), {}), G('clockFace', () => new THREE.CircleGeometry(0.14, 20)), { p: [0, 0, 0.024], color: 0xd8d0b8, uv: 'keep', w: false });
   });
+  // stickers slapped on the steel cabinet door + an older calendar left behind the new one
+  {
+    const stickers = [[1.45, 1.35, -0.05], [1.72, 1.12, 0.12], [1.52, 0.86, 0.06], [1.8, 1.55, -0.1]];
+    stickers.forEach(([x, y, rz], i) => {
+      const st = findPrint([['sticker']], () => ((i * 0.37 + 0.11) % 1));
+      if (st) card(k, st.kind, st.opts, { p: [x, y, zB + 0.33 + 0.226], r: [0, 0, rz], scale: 1.6, curl: 0.004, seed: 30 + i, wt: { vary: 0.25, grime: 0.2, ground: 0 } });
+    });
+    card(k, 'calendar', { month: 6, year: 2536 }, { p: [0.84, 1.72, zB + 0.106], r: [0, 0, -0.04], w: 0.48, torn: 0.5, curl: 0.03, seed: 77, wt: { vary: 0.4, grime: 0.3, ground: 1.2 } });
+  }
   // layered wall dressing (reference 5: every wall covered): old posters, notices, water stains
   const posterAt = (v, x, y, z, ry, w = 0.42, rz = 0) => k.add(signMat('poster', { variant: v }), G('gposter2', () => quad(0.42, 0.594, 2, 3)), { p: [x, y, z], r: [0, ry, rz], s: w / 0.42, color: 0xc8c0b0, uv: 'keep', w: { vary: 0.35, grime: 0.15, grimeH: 0.2, ground: y - 0.3 }, deform: (p) => { p.z += Math.max(0, -p.y - 0.18) * 0.1 + Math.sin(p.x * 20) * 0.003; } });
   posterAt(0, 1.0, 2.05, zB + 0.112, 0, 0.42, 0.03);
@@ -350,7 +368,12 @@ export function createGarage(opts = {}) {
       teacup(k, { p: [0.12, 0.72, 0.12] });
       k.add(mat('glass_bottle'), G('ashtray', () => lathe([[0, 0], [0.06, 0], [0.065, 0.025], [0.05, 0.025], [0.045, 0.008], [0, 0.008]], 14)), { p: [-0.2, 0.72, 0.05], color: 0x8a9a90, w: false });
       for (let i = 0; i < 6; i++) k.add(mat('ceramic'), G('butt', () => cyl(0.004, 0.004, 0.025, 5, 0).rotateZ(Math.PI / 2)), { p: [-0.2 + (rng() - 0.5) * 0.06, 0.733, 0.05 + (rng() - 0.5) * 0.06], r: rng() * 6, color: rng() < 0.5 ? 0xd8c890 : 0xe8e4dc, w: false });
-      k.add(mat('paper'), G('newspaper', () => bevelBox(0.38, 0.012, 0.28, 0.003, 0.1)), { p: [-0.18, 0.725, -0.15], r: -0.3, color: 0xc8c0a8, w: { vary: 0.3 }, colorFn: (p, n, c, lp) => { if (n.y > 0.5 && Math.abs(Math.sin(lp.z * 120)) > 0.7 && Math.abs(lp.x) < 0.16) c.multiplyScalar(0.55); } });
+      const news = findPrint([['newspaper'], ['newspaper_local']], rng);
+      if (!(news && card(k, news.kind, news.opts, { p: [-0.18, 0.727, -0.15], r: [-Math.PI / 2, 0, -0.3, 'XYZ'], scale: 0.8, fold: 0.08, seed: 4, wt: { vary: 0.3, dust: 0.2 } })))
+        k.add(mat('paper'), G('newspaper', () => bevelBox(0.38, 0.012, 0.28, 0.003, 0.1)), { p: [-0.18, 0.725, -0.15], r: -0.3, color: 0xc8c0a8, w: { vary: 0.3 }, colorFn: (p, n, c, lp) => { if (n.y > 0.5 && Math.abs(Math.sin(lp.z * 120)) > 0.7 && Math.abs(lp.x) < 0.16) c.multiplyScalar(0.55); } });
+      // lottery tickets fanned by the ashtray (Ah Kong never wins)
+      const lot = findPrint([['lottery']], rng);
+      if (lot) for (let i = 0; i < 3; i++) card(k, lot.kind, lot.opts, { p: [0.05 + i * 0.03, 0.7215 + i * 0.0012, 0.05 + i * 0.012], r: [-Math.PI / 2, 0, 0.5 + i * 0.25, 'XYZ'], curl: 0.006, seed: 9 + i, wt: false });
       k.add(mat('paper'), G('cigpack', () => bbox(0.055, 0.02, 0.085, 0.003, 0.05)), { p: [0.0, 0.725, 0.18], r: 0.5, color: 0xc83a2a, w: false });
     });
   });

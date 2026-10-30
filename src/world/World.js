@@ -36,6 +36,7 @@ export class World {
     /** Object3D on the counter of Auntie Lek's noodle stall (memory m_noodle). */
     this.noodleCounter = null;
     this.buildTimes = {};
+    this.propsReady = Promise.resolve();
     this.drawDistance = settings.get('drawDistance') ?? 150;
     this.density = settings.get('foliageDensity') ?? 1;
     this._pr = null;
@@ -43,7 +44,12 @@ export class World {
     this.built = false;
   }
 
-  /** Build everything. opts: { onProgress(fraction, label{th,en}), quality, forest=true, props=true } */
+  /**
+   * Build everything. opts: { onProgress(fraction, label{th,en}), quality, forest=true, props=true,
+   *   ambience=true, deferProps=false }. With deferProps the secondary set pieces (salas, temple,
+   *   statues, bus stop, village stop...) are finished in the background after build() resolves;
+   *   await world.propsReady before reading their anchors.
+   */
   async build(opts = {}) {
     const prog = (f, th, en) => opts.onProgress?.(f, { th, en });
     const t0 = performance.now();
@@ -144,7 +150,8 @@ export class World {
 
     // ---- props & landmarks ---------------------------------------------------------------------
     if (this.placement) {
-      await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'));
+      await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'), { defer: !!opts.deferProps });
+      this.propsReady = this.placement.ready;
       this.group.add(this.placement.group);
       const sm = this.landmarks.shrineMaRuay;
       if (sm) this.fork.shrine = sm.prop;

@@ -367,7 +367,7 @@ export class EngineSound {
     const core = this.core;
     const bank = core.samples;
     this.recTyre = {};
-    if (!bank) return;
+    if (!bank || (bank.state !== 'loading' && bank.state !== 'ready')) return;
     await Promise.race([bank.ready, new Promise((r) => setTimeout(r, 2500))]);
     if (!this.core || !bank.usable) return;
     const ctx = core.ctx;

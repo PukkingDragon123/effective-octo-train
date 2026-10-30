@@ -267,29 +267,30 @@ export class Placement {
   // =====================================================================================
   // BUILD
   // =====================================================================================
-  async build(onProgress) {
+  /**
+   * opts.defer: build only the set pieces needed at the start of the game (garage, the fork
+   * shrine, the intro spur) + all dressing, resolve, then finish the remaining set pieces in the
+   * background (one per frame-ish). `this.ready` resolves when everything is placed.
+   */
+  async build(onProgress, opts = {}) {
     const world = this.world;
     const t0 = performance.now();
-    const T = {};
+    const T = (this.times = { lm: {} });
     let tt = performance.now();
     const lap = (k) => {
       const n = performance.now();
       T[k] = Math.round(n - tt);
       tt = n;
     };
-    // ---- set pieces ---------------------------------------------------------------------------
+    const ESSENTIAL = new Set(['garage', 'shrineMaRuay', 'spurStart', 'spurShrine', 'spurJunction', 'km9', 'shrineApproach', 'elephantCrossing', 'accidentCurve', 'noodleShop']);
     const keys = Object.keys(world.landmarks);
-    for (let i = 0; i < keys.length; i++) {
-      const lm = world.landmarks[keys[i]];
-      const tl0 = performance.now();
-      try {
-        this._buildLandmark(lm);
-        (T.lm || (T.lm = {}))[lm.key] = Math.round(performance.now() - tl0);
-      } catch (e) {
-        console.error('[world] landmark', lm.key, 'failed', e);
-      }
-      onProgress?.((i / keys.length) * 0.5);
-      if (i % 4 === 3) await yieldFrame();
+    const now = opts.defer ? keys.filter((k) => ESSENTIAL.has(k)) : keys;
+    const later = opts.defer ? keys.filter((k) => !ESSENTIAL.has(k)) : [];
+    // ---- set pieces ---------------------------------------------------------------------------
+    for (let i = 0; i < now.length; i++) {
+      this._landmarkSafe(world.landmarks[now[i]]);
+      onProgress?.((i / now.length) * 0.5);
+      if (i % 3 === 2) await yieldFrame();
     }
     lap('landmarks');
     // ---- dressing -----------------------------------------------------------------------------
@@ -303,17 +304,41 @@ export class Placement {
       this.colliderCount++;
     }
     this.group.updateMatrixWorld(true);
-    // ---- lights (after placement: anchors are in their final place) --------------------------
-    for (const r of this.results) {
-      if (!r.lights || !r.lights.length) continue;
-      // LightPool divides by (1 + priority): the props 'delineator' preset (priority -1) would
-      // never glow. Clamp to the lowest usable priority.
-      for (const sp of r.lights) if ((sp.priority ?? 0) <= -1) sp.priority = -0.6;
-      this.lightHandles.push(...P.addPropLights(r));
-    }
-    lap('lights');
-    this.stats = { ms: Math.round(performance.now() - t0), phases: T, dress: this.dressTimes, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount };
+    this.stats = { ms: Math.round(performance.now() - t0), phases: T, dress: this.dressTimes, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount, deferred: later.length };
     onProgress?.(1);
+    this.ready = later.length
+      ? (async () => {
+          for (const k of later) {
+            await yieldFrame();
+            this._landmarkSafe(world.landmarks[k]);
+          }
+          this.group.updateMatrixWorld(true);
+          this.stats.lights = this.lightHandles.length;
+          this.stats.colliders = this.colliderCount;
+        })()
+      : Promise.resolve();
+  }
+
+  _landmarkSafe(lm) {
+    const tl0 = performance.now();
+    try {
+      this._buildLandmark(lm);
+    } catch (e) {
+      console.error('[world] landmark', lm.key, 'failed', e);
+    }
+    this.times.lm[lm.key] = Math.round(performance.now() - tl0);
+  }
+
+  /** Remember a prop result and register its lights (its object must already be in place). */
+  _track(result) {
+    this.results.push(result);
+    if (!result.lights || !result.lights.length) return result;
+    // LightPool divides by (1 + priority): the props 'delineator' preset (priority -1) would
+    // never glow. Clamp to the lowest usable priority.
+    for (const sp of result.lights) if ((sp.priority ?? 0) <= -1) sp.priority = -0.6;
+    result.object?.updateMatrixWorld?.(true);
+    this.lightHandles.push(...P.addPropLights(result));
+    return result;
   }
 
   // ---------------------------------------------------------------------------------------
@@ -332,8 +357,7 @@ export class Placement {
     }
     o.updateMatrixWorld(true);
     if (result.colliders) this._colliders(result.colliders, pos, yaw, opts.colliderSpace === 'world');
-    this.results.push(result);
-    return result;
+    return this._track(result);
   }
 
   _colliders(list, pos, yaw, worldSpace = false) {
@@ -671,7 +695,7 @@ export class Placement {
               b.y += 5.7;
               const ls = P.createLanternString(a, b, { count: 9, sag: 1.0, seed: it.seed, size: 1.05, lightEvery: 3 });
               this.batcher.add(ls.object, (p.x + q.x) / 2, (p.z + q.z) / 2);
-              this.results.push(ls);
+              this._track(ls);
             }
             break;
           }
@@ -714,7 +738,7 @@ export class Placement {
             const mid = pts[Math.floor(pts.length / 2)];
             this.batcher.add(res.object, mid.x, mid.z);
             this._colliders(res.colliders, mid, 0, true);
-            this.results.push(res);
+            this._track(res);
             break;
           }
           default:

@@ -819,10 +819,14 @@ export class TaxiControls {
       }
       if (g && g.mode === 'text') {
         ctx.fillStyle = red;
-        ctx.font = `700 ${H * 0.5}px ${FONTS.sign}`;
+        ctx.font = `700 ${H * 0.56}px ${FONTS.sign}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(g.text || 'ว่าง', W / 2 + (Math.random() - 0.5) * 4, H * 0.55);
+        ctx.strokeStyle = red;
+        ctx.lineWidth = H * 0.045;
+        const gx = W / 2 + (Math.random() - 0.5) * 4;
+        ctx.strokeText(g.text || 'ว่าง', gx, H * 0.55);
+        ctx.fillText(g.text || 'ว่าง', gx, H * 0.55);
         return;
       }
       if (s.meterOn) {
@@ -831,15 +835,25 @@ export class TaxiControls {
         ctx.fillStyle = red;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.font = `700 ${H * 0.26}px ${FONTS.sign}`;
+        ctx.strokeStyle = red;
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = H * 0.025;
+        ctx.font = `700 ${H * 0.3}px ${FONTS.sign}`;
+        ctx.strokeText('฿', 8, H * 0.3);
         ctx.fillText('฿', 8, H * 0.3);
-        ctx.font = `700 ${H * 0.2}px ${FONTS.sign}`;
-        ctx.fillText('บาท', 8, H * 0.74);
+        ctx.font = `700 ${H * 0.24}px ${FONTS.sign}`;
+        ctx.strokeText('บาท', 6, H * 0.74);
+        ctx.fillText('บาท', 6, H * 0.74);
       } else {
+        // Srisakdi's hairlines vanish at LED size: stroke the glyphs to give them LED weight
         ctx.fillStyle = red;
-        ctx.font = `700 ${H * 0.52}px ${FONTS.sign}`;
+        ctx.strokeStyle = red;
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = H * 0.05;
+        ctx.font = `700 ${H * 0.62}px ${FONTS.sign}`;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
+        ctx.strokeText('ว่าง', 10, H * 0.56);
         ctx.fillText('ว่าง', 10, H * 0.56);
         drawSegments(ctx, clock, W - 10, H * 0.26, H * 0.48, { color: red, ghost, align: 'right' });
       }
@@ -869,8 +883,12 @@ export class TaxiControls {
       ctx.fillText(band || '', 6, H * 0.52);
       drawSegments(ctx, (num || '').padStart(6, ' '), W * 0.58, H * 0.16, H * 0.68, { color: vfd, ghost, align: 'right', skew: 0.08 });
       ctx.shadowBlur = 0;
-      ctx.font = `700 ${H * 0.4}px ${FONTS.sign}`;
+      ctx.font = `700 ${H * 0.44}px ${FONTS.sign}`;
       ctx.textAlign = 'right';
+      ctx.strokeStyle = vfd;
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = H * 0.035;
+      ctx.strokeText(st.th || st.name, W - 6, H * 0.55);
       ctx.fillText(st.th || st.name, W - 6, H * 0.55);
     });
   }

@@ -1133,6 +1133,44 @@ function rockNoise() {
   return _rockNoise;
 }
 
+/** Gnarled surface roots running from a trunk base toward local +X (the road), half buried. */
+function surfaceRoots(rng, opts) {
+  const skel = { branches: [], leaves: [] };
+  const sc = opts.scale ?? 1;
+  const tint = BARK_TINT(rng, [0.42, 0.39, 0.34]);
+  const n = 4 + Math.floor(rng() * 3);
+  for (let k = 0; k < n; k++) {
+    const a = (rng() - 0.5) * 2.2;
+    const L = (1.6 + rng() * 2.8) * sc;
+    const pts = [];
+    const segs = 9;
+    let x = Math.cos(a) * 0.18, z = Math.sin(a) * 0.18, ang = a;
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      pts.push({ x, y: 0.12 - t * 0.2 + Math.sin(t * 9 + k) * 0.025, z, r: (0.11 * (1 - t) + 0.014) * sc });
+      ang += (rng() - 0.5) * 0.7;
+      x += Math.cos(ang) * (L / segs);
+      z += Math.sin(ang) * (L / segs);
+    }
+    skel.branches.push({ pts, level: 1, radial: 6, noCollar: true, color: (i, t) => [tint[0] * (0.7 + 0.3 * t), tint[1] * (0.72 + 0.3 * t), tint[2] * (0.7 + 0.3 * t)] });
+    // a side root or two
+    if (rng() < 0.6) {
+      const q = pointOn(pts, 0.4 + rng() * 0.3);
+      const b = [];
+      let bx = q.x, bz = q.z, ba = ang + (rng() < 0.5 ? 1 : -1) * (0.8 + rng() * 0.5);
+      for (let i = 0; i <= 5; i++) {
+        const t = i / 5;
+        b.push({ x: bx, y: q.y - t * 0.06, z: bz, r: q.r * 0.6 * (1 - t * 0.8) });
+        ba += (rng() - 0.5) * 0.8;
+        bx += Math.cos(ba) * 0.25;
+        bz += Math.sin(ba) * 0.25;
+      }
+      skel.branches.push({ pts: b, level: 2, radial: 5, color: () => tint });
+    }
+  }
+  return { skel, height: 0.4, radius: 4 * sc, crownY: 0.2, trunkR: 0.2, kind: 'small' };
+}
+
 export const SPECIES = {
   reachTree: { fn: reachTree, variants: 5, lods: 2, impostor: true },
   rainTree: { fn: rainTree, variants: 3, lods: 2, impostor: true },
@@ -1142,7 +1180,7 @@ export const SPECIES = {
   deadTree: { fn: deadTree, variants: 2, lods: 2, impostor: true },
   palm: { fn: palm, variants: 2, lods: 1, impostor: true, looks: [0, 1] },
   bamboo: { fn: bamboo, variants: 3, lods: 2, impostor: true },
-  banana: { fn: banana, variants: 4, lods: 1, impostor: false, looks: [0, 1, 0, 1] },
+  banana: { fn: banana, variants: 4, lods: 2, impostor: false, looks: [0, 1, 0, 1] },
   treeFern: { fn: fernPlant, variants: 2, lods: 1, impostor: false, looks: [1, 1] },
   fern: { fn: fernPlant, variants: 3, lods: 2, impostor: false, looks: [0, 0, 0] },
   grass: { fn: grassClump, variants: 3, lods: 1, impostor: false, looks: [0, 0, 1] },
@@ -1150,6 +1188,7 @@ export const SPECIES = {
   shrub: { fn: shrub, variants: 3, lods: 2, impostor: false },
   log: { fn: fallenLog, variants: 2, lods: 1, impostor: false },
   vine: { fn: vineCurtain, variants: 3, lods: 1, impostor: false },
+  roots: { fn: surfaceRoots, variants: 3, lods: 1, impostor: false },
 };
 
 /** Build one variant: { lods: [meshSkeleton(...)...], info } */

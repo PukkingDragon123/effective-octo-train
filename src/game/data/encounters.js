@@ -14,14 +14,25 @@
 //   creature?: creatures/ factory name, respectSoftens?: r10 respect shortens it, amuletRepels?: holding the amulet ends it,
 //   needsReflection?: only for passengers whose clues.reflection is not 'none',
 //   lines?: [Line] spoken when it starts, whispers?: [Line] random ambient whispers while it runs,
-//   choice?: { prompt:Line, options:[{key,th,en}], timeout, defaultKey }, outcomes?: { key: { lines:[Line], result:'death:<type>'|'safe'|'ending:<id>' } },
+//   choice?: { prompt?:Line, id, options:[{key,th,en}], timeout, defaultKey },
+//   outcomes?: { key: { lines:[Line], result:'safe'|'death:<type>'|'ending:<id>'|'scare:<name>'|'escalate:<name>' } },
+//   exception?: true          this encounter is a rule's designed EXCEPTION (nothing bad happens; the rule
+//                             "should" apply but does not: monk + 444, betel juice, the father's dedication),
+//   requires?: { radioOn?: true, passengerAboard?: bool }  extra spawn gates (free drive),
+//   chains?: [{ id, atSecond, if?: Condition }]  start another encounter while this one runs (444 → window knock),
+//   broadcast?: SPECIAL_BROADCASTS id whose lines this encounter plays on the radio,
 //   staging: designer notes for the director / creatures programmer,
 // }
 // Lines follow the Line schema (SCHEMA.md). who:'voice' = disembodied.
+//
+// WHO OWNS THE REPLY: an encounter's own `choice` is played by the encounter director, UNLESS the
+// current ride has a beat on 'encounter:<id>' whose lines contain a reply moment: then the ride beat
+// owns the talking (its options set flags.ruleBreak, see RULE_BREAKS) and the encounter only stages,
+// whispers and resolves outcomes. Thai-first: most encounters say nothing at all on screen.
 
 const V = (th, en, x = {}) => ({ who: 'voice', th, en, tone: 'ghost', ...x });
 const W = (th, en) => ({ who: 'voice', th, en, tone: 'whisper' });
-const T = (th, en, x = {}) => ({ who: 'player', th, en, tone: 'thought', ...x });
+const S = (who, th, en, x = {}) => ({ who, th, en, ...x });
 
 export const ENCOUNTERS = {
   // ---------------------------------------------------------------- dread 21–23
@@ -29,7 +40,6 @@ export const ENCOUNTERS = {
     id: 'treeWatcher', nameTH: 'คนยืนในป่า', nameEN: 'Tree Watcher', kind: 'scare',
     hours: [21, 23], where: ['freeDrive', 'ride:sri'], gazeMode: 'sideWindow',
     cooldownSec: 150, chance: 0.35, durationSec: [6, 14], creature: 'createWindowGhost', respectSoftens: true,
-    lines: [T('มีคน... ยืนอยู่ในป่า', "Someone's... standing in the trees.")],
     staging: 'Pale figure 8–15 m off the road between trunks, visible only through a side window. When looked at directly (>0.4 s) it is gone; reappears 60–90 m ahead on the same side.',
   },
   womanRunning: {
@@ -76,7 +86,6 @@ export const ENCOUNTERS = {
     id: 'cabinLightDies', nameTH: 'ไฟในรถดับเอง', nameEN: 'The Cabin Light Dies', kind: 'rule', ruleId: 'r9',
     hours: [21, 27], where: ['ride:womanWhite', 'freeDrive'], gazeMode: 'any',
     cooldownSec: 600, chance: 0.15, durationSec: [10, 16],
-    lines: [T('ไฟดับ... เอง', 'The light... went out by itself.')],
     whispers: [W('ดีแล้ว... มืดดีแล้ว', "Good... the dark is good."), W('ข้างบน...', 'Up here...')],
     outcomes: {
       lightOn: { lines: [V('เห็นแล้ว...', 'I see you now...')], result: 'death:ceilingCrawl' },
@@ -102,24 +111,21 @@ export const ENCOUNTERS = {
     id: 'roofCrawler', nameTH: 'อะไรอยู่บนหลังคา', nameEN: 'Roof Crawler', kind: 'scare',
     hours: [22, 26], where: 'freeDrive', gazeMode: 'any',
     cooldownSec: 500, chance: 0.18, durationSec: [5, 9], amuletRepels: true,
-    lines: [T('บนหลังคา... มีอะไรเดินอยู่', "Something's... walking on the roof.")],
     staging: 'Dents and thumps on the roof, the headliner bulges, a shadow crosses the windshield top edge; a hand slaps the windshield once, then it leaps into the trees.',
   },
   somethingEnormous: {
     id: 'somethingEnormous', nameTH: 'ร่างยักษ์ในป่า', nameEN: 'Something Enormous', kind: 'folklore',
     hours: [23, 25], where: ['freeDrive', 'ride:piak', 'ride:boyM'], gazeMode: 'any',
     cooldownSec: 900, chance: 0.15, durationSec: [5, 8], creature: 'createForestGiant',
-    lines: [T('ต้นไม้... ขยับ?', 'Did the trees... move?')],
     staging: 'A vast silhouette moves between the trunks 40–80 m away, lit for a moment by a streetlight. The ground thuds faintly; the amulet warms.',
   },
   yaiSpeed: {
     id: 'yaiSpeed', nameTH: 'ยายสปีด', nameEN: 'Yai Speed', kind: 'folklore',
     hours: [23, 25], where: ['freeDrive', 'ride:piak'], gazeMode: 'any',
     cooldownSec: 600, chance: 0.3, durationSec: [10, 18], creature: 'createYaiSpeed', amuletRepels: true, respectSoftens: true,
-    lines: [T('...ยาย?', '...Granny?')],
     whispers: [V('หึ หึ หึ...', 'Heh heh heh...')],
     outcomes: {
-      slowed: { lines: [T('ปล่อยให้แกแซงไป...', 'Let her pass...')], result: 'safe' },
+      slowed: { lines: [], result: 'safe' },
       raced: { lines: [V('แข่งกับยายเหรอ...', 'Racing Granny, are we...')], result: 'scare:hood' },
     },
     staging: 'An old woman sprints alongside at any speed with an impossible gait, overtakes, turns her head 180° while running. Slow down (<35 km/h) and she passes. Stare + accelerate and she lands on the hood (scare, crack in the glass); holding the amulet throws her off.',
@@ -157,9 +163,8 @@ export const ENCOUNTERS = {
       V('เปิดประตูให้แม่หน่อย แม่หนาว', "Open the door for Mum. I'm cold."),
     ],
     choice: {
-      prompt: T('มีเสียงเรียกจากข้างนอก...', 'A voice outside is calling...'),
       id: 'nameCall',
-      options: [{ key: 'answer', th: 'ครับ?', en: 'Yes?' }, { key: 'silent', th: '(เงียบ)', en: '(stay silent)' }],
+      options: [{ key: 'answer', th: 'ครับ?', en: 'Yes?' }, { key: 'silent', th: '…', en: '(stay silent)' }],
       timeout: 6, defaultKey: 'silent',
     },
     outcomes: {
@@ -173,7 +178,6 @@ export const ENCOUNTERS = {
     id: 'breathOnNeck', nameTH: 'ลมหายใจรดต้นคอ', nameEN: 'Breath on the Neck', kind: 'rule', ruleId: 'r8',
     hours: [22, 28], where: ['ride:saman', 'freeDrive'], gazeMode: 'any',
     cooldownSec: 900, chance: 0.1, durationSec: [5, 8], amuletRepels: true,
-    lines: [T('ลมหายใจ... ที่ต้นคอ', 'Breath... on my neck.')],
     whispers: [W('หันมาสิ...', 'Turn around...'), W('ข้างหลังนี่...', 'Right behind you...'), W('ฮืออ...', 'Hhhhh...')],
     outcomes: {
       held: { lines: [], result: 'safe' },
@@ -252,14 +256,146 @@ export const ENCOUNTERS = {
     cooldownSec: 0, chance: 1, durationSec: [12, 20],
     outcomes: {
       lookedBack: { lines: [], result: 'ending:endless' },
-      drove: { lines: [], result: 'ending:dawn' },
-      forgave: { lines: [], result: 'ending:forgive' },
+      drove: { lines: [], result: 'safe' }, // → fatherDelivered: the empty dawn drive to the LAST fork (ENDINGS moment 'finalFork')
     },
-    staging: 'At the mist gate he steps out; door closes; then his voice from the rear-right seat (RIDE_SOMCHAI.finale). Camera look limits stay open: the player must choose not to turn.',
+    staging: 'At the mist gate he steps out; door closes; then his voice from the rear-right seat (RIDE_SOMCHAI.finale.stepOut), then the gate reply (finale.gateReply). Camera look limits stay open: the player must choose not to turn. A `wait` reply sets flags.lure = "r3": his voice moves right behind the headrest for RULE_PARAMS.lureSeconds.',
+  },
+
+  // ---------------------------------------------------------------- back of the paper (r11–r16)
+  roadFigure: {
+    id: 'roadFigure', nameTH: 'คนยืนกลางถนน', nameEN: 'Someone Standing in the Road', kind: 'rule', ruleId: 'r12',
+    hours: [21, 29], where: ['ride:sri', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 700, chance: 0.12, durationSec: [6, 10], creature: 'createWindowGhost',
+    whispers: [W('จอด...', 'Stop...'), W('ช่วยด้วย...', 'Help me...')],
+    outcomes: {
+      passed: { lines: [W('เย็น...', 'Cold...')], result: 'safe' },
+      braked: { lines: [V('จอดให้แล้ว...', 'You stopped for me...')], result: 'death:roadFigure' },
+      swerved: { lines: [V('หลบทำไม...', 'Why swerve...')], result: 'death:roadFigure' },
+    },
+    staging: 'A thin figure stands dead centre of the lane 80 m ahead, arms at its sides, NOT hailing, lit only by the headlights. It never moves. Slowing under RULE_PARAMS.roadFigureNoBrakeMinKmh within roadFigureDangerM, or leaving the asphalt, = it reaches the windshield. Driving through: a cold white flash, the glass fogs from outside, and for a few seconds it stands in the road BEHIND you in the rear-view mirror. In ride 1 Auntie Sri screams at you to brake (the temptation).',
+  },
+  bloodDrip: {
+    id: 'bloodDrip', nameTH: 'เลือดหยดลงกระจก', nameEN: 'Blood on the Windshield', kind: 'rule', ruleId: 'r13',
+    hours: [21, 27], where: ['ride:womanWhite', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 800, chance: 0.1, durationSec: [10, 16],
+    whispers: [W('ปัดสิ...', 'Wipe it...'), W('ปัดให้หน่อย...', 'Wipe it for me...')],
+    outcomes: {
+      letRun: { lines: [], result: 'safe' },
+      wiped: { lines: [V('เห็นแล้วใช่ไหม...', 'Now you see me...')], result: 'death:roofHanger' },
+    },
+    staging: 'Dark drops fall from the roof edge onto the top of the windshield, then thin runnels (gore setting). Wipers must be OFF within RULE_PARAMS.bloodWiperGraceSeconds — in the rain of ride 2 they are probably ON. Each wipe smears it and shows more of what hangs from the roof (wet hair, a hand); bloodWipeFailSeconds of wiping = it slides down onto the glass. Gameplay sets flags.bloodOnGlass while it runs. Leads into upsideDownHead in ride 2.',
+  },
+  betelSpit: {
+    id: 'betelSpit', nameTH: 'น้ำหมาก', nameEN: 'Betel Juice', kind: 'rule', ruleId: 'r13', exception: true,
+    hours: [27, 28], where: 'ride:saman', gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [8, 12],
+    outcomes: {
+      wiped: { lines: [], result: 'safe' },
+      letRun: { lines: [], result: 'safe' },
+    },
+    staging: 'r13 EXCEPTION. Uncle Saman spits betel juice "out of the window" straight through the closed glass (he is a ghost; rule 14 stays unbroken) and the wind spatters it red across the windshield. It looks exactly like the blood of r13, but it is only betel: wiping is safe. Not wiping is safe too; he teases you.',
+  },
+  meter444: {
+    id: 'meter444', nameTH: 'มิเตอร์ ๔๔๔', nameEN: 'The Meter Shows 444', kind: 'rule', ruleId: 'r11',
+    hours: [23, 29], where: ['ride:nuan', 'ride:monk', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 900, chance: 0.1, durationSec: [14, 22],
+    lines: [
+      V('หนึ่ง...', 'One...', { tone: 'whisper' }),
+      V('สอง...', 'Two...', { tone: 'whisper' }),
+      V('สาม...', 'Three...', { tone: 'whisper' }),
+      V('สี่...', 'Four...', { tone: 'whisper' }),
+    ],
+    choice: {
+      prompt: V('นับถึงไหนแล้ว...', 'Where are you up to...?', { tone: 'whisper' }),
+      id: 'count444',
+      options: [{ key: 'answer', th: 'เจ็ด', en: 'Seven.' }, { key: 'silent', th: '…', en: '(keep counting in your head)' }],
+      timeout: 6, defaultKey: 'silent',
+    },
+    outcomes: {
+      answer: { lines: [V('แปด... เก้า... สิบ', 'Eight... nine... TEN.')], result: 'death:count444' },
+      silent: { lines: [V('...สิบ', '...ten.', { tone: 'whisper' })], result: 'safe' },
+      lookedAtGlass: { lines: [V('เห็นหน้าแล้ว...', 'I see your face...')], result: 'death:count444' },
+      didntStop: { lines: [V('ไม่จอด... ก็นับต่อในรถ', "Won't stop? Then I'll count inside.")], result: 'death:count444' },
+      monkAboard: { lines: [], result: 'safe' },
+    },
+    chains: [{ id: 'windowKnock', atSecond: 6, if: { hourGte: 24 } }],
+    staging: 'The meter rolls to 444.00 and freezes; its digits glow red. Stop within RULE_PARAMS.meter444StopWithinSeconds, then for meter444CountSeconds keep the gaze off every mirror and window (looking DOWN at the dash or lap, pitch < meter444LookDownPitchDeg, is safe). A voice outside counts slowly along the car, one number per second, moving window to window; at four it stops and asks how far YOU have got. Counting is meant to be done in your head: answering aloud is the break. After midnight it chains windowKnock (something taps on the glass while you must not look at it). EXCEPTION: with the monk aboard nothing counts; the number is just a number (outcome monkAboard, no lines, no choice).',
+  },
+  windowKnock: {
+    id: 'windowKnock', nameTH: 'มีคนเคาะกระจก', nameEN: 'A Knock at the Window', kind: 'rule', ruleId: 'r14',
+    hours: [24, 30], where: ['ride:nuan', 'freeDrive'], gazeMode: 'sideWindow',
+    cooldownSec: 900, chance: 0.12, durationSec: [10, 16], creature: 'createWindowGhost',
+    lines: [
+      V('พี่... มีไฟแช็กไหม', 'Hey... got a lighter?', { tone: 'whisper' }),
+      V('ลดกระจกหน่อยสิ', 'Roll the window down a bit.', { tone: 'whisper' }),
+    ],
+    choice: {
+      id: 'windowKnock',
+      options: [{ key: 'invite', th: 'แป๊บนึงครับ', en: 'Hang on.' }, { key: 'no', th: 'ไม่มีครับ', en: "Don't have one." }, { key: 'silent', th: '…', en: '(say nothing)' }],
+      timeout: 7, defaultKey: 'silent',
+    },
+    outcomes: {
+      invite: { lines: [V('ขอบใจ...', 'Thanks...', { tone: 'whisper' })], result: 'escalate:windowCreep' },
+      no: { lines: [V('...งั้นไม่เป็นไร', '...never mind, then.', { tone: 'whisper' })], result: 'safe' },
+      silent: { lines: [], result: 'safe' },
+      windowOpened: { lines: [V('ขอบใจนะ...', 'Thank you...')], result: 'death:windowArm' },
+    },
+    staging: 'Three soft knocks on the driver window (or the passenger\'s). Through the fogged glass: a dark shape with an unlit cigarette, too tall, its face never in focus. Asks politely, then less politely. Opening any window past RULE_PARAMS.windowOpenFailAmount while it waits = a long grey arm reaches in. Replying "แป๊บนึงครับ" is an invitation: the window starts winding itself down (RULE_BREAKS.r14 windowCreep) until you crank it up. EXCEPTION (not this encounter): the monk asking for the window is safe.',
+  },
+  radioName: {
+    id: 'radioName', nameTH: 'วิทยุเรียกชื่อ', nameEN: 'The Radio Says Your Name', kind: 'rule', ruleId: 'r15',
+    hours: [22, 29], where: ['ride:piak', 'freeDrive'], gazeMode: 'any', requires: { radioOn: true },
+    cooldownSec: 900, chance: 0.15, durationSec: [8, 14],
+    lines: [
+      S('djNok', 'เพลงต่อไป... ขอมอบให้...', 'The next song... goes out to...'),
+      S('radio', 'ต้น...', 'Ton...', { tone: 'ghost' }),
+      S('radio', 'ต้น... ได้ยินพี่ไหม', 'Ton... can you hear me?', { tone: 'ghost' }),
+    ],
+    choice: {
+      id: 'radioName',
+      options: [{ key: 'answer', th: 'ครับ?', en: 'Yes?' }, { key: 'silent', th: '…', en: '(say nothing)' }],
+      timeout: 5, defaultKey: 'silent',
+    },
+    outcomes: {
+      retuned: { lines: [], result: 'safe' },
+      answer: { lines: [S('voice', '...ได้ยินแล้ว', '...I heard you.', { tone: 'whisper' })], result: 'escalate:backSeatVoice' },
+      switchedOff: { lines: [S('voice', 'ปิดทำไม... พี่อยู่ข้างหลังนี่เอง', "Why switch me off... I'm right behind you.", { tone: 'whisper' })], result: 'escalate:backSeatVoice' },
+      ignored: { lines: [S('voice', 'ต้น...', 'Ton...', { tone: 'whisper' })], result: 'escalate:backSeatVoice' },
+    },
+    staging: "DJ Nok's cheerful voice slows and drops an octave mid-sentence and says the driver's name. Retune within RULE_PARAMS.radioNameTuneSeconds = safe (static, then an ordinary song). Switching OFF, answering, or doing nothing = the same voice continues from the back seat (escalate backSeatVoice: 'ต้น… หันมาสิ', a rule-3 test; looking back = death:lookBack). In ride 3 Uncle Piak has just asked for the radio. EXCEPTION (fatherDedication): at 03:00 on station 3 the name is said by Somchai's request — listen to the end.",
+  },
+  fatherDedication: {
+    id: 'fatherDedication', nameTH: 'เพลงที่พ่อขอ', nameEN: "The Father's Request", kind: 'rule', ruleId: 'r15', exception: true,
+    hours: [27, 28], where: ['ride:saman', 'freeDrive'], gazeMode: 'any', requires: { radioOn: true },
+    cooldownSec: 0, chance: 1, durationSec: [40, 70], broadcast: 'fatherRequest',
+    outcomes: {
+      listened: { lines: [], result: 'safe' }, // memory m_song
+      retuned: { lines: [], result: 'safe' }, // missed: nothing bad, the song is gone for this night
+    },
+    staging: 'r15 EXCEPTION. Station 3 at 03:00: an announcer reads one old request — from Somchai, for his son, ต้น. The radio says your name, but this is the one time you do not retune: listen to the end ("ทางกลับบ้าน", memory m_song). Switching off or retuning is safe, just a loss.',
+  },
+  extraPassenger: {
+    id: 'extraPassenger', nameTH: 'คนเกินในกระจก', nameEN: 'One Too Many in the Mirror', kind: 'rule', ruleId: 'r16',
+    hours: [22, 29], where: ['ride:boyM', 'freeDrive'], gazeMode: 'mirrorOnly',
+    cooldownSec: 900, chance: 0.1, durationSec: [12, 20], creature: 'extraChild',
+    choice: {
+      id: 'extraPassenger',
+      options: [{ key: 'asked', th: 'ใครน่ะ', en: "Who's there?" }, { key: 'silent', th: '…', en: '(say nothing)' }],
+      timeout: 7, defaultKey: 'silent',
+    },
+    outcomes: {
+      asked: { lines: [S('extraChild', 'หนูเอง...', "It's me...", { tone: 'ghost' }), S('extraChild', 'พี่ทักหนูแล้วนะ', 'You spoke to me.', { tone: 'whisper' })], result: 'death:extraPassenger' },
+      stopped: { lines: [S('extraChild', 'จอดให้หนูลงเหรอ...', 'Stopping to let me out...?', { tone: 'whisper' })], result: 'death:extraPassenger' },
+      silent: { lines: [], result: 'safe' },
+    },
+    staging: 'Only in the REAR-VIEW mirror: a small girl in an older-pattern school uniform (CHARACTERS.extraChild) sits beside the passenger (or alone, in free drive). Direct view: nobody. She does not move, does not blink, smiles a little wider each time you check. Asking, greeting or stopping = she answers, and then she is in the front seat. In ride 4 it is Boy M who asks you who she is (the temptation).',
   },
 };
 
 export const ENCOUNTER_IDS = Object.keys(ENCOUNTERS);
 
 /** Death ids produced by encounter outcomes ('death:<id>'); each has a card in WORLD_TEXT.deathCards. */
-export const ENCOUNTER_DEATHS = ['ceilingCrawl', 'radio', 'nameCall', 'breath', 'trunk'];
+export const ENCOUNTER_DEATHS = ['ceilingCrawl', 'radio', 'nameCall', 'breath', 'trunk', 'roadFigure', 'roofHanger', 'count444', 'windowArm', 'extraPassenger'];
+
+/** Escalations an outcome may request ('escalate:<name>'); see RULE_BREAKS in rules.js. */
+export const ENCOUNTER_ESCALATIONS = ['windowCreep', 'backSeatVoice'];

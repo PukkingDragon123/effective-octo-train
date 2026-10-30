@@ -197,10 +197,13 @@ export const LATE_NIGHT_WHISPERS = [
 export const SPECIAL_BROADCASTS = [
   {
     // On the lost frequency an announcer nobody recognises reads one request, then plays the song.
+    // Staged by ENCOUNTERS.fatherDedication (rule r15's exception) during ride 7 or free drive.
     id: 'fatherRequest', station: 'lost', hours: [27, 28], memory: 'm_song', then: 'wayHome',
     lines: [
       { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'ตีสามตรงครับ เพลงต่อไปมีคนขอมานานแล้ว', en: "Three o'clock. The next song was requested a long time ago.", tone: 'ghost' },
       { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'คุณสมชาย คนขับแท็กซี่ ขอให้ลูกชายที่กรุงเทพฯ', en: 'From Somchai, a taxi driver, for his son in Bangkok.', tone: 'ghost' },
+      // r15 says: the radio says your name → retune. Its unwritten exception: this one. Listen to the end.
+      { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'ฝากบอกว่า... ต้น พ่อรออยู่นะลูก', en: "He asks us to say... Ton, Dad's waiting, son.", tone: 'ghost', pause: 1.2 },
       { who: 'radio', speakerTH: '(เสียงผู้ประกาศ)', speakerEN: '(an announcer)', th: 'เพลง ทางกลับบ้าน ครับ', en: '"The Way Home".', tone: 'ghost' },
     ],
   },
