@@ -5,22 +5,22 @@ const KEY = 'dlbih.settings.v1';
 
 export const GRAPHICS_PRESETS = {
   low: {
-    resolutionScale: 0.6, painterly: 0.35, painterlyQuality: 'low', bloom: 0.5, shadows: false,
+    resolutionScale: 0.6, painterly: 0, painterlyQuality: 'low', bloom: 0.5, shadows: false,
     shadowMapSize: 512, mirrorResolution: 192, glassReflections: false, foliageDensity: 0.5,
     particles: 0.45, drawDistance: 90, volumetrics: false,
   },
   medium: {
-    resolutionScale: 0.8, painterly: 0.6, painterlyQuality: 'medium', bloom: 0.7, shadows: true,
+    resolutionScale: 0.8, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true,
     shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 0.75,
     particles: 0.75, drawDistance: 120, volumetrics: true,
   },
   high: {
-    resolutionScale: 1.0, painterly: 0.75, painterlyQuality: 'high', bloom: 0.8, shadows: true,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.8, shadows: true,
     shadowMapSize: 2048, mirrorResolution: 384, glassReflections: true, foliageDensity: 1.0,
     particles: 1.0, drawDistance: 150, volumetrics: true,
   },
   ultra: {
-    resolutionScale: 1.0, painterly: 0.85, painterlyQuality: 'high', bloom: 0.85, shadows: true,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true,
     shadowMapSize: 4096, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.3,
     particles: 1.3, drawDistance: 190, volumetrics: true,
   },
@@ -31,8 +31,8 @@ export const DEFAULT_SETTINGS = {
   graphicsPreset: 'high',
   ...GRAPHICS_PRESETS.high,
   sharpen: 0.5, // contrast-adaptive sharpening after the painterly pass (0..1)
-  filmGrain: 0.35,
-  chromaticAberration: 0.3,
+  filmGrain: 0,
+  chromaticAberration: 0,
   vignette: 0.6,
   brightness: 1.0,
   fov: 72,
@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS = {
   gamepadLookSensitivity: 1.0,
   transmission: 'auto', // 'auto' | 'manual'
   touchControls: 'auto', // 'auto' (on touch devices) | 'on' | 'off'
-  testPanel: true, // owner's test panel button (top-left)
+  testPanel: false, // developer test panel: only with ?dev=1
   showPrompts: false, // minimal text: the crosshair dot blooms on targets but shows no label
   // text / language
   language: 'th', // 'th' = the whole game in Thai only (default) | 'both' = Thai with English helpers

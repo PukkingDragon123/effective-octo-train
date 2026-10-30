@@ -63,13 +63,22 @@ export async function startGame(ctx) {
 
   // --- assets (downloaded / modelled / photobashed), each optional --------------
   // Every loader falls back to procedural content when its files are missing.
+  // boot timings (ms): window.__bootTimes, logged as `[boot] <step> <ms>`
+  const bootT0 = performance.now();
+  const bootTimes = (window.__bootTimes = {});
+  const timed = (label, t0) => {
+    bootTimes[label] = Math.round(performance.now() - t0);
+    console.info(`[boot] ${label} ${bootTimes[label]} ms`);
+  };
   const step = async (label, th, en, frac, fn) => {
     ui.showLoading(frac, th, en);
+    const t0 = performance.now();
     try {
       await fn?.();
     } catch (err) {
       console.warn(`[boot] ${label} failed, using procedural fallback`, err);
     }
+    timed(label, t0);
   };
   await step('textures', 'กำลังวาดพื้นผิว…', 'Painting surfaces…', 0.05, () =>
     TexturesModule.preloadTextures?.(undefined, (d, t) => ui.showLoading(0.05 + 0.2 * (d / Math.max(1, t)), 'กำลังวาดพื้นผิว…', 'Painting surfaces…')));
@@ -79,17 +88,21 @@ export async function startGame(ctx) {
   await step('world assets', 'กำลังหาหินและรากไม้…', 'Gathering roots and stones…', 0.4, () => WorldModule.loadWorldAssets?.());
 
   // --- world --------------------------------------------------------------------
+  const tWorld = performance.now();
   const world = new World();
   await world.build({
     quality: ctx.settings.get('graphicsPreset'),
     onProgress: (f, label) => ui.showLoading(0.42 + f * 0.44, label?.th || 'กำลังปลูกต้นไม้…', label?.en || label || 'Growing the forest…'),
   });
+  timed('world', tWorld);
+  console.info('[boot] world.buildTimes', JSON.stringify(world.buildTimes));
   engine.scene.add(world.group);
   g.world = world;
   engine.onUpdate((dt) => world.update(dt, engine.camera.position), 40);
 
   // --- persistent actors -----------------------------------------------------------
   ui.showLoading(0.88, 'กำลังเตรียมรถ…', 'Warming up the taxi…');
+  const tActors = performance.now();
   g.taxi = new Taxi({ world });
   engine.scene.add(g.taxi.root);
   g.bike = new Motorcycle({ world });
@@ -102,6 +115,7 @@ export async function startGame(ctx) {
   g.ahKong = createHumanoid({ id: 'ahKong', ...(chars.ahKong?.appearance || { sex: 'm', age: 78 }) });
   engine.scene.add(g.ahKong.root);
   g.taxi.onReach = (target, opts) => g.player.reach(target, opts);
+  timed('actors', tActors);
 
   // --- systems -------------------------------------------------------------------------
   g.clock = new Clock();
@@ -119,7 +133,7 @@ export async function startGame(ctx) {
   for (const [name, fn] of [
     ['pause', () => installPause()],
     ['touch controls', () => installMobileControls(document.getElementById('ui'))],
-    ['test panel', () => ctx.settings.get('testPanel') !== false && installTestPanel(document.getElementById('ui'))],
+    ['test panel', () => params.get('dev') === '1' && installTestPanel(document.getElementById('ui'))],
   ]) {
     try {
       fn();
@@ -128,6 +142,7 @@ export async function startGame(ctx) {
     }
   }
   ui.showLoading(1, 'พร้อมแล้ว', 'Ready');
+  timed('total', bootT0);
   if (!skipLoading) {
     // the burnt-down stick waits for the player; a hand takes it (audio unlocks on this gesture)
     const play = (id, opts) => {

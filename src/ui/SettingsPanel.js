@@ -24,8 +24,6 @@ export const SETTINGS_TABS = [
         rows: [
           { key: 'graphicsPreset', type: 'seg', th: 'ระดับคุณภาพ', en: 'Preset', preset: true, options: [['low', 'Low', 'ต่ำ'], ['medium', 'Medium', 'กลาง'], ['high', 'High', 'สูง'], ['ultra', 'Ultra', 'สูงสุด']] },
           { key: 'resolutionScale', type: 'slider', th: 'ความละเอียดการเรนเดอร์', en: 'Resolution scale', min: 0.5, max: 1, step: 0.05, fmt: 'pct' },
-          { key: 'painterly', type: 'slider', th: 'ฟิลเตอร์ลายแปรง', en: 'Painterly filter', min: 0, max: 1, step: 0.05, fmt: 'pct' },
-          { key: 'painterlyQuality', type: 'seg', th: 'คุณภาพลายแปรง', en: 'Painterly quality', options: [['low', 'Low', 'ต่ำ'], ['medium', 'Medium', 'กลาง'], ['high', 'High', 'สูง']] },
           { key: 'shadows', type: 'seg', th: 'เงา', en: 'Shadows', options: ONOFF },
           { key: 'shadowMapSize', type: 'seg', th: 'ความคมของเงา', en: 'Shadow detail', options: [[512, '512'], [1024, '1K'], [2048, '2K'], [4096, '4K']] },
           { key: 'mirrorResolution', type: 'seg', th: 'ความละเอียดกระจกมองหลัง', en: 'Mirror resolution', options: [[192, '192'], [256, '256'], [384, '384'], [512, '512']] },
@@ -42,8 +40,6 @@ export const SETTINGS_TABS = [
           { key: 'brightness', type: 'slider', th: 'ความสว่าง', en: 'Brightness', min: 0.6, max: 1.6, step: 0.02, fmt: 'x' },
           { key: 'bloom', type: 'slider', th: 'แสงฟุ้ง', en: 'Bloom', min: 0, max: 1.5, step: 0.05, fmt: 'pct' },
           { key: 'sharpen', type: 'slider', th: 'ความคมชัด', en: 'Sharpening', min: 0, max: 1, step: 0.05, fmt: 'pct' },
-          { key: 'filmGrain', type: 'slider', th: 'เกรนฟิล์ม', en: 'Film grain', min: 0, max: 1, step: 0.05, fmt: 'pct' },
-          { key: 'chromaticAberration', type: 'slider', th: 'ขอบสีเหลื่อม', en: 'Chromatic aberration', min: 0, max: 1, step: 0.05, fmt: 'pct' },
           { key: 'vignette', type: 'slider', th: 'ขอบภาพมืด', en: 'Vignette', min: 0, max: 1, step: 0.05, fmt: 'pct' },
         ],
       },
@@ -162,8 +158,7 @@ export class SettingsPanel {
       h('div', { class: 'dlb-settings__wrap' },
         h('div', { class: 'dlb-settings__head' }, h('span', { class: 'en' }, 'Settings'), h('span', { class: 'th', attrs: { lang: 'th' } }, 'ตั้งค่า')),
         tabsEl,
-        this.body),
-      h('footer', { class: 'dlb-foot' }, keyHints([NAV_HINTS.move, NAV_HINTS.adjust, NAV_HINTS.tabs, NAV_HINTS.back])));
+        this.body));
     ui.layer.appendChild(this.el);
 
     const close = () => {

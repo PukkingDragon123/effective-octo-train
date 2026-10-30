@@ -95,9 +95,8 @@ export class Loading {
         this.line.classList.remove('is-out');
       }, this._lineIdx === 1 ? 2600 : 1500);
     };
-    this._lineIdx = Math.floor(Math.random() * lines.length);
-    show();
-    this._timer = setInterval(show, 7200);
+    // owner: almost no text. The burning stick is the progress; no rotating lines.
+    void show;
   }
 
   /**

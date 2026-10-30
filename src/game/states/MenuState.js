@@ -80,13 +80,18 @@ export const MenuState = {
         g.ui.showCredits();
         attachToLatestRoll('.dlb-credits .dlb-roll');
       },
+      onQuit: window.dlbDesktop?.quit ? () => window.dlbDesktop.quit() : null,
     });
   },
 
   async _onNew() {
     if (this.diving) return;
-    const slot = await g.ui.pickSlot('new');
-    if (slot == null || !this.active) return;
+    // one save: starting over asks once, then overwrites it
+    if (g.saves.lastUsed() != null) {
+      const ok = await g.ui.confirm({ th: 'เริ่มคืนแรกใหม่?', en: 'Start over from the first night?', yes: { th: 'เริ่มใหม่', en: 'Start over' }, no: { th: 'ไม่', en: 'No' }, danger: true });
+      if (!ok || !this.active) return;
+    }
+    const slot = g.saves.lastUsed() ?? 0;
     g.saves.create(slot);
     g.save = g.saves.data;
     g.save.stage = 'intro';

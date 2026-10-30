@@ -192,10 +192,10 @@ class PostFX {
       this._sizeDirty = true;
     }
     this.cfg = {
-      painterly: clamp(settings.get('painterly') ?? 0.75, 0, 1),
+      painterly: 0, // owner: no brush-stroke / canvas filter, the image stays clean and sharp
       bloom: clamp(settings.get('bloom') ?? 0.8, 0, 2),
-      grain: clamp(settings.get('filmGrain') ?? 0.35, 0, 1),
-      chroma: clamp(settings.get('chromaticAberration') ?? 0.3, 0, 1),
+      grain: 0,
+      chroma: 0,
       vignette: clamp(settings.get('vignette') ?? 0.6, 0, 1),
       sharpen: clamp(settings.get('sharpen') ?? 0.5, 0, 1),
       brightness: clamp(settings.get('brightness') ?? 1, 0.3, 2),

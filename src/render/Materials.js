@@ -191,7 +191,7 @@ const FRAG_ALBEDO = /* glsl */ `
   // brush strokes (~2.6 m tile) + large painterly blotches (~15 m tile)
   vec4 dlbB = dlbTri(dlbBrushTex, vDlbWP * 0.38, dlbW);
   vec4 dlbB2 = dlbTri(dlbBrushTex, vDlbWP * 0.067 + 0.31, dlbW);
-  float dlbBrushAmt = dlbPaint.x;
+  float dlbBrushAmt = 0.0; // owner: no brush strokes on surfaces
   #ifdef DLB_TRIPLANAR
   {
     vec4 dlbT = dlbTri(dlbTriTex, vDlbWP * dlbPaint2.z, dlbW);

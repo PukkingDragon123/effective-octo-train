@@ -497,7 +497,7 @@ class Interior:
     # ---------------------------------------------------------------------------------
     def meter_and_vacant(self):
         # taxi meter box on the dash top, display facing the cabin
-        mx, my = -0.065, 0.715
+        mx, my = -0.065, 0.672     # clear of the raked windshield
         mz = self.dash_top_z(mx, my)
         body = extrude_outline('meter_box', rounded_rect_2d(-0.095, -0.045, 0.095, 0.045, 0.012, 4), 0.0, 0.062,
                                plane='XY')
@@ -535,20 +535,20 @@ class Interior:
         self.objs['meter_box'] = join([body, foot, bt, win], name='meter_box')
         self.anchor['meter'] = (mx, my - 0.05, mz + 0.036)
         # vacant lamp: small red sign standing on the dash near the passenger-side windshield corner
-        vx, vy = -0.470, 0.855
+        vx, vy = -0.470, 0.662     # rear edge of the dash top, where the glass leaves room
         vz = self.dash_top_z(vx, vy)
-        frame = extrude_outline('vac_frame', rounded_rect_2d(-0.082, -0.040, 0.082, 0.040, 0.006, 3), -0.012, 0.012,
+        frame = extrude_outline('vac_frame', rounded_rect_2d(-0.082, -0.038, 0.082, 0.038, 0.006, 3), -0.012, 0.012,
                                 plane='XZ')
         add_bevel(frame, 0.002, 2, angle=30)
         apply_modifiers(frame)
-        frame.data.transform(Matrix.Translation((vx, vy, vz + 0.055)))
-        stand = box('vac_stand', (0.05, 0.05, 0.016), center=(vx, vy, vz + 0.008), bevel_w=0.003)
+        frame.data.transform(Matrix.Translation((vx, vy, vz + 0.048)))
+        stand = box('vac_stand', (0.05, 0.05, 0.012), center=(vx, vy, vz + 0.006), bevel_w=0.003)
         vf = join([frame, stand], name='vacant_frame')
         assign_mat(vf, 'plastic_black')
         self.objs['vacant_frame'] = vf
-        fr = quad('vacant_front', (vx, vy + 0.0125, vz + 0.055), (-1, 0, 0), (0, 0, 1), 0.14, 0.065, 'emissive_meter')
+        fr = quad('vacant_front', (vx, vy + 0.0125, vz + 0.048), (-1, 0, 0), (0, 0, 1), 0.14, 0.065, 'emissive_meter')
         orient(fr, np.array([0, 1, 0]))
-        bk = quad('vacant_back', (vx, vy - 0.0125, vz + 0.055), (1, 0, 0), (0, 0, 1), 0.14, 0.065, 'emissive_meter')
+        bk = quad('vacant_back', (vx, vy - 0.0125, vz + 0.048), (1, 0, 0), (0, 0, 1), 0.14, 0.065, 'emissive_meter')
         orient(bk, np.array([0, -1, 0]))
         vl = join([fr, bk], name='vacant_lamp')
         self.objs['vacant_lamp'] = vl

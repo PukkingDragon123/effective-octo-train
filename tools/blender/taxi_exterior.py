@@ -238,10 +238,10 @@ class Ext:
 
     def s_at_y_rear(self, y):
         us = np.linspace(2, 3, 2001)
-        ys = np.array([tb.O(u)[1] for u in us])
-        return float(3.0 - np.interp(y, ys, us))
+        ys = np.array([tb.O(u)[1] for u in us])          # decreasing along u
+        return float(3.0 - np.interp(y, ys[::-1], us[::-1]))
 
-    def t_at_z(self, u, z, t0=0.0, t1=7.0):
+    def t_at_z(self, u, z, t0=2.0, t1=7.0):
         ts = np.linspace(t0, t1, 120)
         zs = np.array([tb.W_eval(u, t)[2] for t in ts])
         return float(np.interp(z, zs, ts)) if zs[-1] > zs[0] else float(np.interp(z, zs[::-1], ts[::-1]))

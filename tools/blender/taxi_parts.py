@@ -464,12 +464,12 @@ class Parts:
         nr /= np.linalg.norm(nr)
         self.objs.update(self.plate('plate_rear', np.array(loc) + nr * 0.008, nr, np.array([-1, 0, 0])))
         # exhaust (right rear, under the bumper), with a slash-cut tip
-        path = [np.array([0.42, -1.55, 0.205]), np.array([0.44, -1.80, 0.205]), np.array([0.455, -2.0, 0.21]),
-                np.array([0.46, -2.13, 0.215])]
+        path = [np.array([0.42, -1.55, 0.205]), np.array([0.44, -1.80, 0.205]), np.array([0.455, -1.95, 0.21]),
+                np.array([0.46, -2.04, 0.215])]
         path = resample(np.array(path), 16)
         pipe = sweep('exhaust_pipe', path, circle_profile(0.022, 20), cap=False)
         tip = lathe('exhaust_tip', [(0.024, -0.12), (0.028, -0.11), (0.028, 0.0), (0.0245, 0.003), (0.0215, -0.06)],
-                    segments=24, axis='Y', center=(0.46, -2.13, 0.215))
+                    segments=24, axis='Y', center=(0.46, -2.03, 0.215))
         ex = join([pipe, tip], name='exhaust')
         assign_mat(ex, 'metal_steel')
         self.objs['exhaust'] = ex

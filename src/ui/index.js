@@ -11,7 +11,6 @@ import { settings } from '../core/Settings.js';
 import { input } from '../core/Input.js';
 import { FONTS } from './fonts.js';
 import { h } from './dom.js';
-import { grainUrl } from './common.js';
 import { Nav } from './nav.js';
 import { Loading } from './Loading.js';
 import { MainMenu, PauseMenu } from './Menu.js';
@@ -70,10 +69,7 @@ class UI {
     root.dataset.device = input.lastDevice || 'keyboard';
     const fv = { '--f-title': FONTS.title, '--f-body': FONTS.body, '--f-sign': FONTS.sign, '--f-lcd': FONTS.lcd, '--f-hand': FONTS.hand, '--f-display': FONTS.display || FONTS.sign };
     for (const k in fv) root.style.setProperty(k, fv[k]);
-    root.style.setProperty('--grain-url', `url("${grainUrl()}")`);
     if (isSoftwareRendering()) root.classList.add('dlb-lite');
-    this.grainEl = h('div', { class: 'dlb-grain', attrs: { 'aria-hidden': 'true' } });
-    root.appendChild(this.grainEl);
 
     this.nav = new Nav(this);
     this.nav.install();
@@ -130,12 +126,8 @@ class UI {
     this.root.dataset.device = d;
   }
 
-  _grain(delta, who) {
-    const n = Math.max(0, (this._grainUsers.get(who) || 0) + delta);
-    this._grainUsers.set(who, n);
-    let any = false;
-    for (const v of this._grainUsers.values()) if (v > 0) any = true;
-    this.root?.classList.toggle('has-grain', any);
+  _grain() {
+    // the film-grain overlay is gone (owner: no filters over the image)
   }
 
   _dimMenu(delta) {
@@ -226,9 +218,8 @@ class UI {
     this.subs.clear();
   }
   /** Minimal tutorial / instruction hint (bottom-left, fades). {th, en, keys?: ['W','S'], duration} ; pass null to clear */
-  hint(hnt) {
-    this._ensure();
-    this.hints.show(hnt);
+  hint() {
+    // owner: no control guides on screen. Ah Kong teaches with his voice; the game shows nothing.
   }
   /** Chapter card for hour changes: {time:'23:00', th, en} */
   chapter(c) {
@@ -236,9 +227,8 @@ class UI {
     return this.chapterCard.show(c || {});
   }
   /** Small toast (e.g. saved). */
-  toast(th, en, opts) {
-    this._ensure();
-    this.toasts.show(th, en, opts);
+  toast() {
+    // no pop-up notices (saves happen silently)
   }
   /** Dialogue choice: {options:[{key, th, en}], timeout?: seconds, defaultKey?, th?, en?, modal?} -> Promise<key> */
   choice(c) {

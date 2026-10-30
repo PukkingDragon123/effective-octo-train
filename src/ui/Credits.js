@@ -216,8 +216,7 @@ export class CreditsScreen {
     const ui = this.ui;
     const roll = buildCredits({ full: false });
     const view = h('div', { class: 'dlb-roll-view' }, roll);
-    const el = screen('dlb-credits', h('div', { class: 'dlb-backdrop' }), view,
-      h('footer', { class: 'dlb-foot' }, keyHints([NAV_HINTS.scroll, NAV_HINTS.back])));
+    const el = screen('dlb-credits', h('div', { class: 'dlb-backdrop' }), view);
     ui.layer.appendChild(el);
     const r = new Roll(view, roll, { speed: 26, startDelay: 3.2, startFrac: 0.16 });
     let ctx = null;

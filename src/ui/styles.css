@@ -1279,3 +1279,53 @@
   .dlb-loading.has-3d .dlb-loading__inner { left: 0; right: 0; top: max(6vh, env(safe-area-inset-top)); transform: none; align-items: center; text-align: center; max-width: none; }
   .dlb-loading.has-3d .dlb-loading__status { justify-content: center; }
 }
+
+/* ==========================================================================================
+   MINIMAL (owner's final direction): the game shows almost nothing. One typeface (Srisakdi),
+   bone white on the dark, a thin red mark for focus, plain fades. No grain, no blur, no glow,
+   no echo title, no footers, no key guides, no tracking or capitals.
+   ========================================================================================== */
+.dlb-ui *, .dlb-ui *::before, .dlb-ui *::after {
+  filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  text-transform: none !important; letter-spacing: normal !important;
+}
+.dlb-grain, .dlb-foot, .dlb-ember, .dlb-skip, .dlb-loading__status, .dlb-loading__line { display: none !important; }
+.dlb-backdrop { background: rgba(3, 4, 5, 0.8) !important; }
+
+.dlb-name-block { display: block; }
+.dlb-name-block.is-center { text-align: center; }
+.dlb-name-by { font-family: var(--f-title); font-size: 15px; color: #8d8578; margin-bottom: 8px; }
+.dlb-name {
+  margin: 0; font-family: var(--f-title); font-weight: 700; line-height: 1.12;
+  font-size: clamp(46px, 6.2vw, 96px); color: #ece3d1; text-shadow: 0 2px 2px rgba(0, 0, 0, 0.55);
+}
+.dlb-loading .dlb-name { opacity: 0; animation: dlb-name-in 2.4s 0.4s ease forwards; }
+.dlb-loading .dlb-name-by { opacity: 0; animation: dlb-name-in 2s 0.1s ease forwards; }
+@keyframes dlb-name-in { to { opacity: 1; } }
+
+.dlb-menu__shade { background: linear-gradient(90deg, rgba(3, 4, 5, 0.8) 0%, rgba(3, 4, 5, 0.46) 30%, rgba(3, 4, 5, 0) 56%) !important; }
+.dlb-menu__col {
+  top: auto !important; bottom: clamp(48px, 12vh, 140px) !important; left: clamp(28px, 7vw, 120px) !important;
+  justify-content: flex-end !important; gap: clamp(26px, 6vh, 64px); padding-top: 0 !important;
+}
+.dlb-menu .dlb-title, .dlb-menu .dlb-name-block { transform: none !important; }
+.dlb-list { gap: 2px; }
+.dlb-item {
+  position: relative; padding: 5px 0 5px 26px !important; background: none !important; border: 0 !important;
+  color: #a39a8b !important; font-family: var(--f-title); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75) !important;
+  transition: color 0.2s linear !important;
+}
+.dlb-item .th { font-size: clamp(24px, 2.3vw, 34px) !important; font-weight: 700 !important; color: inherit !important; transform: none !important; margin: 0 !important; }
+.dlb-item::before {
+  content: ''; position: absolute; left: 0; top: 52%; width: 14px; height: 2px; background: #9e2b22;
+  opacity: 0; transition: opacity 0.2s linear;
+}
+.dlb-item.is-focus { color: #f2e9d7 !important; }
+.dlb-item.is-focus::before { opacity: 1; }
+.dlb-item.is-focus .en, .dlb-item.is-focus .th { animation: none !important; }
+.dlb-pause .dlb-backdrop { background: rgba(3, 4, 5, 0.7) !important; }
+.dlb-pause__col { left: clamp(28px, 7vw, 120px) !important; }
+/* crosshair: nothing on screen until something can be used, then a single small dot */
+.dlb-xhair__dot { opacity: 0; }
+.dlb-xhair.is-target .dlb-xhair__dot { opacity: 0.8; }
+.dlb-xhair__ring, .dlb-xhair__icon, .dlb-xhair__label { display: none !important; }

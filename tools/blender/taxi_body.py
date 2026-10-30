@@ -257,11 +257,13 @@ def section_ctrl(u):
     dl = float(np.linalg.norm(e))
     e = e / max(dl, 1e-9)
     if u <= 1.0:
-        w = ease(clamp(u) ** 0.9)
+        # hold the front-face profile (bumper top, lamp band, hood edge stay level) across the
+        # front and blend into the side profile only around the plan corner
+        w = smoothstep(0.42, 1.0, u)
         a, b = FRONT, side_profile(A_SIDE0)
         prof = [tuple(lerp(np.array(a[k]), np.array(b[k]), w)) for k in range(11)]
     elif u >= 2.0:
-        w = ease(clamp(3.0 - u) ** 0.9)
+        w = smoothstep(0.42, 1.0, 3.0 - u)
         a, b = REAR, side_profile(A_SIDE1)
         prof = [tuple(lerp(np.array(a[k]), np.array(b[k]), w)) for k in range(11)]
     else:
