@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { DLB_COMMON, DLB_GLOBALS_PARS, DLB_FOG_COMMON, DLB_HEADLIGHT_FN } from './glsl.js';
 import { injectGlobals } from './uniforms.js';
 import { captureCaps, crispMaterialTextures } from './caps.js';
+import { installLightingPatches } from './ShaderPatches.js';
 
 let chunksInstalled = false;
 let protoInstalled = false;
@@ -17,6 +18,7 @@ let protoInstalled = false;
 export function installFogChunks() {
   if (chunksInstalled) return;
   chunksInstalled = true;
+  installLightingPatches(); // skip lights / shadow lookups that are dark (no image change)
   const SC = THREE.ShaderChunk;
   SC.dlb_common = DLB_COMMON;
   SC.dlb_globals = DLB_GLOBALS_PARS;

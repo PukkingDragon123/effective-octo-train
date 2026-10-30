@@ -3,6 +3,7 @@
 // SAME `{value}` objects, so other modules' ShaderMaterials can freely declare their own
 // `uTime` etc. without colliding with the injected fog code.
 import * as THREE from 'three';
+import { fogNoiseTexture3D } from './noiseTex.js';
 
 /** Shared uniforms referenced by every patched material / custom shader. Update via updateGlobalUniforms(). */
 export const GLOBAL_UNIFORMS = {
@@ -53,6 +54,8 @@ export const GLOBAL_UNIFORMS = {
   /** Sky colours (linear) for cheap environment reflections on wet / glossy surfaces. */
   uSkyZenith: { value: new THREE.Color(0.002, 0.004, 0.005) },
   uSkyHorizon: { value: new THREE.Color(0.01, 0.02, 0.02) },
+  /** 32³ value-noise lattice for the drifting fog / mist (see noiseTex.fogNoiseTexture3D). */
+  uFogNoiseTex: { value: fogNoiseTexture3D() },
 };
 
 /** dlb-prefixed aliases used by the injected shader code (same value objects). */
@@ -88,6 +91,7 @@ export const SHADER_GLOBALS = {
   dlbFlash: GLOBAL_UNIFORMS.uFlash,
   dlbSkyZenith: GLOBAL_UNIFORMS.uSkyZenith,
   dlbSkyHorizon: GLOBAL_UNIFORMS.uSkyHorizon,
+  dlbFogNoiseTex: GLOBAL_UNIFORMS.uFogNoiseTex,
 };
 
 /** Add the dlb* global uniforms to a uniforms object (never overwrites existing keys). */

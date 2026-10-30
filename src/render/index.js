@@ -4,8 +4,10 @@
 //   uniforms.js   GLOBAL_UNIFORMS (+ dlb* aliases injected into every material)
 //   Fog.js        ShaderChunk overrides (height fog, noise mist, headlight/lamp scattering)
 //   Materials.js  paintedMaterial / foliageMaterial / skinMaterial (+ wind shadow helpers)
-//   PostFX.js     scene RT -> glass -> painterly -> bloom -> shafts -> grade -> CAS sharpen/output
-//                 (Painterly.js, PostShaders.js)
+//   PostFX.js     scene RT -> glass (only in view) -> quarter-res bloom -> shafts -> grade -> CAS
+//                 sharpen/upscale output (PostShaders.js); Perf.js dynamic resolution + first-run
+//                 auto quality; pixel ratio capped at 1.0 x resolutionScale (installRendering)
+//   Shadows.js    shadow budget: one sun caster, map size by preset, small casters excluded
 //   caps.js       renderer caps, max-anisotropy helpers (applied to every material at compile)
 //   Sky.js        sky dome, time of day, lights, weather, grade targets
 //   LightPool.js  pooled real lights + glows + ground pools + flicker; Beams.js volumetric cones
@@ -25,6 +27,8 @@ import { silhouetteMaterial } from './Silhouette.js';
 import { bloodDecalMaterial, GORE_UNIFORM } from './Blood.js';
 import { brushTexture, canvasTexture, glowTexture } from './noiseTex.js';
 import { RENDER_CAPS, captureCaps, crispTexture, crispMaterialTextures } from './caps.js';
+import { installShadowBudget } from './Shadows.js';
+import { clamp } from '../core/math.js';
 import { bus } from '../core/Events.js';
 import { settings } from '../core/Settings.js';
 
@@ -80,13 +84,26 @@ export function installRendering(engine) {
   applyQuality();
   settings.onChange(applyQuality);
   scene.add(sky.group, lightPool.group, particles.group);
-  particles.setViewportHeight(engine.height * engine.pixelRatio);
-  bus.on('engine:resize', ({ height, pixelRatio }) => particles.setViewportHeight(height * pixelRatio));
+  // Pixel ratio: never above 1.0 x resolutionScale (a 2x / 3x HiDPI screen would otherwise
+  // shade 4-9x the pixels; the CSS size stays the same, the browser scales the canvas).
+  const capPixelRatio = () => {
+    const scale = clamp(settings.get('resolutionScale') ?? 1, 0.25, 1);
+    const pr = Math.min(window.devicePixelRatio || 1, 1) * scale;
+    if (Math.abs(renderer.getPixelRatio() - pr) > 1e-4) renderer.setPixelRatio(pr);
+    engine.pixelRatio = pr;
+  };
+  capPixelRatio();
+  bus.on('engine:resize', capPixelRatio);
+  const viewportHeight = () => (postfx.enabled && postfx.renderHeight > 1 ? postfx.renderHeight : engine.height * engine.pixelRatio);
+  particles.setViewportHeight(viewportHeight());
+  installShadowBudget(engine);
   engine.onUpdate(
     (dt) => {
       updateGlobalUniforms(engine);
       sky.update(dt, engine.camera);
       lightPool.update(dt, engine.camera);
+      // particles keep their minimum pixel size at the internal (dynamic) render height
+      particles.setViewportHeight(viewportHeight());
       particles.update(dt, engine.camera);
     },
     80,

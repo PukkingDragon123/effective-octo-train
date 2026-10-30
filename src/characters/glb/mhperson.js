@@ -216,9 +216,10 @@ export function buildPerson(recipe) {
   if (recipe.hair && proxyData('hair_' + recipe.hair)) headParts.push({ key: 'hair_' + recipe.hair, px: proxyData('hair_' + recipe.hair), part: PART.hair });
   if (recipe.brows && proxyData('brows_' + recipe.brows)) headParts.push({ key: 'brows_' + recipe.brows, px: proxyData('brows_' + recipe.brows), part: PART.brows, rect: rects['brows_' + recipe.brows] });
   if (recipe.lashes && proxyData('lashes_' + recipe.lashes)) headParts.push({ key: 'lashes_' + recipe.lashes, px: proxyData('lashes_' + recipe.lashes), part: PART.lashes, rect: rects['lashes_' + recipe.lashes] });
-  if (proxyData('teeth')) headParts.push({ key: 'teeth', px: proxyData('teeth'), part: PART.teeth, rect: rects.teeth });
-  if (proxyData('tongue')) headParts.push({ key: 'tongue', px: proxyData('tongue'), part: PART.tongue, rect: rects.tongue });
   if (recipe.veil && proxyData('hair_veil')) headParts.push({ key: 'hair_veil', px: proxyData('hair_veil'), part: PART.veil });
+  // teeth + tongue go LAST in the index buffer: a closed or distant mouth draws [0, mouthStart) only
+  if (proxyData('teeth')) headParts.push({ key: 'teeth', px: proxyData('teeth'), part: PART.teeth, rect: rects.teeth, mouth: true });
+  if (proxyData('tongue')) headParts.push({ key: 'tongue', px: proxyData('tongue'), part: PART.tongue, rect: rects.tongue, mouth: true });
   parts.push(...headParts);
   // ---- body
   const B = d.body;
@@ -275,8 +276,10 @@ export function buildPerson(recipe) {
   // ---- proxies
   let base = nbv;
   const eyeFit = (() => { const px = proxyData('eyes'); return px ? { px, p: fitProxy(px, P) } : null; })();
+  let mouthStart = -1;
   for (const pt of parts) {
     const px = pt.px;
+    if (pt.mouth && mouthStart < 0) mouthStart = index.length;
     const fp = fitProxy(px, P);
     const nn = normalsOf(fp, px.trisA, px.weld, px.nv);
     const rect = pt.rect;
@@ -314,6 +317,7 @@ export function buildPerson(recipe) {
   geo.setAttribute('amorph', new THREE.BufferAttribute(amorph, 1));
   geo.setIndex(total > 65535 ? new THREE.Uint32BufferAttribute(index, 1) : new THREE.Uint16BufferAttribute(index, 1));
   geo.userData.tris = index.length / 3;
+  geo.userData.mouthStart = mouthStart < 0 ? index.length : mouthStart;
   // ---- morph texture
   let morphTex = null;
   if (rows.length) {
@@ -357,7 +361,7 @@ export function buildPerson(recipe) {
   const L = MH.meta.landmarks;
   const lm = {};
   for (const [k, v] of Object.entries(L)) lm[k] = new THREE.Vector3(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
-  const person = { key: recipe.key, recipe, P, J, geo, eyeGeo, eyeCenters, eyeRadius, morphTex, lm, refs: 1, lo: null, bodyGeo: null };
+  const person = { key: recipe.key, recipe, P, J, geo, eyeGeo, eyeCenters, eyeRadius, morphTex, lm, refs: 1, lo: null, bodyGeo: null, noMouth: null };
   personCache.set(recipe.key, person);
   return person;
 }
@@ -366,11 +370,36 @@ export function releasePerson(person) {
   if (!person) return;
   if (--person.refs > 0) return;
   person.geo.dispose();
+  person.noMouth?.dispose();
   person.eyeGeo?.dispose();
   person.lo?.dispose();
   person.bodyGeo?.dispose();
   person.morphTex?.dispose();
   personCache.delete(person.key);
+}
+
+/**
+ * A view of a merged geometry without its trailing mouth range (teeth + tongue): shares every buffer
+ * (no extra memory, no re-upload), only the draw range is shorter.
+ */
+export function noMouthView(geo) {
+  const start = geo.userData.mouthStart;
+  if (!(start >= 0) || start >= geo.index.count) return geo;
+  const g = new THREE.BufferGeometry();
+  for (const k in geo.attributes) g.setAttribute(k, geo.attributes[k]);
+  g.setIndex(geo.index);
+  g.setDrawRange(0, start);
+  g.boundingSphere = geo.boundingSphere;
+  g.boundingBox = geo.boundingBox;
+  g.userData = { ...geo.userData, tris: start / 3, noMouth: true };
+  // (released together with the person: disposing frees the shared GL buffers)
+  return g;
+}
+
+/** the person's merged geometry without teeth / tongue (closed or distant mouth) */
+export function personNoMouth(person) {
+  if (!person.noMouth) person.noMouth = noMouthView(person.geo);
+  return person.noMouth;
 }
 
 /** far LOD: the low-poly MakeHuman proxy body + the same clothes and hair (built on demand) */

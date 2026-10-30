@@ -481,33 +481,51 @@ export function foliageAtlas(size = ATLAS_SIZE) {
 /** Spread opaque colours into transparent texels (keeps alpha). passes = max distance in px. */
 function dilate(d, w, h, passes) {
   // un-premultiply is not needed: getImageData returns straight alpha
+  // Same result as testing every empty texel each pass, but only the texels next to the filled
+  // region are visited (a pass fills exactly the empty texels with a filled 4-neighbour).
   const n = w * h;
-  const filled = new Uint8Array(n);
+  const filled = new Uint8Array(n); // 0 empty, 1 filled, 2 queued for the current pass
   for (let i = 0; i < n; i++) filled[i] = d[i * 4 + 3] > 8 ? 1 : 0;
-  let frontier = [];
-  for (let i = 0; i < n; i++) if (!filled[i]) frontier.push(i);
-  for (let p = 0; p < passes && frontier.length; p++) {
-    const next = [];
-    const newly = [];
-    for (const i of frontier) {
-      const x = i % w, y = (i / w) | 0;
-      let r = 0, gg = 0, b = 0, c = 0;
-      if (x > 0 && filled[i - 1]) { r += d[(i - 1) * 4]; gg += d[(i - 1) * 4 + 1]; b += d[(i - 1) * 4 + 2]; c++; }
-      if (x < w - 1 && filled[i + 1]) { r += d[(i + 1) * 4]; gg += d[(i + 1) * 4 + 1]; b += d[(i + 1) * 4 + 2]; c++; }
-      if (y > 0 && filled[i - w]) { r += d[(i - w) * 4]; gg += d[(i - w) * 4 + 1]; b += d[(i - w) * 4 + 2]; c++; }
-      if (y < h - 1 && filled[i + w]) { r += d[(i + w) * 4]; gg += d[(i + w) * 4 + 1]; b += d[(i + w) * 4 + 2]; c++; }
-      if (c) {
-        d[i * 4] = r / c;
-        d[i * 4 + 1] = gg / c;
-        d[i * 4 + 2] = b / c;
-        newly.push(i);
-      } else next.push(i);
+  let cand = new Int32Array(Math.min(n, 1 << 16));
+  let nc = 0;
+  const push = (i) => {
+    if (nc === cand.length) {
+      const c2 = new Int32Array(Math.min(n, cand.length * 2));
+      c2.set(cand);
+      cand = c2;
     }
-    for (const i of newly) filled[i] = 1;
-    frontier = next;
+    cand[nc++] = i;
+  };
+  const queueNeighbours = (i) => {
+    const x = i % w;
+    if (x > 0 && filled[i - 1] === 0) { filled[i - 1] = 2; push(i - 1); }
+    if (x < w - 1 && filled[i + 1] === 0) { filled[i + 1] = 2; push(i + 1); }
+    if (i >= w && filled[i - w] === 0) { filled[i - w] = 2; push(i - w); }
+    if (i + w < n && filled[i + w] === 0) { filled[i + w] = 2; push(i + w); }
+  };
+  for (let i = 0; i < n; i++) if (filled[i] === 1) queueNeighbours(i);
+  for (let p = 0; p < passes && nc; p++) {
+    const list = cand.slice(0, nc);
+    nc = 0;
+    // colours from neighbours filled before this pass (queued texels are not read)
+    for (let k = 0; k < list.length; k++) {
+      const i = list[k];
+      const x = i % w;
+      let r = 0, gg = 0, b = 0, c = 0;
+      if (x > 0 && filled[i - 1] === 1) { r += d[(i - 1) * 4]; gg += d[(i - 1) * 4 + 1]; b += d[(i - 1) * 4 + 2]; c++; }
+      if (x < w - 1 && filled[i + 1] === 1) { r += d[(i + 1) * 4]; gg += d[(i + 1) * 4 + 1]; b += d[(i + 1) * 4 + 2]; c++; }
+      if (i >= w && filled[i - w] === 1) { r += d[(i - w) * 4]; gg += d[(i - w) * 4 + 1]; b += d[(i - w) * 4 + 2]; c++; }
+      if (i + w < n && filled[i + w] === 1) { r += d[(i + w) * 4]; gg += d[(i + w) * 4 + 1]; b += d[(i + w) * 4 + 2]; c++; }
+      d[i * 4] = r / c;
+      d[i * 4 + 1] = gg / c;
+      d[i * 4 + 2] = b / c;
+    }
+    for (let k = 0; k < list.length; k++) filled[list[k]] = 1;
+    if (p + 1 < passes) for (let k = 0; k < list.length; k++) queueNeighbours(list[k]);
   }
   // remaining: average foliage colour
-  for (const i of frontier) {
+  for (let i = 0; i < n; i++) {
+    if (filled[i] === 1) continue;
     d[i * 4] = 28;
     d[i * 4 + 1] = 40;
     d[i * 4 + 2] = 20;

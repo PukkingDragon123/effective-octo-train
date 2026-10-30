@@ -183,3 +183,29 @@ export function neutralTexture() {
   _placeholder = t;
   return t;
 }
+
+let _fogNoise3 = null;
+/**
+ * 32³ R8 lattice of random values (tileable, RepeatWrapping, linear filtering) for the fog
+ * noise: `dlbFogNoise3()` samples it once with the smoothstep-warped coordinate, which is
+ * exactly smoothstep-interpolated value noise — one 3D fetch instead of 8 hashes.
+ */
+export function fogNoiseTexture3D() {
+  if (_fogNoise3) return _fogNoise3;
+  const N = 32;
+  const rng = makeRng(0x5f0d);
+  const data = new Uint8Array(N * N * N);
+  for (let i = 0; i < data.length; i++) data[i] = Math.floor(rng() * 256);
+  const t = new THREE.Data3DTexture(data, N, N, N);
+  t.format = THREE.RedFormat;
+  t.type = THREE.UnsignedByteType;
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.wrapS = t.wrapT = t.wrapR = THREE.RepeatWrapping;
+  t.generateMipmaps = false;
+  t.unpackAlignment = 1;
+  t.name = 'dlbFogNoise3';
+  t.needsUpdate = true;
+  _fogNoise3 = t;
+  return t;
+}

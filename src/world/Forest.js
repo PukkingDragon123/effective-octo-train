@@ -13,8 +13,11 @@ import { foliageAtlas, silhouetteTexture } from './foliageAtlas.js';
 import { chainPatch, inject } from './shaderUtil.js';
 import { W } from './constants.js';
 import { WORLD_ASSETS } from './assets.js';
+import { BatchPool, canBatch } from './ForestBatch.js';
 
 const CELL = W.forestCell;
+const _pm = new THREE.Matrix4(), _pq = new THREE.Quaternion(), _pq2 = new THREE.Quaternion(), _pe = new THREE.Euler();
+const _pa = new THREE.Vector3(), _pp = new THREE.Vector3(), _ps = new THREE.Vector3();
 const cellKey = (ix, iz) => (ix + 4096) * 8192 + (iz + 4096);
 
 /** Undo three's back-face normal flip so crown-bent normals light both card sides alike. */
@@ -79,6 +82,18 @@ export class Forest {
     this.noise = new SimplexNoise(world.road ? 4711 : 1);
     this.colliders = []; // big trunks near roads {x,z,r}
     this._stats = {};
+    this.batched = opts.batched; // undefined = auto (BatchedMesh when WEBGL_multi_draw exists)
+    this.totalInstances = 0;
+    this._collidersSent = 0;
+    this.onColliders = null; // fn(list) for trunk colliders planted after build
+    this.pools = new Map(); // material uuid + shadow flag -> BatchPool
+  }
+
+  _pool(mat, cast) {
+    const key = mat.uuid + (cast ? '|c' : '|n');
+    let p = this.pools.get(key);
+    if (!p) this.pools.set(key, (p = new BatchPool(mat, cast, `forest_${mat.name || 'mat'}${cast ? '_cast' : ''}`)));
+    return p;
   }
 
   // ---------------------------------------------------------------------------------
@@ -108,8 +123,11 @@ export class Forest {
     return this.mats.leaves;
   }
 
-  /** Create instanced meshes for one built variant. */
-  _addVariant(name, v, built) {
+  /**
+   * Register one built variant: BatchedMesh geometries (batched mode) or one InstancedMesh per
+   * LOD part. o.mat overrides every part's material, o.cast the shadow flag.
+   */
+  _addVariant(name, v, built, o = {}) {
     const sp = SPECIES[name];
     const kind = name === 'rock' ? 'rock' : name === 'vine' ? 'vine' : name === 'banana' || name === 'treeFern' ? 'small' : built.kind;
     const rule = KIND_LOD[kind] || KIND_LOD.mid;
@@ -119,36 +137,85 @@ export class Forest {
       inst: { x: [], y: [], z: [], m: [], rnd: [] },
       hasImpostor: !!sp?.impostor,
       lodCount: built.lods.length,
+      opts: o,
     };
-    built.lods.forEach((parts, li) => {
+    if (this.batched) this._batchLods(rec);
+    else this._instancedLods(rec);
+    this.variants.push(rec);
+    (this.byName[name] || (this.byName[name] = [])).push(rec);
+    return rec;
+  }
+
+  _partMat(rec, part) {
+    if (rec.opts.mat) return rec.opts.mat;
+    return part === 'leaves' ? this._leafMatFor(rec.name) : this.mats[part] || this.mats.bark;
+  }
+
+  _partCast(rec, li) {
+    return rec.opts.cast ?? (li === 0 && rec.kind === 'big');
+  }
+
+  _batchLods(rec) {
+    rec.lods = rec.built.lods.map((parts, li) => {
+      const list = [];
+      for (const [part, geo] of Object.entries(parts)) {
+        if (!geo) continue;
+        const pool = this._pool(this._partMat(rec, part), this._partCast(rec, li));
+        list.push({ pool, li: pool.add(geo) });
+      }
+      return { batched: true, parts: list, count: 0 };
+    });
+  }
+
+  _instancedLods(rec) {
+    const { name, v } = rec;
+    rec.lods = rec.built.lods.map((parts, li) => {
       const attr = new THREE.InstancedBufferAttribute(new Float32Array(16 * 64), 16);
       attr.setUsage(THREE.DynamicDrawUsage);
       const meshes = [];
       for (const [part, geo] of Object.entries(parts)) {
         if (!geo) continue;
-        const mat = part === 'leaves' ? this._leafMatFor(name) : this.mats[part] || this.mats.bark;
-        const mesh = new THREE.InstancedMesh(geo, mat, 64);
+        const mesh = new THREE.InstancedMesh(geo, this._partMat(rec, part), 64);
         mesh.instanceMatrix = attr;
         mesh.count = 0;
         mesh.frustumCulled = false;
         mesh.visible = false;
-        mesh.castShadow = li === 0 && kind === 'big';
+        mesh.castShadow = this._partCast(rec, li);
         mesh.receiveShadow = true;
         mesh.name = `${name}${v}_lod${li}_${part}`;
         mesh.matrixAutoUpdate = false;
         this.group.add(mesh);
         meshes.push(mesh);
       }
-      rec.lods.push({ attr, meshes, cap: 64, count: 0 });
+      return { attr, meshes, cap: 64, count: 0 };
     });
-    this.variants.push(rec);
-    (this.byName[name] || (this.byName[name] = [])).push(rec);
-    return rec;
+  }
+
+  /** Create the BatchedMeshes once every geometry is registered (falls back to instancing on failure). */
+  _buildPools() {
+    if (!this.batched) return;
+    try {
+      for (const p of this.pools.values()) p.build(this.group);
+    } catch (e) {
+      console.warn('[world] BatchedMesh forest unavailable, using instancing', e);
+      for (const p of this.pools.values()) {
+        if (p.mesh) this.group.remove(p.mesh);
+        p.dispose();
+      }
+      this.pools.clear();
+      this.batched = false;
+      for (const rec of this.variants) {
+        this._instancedLods(rec);
+        rec.impostor = null;
+      }
+      if (this.impostorRT) this._impostorMeshes();
+    }
   }
 
   // ---------------------------------------------------------------------------------
   async build(onProgress) {
     const yieldNow = () => new Promise((r) => setTimeout(r, 0));
+    if (this.batched === undefined) this.batched = canBatch(engine.renderer);
     this._materials();
     onProgress?.(0.02, 'กำลังวาดใบไม้…', 'Painting leaves…');
     await yieldNow();
@@ -170,8 +237,7 @@ export class Forest {
     const rrng = makeRng(5150);
     for (let v = 0; v < 4; v++) {
       const geo = rockGeometry(rrng, 1);
-      const rec = this._addVariant('rock', v, { lods: [{ bark: geo }, { bark: geo.userData.lod1 }], kind: 'rock', height: 1, radius: 1.2 });
-      for (const l of rec.lods) l.meshes[0].material = this.mats.rock;
+      this._addVariant('rock', v, { lods: [{ bark: geo }, { bark: geo.userData.lod1 }], kind: 'rock', height: 1, radius: 1.2 }, { mat: this.mats.rock });
     }
     // scanned forest-floor models (optional, CC0): rocks, stumps, root clusters
     this.ph = { rocks: [], stumps: [], roots: [] };
@@ -179,11 +245,7 @@ export class Forest {
       for (const kind of ['rocks', 'stumps', 'roots']) {
         WORLD_ASSETS[kind].forEach((a, i) => {
           const name = 'ph_' + kind;
-          const rec = this._addVariant(name, i, { lods: [{ ph: a.geo }], kind: kind === 'roots' ? 'ground' : 'rock', height: a.height, radius: a.radius });
-          for (const l of rec.lods) for (const m of l.meshes) {
-            m.material = a.mat;
-            m.castShadow = kind !== 'roots';
-          }
+          const rec = this._addVariant(name, i, { lods: [{ ph: a.geo }], kind: kind === 'roots' ? 'ground' : 'rock', height: a.height, radius: a.radius }, { mat: a.mat, cast: kind !== 'roots' });
           this.ph[kind].push(rec);
         });
       }
@@ -196,10 +258,20 @@ export class Forest {
     } catch (e) {
       console.warn('[world] impostor capture failed', e);
     }
-    // ---- scatter -------------------------------------------------------------------------------
+    this._buildPools();
+    // ---- scatter: road-following layers now, tile layers per built terrain tile ------------------
     onProgress?.(0.45, 'กำลังปลูกป่า…', 'Planting the jungle…');
-    await this._scatter((f) => onProgress?.(0.45 + f * 0.53, 'กำลังปลูกป่า…', 'Planting the jungle…'));
-    this._finalizeInstances();
+    this._scatterSetup();
+    const tiles = [...this.world.terrain.tiles.values()];
+    let lastYield = performance.now();
+    for (let i = 0; i < tiles.length; i++) {
+      this.scatterTile(tiles[i]);
+      if (performance.now() - lastYield > 40) {
+        onProgress?.(0.45 + ((i + 1) / tiles.length) * 0.53, 'กำลังปลูกป่า…', 'Planting the jungle…');
+        await yieldNow();
+        lastYield = performance.now();
+      }
+    }
     try {
       this._buildFlats();
     } catch (e) {
@@ -294,30 +366,59 @@ export class Forest {
       /* mipmaps are an optimisation */
     }
     this.impostorRT = rt;
-    const mat = unflipNormals(
-      foliageMaterial({ name: 'impostor', map: rt.texture, alphaTest: 0.5, vertexColors: false, wind: 'trunk', translucency: 0.3, roughness: 0.85, brush: 0.55 }),
-      'unflip',
-    );
-    this.mats.impostor = mat;
+    this._impTile = new THREE.Vector2(tile / W2, tile / H2);
     for (const rec of list) {
       const I = rec.impostorInfo;
-      const geo = this._impostorGeometry(I);
-      const attr = new THREE.InstancedBufferAttribute(new Float32Array(16 * 64), 16);
-      attr.setUsage(THREE.DynamicDrawUsage);
-      const mesh = new THREE.InstancedMesh(geo, mat, 64);
-      mesh.instanceMatrix = attr;
-      mesh.count = 0;
-      mesh.frustumCulled = false;
-      mesh.visible = false;
-      mesh.receiveShadow = false;
-      mesh.matrixAutoUpdate = false;
-      mesh.name = `${rec.name}${rec.v}_impostor`;
-      this.group.add(mesh);
-      rec.impostor = { attr, meshes: [mesh], cap: 64, count: 0 };
+      I.c = (I.crownY - I.y0) / I.size;
     }
+    this._impostorMeshes();
   }
 
-  _impostorGeometry(I) {
+  /** Impostor draw objects: one pooled geometry per variant (batched) or ONE shared instanced card. */
+  _impostorMeshes() {
+    const list = this.variants.filter((r) => r.impostorInfo);
+    const base = foliageMaterial({ name: 'impostor', map: this.impostorRT.texture, alphaTest: 0.5, vertexColors: false, wind: 'trunk', translucency: 0.3, roughness: 0.85, brush: 0.55 });
+    if (this.batched) {
+      const mat = (this.mats.impostor = unflipNormals(base, 'unflip'));
+      const pool = this._pool(mat, false);
+      for (const rec of list) rec.impostor = { batched: true, parts: [{ pool, li: pool.add(this._impostorGeometryFor(rec.impostorInfo)) }], count: 0 };
+      return;
+    }
+    // ONE instanced cross-card mesh draws every variant's impostor: the shared unit card is
+    // scaled / lifted per instance (size, y0 folded into the instance matrix) and a per-instance
+    // attribute picks the atlas tile + the crown height used for the bent normals.
+    const mat = unflipNormals(base, 'unflip');
+    const tileUV = this._impTile;
+    chainPatch(mat, 'impostorAtlas', (shader) => {
+      shader.uniforms.uImpTile = { value: tileUV };
+      shader.vertexShader = inject(shader.vertexShader, '#include <common>', 'attribute vec4 aImp;\nuniform vec2 uImpTile;');
+      // crown-bent normal: ny depends on the variant's crown height (aImp.z, fraction of the card)
+      shader.vertexShader = inject(shader.vertexShader, '#include <beginnormal_vertex>', 'objectNormal = normalize(vec3(objectNormal.x, (position.y - aImp.z) / 0.4 + 0.35, objectNormal.z));');
+      shader.vertexShader = inject(shader.vertexShader, '#include <uv_vertex>', '#ifdef USE_MAP\n vMapUv = aImp.xy + uv * uImpTile;\n#endif');
+    });
+    this.mats.impostor = mat;
+    const geo = this._impostorGeometry();
+    const cap = 256;
+    const attr = new THREE.InstancedBufferAttribute(new Float32Array(16 * cap), 16);
+    attr.setUsage(THREE.DynamicDrawUsage);
+    const imp = new THREE.InstancedBufferAttribute(new Float32Array(4 * cap), 4);
+    imp.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('aImp', imp);
+    const mesh = new THREE.InstancedMesh(geo, mat, cap);
+    mesh.instanceMatrix = attr;
+    mesh.count = 0;
+    mesh.frustumCulled = false;
+    mesh.visible = false;
+    mesh.receiveShadow = false;
+    mesh.matrixAutoUpdate = false;
+    mesh.name = 'treeImpostors';
+    this.group.add(mesh);
+    const slot = (this._impSlot = { attr, imp, meshes: [mesh], cap, count: 0, shared: true });
+    for (const rec of list) rec.impostor = slot;
+  }
+
+  /** Per-variant cross card in tree space (atlas uvs, crown-bent normals) for the batched impostors. */
+  _impostorGeometryFor(I) {
     const pos = [], nrm = [], uv = [], idx = [];
     const half = I.size / 2;
     const cy = I.crownY;
@@ -334,12 +435,45 @@ export class Forest {
           const x = ax * lx, z = az * lx;
           pos.push(x, y, z);
           let nx = x / half, ny = (y - cy) / (half * 0.8) + 0.35, nz = z / half;
-          // card facing component so the centre isn't flat
           nx += -az * 0.6;
           nz += ax * 0.6;
           const l = Math.hypot(nx, ny, nz) || 1;
           nrm.push(nx / l, ny / l, nz / l);
           uv.push(I.u0 + (I.u1 - I.u0) * fx, I.v0 + (I.v1 - I.v0) * fy);
+        }
+      }
+      for (let j = 0; j < N; j++) {
+        for (let i = 0; i < N; i++) {
+          const a = base + j * (N + 1) + i, b = a + 1, c = a + N + 1, d = c + 1;
+          idx.push(a, b, c, b, d, c);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    return g;
+  }
+
+  /** Unit cross card (two quads, 3x3 cells): x,z in [-0.5, 0.5], y in [0, 1], uv 0..1 per card. */
+  _impostorGeometry() {
+    const pos = [], nrm = [], uv = [], idx = [];
+    const N = 3;
+    for (let q = 0; q < 2; q++) {
+      const ang = q * (Math.PI / 2);
+      const ax = Math.cos(ang), az = Math.sin(ang);
+      const base = pos.length / 3;
+      for (let j = 0; j <= N; j++) {
+        for (let i = 0; i <= N; i++) {
+          const fx = i / N, fy = j / N;
+          const lx = fx - 0.5;
+          const x = ax * lx, z = az * lx;
+          pos.push(x, fy, z);
+          // horizontal part of the crown-bent normal (+ card-facing component); y is set in the shader
+          nrm.push(2 * x - az * 0.6, 0, 2 * z + ax * 0.6);
+          uv.push(fx, fy);
         }
       }
       for (let j = 0; j < N; j++) {
@@ -394,25 +528,62 @@ export class Forest {
     const recs = this.byName[name];
     if (!recs) return;
     const rec = recs[variantIdx % recs.length];
+    const rnd = rng();
     const T = this.world.terrain;
-    const y = (o.y ?? T.sample(x, z)) + (o.dy ?? 0);
-    const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler((o.tiltX ?? 0), yaw, (o.tiltZ ?? 0), 'YXZ'));
-    if (o.lean) {
-      // lean toward (lx, lz) by angle: rotate about the horizontal axis perpendicular to it
-      const ax = new THREE.Vector3(o.lean.z, 0, -o.lean.x).normalize();
-      q.premultiply(new THREE.Quaternion().setFromAxisAngle(ax, o.lean.a));
+    // the height (and so the matrix) waits until the terrain tile under it is built
+    if (o.y == null && T.isPending?.(x, z)) {
+      const k = T.tileKeyAt(x, z);
+      let l = this._deferred.get(k);
+      if (!l) this._deferred.set(k, (l = []));
+      l.push([rec, x, z, yaw, scale, rnd, o]);
+      return;
     }
-    m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(scale, scale * (o.sy ?? 1), scale));
-    const I = rec.inst;
-    I.x.push(x);
-    I.y.push(y);
-    I.z.push(z);
-    I.rnd.push(rng());
-    for (let k = 0; k < 16; k++) I.m.push(m.elements[k]);
+    this._emit(rec, x, z, yaw, scale, rnd, o);
   }
 
-  async _scatter(onProgress) {
+  _emit(rec, x, z, yaw, scale, rnd, o) {
+    const T = this.world.terrain;
+    const y = (o.y ?? T.sample(x, z)) + (o.dy ?? 0);
+    const m = _pm;
+    const q = _pq.setFromEuler(_pe.set(o.tiltX ?? 0, yaw, o.tiltZ ?? 0, 'YXZ'));
+    if (o.lean) {
+      // lean toward (lx, lz) by angle: rotate about the horizontal axis perpendicular to it
+      const ax = _pa.set(o.lean.z, 0, -o.lean.x).normalize();
+      q.premultiply(_pq2.setFromAxisAngle(ax, o.lean.a));
+    }
+    m.compose(_pp.set(x, y, z), q, _ps.set(scale, scale * (o.sy ?? 1), scale));
+    // growable per-variant instance arrays + spatial cells
+    let n = rec.n || 0;
+    if (!rec.x || n >= rec.x.length) {
+      const cap = Math.max(64, (rec.x?.length || 0) * 2);
+      const grow = (src, k) => {
+        const d = new Float32Array(cap * k);
+        if (src) d.set(src);
+        return d;
+      };
+      rec.x = grow(rec.x, 1);
+      rec.y = grow(rec.y, 1);
+      rec.z = grow(rec.z, 1);
+      rec.rnd = grow(rec.rnd, 1);
+      rec.m = grow(rec.m, 16);
+    }
+    rec.x[n] = x;
+    rec.y[n] = y;
+    rec.z[n] = z;
+    rec.rnd[n] = rnd;
+    rec.m.set(m.elements, n * 16);
+    rec.n = n + 1;
+    const ck = cellKey(Math.floor(x / CELL), Math.floor(z / CELL));
+    let c = this.cells.get(ck);
+    if (!c) this.cells.set(ck, (c = { v: [], i: [] }));
+    c.v.push(rec.index);
+    c.i.push(n);
+    this.totalInstances++;
+    this._dirty = true;
+  }
+
+  /** Clearings, scatter context and the road-following layers (reach trees, vine curtains). */
+  _scatterSetup() {
     const world = this.world, T = world.terrain, road = world.road;
     const rng = makeRng(31337);
     const nz = this.noise;
@@ -436,10 +607,10 @@ export class Forest {
     const groveP = banana ? road.get(banana.roadRef.id).pointAt(banana.roadRef.s, -12) : null;
     const nearLm = (x, z, keys, r) => keys.some((k) => lm[k] && Math.hypot(lm[k].pos.x - x, lm[k].pos.z - z) < r);
     const palmKeys = ['garage', 'noodleShop', 'humanVillageStop', 'forestTemple', 'marketLamp', 'busStop'];
-    const tiles = [...T.tiles.values()];
-    const corridor = W.corridor - 4;
-    const tilesTotal = tiles.length;
-    let lastYield = performance.now();
+    this._sc = { groveP, nearLm, palmKeys };
+    this._deferred = new Map();
+    this._scattered = new Set();
+    this.totalInstances = 0;
 
     // ---------------- roadside reach trees: slender forked trees arching over the road ----------
     for (const sp of road.splines.values()) {
@@ -465,8 +636,44 @@ export class Forest {
       }
     }
 
-    for (let ti = 0; ti < tilesTotal; ti++) {
-      const tile = tiles[ti];
+    // vine curtains: their own sequence (the per-tile layers draw from per-tile generators)
+    {
+      const rng = makeRng(31337 * 7 + 11);
+      // ---------------- vine curtains over the road edges (under overhanging crowns) ----------
+      for (const sp of road.splines.values()) {
+        for (let s = 6; s < sp.length - 6; s += 7 + rng() * 12) {
+          if (rng() < 0.6) continue;
+          const side = rng() < 0.5 ? -1 : 1;
+          const lat = side * (W.halfWidth + 0.6 + rng() * 2.2);
+          const p = sp.pointAt(s, lat);
+          if (this._blocked(p.x, p.z, 1.5)) continue;
+          const top = sp.heightAt(s) + 6.5 + rng() * 4;
+          // over asphalt keep the lowest strand > 3.4 m above the road
+          const len = 4 + 4; // approximate curtain extent (built 4..8 m)
+          const maxDrop = top - (sp.heightAt(s) + (Math.abs(lat) < W.halfWidth + 0.5 ? 3.4 : 1.2));
+          const sc = Math.min(1, maxDrop / len);
+          if (sc < 0.35) continue;
+          this._place('vine', Math.floor(rng() * 3), p.x, p.z, rng() * 6.28, sc, rng, { y: top });
+        }
+      }
+    }
+  }
+
+  /**
+   * Scatter the tree / understory / ground-cover layers of one built terrain tile (own seeded
+   * generator, so tiles can be planted in any order) and plant everything that was waiting for
+   * this tile's ground height.
+   */
+  scatterTile(tile) {
+    const key = this.world.terrain._tileKey(tile.x, tile.z);
+    if (this._scattered.has(key)) return;
+    this._scattered.add(key);
+    const world = this.world, T = world.terrain;
+    const nz = this.noise;
+    const { groveP, nearLm, palmKeys } = this._sc;
+    const corridor = W.corridor - 4;
+    const rng = makeRng((31337 + Math.imul(Math.round(tile.x / W.terrainTile) + 4096, 73856093) + Math.imul(Math.round(tile.z / W.terrainTile) + 4096, 19349663)) >>> 0);
+    {
       const tx0 = tile.x, tz0 = tile.z, TS = W.terrainTile;
       // ---------------- big trees: 8.5 m grid -----------------------------------------
       for (let gz = tz0 + 4.25; gz < tz0 + TS; gz += 8.5) {
@@ -613,60 +820,24 @@ export class Forest {
           else if (k < pg + pf + ps) this._place('shrub', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng);
           else if (k < pg + pf + ps + pe) this._place('elephantEar', Math.floor(rng() * 2), x, z, yaw, 0.8 + rng() * 0.5, rng);
         }
-        if (performance.now() - lastYield > 40) {
-          await new Promise((res) => setTimeout(res, 0));
-          lastYield = performance.now();
-        }
-      }
-      onProgress?.((ti + 1) / tilesTotal);
-    }
-
-    // ---------------- vine curtains over the road edges (under overhanging crowns) ----------
-    for (const sp of road.splines.values()) {
-      for (let s = 6; s < sp.length - 6; s += 7 + rng() * 12) {
-        if (rng() < 0.6) continue;
-        const side = rng() < 0.5 ? -1 : 1;
-        const lat = side * (W.halfWidth + 0.6 + rng() * 2.2);
-        const p = sp.pointAt(s, lat);
-        if (this._blocked(p.x, p.z, 1.5)) continue;
-        const top = sp.heightAt(s) + 6.5 + rng() * 4;
-        // over asphalt keep the lowest strand > 3.4 m above the road
-        const len = 4 + 4; // approximate curtain extent (built 4..8 m)
-        const maxDrop = top - (sp.heightAt(s) + (Math.abs(lat) < W.halfWidth + 0.5 ? 3.4 : 1.2));
-        const sc = Math.min(1, maxDrop / len);
-        if (sc < 0.35) continue;
-        this._place('vine', Math.floor(rng() * 3), p.x, p.z, rng() * 6.28, sc, rng, { y: top });
       }
     }
+    const wait = this._deferred.get(key);
+    if (wait) {
+      this._deferred.delete(key);
+      for (const a of wait) this._emit(...a);
+    }
+    if (this.colliders.length > this._collidersSent) this._flushColliders();
   }
 
-  _finalizeInstances() {
-    let total = 0;
-    for (const rec of this.variants) {
-      const I = rec.inst;
-      const n = I.x.length;
-      rec.n = n;
-      rec.x = Float32Array.from(I.x);
-      rec.y = Float32Array.from(I.y);
-      rec.z = Float32Array.from(I.z);
-      rec.rnd = Float32Array.from(I.rnd);
-      rec.m = Float32Array.from(I.m);
-      rec.inst = null;
-      total += n;
-      for (let i = 0; i < n; i++) {
-        const k = cellKey(Math.floor(rec.x[i] / CELL), Math.floor(rec.z[i] / CELL));
-        let c = this.cells.get(k);
-        if (!c) this.cells.set(k, (c = { v: [], i: [] }));
-        c.v.push(rec.index);
-        c.i.push(i);
-      }
-    }
-    for (const c of this.cells.values()) {
-      c.v = Int32Array.from(c.v);
-      c.i = Int32Array.from(c.i);
-    }
-    this.totalInstances = total;
+  /** Hand new trunk colliders to the sink (Placement registers them with core/colliders). */
+  _flushColliders() {
+    if (!this.onColliders) return;
+    const list = this.colliders.slice(this._collidersSent);
+    this._collidersSent = this.colliders.length;
+    this.onColliders(list);
   }
+
 
   // ---------------------------------------------------------------------------------
   // per-frame selection
@@ -680,6 +851,13 @@ export class Forest {
     attr.array.set(slot.attr.array);
     for (const m of slot.meshes) m.instanceMatrix = attr;
     slot.attr = attr;
+    if (slot.imp) {
+      const imp = new THREE.InstancedBufferAttribute(new Float32Array(4 * cap), 4);
+      imp.setUsage(THREE.DynamicDrawUsage);
+      imp.array.set(slot.imp.array);
+      for (const m of slot.meshes) m.geometry.setAttribute('aImp', imp);
+      slot.imp = imp;
+    }
     slot.cap = cap;
   }
 
@@ -699,6 +877,7 @@ export class Forest {
     const scaleD = dd / 150;
     const dens = this.density / this.maxDensity;
     // reset counts
+    for (const p of this.pools.values()) p.begin();
     for (const rec of this.variants) {
       for (const l of rec.lods) l.count = 0;
       if (rec.impostor) rec.impostor.count = 0;
@@ -735,10 +914,35 @@ export class Forest {
           else slot = rec.lods[rec.lodCount - 1];
           if (rec.rule.cull) fade = smoothstep(rec._cull, rec._cull - 7, d);
           if (fade <= 0.02) continue;
+          if (slot.batched) {
+            const parts = slot.parts;
+            for (let q = 0; q < parts.length; q++) parts[q].pool.push(parts[q].li, rec.m, i * 16, fade);
+            slot.count++;
+            continue;
+          }
           const n = slot.count;
           if (n >= slot.cap) this._ensure(slot, n + 1);
           const dst = slot.attr.array, src = rec.m;
           const o = n * 16, s0 = i * 16;
+          if (slot.shared) {
+            // impostor: instance matrix x (lift y0, scale size) of the variant's card
+            const I = rec.impostorInfo, sz = I.size, y0 = I.y0;
+            for (let j = 0; j < 12; j++) dst[o + j] = src[s0 + j] * sz;
+            dst[o + 3] = 0;
+            dst[o + 7] = 0;
+            dst[o + 11] = 0;
+            dst[o + 12] = src[s0 + 12] + src[s0 + 4] * y0;
+            dst[o + 13] = src[s0 + 13] + src[s0 + 5] * y0;
+            dst[o + 14] = src[s0 + 14] + src[s0 + 6] * y0;
+            dst[o + 15] = 1;
+            const ia = slot.imp.array, k4 = n * 4;
+            ia[k4] = I.u0;
+            ia[k4 + 1] = I.v0;
+            ia[k4 + 2] = I.c;
+            ia[k4 + 3] = 0;
+            slot.count = n + 1;
+            continue;
+          }
           if (fade < 1) {
             for (let j = 0; j < 12; j++) dst[o + j] = src[s0 + j] * fade;
             dst[o + 12] = src[s0 + 12];
@@ -764,12 +968,23 @@ export class Forest {
         slot.attr.clearUpdateRanges?.();
         slot.attr.addUpdateRange?.(0, slot.count * 16);
         slot.attr.needsUpdate = true;
+        if (slot.imp) {
+          slot.imp.clearUpdateRanges?.();
+          slot.imp.addUpdateRange?.(0, slot.count * 4);
+          slot.imp.needsUpdate = true;
+        }
       }
       inst += slot.count;
     };
     for (const rec of vars) {
-      for (const l of rec.lods) commit(l);
-      commit(rec.impostor);
+      for (const l of rec.lods) if (!l.batched) commit(l);
+      if (rec.impostor && !rec.impostor.shared && !rec.impostor.batched) commit(rec.impostor);
+    }
+    commit(this._impSlot);
+    for (const p of this.pools.values()) {
+      const n = p.commit();
+      if (n) calls++;
+      inst += n;
     }
     calls += this._selectFlats(fx, fz, dd + 40);
     this._stats = { calls, instances: inst, total: this.totalInstances };
@@ -892,6 +1107,7 @@ export class Forest {
 
   dispose() {
     this.group.traverse((o) => o.geometry?.dispose?.());
+    for (const p of this.pools.values()) p.dispose();
     this.impostorRT?.dispose();
   }
 }

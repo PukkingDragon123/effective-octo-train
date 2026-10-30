@@ -61,15 +61,42 @@ function makeMatrix(p, r, s, out = new THREE.Matrix4()) {
   return out.compose(_t, _q, _s);
 }
 
+// Growable typed arrays (no per-vertex JS array pushes: far less garbage on big props).
 class Bucket {
   constructor(material) {
     this.material = material;
-    this.pos = [];
-    this.nor = [];
-    this.uv = [];
-    this.col = [];
-    this.idx = [];
-    this.count = 0;
+    this.vcap = 0;
+    this.icap = 0;
+    this.pos = null;
+    this.nor = null;
+    this.uv = null;
+    this.col = null;
+    this.idx = null;
+    this.count = 0; // vertices
+    this.icount = 0; // indices
+  }
+
+  reserve(nv, ni) {
+    if (this.count + nv > this.vcap) {
+      const cap = Math.max(256, this.vcap * 2, this.count + nv);
+      const grow = (a, k) => {
+        const d = new Float32Array(cap * k);
+        if (a) d.set(a.subarray(0, this.count * k));
+        return d;
+      };
+      this.pos = grow(this.pos, 3);
+      this.nor = grow(this.nor, 3);
+      this.uv = grow(this.uv, 2);
+      this.col = grow(this.col, 3);
+      this.vcap = cap;
+    }
+    if (this.icount + ni > this.icap) {
+      const cap = Math.max(512, this.icap * 2, this.icount + ni);
+      const d = new Uint32Array(cap);
+      if (this.idx) d.set(this.idx.subarray(0, this.icount));
+      this.idx = d;
+      this.icap = cap;
+    }
   }
 }
 
@@ -167,6 +194,9 @@ export class Kit {
     const jf = o.jitterFreq || 4;
     const start = b.count;
     const no = this.no;
+    const nIdx = geo.index ? geo.index.count : pa.count;
+    b.reserve(pa.count, nIdx);
+    const P = b.pos, N = b.nor, U = b.uv, Cc = b.col;
     for (let i = 0; i < pa.count; i++) {
       _p.fromBufferAttribute(pa, i);
       _n.fromBufferAttribute(na, i);
@@ -178,46 +208,57 @@ export class Kit {
       _lp.copy(_p);
       _p.applyMatrix4(m);
       _n.applyMatrix3(_nm).normalize();
-      b.pos.push(_p.x, _p.y, _p.z);
-      b.nor.push(_n.x, _n.y, _n.z);
+      const v = start + i;
+      P[v * 3] = _p.x;
+      P[v * 3 + 1] = _p.y;
+      P[v * 3 + 2] = _p.z;
+      N[v * 3] = _n.x;
+      N[v * 3 + 1] = _n.y;
+      N[v * 3 + 2] = _n.z;
       // uv
       if (uvMode === 'keep' && ua) {
-        b.uv.push(ua.getX(i) * (o.uvScale ?? 1) + (o.uvOffset ? o.uvOffset[0] : 0), ua.getY(i) * (o.uvScale ?? 1) + (o.uvOffset ? o.uvOffset[1] : 0));
+        U[v * 2] = ua.getX(i) * (o.uvScale ?? 1) + (o.uvOffset ? o.uvOffset[0] : 0);
+        U[v * 2 + 1] = ua.getY(i) * (o.uvScale ?? 1) + (o.uvOffset ? o.uvOffset[1] : 0);
       } else {
         const ax = Math.abs(_n.x), ay = Math.abs(_n.y), az = Math.abs(_n.z);
-        let u, v;
+        let u, vv;
         if (ay >= ax && ay >= az) {
           u = _p.x;
-          v = _p.z;
+          vv = _p.z;
         } else if (ax >= az) {
           u = _p.z * Math.sign(_n.x || 1);
-          v = _p.y;
+          vv = _p.y;
         } else {
           u = -_p.x * Math.sign(_n.z || 1);
-          v = _p.y;
+          vv = _p.y;
         }
-        b.uv.push(u * uvs + uo[0], v * uvs + uo[1]);
+        U[v * 2] = u * uvs + uo[0];
+        U[v * 2 + 1] = vv * uvs + uo[1];
       }
       // colour
       if (ca) _c.fromBufferAttribute(ca, i).multiply(base);
       else _c.copy(base);
       if (w) weatherColor(_c, _p, _n, w, no);
       if (o.colorFn) o.colorFn(_p, _n, _c, _lp);
-      b.col.push(_c.r, _c.g, _c.b);
+      Cc[v * 3] = _c.r;
+      Cc[v * 3 + 1] = _c.g;
+      Cc[v * 3 + 2] = _c.b;
     }
+    const I = b.idx;
+    const i0 = b.icount;
     if (geo.index) {
       const ia = geo.index;
-      for (let i = 0; i < ia.count; i++) b.idx.push(start + ia.getX(i));
+      for (let i = 0; i < ia.count; i++) I[i0 + i] = start + ia.getX(i);
     } else {
-      for (let i = 0; i < pa.count; i++) b.idx.push(start + i);
+      for (let i = 0; i < pa.count; i++) I[i0 + i] = start + i;
     }
+    b.icount += nIdx;
     // negative determinant (mirrored scale) -> flip winding
     if (m.determinant() < 0) {
-      const n0 = b.idx.length - (geo.index ? geo.index.count : pa.count);
-      for (let i = n0; i < b.idx.length; i += 3) {
-        const t = b.idx[i + 1];
-        b.idx[i + 1] = b.idx[i + 2];
-        b.idx[i + 2] = t;
+      for (let i = i0; i < b.icount; i += 3) {
+        const t = I[i + 1];
+        I[i + 1] = I[i + 2];
+        I[i + 2] = t;
       }
     }
     b.count += pa.count;
@@ -280,11 +321,13 @@ export class Kit {
 
 function bucketGeometry(b) {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.nor, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(b.col, 3));
-  geo.setIndex(b.count > 65535 ? new THREE.Uint32BufferAttribute(b.idx, 1) : new THREE.Uint16BufferAttribute(b.idx, 1));
+  const n = b.count;
+  geo.setAttribute('position', new THREE.BufferAttribute(b.pos.slice(0, n * 3), 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(b.nor.slice(0, n * 3), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(b.uv.slice(0, n * 2), 2));
+  geo.setAttribute('color', new THREE.BufferAttribute(b.col.slice(0, n * 3), 3));
+  const idx = b.idx.subarray(0, b.icount);
+  geo.setIndex(new THREE.BufferAttribute(n > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx), 1));
   geo.computeBoundingSphere();
   geo.computeBoundingBox();
   return geo;

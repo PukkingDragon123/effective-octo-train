@@ -243,6 +243,8 @@ void main() {
 
 const _v = new THREE.Vector3();
 const _c = new THREE.Color();
+/** Sun shadow map: 1024 (medium) .. 2048 (high / ultra); never larger. */
+const sunShadowSize = () => clamp(settings.get('shadowMapSize') || 1024, 512, 2048);
 
 class Sky {
   constructor() {
@@ -277,7 +279,8 @@ class Sky {
     this.moon.position.set(30, 60, 20);
     this.sun = new THREE.DirectionalLight(0xffd6a0, 0);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(settings.get('shadowMapSize') || 2048, settings.get('shadowMapSize') || 2048);
+    const sms = sunShadowSize();
+    this.sun.shadow.mapSize.set(sms, sms);
     const sc = this.sun.shadow.camera;
     sc.left = -38; sc.right = 38; sc.top = 38; sc.bottom = -38; sc.near = 1; sc.far = 260;
     this.sun.shadow.bias = -0.0004;
@@ -322,7 +325,9 @@ class Sky {
     this.dome.name = 'skyDome';
     this.dome.scale.setScalar(500);
     this.dome.frustumCulled = false;
-    this.dome.renderOrder = -10000;
+    // drawn LAST among opaques: it sits at the far plane (xyww), so the depth test leaves
+    // only the pixels no geometry covered -> the sky shader never runs under the canopy
+    this.dome.renderOrder = 1e6;
     this.dome.layers.enable(LAYERS.REFLECTION_ONLY);
     this.group.add(this.dome);
     this._cur = {};
@@ -339,7 +344,8 @@ class Sky {
     this.moonColor = new THREE.Color();
     settings.onChange(({ key }) => {
       if (key === 'shadowMapSize' || key === 'graphicsPreset' || key === '*') {
-        const s = settings.get('shadowMapSize') || 2048;
+        const s = sunShadowSize();
+        if (this.sun.shadow.mapSize.x === s) return;
         this.sun.shadow.mapSize.set(s, s);
         if (this.sun.shadow.map) {
           this.sun.shadow.map.dispose();
@@ -518,8 +524,9 @@ class Sky {
     this.moonColor.copy(cur.moonC);
     this.sun.color.copy(this.sunColor);
     this.sun.intensity = 4.2 * sunUp * (1 - rain * 0.7);
-    const sunCasting = this.sun.intensity > 0.02 && settings.get('shadows');
-    this.sun.shadow.autoUpdate = !!sunCasting;
+    // the shadow map is re-rendered only while the sun is up (see update())
+    this._sunCasting = this.sun.intensity > 0.02 && !!settings.get('shadows');
+    this.sun.shadow.autoUpdate = false;
     U.uAmbient.value.copy(cur.amb).multiplyScalar(cur.ambI).add(_c.copy(cur.hemiSky).multiplyScalar(cur.hemiI * 0.6));
     U.uMoonLight.value.copy(cur.moonC).multiplyScalar(this.moon.intensity);
     U.uSunLight.value.copy(this.sunColor).multiplyScalar(this.sun.intensity);
@@ -622,13 +629,22 @@ class Sky {
       this.moon.target.position.copy(focus);
       this.moon.position.copy(focus).addScaledVector(this.moonDir, 120);
       // texel snapping to avoid shadow shimmer
-      if (this.sun.shadow.autoUpdate) {
+      if (this._sunCasting) {
         const texel = 76 / this.sun.shadow.mapSize.x;
         _v.copy(focus);
         _v.x = Math.round(_v.x / texel) * texel;
         _v.z = Math.round(_v.z / texel) * texel;
         this.sun.target.position.copy(_v);
         this.sun.position.copy(_v).addScaledVector(this.sunDir, 120);
+        // re-render the map every frame while the snapped focus or the sun moves, every
+        // second frame otherwise (animated casters only)
+        const moved = !this._shadowAt || this._shadowAt.distanceToSquared(_v) > 1e-6 || this._shadowDir.dot(this.sunDir) < 0.999999;
+        this._shadowFrame = (this._shadowFrame || 0) + 1;
+        if (moved || this._shadowFrame % 2 === 0) {
+          this.sun.shadow.needsUpdate = true;
+          (this._shadowAt || (this._shadowAt = new THREE.Vector3())).copy(_v);
+          (this._shadowDir || (this._shadowDir = new THREE.Vector3())).copy(this.sunDir);
+        }
       }
     }
   }

@@ -3,6 +3,12 @@ import { bus } from './Events.js';
 
 const KEY = 'dlbih.settings.v1';
 
+// Render cost per preset (src/render): MSAA low 0 (FXAA-lite) / medium 2x / high + ultra 4x;
+// real pooled lamp lights low 2 / medium 3 / high 4 / ultra 6 (hard cap 8); sun shadow map
+// 1024 (medium) .. 2048 (never larger). The canvas pixel ratio is capped at
+// 1.0 x resolutionScale, and dynamic resolution (down to 0.7, only while frames are over
+// 16.7 ms) runs on top unless `dynamicResolution` is false. On the first run the menu
+// samples ~2 s of frame times and steps the preset down if slow (`autoQuality` records it).
 export const GRAPHICS_PRESETS = {
   low: {
     resolutionScale: 0.6, painterly: 0, painterlyQuality: 'low', bloom: 0.5, shadows: false,
@@ -21,7 +27,7 @@ export const GRAPHICS_PRESETS = {
   },
   ultra: {
     resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true,
-    shadowMapSize: 4096, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.3,
+    shadowMapSize: 2048, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.3,
     particles: 1.3, drawDistance: 190, volumetrics: true,
   },
 };
@@ -29,7 +35,8 @@ export const GRAPHICS_PRESETS = {
 export const DEFAULT_SETTINGS = {
   // graphics
   graphicsPreset: 'medium',
-  ...GRAPHICS_PRESETS.high,
+  ...GRAPHICS_PRESETS.medium,
+  dynamicResolution: true, // lower the internal render size (to 0.7) only while frames are over budget
   sharpen: 0.5, // contrast-adaptive sharpening after the painterly pass (0..1)
   filmGrain: 0,
   chromaticAberration: 0,

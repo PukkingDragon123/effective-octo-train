@@ -1,39 +1,43 @@
-// PostFX — final image pipeline.
+// PostFX — final image pipeline (lean: every pass here is on screen in the final image).
 //
-//  scene (layers minus GLASS) -> HalfFloat RT (MSAA 4x high/ultra, 2x medium; foliage
-//     uses alpha-to-coverage) at the full drawing-buffer resolution
-//  -> [glass present] copy colour (tSceneColor) + quarter-res blur (tSceneBlur)
-//     -> GLASS layer rendered on top (depth tested) into the same RT
-//  -> painterly (Kuwahara: small-radius anisotropic at FULL res on high, 8-sector/half-res
-//     on medium, 4-quadrant/half-res on low). Subtle by design: it is only blended in on
-//     flat tonal areas (edge / detail mask in the grade), so texture detail, foliage
-//     edges, text and faces stay crisp.
-//  -> bloom mip chain (13-tap down / tent up) -> light shafts at dawn (quarter res)
+//  internal size = drawing buffer x dynamic render scale (1.0 .. 0.7, only while the
+//  frame time is over budget; see Perf.js). Per frame:
+//
+//  scene (layers minus GLASS) -> sceneRT: HalfFloat, MSAA by preset (low 0 + FXAA-lite,
+//     medium 2x, high / ultra 4x; foliage uses alpha-to-coverage), no depth resolve
+//  -> [glass on screen] quarter-res blur of the opaque frame (tSceneBlur: 1 down + 4 gauss).
+//     With MSAA the resolved sceneRT texture IS tSceneColor (the glass draws into the
+//     multisampled renderbuffer, so there is no feedback loop and no full-res copy);
+//     without MSAA one copy pass. -> GLASS layer rendered on top (depth tested).
+//  -> bloom from QUARTER resolution: 5 x 13-tap down (1/4 .. 1/64) + 4 x tent up
+//  -> light shafts (sun at dawn, moon through the canopy; quarter res, only when visible)
 //  -> grade (exposure, WB, ACES, lift/gamma/gain, split tone, contrast, saturation,
-//     vignette, CA at the lens edges, horror, amulet, blur, distortion, flash) -> sRGB
-//  -> output: FXAA-lite (low preset only, no MSAA) + contrast-adaptive sharpening
-//     (settings.sharpen, default 0.5) + canvas texture, fine film grain, fade,
-//     letterbox, dither -> screen.
+//     vignette, horror, amulet, menu blur, distortion, flash) -> sRGB + dither -> 8-bit RT
+//  -> output to the canvas: (FXAA-lite on low) + contrast-adaptive sharpening, which is
+//     also the upscaler when the internal size is below the canvas, + blood, fade, letterbox.
+//
+//  Removed on the owner's order (no GPU cost left): painterly Kuwahara + structure tensor,
+//  paper / canvas overlay, film grain, lens chromatic aberration. `params.painterly`,
+//  `params.grain` and `params.chroma` are still accepted (no-ops).
 import * as THREE from 'three';
 import { LAYERS } from '../core/layers.js';
 import { settings } from '../core/Settings.js';
 import { bus } from '../core/Events.js';
 import { clamp } from '../core/math.js';
-import { FS_VERT, TENSOR_FRAG, GAUSS_FRAG, KUWAHARA8_FRAG, KUWAHARA4_FRAG } from './Painterly.js';
+import { FS_VERT, GAUSS_FRAG } from './Painterly.js';
 import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG } from './PostShaders.js';
-import { canvasTexture } from './noiseTex.js';
 import { GORE_UNIFORM } from './Blood.js';
 import { GLOBAL_UNIFORMS } from './uniforms.js';
+import { FrameClock, DynamicResolution, AutoQuality } from './Perf.js';
 
 const GLASS_BIT = 1 << LAYERS.GLASS;
-const BLOOM_LEVELS = 6;
+/** bloom mips: 1/4, 1/8, 1/16, 1/32, 1/64 of the internal size */
+const BLOOM_LEVELS = 5;
 const MSAA_BY_PRESET = { low: 0, medium: 2, high: 4, ultra: 4 };
-/** settings.painterly (0..1, default 0.75) -> blend strength of the paint layer (kept subtle). */
-const paintCurve = (v) => Math.pow(clamp(v, 0, 1), 1.25) * 0.6;
 
 function makeRT(w, h, opts = {}) {
   const rt = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), {
-    type: THREE.HalfFloatType,
+    type: opts.ldr ? THREE.UnsignedByteType : THREE.HalfFloatType,
     format: THREE.RGBAFormat,
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
@@ -41,7 +45,10 @@ function makeRT(w, h, opts = {}) {
     stencilBuffer: false,
     samples: opts.samples || 0,
     generateMipmaps: false,
+    // nothing samples the scene depth: never blit the multisampled depth buffer
+    resolveDepthBuffer: false,
   });
+  rt.resolveDepthBuffer = false;
   rt.texture.wrapS = rt.texture.wrapT = THREE.ClampToEdgeWrapping;
   rt.texture.name = opts.name || 'dlbRT';
   return rt;
@@ -57,12 +64,16 @@ function passMaterial(frag, uniforms, defines = {}) {
 const _v3 = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _size = new THREE.Vector2();
+const _mat4 = new THREE.Matrix4();
+const _frustum = new THREE.Frustum();
+const _sphere = new THREE.Sphere();
 
 class PostFX {
   constructor() {
     /**
      * Animatable by gameplay. Multipliers (1 = the player's settings / the hour's grade):
-     *   exposure, painterly, bloom, grain, vignette, chroma, sharpen, saturation, contrast, tint (Color multiply).
+     *   exposure, bloom, vignette, sharpen, saturation, contrast, tint (Color multiply).
+     *   (painterly, grain, chroma: accepted, no effect — those filters are removed.)
      * Absolute: temperature (added), letterbox 0..1, fade 0..1 + fadeColor, horror 0..1, amulet 0..1,
      *   blur 0..1, distortion 0..1, blood 0..1 (blood splatter + runs on the lens; see bloodSplash()).
      */
@@ -79,26 +90,38 @@ class PostFX {
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     this.enabled = true;
-    /** debug: 'shafts' | 'paint' | 'bloom' | 'tensor' | 'scene' shows that buffer raw */
+    /** debug: 'shafts' | 'bloom' | 'scene' | 'grade' shows that buffer raw */
     this.debugView = null;
-    /** 'auto' (scan the scene for GLASS-layer meshes every 30 frames) | true | false */
+    /** 'auto' (glass pass only while a GLASS-layer mesh is in the view frustum) | true | false */
     this.glass = 'auto';
     this.sky = null; // set by installRendering (grade targets, sun for shafts)
     /** 0..1 moonlight shafts through the canopy at night (screen-space, when the moon is in view). */
     this.moonShafts = 1;
     /** multiplier on sun / moon shafts */
     this.shaftStrength = 1;
-    this._hasGlass = false;
+    /** frame clock + dynamic resolution (Perf.js); `dynamic.enabled = false` pins full resolution */
+    this.clock = new FrameClock();
+    this.dynamic = new DynamicResolution();
+    this.autoQuality = new AutoQuality(this.dynamic);
+    /** current internal render scale (1 = drawing-buffer size) and size */
+    this.renderScale = 1;
+    this.renderWidth = 1;
+    this.renderHeight = 1;
+    this._glassList = [];
+    this._glassHold = 0;
+    this._glassUsed = false;
     this._frame = 0;
     this._flash = { color: new THREE.Color(), t: 0, dur: 1 };
     this._blood = { splash: 0, age: 99, seed: Math.random(), runT: 0, last: 0 };
     this._w = 0;
     this._h = 0;
-    this._quality = null;
+    this._ow = 0;
+    this._oh = 0;
     this._samples = -1;
     this._built = false;
     this._settingsDirty = true;
-    this.stats = { passes: 0 };
+    this._sizeDirty = true;
+    this.stats = { passes: 0, renderScale: 1, frameMs: 0, width: 0, height: 0, glass: false, shafts: false };
     settings.onChange(() => (this._settingsDirty = true));
     bus.on('engine:resize', () => (this._sizeDirty = true));
   }
@@ -123,7 +146,7 @@ class PostFX {
     b.runT = 0;
   }
 
-  _build() {
+  _build(renderer) {
     this._built = true;
     const quadGeo = new THREE.BufferGeometry();
     quadGeo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
@@ -131,40 +154,33 @@ class PostFX {
     this._quad = new THREE.Mesh(quadGeo);
     this._quad.frustumCulled = false;
     this._cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    // mobile render-to-texture MSAA attaches the texture itself: then glass needs a copy
+    this._rtt = !!renderer?.extensions?.has?.('WEBGL_multisampled_render_to_texture');
 
     this.matCopy = passMaterial(COPY_FRAG, { tSrc: { value: null } });
     this.matGauss = passMaterial(GAUSS_FRAG, { tSrc: { value: null }, uDir: { value: new THREE.Vector2() } });
-    this.matTensor = passMaterial(TENSOR_FRAG, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() }, uEnc: { value: 1 } });
-    const kU = () => ({
-      tSrc: { value: null }, tTensor: { value: null }, uTexel: { value: new THREE.Vector2() }, uRadius: { value: 4 },
-      uHardness: { value: 8 }, uSharpness: { value: 8 }, uAlpha: { value: 1 }, uEnc: { value: 1 },
-    });
-    this.matKuwaAniso = passMaterial(KUWAHARA8_FRAG, kU(), { ANISO: '' });
-    this.matKuwa8 = passMaterial(KUWAHARA8_FRAG, kU());
-    this.matKuwa4 = passMaterial(KUWAHARA4_FRAG, kU());
     this.matDown = passMaterial(BLOOM_DOWN_FRAG, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() }, uKaris: { value: 0 }, uClampMax: { value: 400 } });
     this.matUp = passMaterial(BLOOM_UP_FRAG, { tLow: { value: null }, tHigh: { value: null }, uTexel: { value: new THREE.Vector2() }, uScatter: { value: 0.7 } });
     this.matShaftMask = passMaterial(SHAFT_MASK_FRAG, { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uAspect: { value: 1 }, uThreshold: { value: 0.8 } });
     this.matShaftBlur = passMaterial(SHAFT_BLUR_FRAG, { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uLength: { value: 0.6 }, uJitter: { value: 1 } });
     const fu = {
-      tScene: { value: null }, tPaint: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tShafts: { value: null },
-      uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uPaint: { value: 0 },
+      tScene: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tShafts: { value: null },
+      uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 },
       uExposure: { value: 1 }, uSaturation: { value: 1 }, uContrast: { value: 1 }, uTemperature: { value: 0 }, uTint: { value: 0 },
       uLift: { value: new THREE.Vector3() }, uGamma: { value: new THREE.Vector3(1, 1, 1) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uShadowTint: { value: new THREE.Color(1, 1, 1) }, uHighTint: { value: new THREE.Color(1, 1, 1) }, uSplit: { value: 0 },
       uColorMul: { value: new THREE.Color(1, 1, 1) },
       uBloom: { value: 0.05 }, uShafts: { value: 0 }, uShaftCol: { value: new THREE.Color() },
-      uVignette: { value: 0.6 }, uChroma: { value: 0.3 },
+      uVignette: { value: 0.6 },
       uHorror: { value: 0 }, uAmulet: { value: 0 }, uBlur: { value: 0 }, uDistortion: { value: 0 },
       uFlash: { value: new THREE.Vector4() },
     };
     this.finalUniforms = fu;
-    this.matFinal = passMaterial(FINAL_FRAG, fu, { PAINT: '' });
-    this.matFinalNoPaint = passMaterial(FINAL_FRAG, fu);
+    this.matFinal = passMaterial(FINAL_FRAG, fu);
     const ou = {
-      tSrc: { value: null }, tPaint: { value: null }, tCanvas: { value: canvasTexture() },
-      uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uSharp: { value: 0.5 }, uCanvas: { value: 0 }, uPaintDir: { value: 0 },
-      uGrain: { value: 0.35 }, uFade: { value: 0 }, uFadeColor: { value: new THREE.Color() }, uLetterbox: { value: 0 },
+      tSrc: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uTexel: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 }, uSharp: { value: 0.5 },
+      uFade: { value: 0 }, uFadeColor: { value: new THREE.Color() }, uLetterbox: { value: 0 },
       uBlood: { value: 0 }, uBloodSeed: { value: 0 }, uBloodRun: { value: 0 }, uGore: GORE_UNIFORM,
     };
     this.outputUniforms = ou;
@@ -183,19 +199,14 @@ class PostFX {
 
   _readSettings() {
     this._settingsDirty = false;
-    const q = settings.get('painterlyQuality') || 'medium';
-    const preset = settings.get('graphicsPreset') || 'high';
-    const samples = MSAA_BY_PRESET[preset] ?? 4;
-    if (q !== this._quality || samples !== this._samples) {
-      this._quality = q;
+    const preset = settings.get('graphicsPreset') || 'medium';
+    const samples = MSAA_BY_PRESET[preset] ?? 2;
+    if (samples !== this._samples) {
       this._samples = samples;
       this._sizeDirty = true;
     }
     this.cfg = {
-      painterly: 0, // owner: no brush-stroke / canvas filter, the image stays clean and sharp
       bloom: clamp(settings.get('bloom') ?? 0.8, 0, 2),
-      grain: 0,
-      chroma: 0,
       vignette: clamp(settings.get('vignette') ?? 0.6, 0, 1),
       sharpen: clamp(settings.get('sharpen') ?? 0.5, 0, 1),
       brightness: clamp(settings.get('brightness') ?? 1, 0.3, 2),
@@ -203,79 +214,123 @@ class PostFX {
     };
   }
 
-  _resize(renderer) {
-    renderer.getDrawingBufferSize(_size);
-    const w = Math.max(1, Math.floor(_size.x)), h = Math.max(1, Math.floor(_size.y));
-    if (!this._sizeDirty && w === this._w && h === this._h) return;
-    this._sizeDirty = false;
-    this._w = w;
-    this._h = h;
+  _disposeTargets() {
     const dispose = (rt) => rt && rt.dispose();
     dispose(this.sceneRT);
+    dispose(this.gradeRT);
+    (this.bloomDown || []).forEach(dispose);
+    (this.bloomUp || []).forEach(dispose);
+    dispose(this.shaftA);
+    dispose(this.shaftB);
     dispose(this.copyRT);
     dispose(this.glassBlurA);
     dispose(this.glassBlurB);
-    dispose(this.tensorRT);
-    dispose(this.tensorBlurRT);
-    dispose(this.paintRT);
-    dispose(this.gradeRT);
-    dispose(this.shaftA);
-    dispose(this.shaftB);
-    (this.bloomDown || []).forEach(dispose);
-    (this.bloomUp || []).forEach(dispose);
-    const caps = renderer.capabilities;
-    const samples = Math.min(this._samples, caps.maxSamples || 0);
-    this.sceneRT = makeRT(w, h, { depth: true, samples, name: 'dlbScene' });
+    this.shaftA = this.shaftB = this.copyRT = this.glassBlurA = this.glassBlurB = null;
+  }
+
+  _resize(renderer) {
+    renderer.getDrawingBufferSize(_size);
+    const ow = Math.max(1, Math.floor(_size.x)), oh = Math.max(1, Math.floor(_size.y));
+    const s = this.renderScale;
+    const w = Math.max(1, Math.round(ow * s)), h = Math.max(1, Math.round(oh * s));
+    if (!this._sizeDirty && w === this._w && h === this._h && ow === this._ow && oh === this._oh) return;
+    this._sizeDirty = false;
+    this._w = w;
+    this._h = h;
+    this._ow = ow;
+    this._oh = oh;
+    this.renderWidth = w;
+    this.renderHeight = h;
+    this._disposeTargets();
+    const samples = Math.min(this._samples, renderer.capabilities.maxSamples || 0);
     this._msaa = samples;
-    this.gradeRT = makeRT(w, h, { name: 'dlbGrade' });
-    this.copyRT = null; // allocated on demand (glass)
-    const q = this._quality;
-    // high: full resolution (small-radius anisotropic filter); medium / low: half resolution
-    const pdiv = q === 'high' ? 1 : 2;
-    const pw = Math.ceil(w / pdiv), ph = Math.ceil(h / pdiv);
-    this.paintRT = makeRT(pw, ph, { name: 'dlbPaint' });
-    this.tensorRT = q === 'high' ? makeRT(Math.ceil(w / 2), Math.ceil(h / 2), { name: 'dlbTensor' }) : null;
-    this.tensorBlurRT = q === 'high' ? makeRT(Math.ceil(w / 2), Math.ceil(h / 2), { name: 'dlbTensor2' }) : null;
+    this.sceneRT = makeRT(w, h, { depth: true, samples, name: 'dlbScene' });
+    // display-referred, dithered sRGB: 8 bits are enough (half the bandwidth of HalfFloat)
+    this.gradeRT = makeRT(w, h, { ldr: true, name: 'dlbGrade' });
     this.bloomDown = [];
     this.bloomUp = [];
-    let bw = w, bh = h;
+    let bw = Math.max(1, Math.ceil(w / 4)), bh = Math.max(1, Math.ceil(h / 4));
     for (let i = 0; i < BLOOM_LEVELS; i++) {
-      bw = Math.max(1, Math.ceil(bw / 2));
-      bh = Math.max(1, Math.ceil(bh / 2));
       this.bloomDown.push(makeRT(bw, bh, { name: 'dlbBloomD' + i }));
       this.bloomUp.push(i < BLOOM_LEVELS - 1 ? makeRT(bw, bh, { name: 'dlbBloomU' + i }) : null);
+      bw = Math.max(1, Math.ceil(bw / 2));
+      bh = Math.max(1, Math.ceil(bh / 2));
     }
-    this.shaftA = makeRT(Math.ceil(w / 4), Math.ceil(h / 4), { name: 'dlbShaftA' });
-    this.shaftB = makeRT(Math.ceil(w / 4), Math.ceil(h / 4), { name: 'dlbShaftB' });
+    // shafts / glass targets are allocated on first use
     this.glassUniforms.uResolution.value.set(w, h);
     this.finalUniforms.uRes.value.set(w, h);
-    this.outputUniforms.uRes.value.set(w, h);
+    this.outputUniforms.uRes.value.set(ow, oh);
+    this.outputUniforms.uTexel.value.set(1 / w, 1 / h);
+    if (this._glassUsed) this._ensureGlassRTs();
+    this.stats.width = w;
+    this.stats.height = h;
+  }
+
+  _ensureShaftRTs() {
+    if (this.shaftA) return;
+    const qw = Math.max(1, Math.ceil(this._w / 4)), qh = Math.max(1, Math.ceil(this._h / 4));
+    this.shaftA = makeRT(qw, qh, { name: 'dlbShaftA' });
+    this.shaftB = makeRT(qw, qh, { name: 'dlbShaftB' });
   }
 
   _ensureGlassRTs() {
-    if (this.copyRT && this.copyRT.width === this._w && this.copyRT.height === this._h) return;
-    this.copyRT?.dispose();
-    this.glassBlurA?.dispose();
-    this.glassBlurB?.dispose();
-    this.copyRT = makeRT(this._w, this._h, { name: 'dlbSceneCopy' });
-    const qw = Math.ceil(this._w / 4), qh = Math.ceil(this._h / 4);
-    this.glassBlurA = makeRT(qw, qh, { name: 'dlbGlassBlurA' });
-    this.glassBlurB = makeRT(qw, qh, { name: 'dlbGlassBlurB' });
+    this._glassUsed = true;
+    const needCopy = !(this._msaa > 0 && !this._rtt);
+    if (needCopy && !this.copyRT) this.copyRT = makeRT(this._w, this._h, { name: 'dlbSceneCopy' });
+    if (!this.glassBlurA) {
+      const qw = Math.max(1, Math.ceil(this._w / 4)), qh = Math.max(1, Math.ceil(this._h / 4));
+      this.glassBlurA = makeRT(qw, qh, { name: 'dlbGlassBlurA' });
+      this.glassBlurB = makeRT(qw, qh, { name: 'dlbGlassBlurB' });
+    }
+    // keep the glass uniforms pointing at live textures (Glass.js keys its mode on tSceneColor)
+    this.glassUniforms.tSceneColor.value = needCopy ? this.copyRT.texture : this.sceneRT.texture;
+    this.glassUniforms.tSceneBlur.value = this.glassBlurA.texture;
   }
 
   _scanGlass(scene) {
-    let found = false;
+    const list = this._glassList;
+    list.length = 0;
     scene.traverseVisible((o) => {
-      if (!found && (o.layers.mask & GLASS_BIT) && (o.isMesh || o.isSprite || o.isPoints)) found = true;
+      if ((o.layers.mask & GLASS_BIT) && (o.isMesh || o.isSprite || o.isPoints)) list.push(o);
     });
-    this._hasGlass = found;
+  }
+
+  /** Any GLASS-layer mesh (from the last scan) inside the view frustum? */
+  _glassInView(camera) {
+    const list = this._glassList;
+    if (!list.length) return false;
+    camera.updateMatrixWorld();
+    _mat4.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_mat4);
+    for (const o of list) {
+      if (!o.visible || !(o.layers.mask & GLASS_BIT)) continue;
+      const g = o.geometry;
+      if (!g) return true;
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      if (!g.boundingSphere) return true;
+      _sphere.copy(g.boundingSphere).applyMatrix4(o.matrixWorld);
+      _sphere.radius += 1.0; // a frame of motion margin
+      if (_frustum.intersectsSphere(_sphere)) return true;
+    }
+    return false;
   }
 
   render(renderer, scene, camera, dt = 1 / 60) {
-    if (!this._built) this._build();
+    if (!this._built) this._build(renderer);
     if (this._settingsDirty) this._readSettings();
+    // ---- frame timing -> dynamic resolution / first-run auto quality --------------------
+    const valid = this.clock.tick();
+    const ms = this.clock.ms;
+    this.autoQuality.frame(ms, valid);
+    const scale = this.dynamic.update(ms, valid);
+    if (scale !== this.renderScale) {
+      this.renderScale = scale;
+      this._sizeDirty = true;
+    }
     this._resize(renderer);
     this.stats.passes = 0;
+    this.stats.renderScale = this.renderScale;
+    this.stats.frameMs = ms;
     this._frame++;
     const P = this.params;
     const cfg = this.cfg;
@@ -298,16 +353,27 @@ class PostFX {
     if (sky) sky.uniforms.uSkyAlpha.value = 1;
     camera.layers.mask = mask;
 
-    // ---- 2. glass ------------------------------------------------------------------
-    if (this.glass === 'auto' && this._frame % 30 === 1) this._scanGlass(scene);
-    const doGlass = this.glass === true || (this.glass === 'auto' && this._hasGlass);
+    // ---- 2. glass (only while a glass pane is in view) --------------------------------
+    let doGlass = this.glass === true;
+    if (this.glass === 'auto') {
+      if (this._frame % 30 === 1) this._scanGlass(scene);
+      if (this._glassInView(camera)) this._glassHold = 10;
+      else this._glassHold = Math.max(0, this._glassHold - 1);
+      doGlass = this._glassHold > 0;
+    }
+    this.stats.glass = doGlass;
+    const w = this._w, h = this._h;
     if (doGlass) {
       this._ensureGlassRTs();
-      this.matCopy.uniforms.tSrc.value = this.sceneRT.texture;
-      this._pass(renderer, this.matCopy, this.copyRT);
+      let src = this.sceneRT.texture;
+      if (this.copyRT) {
+        this.matCopy.uniforms.tSrc.value = src;
+        this._pass(renderer, this.matCopy, this.copyRT);
+        src = this.copyRT.texture;
+      }
       // quarter-res blur for frosted / fogged glass
-      this.matDown.uniforms.tSrc.value = this.copyRT.texture;
-      this.matDown.uniforms.uTexel.value.set(1 / this._w, 1 / this._h).multiplyScalar(2);
+      this.matDown.uniforms.tSrc.value = src;
+      this.matDown.uniforms.uTexel.value.set(2 / w, 2 / h);
       this.matDown.uniforms.uKaris.value = 1;
       this.matDown.uniforms.uClampMax.value = 30;
       this._pass(renderer, this.matDown, this.glassBlurA);
@@ -320,8 +386,6 @@ class PostFX {
         g.uDir.value.set(0, (1.2 + it) / this.glassBlurA.height);
         this._pass(renderer, this.matGauss, this.glassBlurA);
       }
-      this.glassUniforms.tSceneColor.value = this.copyRT.texture;
-      this.glassUniforms.tSceneBlur.value = this.glassBlurA.texture;
       const bg = scene.background;
       const smAuto = renderer.shadowMap.autoUpdate;
       scene.background = null;
@@ -338,60 +402,18 @@ class PostFX {
     renderer.autoClear = true;
 
     const exposure = (grade?.exposure ?? 1.6) * P.exposure * Math.pow(cfg.brightness, 1.4);
-    // ---- 3. painterly ------------------------------------------------------------------
-    const paint = clamp(paintCurve(cfg.painterly) * P.painterly, 0, 1);
     const ou = this.outputUniforms;
     const fu = this.finalUniforms;
-    const w = this._w, h = this._h;
-    if (paint > 0.001) {
-      const q = this._quality;
-      const hs = h / 1080;
-      let mat;
-      if (q === 'high') {
-        // structure tensor at half res, smoothed
-        const t = this.matTensor.uniforms;
-        t.tSrc.value = this.sceneRT.texture;
-        t.uTexel.value.set(2 / w, 2 / h);
-        t.uEnc.value = exposure;
-        this._pass(renderer, this.matTensor, this.tensorRT);
-        const g = this.matGauss.uniforms;
-        g.tSrc.value = this.tensorRT.texture;
-        g.uDir.value.set(1.2 / this.tensorRT.width, 0);
-        this._pass(renderer, this.matGauss, this.tensorBlurRT);
-        g.tSrc.value = this.tensorBlurRT.texture;
-        g.uDir.value.set(0, 1.2 / this.tensorRT.height);
-        this._pass(renderer, this.matGauss, this.tensorRT);
-        mat = this.matKuwaAniso;
-        mat.uniforms.tTensor.value = this.tensorRT.texture;
-        // full-res, small radius: strokes follow contours without eating detail
-        mat.uniforms.uRadius.value = clamp(3.5 * hs, 2.0, 4.5);
-        mat.uniforms.uTexel.value.set(1 / this.paintRT.width, 1 / this.paintRT.height);
-        ou.uPaintDir.value = 1;
-      } else if (q === 'medium') {
-        mat = this.matKuwa8;
-        mat.uniforms.uRadius.value = clamp(2.5 * hs, 1.5, 3);
-        mat.uniforms.uTexel.value.set(1 / this.paintRT.width, 1 / this.paintRT.height);
-        ou.uPaintDir.value = 0;
-      } else {
-        mat = this.matKuwa4;
-        mat.uniforms.uRadius.value = clamp(2.0 * hs, 1.0, 2);
-        mat.uniforms.uTexel.value.set(1 / this.paintRT.width, 1 / this.paintRT.height);
-        ou.uPaintDir.value = 0;
-      }
-      mat.uniforms.tSrc.value = this.sceneRT.texture;
-      mat.uniforms.uEnc.value = exposure;
-      mat.uniforms.uHardness.value = 9;
-      mat.uniforms.uSharpness.value = 8;
-      this._pass(renderer, mat, this.paintRT);
-    }
 
-    // ---- 4. bloom ------------------------------------------------------------------------
+    // ---- 3. bloom (from quarter resolution) ---------------------------------------------
     const bloomAmt = cfg.bloom * P.bloom;
     const needBloomChain = bloomAmt > 0.001 || P.blur > 0.001;
     if (needBloomChain) {
       let src = this.sceneRT.texture, sw = w, sh = h;
       const d = this.matDown.uniforms;
       for (let i = 0; i < BLOOM_LEVELS; i++) {
+        // level 0 reads the full-size frame into 1/4: the 13 taps at source-texel spacing
+        // cover the whole 4x4 footprint (+ a 1 px ring), so small lights never alias
         d.tSrc.value = src;
         d.uTexel.value.set(1 / sw, 1 / sh);
         d.uKaris.value = i === 0 ? 1 : 0;
@@ -413,7 +435,7 @@ class PostFX {
       }
     }
 
-    // ---- 5. light shafts: god rays from the sun at dawn, moonlight shafts at night --------------
+    // ---- 4. light shafts: god rays from the sun at dawn, moonlight shafts at night --------------
     //      (screen-space, occluded by everything that is not sky -> rays through the canopy)
     let shafts = 0;
     const useSun = sky && sky.sunVisibility > 0.01;
@@ -428,6 +450,7 @@ class PostFX {
         const fogK = 0.65 + clamp(GLOBAL_UNIFORMS.uFogDensity.value * 16, 0, 0.8);
         shafts = (useSun ? sky.sunVisibility : sky.moonVisibility * 0.4 * this.moonShafts) * onScreen * clamp(facing * 2, 0, 1) * fogK * this.shaftStrength;
         if (shafts > 0.01) {
+          this._ensureShaftRTs();
           const m = this.matShaftMask.uniforms;
           m.tSrc.value = this.sceneRT.texture;
           m.uSun.value.set(sx, sy);
@@ -445,15 +468,14 @@ class PostFX {
         }
       }
     }
+    this.stats.shafts = shafts > 0.01;
 
-    // ---- 6. final ------------------------------------------------------------------------------
+    // ---- 5. grade -> 8-bit ---------------------------------------------------------------------
     fu.tScene.value = this.sceneRT.texture;
-    fu.tPaint.value = this.paintRT.texture;
     fu.tBloom.value = needBloomChain ? this.bloomUp[0].texture : this._black;
-    fu.tBlur.value = needBloomChain ? this.bloomUp[1].texture : this._black;
+    fu.tBlur.value = needBloomChain ? this.bloomUp[0].texture : this._black;
     fu.tShafts.value = shafts > 0.01 ? this.shaftA.texture : this._black;
     fu.uTime.value = (fu.uTime.value + dt) % 1000;
-    fu.uPaint.value = paint;
     fu.uExposure.value = exposure;
     fu.uSaturation.value = (grade?.saturation ?? 1) * P.saturation;
     fu.uContrast.value = (grade?.contrast ?? 1) * P.contrast;
@@ -477,7 +499,6 @@ class PostFX {
     fu.uShafts.value = shafts * 1.6;
     if (sky) fu.uShaftCol.value.copy(useSun ? sky.sunColor : sky.moonColor);
     fu.uVignette.value = cfg.vignette * P.vignette;
-    fu.uChroma.value = cfg.chroma * P.chroma;
     fu.uHorror.value = P.horror;
     fu.uAmulet.value = P.amulet;
     fu.uBlur.value = P.blur;
@@ -488,15 +509,14 @@ class PostFX {
       const k = fl.t / fl.dur;
       fu.uFlash.value.set(fl.color.r, fl.color.g, fl.color.b, k * k * (cfg.reduceFlashes ? 0.25 : 1) * 2.0 / Math.max(exposure, 0.3));
     } else fu.uFlash.value.w = 0;
-    this._pass(renderer, paint > 0.001 ? this.matFinal : this.matFinalNoPaint, this.gradeRT);
+    this._pass(renderer, this.matFinal, this.gradeRT);
 
-    // ---- 7. output: (FXAA-lite) + contrast-adaptive sharpening + canvas / grain / fade --------
+    // ---- 6. output: (FXAA-lite) + contrast-adaptive sharpening / upscale + blood / fade --------
     ou.tSrc.value = this.gradeRT.texture;
-    ou.tPaint.value = this.paintRT.texture;
     ou.uTime.value = fu.uTime.value;
-    ou.uSharp.value = clamp(cfg.sharpen * (P.sharpen ?? 1) * (1 - clamp(P.blur, 0, 1)), 0, 1);
-    ou.uCanvas.value = paint > 0.001 ? 0.35 + paint * 0.9 : 0;
-    ou.uGrain.value = cfg.grain * P.grain;
+    // below full resolution the sharpening also restores the upscaled detail
+    const upSharp = (1 - this.renderScale) * 0.8;
+    ou.uSharp.value = clamp((cfg.sharpen * (P.sharpen ?? 1) + upSharp) * (1 - clamp(P.blur, 0, 1)), 0, 1);
     ou.uFade.value = P.fade;
     ou.uFadeColor.value.copy(P.fadeColor).convertLinearToSRGB();
     ou.uLetterbox.value = P.letterbox;
@@ -515,7 +535,7 @@ class PostFX {
     }
     this._pass(renderer, this._msaa > 0 ? this.matOutput : this.matOutputFxaa, null);
     if (this.debugView) {
-      const tex = { shafts: this.shaftA.texture, paint: this.paintRT.texture, bloom: this.bloomUp[0]?.texture, tensor: this.tensorRT?.texture, scene: this.sceneRT.texture, grade: this.gradeRT.texture }[this.debugView];
+      const tex = { shafts: this.shaftA?.texture, bloom: this.bloomUp[0]?.texture, scene: this.sceneRT.texture, grade: this.gradeRT.texture }[this.debugView];
       if (tex) {
         this.matCopy.uniforms.tSrc.value = tex;
         this._pass(renderer, this.matCopy, null);

@@ -1,7 +1,8 @@
 // Light pool: many lamps, few real lights.
-//  * The nearest N lamps (N by graphics preset: low 2, medium 3, high 4, ultra 6) get a
-//    real PointLight (crossfaded on reassignment; the light count never changes, so
-//    shaders never recompile while driving).
+//  * The nearest N lamps (N by graphics preset: low 2, medium 3, high 4, ultra 6; never
+//    more than 8) get a real PointLight (crossfaded on reassignment; the light count never
+//    changes, so shaders never recompile while driving). Out of their range (and while
+//    parked at zero intensity) they cost nothing per pixel (ShaderPatches.js light gating).
 //  * Every lamp draws a glow billboard (one instanced draw for all lamps), an optional
 //    additive ground light pool (one instanced draw), and an optional soft volumetric cone.
 //  * Flicker presets: fluorescent, sodium, dying, candle, neon (+ onFlicker callback).
@@ -13,6 +14,9 @@ import { settings } from '../core/Settings.js';
 import { createVolumetricBeam } from './Beams.js';
 
 const REAL_BY_PRESET = { low: 2, medium: 3, high: 4, ultra: 6 };
+/** Hard cap on real pooled lights (each one is a BRDF term in every lit pixel's shader). */
+const MAX_REAL = 8;
+const realCount = () => Math.min(MAX_REAL, REAL_BY_PRESET[settings.get('graphicsPreset')] ?? 3);
 
 /**
  * Colour accents per light type (sRGB hex). `lightPool.add({kind})` uses them as the default
@@ -259,9 +263,9 @@ class LightPool {
     this.group.add(this.glows, this.pools);
     this.scatter = 1; // global multiplier for fog in-scattering around lamps
     this.maxDistance = 220;
-    this._setRealCount(REAL_BY_PRESET[settings.get('graphicsPreset')] ?? 4);
+    this._setRealCount(realCount());
     settings.onChange(({ key }) => {
-      if (key === 'graphicsPreset' || key === '*') this._setRealCount(REAL_BY_PRESET[settings.get('graphicsPreset')] ?? 4);
+      if (key === 'graphicsPreset' || key === '*') this._setRealCount(realCount());
     });
   }
 

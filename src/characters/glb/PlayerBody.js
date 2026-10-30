@@ -14,6 +14,7 @@ import { LAYERS } from '../../core/layers.js';
 import { clamp, damp, smoothstep } from '../../core/math.js';
 import { HumanoidGLB } from './Humanoid.js';
 import { PRESETS } from '../Presets.js';
+import { noMouthView } from './mhperson.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 
@@ -24,14 +25,18 @@ function splitHead(geo, t) {
   const head = new Set([t.index.Head, t.index.neck_01, t.index.eye_l, t.index.eye_r, ...['hair_1', 'hair_2', 'hair_3', 'hairL_1', 'hairL_2', 'hairR_1', 'hairR_2'].map((n) => t.index[n])]);
   const hw = (i) => { let w = 0; for (let k = 0; k < 4; k++) if (head.has(si.getComponent(i, k))) w += sw.getComponent(i, k); return w; };
   const idx = geo.index.array;
-  const A = [], B = [];
+  const A = [], B = [], M = [];
   for (let i = 0; i < idx.length; i += 3) {
     const a = idx[i], b = idx[i + 1], c = idx[i + 2];
-    const isHead = (part && part.getX(a) > 1.5) || (hw(a) + hw(b) + hw(c)) / 3 > 0.5;
-    (isHead ? A : B).push(a, b, c);
+    const pa = part ? part.getX(a) : 0;
+    const isHead = (part && pa > 1.5) || (hw(a) + hw(b) + hw(c)) / 3 > 0.5;
+    // teeth (5) / tongue (6) last in the head, so a closed mouth draws less
+    (isHead ? (pa > 4.5 && pa < 6.5 ? M : A) : B).push(a, b, c);
   }
   const mk = (arr) => { const g = new THREE.BufferGeometry(); for (const k in geo.attributes) g.setAttribute(k, geo.attributes[k]); g.setIndex(arr); g.boundingSphere = geo.boundingSphere; return g; };
-  geo.userData.headSplit = { head: mk(A), body: mk(B) };
+  const headGeo = mk(A.concat(M));
+  headGeo.userData.mouthStart = A.length;
+  geo.userData.headSplit = { head: headGeo, headNoMouth: noMouthView(headGeo), body: mk(B) };
   return geo.userData.headSplit;
 }
 
@@ -57,13 +62,21 @@ export class PlayerBodyGLB {
     this._acc = { v: new THREE.Vector3(), last: new THREE.Vector3(), has: false, lean: new THREE.Vector2(), vel: new THREE.Vector2() };
     this._reach = null;
     this._stepPhase = 0;
-    // head on PLAYER_HEAD: split the body draw
-    const sp = splitHead(h.body.geometry, h.t);
+    // head on PLAYER_HEAD: split the body draw (from the full merged geometry, mouth included)
+    const sp = splitHead(h.person ? h.person.geo : h.body.geometry, h.t);
     h.body.geometry = sp.body;
-    this.headMesh = new THREE.SkinnedMesh(sp.head, h.materials.body);
+    h._headSplit = true;
+    this.headMesh = new THREE.SkinnedMesh(h._mouthOn ? sp.head : sp.headNoMouth, h.materials.body);
     this.headMesh.name = 'player-head';
     this.headMesh.bind(h.rig.skeleton, new THREE.Matrix4());
-    this.headMesh.frustumCulled = false;
+    // mirrors only: culled with the character's fixed bind-pose sphere
+    this.headMesh.boundingSphere = h._cullSphere || null;
+    this.headMesh.frustumCulled = !!h._cullSphere;
+    h._setMouth = (on) => {
+      if (on === h._mouthOn) return;
+      h._mouthOn = on;
+      this.headMesh.geometry = on ? sp.head : sp.headNoMouth;
+    };
     this.headMesh.castShadow = true;
     h.inner.add(this.headMesh);
     h._setLod = () => {}; // the player is always full detail

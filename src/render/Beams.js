@@ -50,7 +50,7 @@ void main() {
   float ax = vAxial;
   float fall = smoothstep(0.0, 0.06, ax) * (1.0 - smoothstep(0.45, 1.0, ax)) / (1.0 + ax * ax * 6.0);
   vec3 drift = vec3(dlbWindDir.x, 0.15, dlbWindDir.y) * dlbTime * (0.25 + dlbWindStrength);
-  float n = dlbNoise3(vWP * 0.9 - drift) * 0.6 + dlbNoise3(vWP * 2.3 + drift * 1.7) * 0.4;
+  float n = dlbFogNoise3(vWP * 0.9 - drift) * 0.6 + dlbFogNoise3(vWP * 2.3 + drift * 1.7) * 0.4;
   float dust = mix(1.0, 0.35 + n * 1.3, uNoise);
   float fogK = 0.15 + dlbFogDensity * 14.0 + dlbFogHeightDensity * 1.5;
   float T = dlbFogTransmittance(vWP);

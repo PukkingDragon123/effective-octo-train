@@ -25,7 +25,7 @@ import { AnimController } from './anim.js';
 import { ActionPlayer } from './actions.js';
 import { GhostLayer } from './ghost.js';
 import { MH } from './mhpack.js';
-import { buildPerson, personTemplate, personLod, releasePerson } from './mhperson.js';
+import { buildPerson, personTemplate, personLod, personNoMouth, releasePerson } from './mhperson.js';
 import { mhRecipe, mhSkinKey, mhDefaults } from './mhrecipe.js';
 import { makeMHUniforms, mhBodyMaterial, mhEyeMaterial, driveMHFace } from './mhmaterials.js';
 import { sharedMHClips } from './assets.js';
@@ -37,7 +37,10 @@ const _e = new THREE.Euler();
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 const eyeGeoCache = new WeakMap();
 
-export const LOD_DISTANCE = 25;
+/** Far LOD beyond this many metres (at the default 72° field of view; zoomed lenses scale it). */
+export const LOD_DISTANCE = 12;
+const MOUTH_DISTANCE = 6; // teeth / tongue are never drawn beyond this (screen-scaled like the LOD)
+const REF_TAN = Math.tan((72 * Math.PI) / 360);
 
 let _camPos = new THREE.Vector3();
 
@@ -141,10 +144,7 @@ export class HumanoidGLB {
       this.worn.castShadow = true;
       this.inner.add(this.worn);
     }
-    for (const m of [this.body, this.eyes, this.worn]) if (m) { m.frustumCulled = true; m.geometry.boundingSphere ||= new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.6); }
-    this.body.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, t.height * 0.5, 0), t.height * 1.1);
-    this.eyes.frustumCulled = false;
-    if (this.worn) this.worn.frustumCulled = false;
+    this._setupCulling();
     // held props
     this.held = {};
     this._initRuntime();
@@ -244,9 +244,7 @@ export class HumanoidGLB {
       this.worn.castShadow = true;
       this.inner.add(this.worn);
     }
-    this.body.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, t.height * 0.5, 0), t.height * 1.1);
-    this.eyes.frustumCulled = false;
-    if (this.worn) this.worn.frustumCulled = false;
+    this._setupCulling();
     this.held = {};
     this._initRuntime();
     // ghost look parameters that live in the ghost layer (uncanny, blink desync, stutter...)
@@ -267,6 +265,33 @@ export class HumanoidGLB {
     }
     const hand = { basket: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') ? 'R' : 'L' };
     for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
+    // the far LOD is fitted in idle time, so walking past LOD_DISTANCE never hitches a frame
+    if (!person.lo) {
+      const idle = typeof requestIdleCallback === 'function' ? (f) => requestIdleCallback(f, { timeout: 2000 }) : (f) => setTimeout(f, 200);
+      idle(() => { if (!this.disposed && this.person) personLod(this.person); });
+    }
+  }
+
+  /**
+   * Frustum culling for the skinned parts. SkinnedMesh culls with its OWN boundingSphere, which three
+   * otherwise computes once by CPU-skinning every vertex in whatever pose the first frame has. A fixed
+   * bind-pose sphere (model space, generous enough for any pose: arms up, sitting, lying, crawling)
+   * is shared by the body, eyes and accessories, so an off-screen or hidden character costs no draw
+   * call and no skeleton upload. The body's onBeforeRender records the last frame it was drawn (by any
+   * camera, mirrors included) for the update throttle.
+   */
+  _setupCulling() {
+    const h = this.t.height;
+    const sphere = (this._cullSphere = new THREE.Sphere(new THREE.Vector3(0, h * 0.48, 0), h * 0.85));
+    for (const m of [this.body, this.eyes, this.worn]) {
+      if (!m) continue;
+      m.boundingSphere = sphere;
+      m.frustumCulled = true;
+    }
+    this._drawnFrame = -1;
+    this.body.onBeforeRender = () => { this._drawnFrame = engine.frame; };
+    this._mouthOn = true;
+    this._mouthHold = 0;
   }
 
   /** moles / scars at named face anchors, snapped onto the skin (nearest body vertex) */
@@ -563,6 +588,8 @@ export class HumanoidGLB {
     this.ghostLayer = new GhostLayer(this, true);
     this.ghostLayer.setTargets(overrides, 100);
     this.root.traverse((o) => o.layers.set(2)); // LAYERS.REFLECTION_ONLY
+    // a drawn reflection keeps its source's pose updating at full rate (the source may be culled)
+    if (this.body) this.body.onBeforeRender = () => { src._drawnFrame = engine.frame; };
     this.opacity = 1;
     this.time = src.time;
   }
@@ -588,6 +615,9 @@ export class HumanoidGLB {
       }
     }
     for (const k of ['uFaceA', 'uFaceB', 'uEye', 'uGhost', 'uEyeShape', 'uTwistO', 'uTwistD', 'uGore', 'uGoreW']) this.U[k].value.copy(src.U[k].value);
+    // same LOD / mouth geometry as the source (views of the same buffers)
+    if (this.body && src.body && this.body.geometry !== src.body.geometry && !src._headSplit) this.body.geometry = src.body.geometry;
+    if (this.eyes && src.eyes) this.eyes.visible = src.eyes.visible;
     this.U.uCrush.value = src.U.uCrush.value;
     if (this.isMH) {
       for (const k of ['uGhost2', 'uVeil']) this.U[k].value.copy(src.U[k].value);
@@ -612,14 +642,25 @@ export class HumanoidGLB {
   update(dt) {
     if (this.disposed) return;
     if (this.isDouble) return this._updateDouble(dt);
-    // distance LOD / update throttling
-    engine.camera.getWorldPosition(_camPos);
+    // distance LOD / update throttling (distance scaled by the lens: a zoomed shot keeps detail)
+    const cam = engine.camera;
+    cam.getWorldPosition(_camPos);
     this.root.getWorldPosition(_v);
     const dist = _v.distanceTo(_camPos);
-    this._setLod(dist > LOD_DISTANCE ? 'lo' : 'hi');
+    const zoom = cam.isPerspectiveCamera ? Math.tan((cam.fov * Math.PI) / 360) / (REF_TAN * (cam.zoom || 1)) : 1;
+    const sd = dist * zoom; // "screen distance": metres at the reference field of view
+    this._screenDist = sd;
+    const lodD = this._lod === 'lo' ? LOD_DISTANCE - 0.75 : LOD_DISTANCE + 0.75;
+    this._setLod(sd > lodD ? 'lo' : 'hi');
     this._accDt += dt;
     this._frame++;
-    const every = dist < 18 ? 1 : dist < 35 ? 2 : dist < 70 ? 3 : 6;
+    let every = dist < 18 ? 1 : dist < 35 ? 2 : dist < 70 ? 3 : 6;
+    // nobody saw it last frame (hidden, culled by every camera incl. the mirrors): pose at ~8 Hz,
+    // walking / timers keep their full accumulated time; it snaps back to full rate when it shows
+    const shown = this._shownInTree();
+    if (!shown || engine.frame - this._drawnFrame > 2) every = Math.max(every, shown ? 6 : 12);
+    if (shown && !this._wasShown) every = 1; // just revealed: never show a stale pose
+    this._wasShown = shown;
     if (dt > 0 && this._frame % every !== 0) return;
     dt = Math.min(0.25, this._accDt);
     this._accDt = 0;
@@ -657,6 +698,7 @@ export class HumanoidGLB {
     this.ghostLayer.applyPost(dt);
     this._eyes(dt);
     this._face(dt);
+    this._updateMouth(dt);
     this._hair(dt);
     this._heldProps(dt);
     if (this.ghostLayer.v.stutter > 0.01) this._stutter(dt);
@@ -683,7 +725,7 @@ export class HumanoidGLB {
     if (l === this._lod) return;
     this._lod = l;
     if (this.isMH) {
-      this.body.geometry = l === 'lo' ? personLod(this.person) : this.person.geo;
+      this.body.geometry = this._mhGeometry();
       this.eyes.visible = l === 'hi';
       if (this.worn) this.worn.visible = l === 'hi';
       return;
@@ -692,6 +734,39 @@ export class HumanoidGLB {
     this.body.geometry = l === 'lo' ? this._geoLo.geo : this._geoHi.geo;
     this.eyes.visible = l === 'hi';
     if (this.worn) this.worn.visible = l === 'hi';
+  }
+
+  /** MakeHuman body geometry for the current LOD / mouth state (all views share the same buffers). */
+  _mhGeometry() {
+    if (this._lod === 'lo') return personLod(this.person);
+    return this._mouthOn ? this.person.geo : personNoMouth(this.person);
+  }
+
+  /** true when the root and every ancestor are visible (cheap: a few parents) */
+  _shownInTree() {
+    for (let o = this.root; o; o = o.parent) if (!o.visible) return false;
+    return true;
+  }
+
+  /**
+   * Teeth and tongue only while the mouth can show them: open jaw, talking, a wide smile / sneer,
+   * gore at the mouth, a ghost's stretched mouth. Closed (with a short hold so syllables don't
+   * flicker) or far away (screen distance > MOUTH_DISTANCE): the draw range stops before them.
+   */
+  _updateMouth(dt) {
+    if (!this.isMH || !this.person) return;
+    const W = this.U.uMorphW.value;
+    const open = W[11] + W[17] + W[18] + 0.5 * Math.max(W[12], W[13]) + 0.5 * W[15] + 0.3 * W[19];
+    const busy = this.faceS.talk || this._gore.cur.bleedMouth > 0 || this._gore.cur.crush > 0 || this.ghostLayer.mouthStretch > 0.01;
+    if (open > 0.02 || busy) this._mouthHold = 0.6;
+    else this._mouthHold = Math.max(0, this._mouthHold - dt);
+    const on = this._mouthHold > 0 && (this._screenDist ?? 0) < MOUTH_DISTANCE;
+    this._setMouth(on);
+  }
+  _setMouth(on) {
+    if (on === this._mouthOn) return;
+    this._mouthOn = on;
+    if (this.isMH && this._lod !== 'lo') this.body.geometry = this._mhGeometry();
   }
 
   _outputs() {

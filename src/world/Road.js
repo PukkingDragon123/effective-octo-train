@@ -106,6 +106,8 @@ export class RoadNetwork {
   }
 
   add(spline) {
+    this._bbox = null;
+    this._dense = null;
     this.splines.set(spline.id, spline);
     const si = this._list.length;
     this._list.push(spline);
@@ -141,39 +143,123 @@ export class RoadNetwork {
    * Nearest segment search. Returns best {sp, i, t, d (horizontal dist to centreline)} per spline in `perSpline`
    * (array indexed by spline index) and overall. Searches growing rings of cells up to maxDist.
    */
-  _nearest(x, z, maxDist, perSpline) {
-    const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
-    let best = null;
+  _nearest(x, z, maxDist, perSpline, out = null) {
+    // whole-network bounds: far queries (e.g. the creek network from most of the map) exit at once
     const maxRing = Math.ceil(maxDist / CELL);
+    const D = this._dense || this._buildDense();
+    const bb = D.bb;
+    const mg = (maxRing + 1) * CELL; // the ring scan never reaches a segment beyond this
+    if (x < bb[0] - mg || x > bb[2] + mg || z < bb[1] - mg || z > bb[3] + mg) return null;
+    const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+    let bG = -1, bT = 0, bD = Infinity;
+    const { ix0, iz0, nx, nz, off, ent, ax, az, bx, bz, gsi, gi } = D;
+    const list = this._list;
     for (let ring = 0; ring <= maxRing; ring++) {
       for (let ix = cx - ring; ix <= cx + ring; ix++) {
-        for (let iz = cz - ring; iz <= cz + ring; iz++) {
-          if (ring > 0 && ix > cx - ring && ix < cx + ring && iz > cz - ring && iz < cz + ring) continue;
-          const l = this.grid.get(keyOf(ix, iz));
-          if (!l) continue;
-          for (let k = 0; k < l.length; k++) {
-            const packed = l[k];
-            const si = Math.floor(packed / 1048576), i = packed - si * 1048576;
-            const sp = this._list[si];
-            const a = sp.points[i], b = sp.points[i + 1];
-            const abx = b.x - a.x, abz = b.z - a.z;
+        const gx = ix - ix0;
+        if (gx < 0 || gx >= nx) continue;
+        const edgeX = ix === cx - ring || ix === cx + ring;
+        const step = edgeX || ring === 0 ? 1 : 2 * ring;
+        for (let iz = cz - ring; iz <= cz + ring; iz += step) {
+          const gz = iz - iz0;
+          if (gz < 0 || gz >= nz) continue;
+          const c = gx * nz + gz;
+          for (let k = off[c], k1 = off[c + 1]; k < k1; k++) {
+            const g = ent[k];
+            const x0 = ax[g], z0 = az[g];
+            const abx = bx[g] - x0, abz = bz[g] - z0;
             const len2 = abx * abx + abz * abz || 1e-9;
-            let t = ((x - a.x) * abx + (z - a.z) * abz) / len2;
+            let t = ((x - x0) * abx + (z - z0) * abz) / len2;
             t = t < 0 ? 0 : t > 1 ? 1 : t;
-            const px = a.x + abx * t - x, pz = a.z + abz * t - z;
+            const px = x0 + abx * t - x, pz = z0 + abz * t - z;
             const d = Math.sqrt(px * px + pz * pz);
             if (perSpline) {
+              const si = gsi[g];
               const cur = perSpline[si];
-              if (!cur || d < cur.d) perSpline[si] = { sp, i, t, d };
+              if (!cur || d < cur.d) perSpline[si] = { sp: list[si], i: gi[g], t, d };
             }
-            if (!best || d < best.d) best = { sp, i, t, d };
+            if (d < bD) {
+              bD = d;
+              bG = g;
+              bT = t;
+            }
           }
         }
       }
       // a hit within this ring radius is final once the ring fully covers that distance
-      if (best && best.d <= ring * CELL) break;
+      if (bG >= 0 && bD <= ring * CELL) break;
     }
-    return best;
+    if (bG < 0) return null;
+    if (!out) return { sp: list[gsi[bG]], i: gi[bG], t: bT, d: bD };
+    out.sp = list[gsi[bG]];
+    out.i = gi[bG];
+    out.t = bT;
+    out.d = bD;
+    return out;
+  }
+
+  /** Dense (CSR) copy of the segment hash + flat segment endpoints for _nearest. */
+  _buildDense() {
+    const bb = this._bbox || this._computeBBox();
+    const ix0 = Math.floor(bb[0] / CELL) - 1, iz0 = Math.floor(bb[1] / CELL) - 1;
+    const nx = Math.floor(bb[2] / CELL) + 2 - ix0, nz = Math.floor(bb[3] / CELL) + 2 - iz0;
+    const segBase = [];
+    let nSeg = 0;
+    for (const sp of this._list) {
+      segBase.push(nSeg);
+      nSeg += Math.max(0, sp.points.length - 1);
+    }
+    const ax = new Float64Array(nSeg), az = new Float64Array(nSeg), bx = new Float64Array(nSeg), bz = new Float64Array(nSeg);
+    const gsi = new Int32Array(nSeg), gi = new Int32Array(nSeg);
+    this._list.forEach((sp, si) => {
+      const pts = sp.points;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const g = segBase[si] + i;
+        ax[g] = pts[i].x;
+        az[g] = pts[i].z;
+        bx[g] = pts[i + 1].x;
+        bz[g] = pts[i + 1].z;
+        gsi[g] = si;
+        gi[g] = i;
+      }
+    });
+    const off = new Int32Array(nx * nz + 1);
+    const cellOf = (key) => {
+      const ix = (key >>> 16) - 32768, iz = (key & 0xffff) - 32768;
+      const gx = ix - ix0, gz = iz - iz0;
+      return gx < 0 || gz < 0 || gx >= nx || gz >= nz ? -1 : gx * nz + gz;
+    };
+    for (const [key, l] of this.grid) {
+      const c = cellOf(key);
+      if (c >= 0) off[c + 1] += l.length;
+    }
+    for (let c = 0; c < nx * nz; c++) off[c + 1] += off[c];
+    const ent = new Int32Array(off[nx * nz]);
+    const fill = off.slice(0, nx * nz);
+    for (const [key, l] of this.grid) {
+      const c = cellOf(key);
+      if (c < 0) continue;
+      for (const packed of l) {
+        const si = Math.floor(packed / 1048576);
+        ent[fill[c]++] = segBase[si] + (packed - si * 1048576);
+      }
+    }
+    this._dense = { bb, ix0, iz0, nx, nz, off, ent, ax, az, bx, bz, gsi, gi };
+    return this._dense;
+  }
+
+  _computeBBox() {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const sp of this._list) {
+      for (const p of sp.points) {
+        if (p.x < x0) x0 = p.x;
+        if (p.x > x1) x1 = p.x;
+        if (p.z < z0) z0 = p.z;
+        if (p.z > z1) z1 = p.z;
+      }
+    }
+    this._bbox = [x0, z0, x1, z1];
+    return this._bbox;
   }
 
   /**

@@ -25,7 +25,7 @@ import { FLOWER_ATLAS } from './flowerLayout.js';
 import { PRINTED_CATALOGUE } from './printedCatalogue.js';
 import {
   loadPhotoManifest, photoEntry, photoLoaded, loadPhoto, loadPhotos, photoStats, photoManifest,
-  setPhotoTexturesEnabled, photoTexturesEnabled,
+  setPhotoTexturesEnabled, photoTexturesEnabled, placeholderTexture, swapTextureImage, photoPendingTexture, photoPendingPromise,
 } from './photo.js';
 
 export { FONTS, FOLIAGE_ATLAS, ROAD_MARKINGS, FLOWER_ATLAS, PRINTED_CATALOGUE, setPhotoTexturesEnabled };
@@ -306,21 +306,45 @@ export function disposeTextureWorkers() {
 
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
+// photo keys nothing in the game samples yet (opt-in: pass them to preloadTextures explicitly)
+const OPTIONAL_PHOTO_KEYS = new Set(['foliage_world', 'foliage_world_normal']);
+
+/**
+ * Warm procedural families in the worker pool without blocking anyone. tex() never waits for it:
+ * a key needed before its job lands is generated synchronously (the late worker result is dropped).
+ */
+let warmQueue = null;
+function warmInBackground(fams) {
+  const p = getPool();
+  if (!p) return; // no workers: stay lazy (generated on first use)
+  const size = (f) => familySize(f, {});
+  const todo = fams.filter((f) => !f.dom && !cache.has(f.keys[0] + '@' + size(f)));
+  if (!todo.length) return;
+  warmQueue = Promise.all(todo.map((f) => runInWorker(f, size(f)))).then(() => {
+    warmQueue = null;
+  });
+}
+
 /**
  * Warm up the library (call once at boot / behind a loading screen, before the world is built):
  *  1. fetch public/assets/textures/manifest.json and load the photobashed maps of the requested keys
- *     (and, by default, every printed / decal image), in parallel;
- *  2. generate the procedural families that photos do not fully cover, in a Web Worker pool
- *     (canvas-based ones on the main thread between yields).
- * keys default to TEXTURE_KEYS. onProgress(done, total, key).
- * opts: { workers=true, photos=true, printed=(keys === TEXTURE_KEYS) }.
+ *     (and, by default, every printed / decal image): fetched and decoded in parallel off the main
+ *     thread (createImageBitmap), resized during the decode on low / medium quality;
+ *  2. procedural families that photos do not fully cover are generated lazily on first tex() use;
+ *     preload only queues them in the Web Worker pool in the background (never awaited), so they are
+ *     usually ready before anything asks. opts.procedural = 'await' restores the blocking warm-up.
+ * keys default to TEXTURE_KEYS (minus the opt-in foliage_world pair). onProgress(done, total, key).
+ * opts: { workers=true, photos=true, printed=(keys === TEXTURE_KEYS), awaitPrinted=false,
+ *   procedural='background'|'await'|'lazy' }. Printed matter / decals load behind the surfaces (not awaited).
  * tex() never waits: before this resolves it returns procedural textures (generated synchronously).
  */
 export async function preloadTextures(keys = TEXTURE_KEYS, onProgress = null, opts = {}) {
   const usePhotos = opts.photos !== false && photoTexturesEnabled();
+  const all = keys === TEXTURE_KEYS;
   if (usePhotos) await loadPhotoManifest();
   const fams = [];
   for (const k of keys) {
+    if (all && OPTIONAL_PHOTO_KEYS.has(k)) continue;
     const f = KEY_TO_FAMILY.get(k);
     if (f && !fams.includes(f)) fams.push(f);
   }
@@ -337,7 +361,7 @@ export async function preloadTextures(keys = TEXTURE_KEYS, onProgress = null, op
     for (const k of keys) if (!KEY_TO_FAMILY.has(k) && photoEntry('textures', k)) photoKeys.add(k);
   }
   const extras = [];
-  const wantPrinted = opts.printed ?? keys === TEXTURE_KEYS;
+  const wantPrinted = opts.printed ?? all;
   if (usePhotos && wantPrinted) {
     const m = photoManifest();
     for (const k of Object.keys(m.printed || {})) extras.push(['printed', k]);
@@ -345,50 +369,53 @@ export async function preloadTextures(keys = TEXTURE_KEYS, onProgress = null, op
     for (const k of Object.keys(m.decals || {})) if (k.endsWith(':reduced') === reduced) extras.push(['decals', k]);
   }
   const photoList = [...photoKeys].filter((k) => !photoLoaded('textures', k)).map((k) => ['textures', k]);
+  const extraList = extras.filter(([s, k]) => !photoLoaded(s, k));
+  const ready = (f) => cache.has(f.keys[0] + '@' + familySize(f, {}));
+  const todo = fams.filter((f) => !ready(f) && !covered.has(f));
+  const mode = opts.procedural || 'background';
   let done = 0;
-  const total = fams.length + photoList.length + extras.length;
+  const total = photoList.length + (mode === 'await' ? todo.length : 0);
   const tick = (key) => {
     done++;
     if (onProgress) onProgress(done, total, key);
   };
   const scale = qualityScale();
-  const photoJob = usePhotos
-    ? loadPhotos(photoList.concat(extras), { scale, onEach: (d, t, key) => tick(key) })
-    : Promise.resolve();
-
-  const ready = (f) => cache.has(f.keys[0] + '@' + familySize(f, {}));
-  const todo = fams.filter((f) => !ready(f) && !covered.has(f));
-  for (const f of fams) if (!todo.includes(f)) tick(f.keys[0]);
-  const p = opts.workers === false ? false : getPool();
-  const main = [];
-  const jobs = [];
-  for (const f of todo) {
-    if (p && !f.dom) {
-      jobs.push(
-        runInWorker(f, familySize(f, {})).then(async (ok) => {
+  const photoJob = usePhotos ? loadPhotos(photoList, { scale, onEach: (d, t, key) => tick(key) }) : Promise.resolve();
+  // printed matter / decals stream in behind the surfaces (signTex / decalTex hand out their pending
+  // textures meanwhile, swapped in place on arrival); opts.awaitPrinted waits for them too
+  const extraJob = usePhotos && extraList.length ? photoJob.then(() => loadPhotos(extraList, { scale, concurrency: 8 })) : Promise.resolve();
+  if (mode === 'await') {
+    const p = opts.workers === false ? false : getPool();
+    const jobs = [];
+    for (const f of todo) {
+      if (p && !f.dom) {
+        jobs.push(runInWorker(f, familySize(f, {})).then(async (ok) => {
           if (!ok && !ready(f)) {
             await yieldFrame();
             generate(f, familySize(f, {}));
           }
           tick(f.keys[0]);
-        }),
-      );
-    } else main.push(f);
-  }
-  for (const f of main) {
-    if (!ready(f)) generate(f, familySize(f, {}));
-    tick(f.keys[0]);
-    await yieldFrame();
-  }
-  await Promise.all(jobs);
-  await photoJob;
-  // a covered family whose photo failed to load falls back to procedural generation
-  for (const f of covered) {
-    if (f.keys.some((k) => !photoLoaded('textures', k)) && !ready(f)) {
-      generate(f, familySize(f, {}));
-      await yieldFrame();
+        }));
+      } else {
+        if (!ready(f)) generate(f, familySize(f, {}));
+        tick(f.keys[0]);
+        await yieldFrame();
+      }
     }
+    await Promise.all(jobs);
+    await photoJob;
+    await extraJob;
+    return;
   }
+  await photoJob;
+  if (opts.awaitPrinted) await extraJob;
+  // the decoders are idle now: let the workers paint the procedural families while the game builds
+  if (mode === 'background' && opts.workers !== false) warmInBackground(todo);
+}
+
+/** Resolves when the background procedural warm-up (if any) has finished. */
+export function texturesWarm() {
+  return warmQueue || Promise.resolve();
 }
 
 /**
@@ -409,6 +436,8 @@ export async function preloadSigns(list, onProgress = null) {
 export function textureStats() {
   return { ...stats, perFamily: { ...stats.perFamily }, photo: { ...photoStats } };
 }
+if (typeof window !== 'undefined') window.__textureStats = textureStats; // debug / boot probes
+
 
 /**
  * Signage / decals / printed matter as CanvasTextures (original fictional Thai designs).
@@ -468,11 +497,43 @@ function photoSignKey(kind, opts) {
   return cat.variants.includes(String(variant)) ? pkind + ':' + variant : null;
 }
 
+/** Paint the procedural stand-in into a placeholder texture (photo missing / photos disabled), once. */
+function fillWithProcedural(t, make) {
+  if (t.userData.procedural) return;
+  const fb = make();
+  swapTextureImage(t, fb.image);
+  t.flipY = fb.flipY;
+  t.premultiplyAlpha = fb.premultiplyAlpha;
+  t.generateMipmaps = fb.generateMipmaps;
+  t.minFilter = fb.minFilter;
+  t.anisotropy = fb.anisotropy;
+  t.userData = { ...(fb.userData || {}), ...(t.userData || {}), placeholder: false, procedural: true };
+}
+
+/**
+ * The photo texture for a printed / decal entry: loaded, or the pending texture of a running load
+ * (started here if needed). A missing file paints the procedural stand-in into it. null when the
+ * manifest is not known yet or has no such entry.
+ */
+function photoOrPending(section, pk, make) {
+  let t = photoLoaded(section, pk);
+  if (t || !photoTexturesEnabled() || !photoManifest() || !photoEntry(section, pk)) return t;
+  loadPhoto(section, pk, { scale: qualityScale() });
+  t = photoPendingTexture(section, pk);
+  const p = photoPendingPromise(section, pk);
+  if (t && p && make) p.then((r) => { if (!r) fillWithProcedural(t, make); });
+  return t;
+}
+
 /** Swap the photo into a placeholder texture once the manifest (and the file) are available. */
-function fillWhenReady(section, pk, t) {
-  if (!photoTexturesEnabled()) return;
+function fillWhenReady(section, pk, t, fallback = null) {
+  if (!photoTexturesEnabled()) {
+    if (fallback) fillWithProcedural(t, fallback);
+    return;
+  }
   const go = () => {
-    if (photoEntry(section, pk)) loadPhoto(section, pk, { into: t });
+    const p = photoEntry(section, pk) ? loadPhoto(section, pk, { into: t, scale: qualityScale() }) : Promise.resolve(null);
+    if (fallback) p.then((r) => { if (!r) fillWithProcedural(t, fallback); });
   };
   if (photoManifest()) go();
   else loadPhotoManifest().then(go);
@@ -486,12 +547,14 @@ function photoPrinted(section, pk, kind, opts) {
   const size = (cat && cat.sizes && cat.sizes[variant]) || (e && e.size) || [0.5, 0.5];
   const aspect = e ? e.aspect || size[0] / size[1] : size[0] / size[1];
   const shape = (e && e.shape) || SHAPES[kind] || 'rect';
-  let t = photoLoaded(section, pk);
+  // transparent stand-in until the file arrives (swapped in place); the procedural design is only
+  // painted when the photo turns out to be missing
+  const fb = cat && cat.fallback && cat.fallback[variant];
+  const make = () => (fb && (PROC_SIGN_KINDS[fb[0]] || fb[0] === 'sticker' || fb[0] === 'poster') ? drawSign(fb[0], fb[1] || {}) : drawSign(kind, {}));
+  let t = photoOrPending(section, pk, make);
   if (!t) {
-    // procedural stand-in until the file arrives (same aspect intent); the image is swapped in place
-    const fb = cat && cat.fallback && cat.fallback[variant];
-    t = fb && (PROC_SIGN_KINDS[fb[0]] || fb[0] === 'sticker' || fb[0] === 'poster') ? drawSign(fb[0], fb[1] || {}) : drawSign(kind, {});
-    fillWhenReady(section, pk, t);
+    t = placeholderTexture(e ? !!e.alpha : true);
+    fillWhenReady(section, pk, t, make);
   }
   t.userData = { ...(t.userData || {}), kind, variant, aspect, alpha: !!(e ? e.alpha : t.userData?.alpha), size, shape, photo: true };
   return t;
@@ -515,10 +578,11 @@ export function decalTex(kind, opts = {}) {
   let t;
   if (blood) {
     const pk = kind + ':' + variant + (reduced ? ':reduced' : '');
-    t = photoLoaded('decals', pk);
+    const make = () => bloodFallback(kind, Number(variant) || 0, reduced);
+    t = photoOrPending('decals', pk, make);
     if (!t) {
-      t = bloodFallback(kind, Number(variant) || 0, reduced);
-      fillWhenReady('decals', pk, t);
+      t = placeholderTexture();
+      fillWhenReady('decals', pk, t, make);
     }
     const size = def ? def.size : [0.5, 0.5];
     const e = photoEntry('decals', pk);

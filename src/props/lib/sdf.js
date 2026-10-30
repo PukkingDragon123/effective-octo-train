@@ -56,6 +56,67 @@ export function cylY(x, y, z, cx, cy, cz, r, hh) {
 }
 
 /**
+ * Sample the SDF on the full grid, but only evaluate it exactly near the surface: a coarse
+ * lattice (every S-th sample) is evaluated first and every coarse block whose 8 corners are
+ * all farther from the surface than BAND x its diagonal keeps the corners' sign (filled with
+ * ±FAR, never meshed). The surface nets only read values / signs next to sign changes, so the
+ * mesh is identical to a full evaluation while ~85-95 % of the SDF calls are skipped.
+ */
+const STRIDE = 4;
+const BAND = 1.6; // safety factor on the Lipschitz bound (sculpts use smooth unions + small bumps)
+function sampleNarrowBand(sdf, x0, y0, z0, nx, ny, nz, cell) {
+  const vals = new Float32Array(nx * ny * nz);
+  const S = STRIDE;
+  const cx = Math.ceil((nx - 1) / S) + 1, cy = Math.ceil((ny - 1) / S) + 1, cz = Math.ceil((nz - 1) / S) + 1;
+  // coarse lattice (clamped to the fine grid's last row so the blocks cover it exactly)
+  const fi = (c, n) => Math.min(c * S, n - 1);
+  const coarse = new Float32Array(cx * cy * cz);
+  for (let k = 0, q = 0; k < cz; k++) {
+    const z = z0 + fi(k, nz) * cell;
+    for (let j = 0; j < cy; j++) {
+      const y = y0 + fi(j, ny) * cell;
+      for (let i = 0; i < cx; i++, q++) coarse[q] = sdf(x0 + fi(i, nx) * cell, y, z);
+    }
+  }
+  const sx = 1, sy = nx, sz = nx * ny;
+  const done = new Uint8Array(nx * ny * nz);
+  const thr = BAND * Math.sqrt(3) * S * cell;
+  const FAR = 1e3;
+  for (let k = 0; k < cz - 1; k++) {
+    const fk0 = fi(k, nz), fk1 = fi(k + 1, nz);
+    for (let j = 0; j < cy - 1; j++) {
+      const fj0 = fi(j, ny), fj1 = fi(j + 1, ny);
+      for (let i = 0; i < cx - 1; i++) {
+        const fi0 = fi(i, nx), fi1 = fi(i + 1, nx);
+        const q = i + j * cx + k * cx * cy;
+        const c0 = coarse[q], c1 = coarse[q + 1], c2 = coarse[q + cx], c3 = coarse[q + cx + 1];
+        const c4 = coarse[q + cx * cy], c5 = coarse[q + cx * cy + 1], c6 = coarse[q + cx * cy + cx], c7 = coarse[q + cx * cy + cx + 1];
+        const mn = Math.min(c0, c1, c2, c3, c4, c5, c6, c7), mx = Math.max(c0, c1, c2, c3, c4, c5, c6, c7);
+        const far = mn > thr ? FAR : mx < -thr ? -FAR : 0;
+        for (let kk = fk0; kk <= fk1; kk++) {
+          const z = z0 + kk * cell;
+          for (let jj = fj0; jj <= fj1; jj++) {
+            const y = y0 + jj * cell;
+            let p = fi0 * sx + jj * sy + kk * sz;
+            for (let ii = fi0; ii <= fi1; ii++, p++) {
+              if (done[p]) continue;
+              if (far) {
+                // a shared face/edge sample also touching a near-surface block gets its exact value there
+                vals[p] = far;
+                continue;
+              }
+              vals[p] = sdf(x0 + ii * cell, y, z);
+              done[p] = 1;
+            }
+          }
+        }
+      }
+    }
+  }
+  return vals;
+}
+
+/**
  * Mesh an SDF with surface nets.
  * sdf(x,y,z) -> distance; bounds [minX,minY,minZ,maxX,maxY,maxZ]; cell size.
  * opts.color(x,y,z,nx,ny,nz,out:Color) paints vertex colours (sRGB-free linear Color).
@@ -66,15 +127,7 @@ export function meshSDF(sdf, bounds, cell, opts = {}) {
   const [x0, y0, z0, x1, y1, z1] = bounds;
   const nx = Math.ceil((x1 - x0) / cell) + 1, ny = Math.ceil((y1 - y0) / cell) + 1, nz = Math.ceil((z1 - z0) / cell) + 1;
   const N = nx * ny * nz;
-  const vals = new Float32Array(N);
-  let i = 0;
-  for (let k = 0; k < nz; k++) {
-    const z = z0 + k * cell;
-    for (let j = 0; j < ny; j++) {
-      const y = y0 + j * cell;
-      for (let ii = 0; ii < nx; ii++, i++) vals[i] = sdf(x0 + ii * cell, y, z);
-    }
-  }
+  const vals = sampleNarrowBand(sdf, x0, y0, z0, nx, ny, nz, cell);
   const vidx = new Int32Array(N).fill(-1);
   const pos = [];
   const sx = 1, sy = nx, sz = nx * ny;
@@ -206,6 +259,29 @@ export function sculpt(key, sdf, bounds, cell, opts) {
     cache.set(key, g);
   }
   return g;
+}
+
+const SCULPT_ATTRS = ['position', 'normal', 'uv', 'color'];
+
+/** Every sculpt meshed so far as transferable arrays (used by the prefetch worker). */
+export function sculptEntries() {
+  const out = [];
+  for (const [key, g] of cache) {
+    const e = { key, index: g.index.array };
+    for (const n of SCULPT_ATTRS) e[n] = g.attributes[n].array;
+    out.push(e);
+  }
+  return out;
+}
+
+/** Adopt a sculpt meshed elsewhere (worker). Identical to meshing it here; first one wins. */
+export function adoptSculpt(e) {
+  if (cache.has(e.key)) return;
+  const g = new THREE.BufferGeometry();
+  for (const n of SCULPT_ATTRS) g.setAttribute(n, new THREE.BufferAttribute(e[n], n === 'uv' ? 2 : 3));
+  g.setIndex(new THREE.BufferAttribute(e.index, 1));
+  g.computeBoundingSphere();
+  cache.set(e.key, g);
 }
 
 /** sRGB hex -> linear THREE.Color helper for colour functions. */

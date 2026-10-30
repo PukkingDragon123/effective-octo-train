@@ -13,6 +13,7 @@ import { tex } from '../textures/index.js';
 import { sampleTextureRed } from './shaderUtil.js';
 import { Ambience } from './Ambience.js';
 import { loadWorldAssets } from './assets.js';
+import { autoProgressive, menuRoute, nearRoute, storyKey, runInBackground, SYNC_RADIUS } from './Progressive.js';
 export { loadWorldAssets };
 
 export { RoadSpline, RoadNetwork };
@@ -39,6 +40,9 @@ export class World {
     this.noodleCounter = null;
     this.buildTimes = {};
     this.propsReady = Promise.resolve();
+    /** Resolves when the whole world is built (World.build() resolves earlier: see build()). */
+    this.ready = Promise.resolve();
+    this.complete = false;
     this.drawDistance = settings.get('drawDistance') ?? 150;
     this.density = settings.get('foliageDensity') ?? 1;
     this._pr = null;
@@ -48,9 +52,13 @@ export class World {
 
   /**
    * Build everything. opts: { onProgress(fraction, label{th,en}), quality, forest=true, props=true,
-   *   ambience=true, deferProps=false }. With deferProps the secondary set pieces (salas, temple,
-   *   statues, bus stop, village stop...) are finished in the background after build() resolves;
-   *   await world.propsReady before reading their anchors.
+   *   ambience=true, deferProps=false, progressive=auto }.
+   * progressive (default: on when the game starts at the main menu): build() resolves once the
+   *   menu's stretch of road (main road end, fork shrine, branch starts) and the set pieces the
+   *   game reads at once are built; terrain, forest and props elsewhere follow in the background
+   *   in story order (intro spur, garage, main road...). world.ready / world.propsReady resolve
+   *   when everything is built (world.complete = true); getHeight() is exact meanwhile.
+   * With deferProps (non-progressive) the secondary set pieces are finished in the background.
    */
   async build(opts = {}) {
     const prog = (f, th, en) => opts.onProgress?.(f, { th, en });
@@ -117,7 +125,18 @@ export class World {
       this.terrain.addPond(pond.pos.x, pond.pos.z, 6.5, 0); // wet mud + keeps trees out of the water
     }
     await yieldFrame();
-    await this.terrain.build((f) => prog(0.06 + f * 0.3, 'กำลังปั้นภูเขา…', 'Shaping the hills…'));
+    const progressive = opts.progressive ?? autoProgressive();
+    const origins = this.terrain.tileOrigins();
+    let syncTiles = origins, laterTiles = [];
+    if (progressive) {
+      this._route = menuRoute(this.road);
+      const half = (W.terrainTile / 2) * Math.SQRT2;
+      const inSync = ([tx, tz]) => nearRoute(this._route, tx + W.terrainTile / 2, tz + W.terrainTile / 2, SYNC_RADIUS + half);
+      syncTiles = origins.filter(inSync);
+      laterTiles = origins.filter((o) => !inSync(o));
+      this.terrain.setPending(laterTiles);
+    }
+    await this.terrain.build((f) => prog(0.06 + f * 0.3, 'กำลังปั้นภูเขา…', 'Shaping the hills…'), syncTiles);
     this.group.add(this.terrain.group);
     lap('terrain');
 
@@ -160,7 +179,8 @@ export class World {
 
     // ---- props & landmarks ---------------------------------------------------------------------
     if (this.placement) {
-      await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'), { defer: !!opts.deferProps });
+      const sync = progressive ? (x, z) => nearRoute(this._route, x, z, SYNC_RADIUS) : null;
+      await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'), { defer: !progressive && !!opts.deferProps, sync });
       this.propsReady = this.placement.ready;
       this.group.add(this.placement.group);
       const sm = this.landmarks.shrineMaRuay;
@@ -177,8 +197,47 @@ export class World {
     });
     this.built = true;
     this.buildMs = performance.now() - t0;
+    if (progressive) this._startBackground(laterTiles);
+    else {
+      this.complete = true;
+      this.ready = this.propsReady;
+    }
     prog(1, 'พร้อมแล้ว', 'Ready');
     return this;
+  }
+
+  /** Build the rest of the world in idle-time slices (story order). */
+  _startBackground(laterTiles) {
+    const tmp = new THREE.Vector3();
+    const T = W.terrainTile;
+    const jobs = [];
+    for (const [tx, tz] of laterTiles) {
+      jobs.push({
+        key: storyKey(this.road, LAYOUT, tx + T / 2, tz + T / 2, tmp) - 40, // ground before the props on it
+        run: () => {
+          const tile = this.terrain.buildTile(tx, tz);
+          if (tile && this.forest) this.forest.scatterTile(tile);
+        },
+      });
+    }
+    for (const j of this.placement?.jobs() || []) jobs.push({ key: storyKey(this.road, LAYOUT, j.x, j.z, tmp), run: j.run });
+    const t0 = performance.now();
+    this.buildTimes.backgroundJobs = jobs.length;
+    this.ready = this.propsReady = runInBackground(jobs, {
+      sliceMs: 8,
+      onSlice: () => this.placement?.settleChunks(),
+      onDone: () => {
+        this.placement?.settleChunks(true);
+        if (this.placement) {
+          this.placement.stats.lights = this.placement.lightHandles.length;
+          this.placement.stats.colliders = this.placement.colliderCount;
+        }
+        this.group.updateMatrixWorld(true);
+        this.complete = true;
+        this.buildTimes.background = Math.round(performance.now() - t0);
+        console.info('[world] background build done', this.buildTimes.background, 'ms');
+      },
+    });
   }
 
   /** Ground / road surface height at x,z. The asphalt surface wins on the road. */

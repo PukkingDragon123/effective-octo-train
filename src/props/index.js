@@ -17,6 +17,8 @@
 //   credits: docs/credits/props.md). Call it BEFORE world.build(); every factory stays
 //   synchronous and uses the models when they are loaded, else its procedural fallback.
 //   propAssetsStatus() -> {loaded, failed, pending}; hasPropAsset(id).
+//   sculptsReady(ms) -> resolves once the organic statues (meshed in a Web Worker from module
+//   load on) are available, or after ms; factories never wait for it (same geometry either way).
 //
 // CONVENTIONS
 // * Units metres, Y up, prop origin on the ground. Every roadside prop's FRONT faces local +Z
@@ -91,6 +93,11 @@ import * as roadside from './roadside.js';
 import * as temple from './temple.js';
 import * as pond from './pond.js';
 import * as dressing from './dressing.js';
+import { prefetchSculpts, sculptsReady } from './lib/sculptPrefetch.js';
+
+// Mesh the SDF statues in a worker while the rest of the game boots (see sculptPrefetch.js).
+prefetchSculpts();
+export { prefetchSculpts, sculptsReady };
 
 /** Wrap a factory so `opts.lights === true` registers its lights right away. */
 function lit(fn, optsIndex = 0) {

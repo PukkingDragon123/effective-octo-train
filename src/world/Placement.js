@@ -19,6 +19,8 @@ import { LANDMARK_NAMES } from './layout.js';
 import { ChunkBatcher } from './Batch.js';
 
 const TAG = 'world';
+// set pieces the game reads as soon as the menu is up (the intro's spirit house, the fork shrine)
+const SYNC_LANDMARKS = new Set(['shrineMaRuay', 'spurShrine', 'spurStart', 'spurJunction', 'shrineApproach', 'fatherLamp']);
 const POLE_E = 1.0; // pole distance beyond the asphalt edge (m)
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
@@ -275,9 +277,10 @@ export class Placement {
   // BUILD
   // =====================================================================================
   /**
-   * opts.defer: build only the set pieces needed at the start of the game (garage, the fork
-   * shrine, the intro spur) + all dressing, resolve, then finish the remaining set pieces in the
-   * background (one per frame-ish). `this.ready` resolves when everything is placed.
+   * Build the set pieces + dressing. opts:
+   *   defer: legacy — essential set pieces now, the rest in the background (this.ready).
+   *   sync(x, z): progressive world build — only landmarks / dressing for which it returns true
+   *     (plus a few the game needs at once) are built now; the rest becomes jobs (see jobs()).
    */
   async build(onProgress, opts = {}) {
     const world = this.world;
@@ -289,33 +292,60 @@ export class Placement {
       T[k] = Math.round(n - tt);
       tt = n;
     };
-    const ESSENTIAL = new Set(['garage', 'shrineMaRuay', 'spurStart', 'spurShrine', 'spurJunction', 'km9', 'shrineApproach', 'elephantCrossing', 'accidentCurve', 'noodleShop']);
+    this._prepareJobs();
+    // the shrine's statues are meshed in a worker while the game boots: take them from there
+    if (opts.sync && P.sculptsReady) await P.sculptsReady(20000, ['deityHead', 'deityBody', 'lion:false', 'lion:true']);
+    lap('sculpts');
     const keys = Object.keys(world.landmarks);
-    const now = opts.defer ? keys.filter((k) => ESSENTIAL.has(k)) : keys;
-    const later = opts.defer ? keys.filter((k) => !ESSENTIAL.has(k)) : [];
+    let nowL, laterL;
+    if (opts.sync) {
+      nowL = keys.filter((k) => SYNC_LANDMARKS.has(k) || opts.sync(world.landmarks[k].pos.x, world.landmarks[k].pos.z));
+      laterL = keys.filter((k) => !nowL.includes(k));
+    } else {
+      const ESSENTIAL = new Set(['garage', 'shrineMaRuay', 'spurStart', 'spurShrine', 'spurJunction', 'km9', 'shrineApproach', 'elephantCrossing', 'accidentCurve', 'noodleShop']);
+      nowL = opts.defer ? keys.filter((k) => ESSENTIAL.has(k)) : keys;
+      laterL = opts.defer ? keys.filter((k) => !ESSENTIAL.has(k)) : [];
+    }
     // ---- set pieces ---------------------------------------------------------------------------
-    for (let i = 0; i < now.length; i++) {
-      this._landmarkSafe(world.landmarks[now[i]]);
-      onProgress?.((i / now.length) * 0.5);
+    for (let i = 0; i < nowL.length; i++) {
+      this._landmarkSafe(world.landmarks[nowL[i]]);
+      onProgress?.((i / nowL.length) * 0.5);
       if (i % 3 === 2) await yieldFrame();
     }
     lap('landmarks');
     // ---- dressing -----------------------------------------------------------------------------
-    await this._buildDressing((f) => onProgress?.(0.5 + f * 0.45));
+    const items = this.items.map((it, i) => i);
+    const nowI = opts.sync ? items.filter((i) => opts.sync(this.items[i]._x, this.items[i]._z)) : items;
+    const laterI = opts.sync ? items.filter((i) => !nowI.includes(i)) : [];
+    for (let k = 0; k < nowI.length; k++) {
+      this.buildItem(nowI[k]);
+      if (k % 12 === 11) {
+        onProgress?.(0.5 + (k / nowI.length) * 0.45);
+        await yieldFrame();
+      }
+    }
     lap('dressing');
     const merge = this.batcher.finalize();
     lap('merge');
     // ---- forest trunks near the road block walking too ---------------------------------------
-    for (const c of world.forest?.colliders || []) {
-      colliders.addCircle(c.x, c.z, c.r, { tag: TAG });
-      this.colliderCount++;
+    const forest = world.forest;
+    if (forest) {
+      const add = (list) => {
+        for (const c of list) colliders.addCircle(c.x, c.z, c.r, { tag: TAG });
+        this.colliderCount += list.length;
+      };
+      add(forest.colliders);
+      forest._collidersSent = forest.colliders.length;
+      forest.onColliders = add;
     }
     this.group.updateMatrixWorld(true);
-    this.stats = { ms: Math.round(performance.now() - t0), phases: T, dress: this.dressTimes, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount, deferred: later.length };
+    this.stats = { ms: Math.round(performance.now() - t0), phases: T, dress: this.dressTimes, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount, deferred: laterL.length + laterI.length };
     onProgress?.(1);
-    this.ready = later.length
+    this._laterL = opts.sync ? laterL : [];
+    this._laterI = laterI;
+    this.ready = !opts.sync && laterL.length
       ? (async () => {
-          for (const k of later) {
+          for (const k of laterL) {
             await yieldFrame();
             this._landmarkSafe(world.landmarks[k]);
           }
@@ -326,7 +356,39 @@ export class Placement {
       : Promise.resolve();
   }
 
+  /** Remaining work after a progressive build: [{x, z, run()}] (landmarks + dressing items). */
+  jobs() {
+    const out = [];
+    for (const k of this._laterL || []) {
+      const lm = this.world.landmarks[k];
+      out.push({ x: lm.pos.x, z: lm.pos.z, kind: 'landmark', run: () => this._landmarkSafe(lm) });
+    }
+    for (const i of this._laterI || []) {
+      const it = this.items[i];
+      out.push({ x: it._x, z: it._z, kind: 'dressing', run: () => this.buildItem(i) });
+    }
+    this._laterL = this._laterI = null;
+    return out;
+  }
+
+  /** Merge chunks that got new props and have been quiet for a few scheduler slices. */
+  settleChunks(force = false) {
+    const B = this.batcher;
+    B.tick = (B.tick || 0) + 1;
+    let n = 0;
+    for (const c of B.list) {
+      if (!c.dirty) continue;
+      if (!force && B.tick - c.lastAdd < 3) continue;
+      B.finalizeChunk(c);
+      n++;
+    }
+    if (n) this.group.updateMatrixWorld(true);
+    return n;
+  }
+
   _landmarkSafe(lm) {
+    if (!lm || lm._built) return;
+    lm._built = true;
     const tl0 = performance.now();
     try {
       this._buildLandmark(lm);
@@ -670,119 +732,156 @@ export class Placement {
   // ---------------------------------------------------------------------------------------
   // dressing
   // ---------------------------------------------------------------------------------------
-  async _buildDressing(onProgress) {
-    const world = this.world, road = world.road;
-    const items = this.items;
-    const poleTemplates = new Map();
-    const tplFor = (it) => {
-      const k = (it.transformer ? 't' : 'p') + (it.seed % 4);
-      let t = poleTemplates.get(k);
-      if (!t) {
-        t = P.createElectricPole({ seed: 1000 + poleTemplates.size * 13, transformer: it.transformer, height: 8.6 + (it.seed % 4) * 0.35, crossArms: it.seed % 4 === 3 ? 1 : 2 });
-        poleTemplates.set(k, t);
-      }
-      return t;
-    };
-    const chains = new Map();
-    const tmpP = new THREE.Vector3();
-    let n = 0;
-    for (const it of items) {
-      n++;
-      if (n % 12 === 0) {
-        onProgress?.(n / items.length);
-        await yieldFrame();
-      }
+  /**
+   * Per-item bookkeeping so dressing can be built in any order with the same result: item
+   * positions (job priority), pole chains (wire spans join consecutive poles of a chain) and
+   * the pole template each plain pole clones (templates numbered in plan order).
+   */
+  _prepareJobs() {
+    if (this._jobsReady) return;
+    this._jobsReady = true;
+    const road = this.world.road;
+    const tmp = new THREE.Vector3();
+    this._tplSeed = new Map();
+    this._poleTemplates = new Map();
+    this._poleRes = new Map();
+    const lastInChain = new Map();
+    this.items.forEach((it, i) => {
       const sp = road.get(it.id);
-      const ti0 = performance.now();
-      try {
-        switch (it.type) {
-          case 'pole': {
-            const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
-            const yaw = sp.yawAt(it.s);
-            let res;
-            if (it.lamp) {
-              res = P.createElectricPole({ seed: it.seed, transformer: it.transformer, lamp: it.lamp, lampSide: it.side < 0 ? 1 : -1, height: 9 });
-            } else {
-              const t = tplFor(it);
-              res = { object: t.object.clone(true), wireAnchors: t.wireAnchors, wireKinds: t.wireKinds, colliders: t.colliders, lights: null };
-            }
-            // flip plain poles randomly (arms/insulators face either way)
-            const flip = !it.lamp && it.seed % 2 === 1 ? Math.PI : 0;
-            this._put(res, p, yaw + flip, { batch: true });
-            const prev = chains.get(it.chain);
-            if (prev && prev.object.position.distanceTo(p) < 75) {
-              const span = P.connectPoles(prev, res, { seed: it.seed, messy: 0.8 + ((it.seed * 7) % 10) / 12 });
-              span.name = 'wires';
-              const mx = (prev.object.position.x + p.x) / 2, mz = (prev.object.position.z + p.z) / 2;
-              this.batcher.add(span, mx, mz);
-            }
-            chains.set(it.chain, res);
-            if (it.vignette) this._vignette(it, sp, yaw);
-            if (it.lantern) {
-              // bare post opposite + a string of red lanterns across the road (shrine approach)
-              const q = this._roadPoint(it.id, it.s, -it.lat, new THREE.Vector3());
-              const post = P.createElectricPole({ seed: it.seed + 1, crossArms: 0, telecom: false, height: 6.5, meters: false, coils: false });
-              this._put(post, q, yaw, { batch: true });
-              const a = p.clone(), b = q.clone();
-              a.y += 5.7;
-              b.y += 5.7;
-              const ls = P.createLanternString(a, b, { count: 9, sag: 1.0, seed: it.seed, size: 1.05, lightEvery: 3 });
-              this.batcher.add(ls.object, (p.x + q.x) / 2, (p.z + q.z) / 2);
-              this._track(ls);
-            }
-            break;
-          }
-          case 'spirit': {
-            const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
-            const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R');
-            this._put(P.createSpiritHouse({ style: it.style, seed: it.seed, size: 0.8 + (it.seed % 5) * 0.06, age: 0.75 }), p, yaw, { batch: true });
-            break;
-          }
-          case 'sign': {
-            const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
-            const ty = sp.yawAt(it.s);
-            const yaw = it.face === 'back' ? ty + Math.PI : ty;
-            this._put(P.createSignPost(it.kind, { ...it.opts, seed: it.seed }), p, yaw + (((it.seed * 13) % 7) - 3) * 0.03, { batch: true });
-            break;
-          }
-          case 'mirror': {
-            const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
-            const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R');
-            this._put(P.createConvexMirror({ seed: it.seed }), p, yaw, { batch: true });
-            break;
-          }
-          case 'clutter': {
-            const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
-            const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R') + ((it.seed * 1.7) % 6.28);
-            this._put(P.createDressing(it.kind, { seed: it.seed, fallen: it.seed % 3 === 0 }), p, yaw, { batch: true });
-            break;
-          }
-          case 'guardrail': {
-            const pts = [];
-            const lat = it.side * (W.halfWidth + 0.45);
-            const s0 = Math.max(1, it.s0), s1 = Math.min(sp.length - 1, it.s1);
-            for (let s = s0; s <= s1 + 1e-3; s += 2) {
-              sp.pointAt(Math.min(s, s1), lat, tmpP);
-              tmpP.y = Math.min(sp.heightAt(s) - 0.04, this._ground(tmpP.x, tmpP.z) + 0.02);
-              pts.push(tmpP.clone());
-            }
-            if (pts.length < 2) break;
-            const res = P.createGuardrail(pts, { seed: it.seed, damaged: it.damaged, faceSide: it.side < 0 ? 1 : -1, lampEvery: it.lampEvery ?? 2 });
-            const mid = pts[Math.floor(pts.length / 2)];
-            this.batcher.add(res.object, mid.x, mid.z);
-            this._colliders(res.colliders, mid, 0, true);
-            this._track(res);
-            break;
-          }
-          default:
-            break;
+      if (it.type === 'guardrail') {
+        const s0 = Math.max(1, it.s0), s1 = Math.min(sp.length - 1, it.s1);
+        sp.pointAt((s0 + s1) / 2, it.side * (W.halfWidth + 0.45), tmp);
+      } else sp.pointAt(it.s, it.lat, tmp);
+      it._x = tmp.x;
+      it._z = tmp.z;
+      if (it.type === 'pole') {
+        if (!it.lamp) {
+          const k = (it.transformer ? 't' : 'p') + (it.seed % 4);
+          if (!this._tplSeed.has(k)) this._tplSeed.set(k, 1000 + this._tplSeed.size * 13);
         }
-      } catch (e) {
-        console.error('[world] dressing', it.type, it.kind || '', 'failed', e);
+        const prev = lastInChain.get(it.chain);
+        it._prev = prev ?? -1;
+        it._next = -1;
+        if (prev != null) this.items[prev]._next = i;
+        lastInChain.set(it.chain, i);
       }
-      const dk = it.type + (it.type === 'pole' ? (it.lamp ? 'L' : '') + (it.lantern ? 'X' : '') : it.type === 'sign' ? ':' + it.kind : '');
-      this.dressTimes[dk] = (this.dressTimes[dk] || 0) + Math.round(performance.now() - ti0);
+    });
+  }
+
+  _poleTemplate(it) {
+    const k = (it.transformer ? 't' : 'p') + (it.seed % 4);
+    let t = this._poleTemplates.get(k);
+    if (!t) {
+      t = P.createElectricPole({ seed: this._tplSeed.get(k) ?? 1000, transformer: it.transformer, height: 8.6 + (it.seed % 4) * 0.35, crossArms: it.seed % 4 === 3 ? 1 : 2 });
+      this._poleTemplates.set(k, t);
     }
+    return t;
+  }
+
+  /** Wire span between two built poles of a chain (b follows a). */
+  _wire(a, b) {
+    const ra = this._poleRes.get(a), rb = this._poleRes.get(b);
+    if (!ra || !rb) return;
+    if (ra.object.position.distanceTo(rb.object.position) >= 75) return;
+    const it = this.items[b];
+    const span = P.connectPoles(ra, rb, { seed: it.seed, messy: 0.8 + ((it.seed * 7) % 10) / 12 });
+    span.name = 'wires';
+    const mx = (ra.object.position.x + rb.object.position.x) / 2, mz = (ra.object.position.z + rb.object.position.z) / 2;
+    this.batcher.add(span, mx, mz);
+  }
+
+  /** Build one planned dressing item (any order). */
+  buildItem(index) {
+    const it = this.items[index];
+    if (!it || it._built) return;
+    it._built = true;
+    const road = this.world.road;
+    const sp = road.get(it.id);
+    const ti0 = performance.now();
+    try {
+      switch (it.type) {
+        case 'pole': {
+          const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
+          const yaw = sp.yawAt(it.s);
+          let res;
+          if (it.lamp) {
+            res = P.createElectricPole({ seed: it.seed, transformer: it.transformer, lamp: it.lamp, lampSide: it.side < 0 ? 1 : -1, height: 9 });
+          } else {
+            const t = this._poleTemplate(it);
+            res = { object: t.object.clone(true), wireAnchors: t.wireAnchors, wireKinds: t.wireKinds, colliders: t.colliders, lights: null };
+          }
+          // flip plain poles randomly (arms/insulators face either way)
+          const flip = !it.lamp && it.seed % 2 === 1 ? Math.PI : 0;
+          this._put(res, p, yaw + flip, { batch: true });
+          this._poleRes.set(index, res);
+          if (it._prev >= 0) this._wire(it._prev, index);
+          if (it._next >= 0) this._wire(index, it._next);
+          if (it.vignette) this._vignette(it, sp, yaw);
+          if (it.lantern) {
+            // bare post opposite + a string of red lanterns across the road (shrine approach)
+            const q = this._roadPoint(it.id, it.s, -it.lat, new THREE.Vector3());
+            const post = P.createElectricPole({ seed: it.seed + 1, crossArms: 0, telecom: false, height: 6.5, meters: false, coils: false });
+            this._put(post, q, yaw, { batch: true });
+            const a = p.clone(), b = q.clone();
+            a.y += 5.7;
+            b.y += 5.7;
+            const ls = P.createLanternString(a, b, { count: 9, sag: 1.0, seed: it.seed, size: 1.05, lightEvery: 3 });
+            this.batcher.add(ls.object, (p.x + q.x) / 2, (p.z + q.z) / 2);
+            this._track(ls);
+          }
+          break;
+        }
+        case 'spirit': {
+          const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
+          const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R');
+          this._put(P.createSpiritHouse({ style: it.style, seed: it.seed, size: 0.8 + (it.seed % 5) * 0.06, age: 0.75 }), p, yaw, { batch: true });
+          break;
+        }
+        case 'sign': {
+          const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
+          const ty = sp.yawAt(it.s);
+          const yaw = it.face === 'back' ? ty + Math.PI : ty;
+          this._put(P.createSignPost(it.kind, { ...it.opts, seed: it.seed }), p, yaw + (((it.seed * 13) % 7) - 3) * 0.03, { batch: true });
+          break;
+        }
+        case 'mirror': {
+          const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
+          const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R');
+          this._put(P.createConvexMirror({ seed: it.seed }), p, yaw, { batch: true });
+          break;
+        }
+        case 'clutter': {
+          const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
+          const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R') + ((it.seed * 1.7) % 6.28);
+          this._put(P.createDressing(it.kind, { seed: it.seed, fallen: it.seed % 3 === 0 }), p, yaw, { batch: true });
+          break;
+        }
+        case 'guardrail': {
+          const pts = [];
+          const tmpP = new THREE.Vector3();
+          const lat = it.side * (W.halfWidth + 0.45);
+          const s0 = Math.max(1, it.s0), s1 = Math.min(sp.length - 1, it.s1);
+          for (let s = s0; s <= s1 + 1e-3; s += 2) {
+            sp.pointAt(Math.min(s, s1), lat, tmpP);
+            tmpP.y = Math.min(sp.heightAt(s) - 0.04, this._ground(tmpP.x, tmpP.z) + 0.02);
+            pts.push(tmpP.clone());
+          }
+          if (pts.length < 2) break;
+          const res = P.createGuardrail(pts, { seed: it.seed, damaged: it.damaged, faceSide: it.side < 0 ? 1 : -1, lampEvery: it.lampEvery ?? 2 });
+          const mid = pts[Math.floor(pts.length / 2)];
+          this.batcher.add(res.object, mid.x, mid.z);
+          this._colliders(res.colliders, mid, 0, true);
+          this._track(res);
+          break;
+        }
+        default:
+          break;
+      }
+    } catch (e) {
+      console.error('[world] dressing', it.type, it.kind || '', 'failed', e);
+    }
+    const dk = it.type + (it.type === 'pole' ? (it.lamp ? 'L' : '') + (it.lantern ? 'X' : '') : it.type === 'sign' ? ':' + it.kind : '');
+    this.dressTimes[dk] = (this.dressTimes[dk] || 0) + Math.round(performance.now() - ti0);
   }
 
   // =====================================================================================

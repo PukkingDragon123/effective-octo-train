@@ -8,6 +8,7 @@ import * as THREE from 'three';
 const _m = new THREE.Matrix4();
 const _n = new THREE.Matrix3();
 const _v = new THREE.Vector3();
+const _inv = new THREE.Matrix4();
 const DEFAULT_OBR = THREE.Object3D.prototype.onBeforeRender;
 
 export class ChunkBatcher {
@@ -38,63 +39,95 @@ export class ChunkBatcher {
     const c = this.chunkAt(x, z);
     c.group.add(object);
     c.count++;
+    c.dirty = true;
+    c.lastAdd = this.tick || 0;
     return c;
   }
 
   /** Merge static meshes of every chunk. Returns {meshesBefore, meshesAfter}. */
   finalize() {
     let before = 0, after = 0;
-    this.parent.updateMatrixWorld(true);
-    const rootInv = new THREE.Matrix4().copy(this.parent.matrixWorld).invert();
     for (const c of this.list) {
-      const buckets = new Map();
-      const victims = [];
-      let maxR = 0;
-      c.group.traverse((o) => {
-        if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible) return;
-        before++;
-        const mat = o.material;
-        if (Array.isArray(mat) || o.userData.noMerge || mat.userData?.perInstance) return;
-        if (o.onBeforeRender !== DEFAULT_OBR) return;
-        for (let p = o.parent; p && p !== c.group; p = p.parent) if (p.isLOD || !p.visible) return;
-        const g = o.geometry;
-        if (!g || !g.attributes.position) return;
-        const names = Object.keys(g.attributes).sort();
-        const sig = `${mat.uuid}|${o.layers.mask}|${names.map((n) => n + g.attributes[n].itemSize + (g.attributes[n].normalized ? 'n' : '')).join(',')}|${g.index ? 1 : 0}`;
-        let b = buckets.get(sig);
-        if (!b) buckets.set(sig, (b = { mat, names, layers: o.layers.mask, items: [], verts: 0, idx: 0, cast: false, receive: false, order: o.renderOrder }));
-        _m.multiplyMatrices(rootInv, o.matrixWorld);
-        b.items.push({ g, m: _m.clone() });
-        b.verts += g.attributes.position.count;
-        b.idx += g.index ? g.index.count : g.attributes.position.count;
-        b.cast ||= o.castShadow;
-        b.receive ||= o.receiveShadow;
-        victims.push(o);
-      });
-      for (const o of victims) o.parent.remove(o);
-      for (const b of buckets.values()) {
-        const geo = mergeBucket(b);
-        const mesh = new THREE.Mesh(geo, b.mat);
-        mesh.castShadow = b.cast;
-        mesh.receiveShadow = b.receive;
-        mesh.layers.mask = b.layers;
-        mesh.renderOrder = b.order;
-        mesh.matrixAutoUpdate = false;
-        mesh.name = `${c.group.name}:${b.mat.name || 'mat'}`;
-        c.group.add(mesh);
-        c.merged.push(mesh);
-        geo.computeBoundingSphere();
-        const s = geo.boundingSphere;
-        maxR = Math.max(maxR, Math.hypot(s.center.x - c.cx, s.center.z - c.cz) + s.radius);
-      }
-      c.r = Math.max(c.r, maxR);
-      let n = 0;
-      c.group.traverse((o) => {
-        if (o.isMesh) n++;
-      });
-      after += n;
+      const r = this.finalizeChunk(c);
+      before += r.before;
+      after += r.after;
     }
     return { meshesBefore: before, meshesAfter: after };
+  }
+
+  /**
+   * Merge the chunk's static meshes (again): meshes added since the last merge are baked
+   * together with the chunk's merged meshes of the same material, so late additions (props
+   * built in the background) never add draw calls.
+   */
+  finalizeChunk(c) {
+    c.dirty = false;
+    let before = 0, after = 0;
+    this.parent.updateMatrixWorld(true);
+    const rootInv = _inv.copy(this.parent.matrixWorld).invert();
+    const buckets = new Map();
+    const victims = [];
+    let maxR = 0;
+    const merged = new Set(c.merged);
+    c.group.traverse((o) => {
+      if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || !o.visible) return;
+      before++;
+      const mat = o.material;
+      if (Array.isArray(mat) || o.userData.noMerge || mat.userData?.perInstance) return;
+      if (!merged.has(o) && o.onBeforeRender !== DEFAULT_OBR) return;
+      for (let p = o.parent; p && p !== c.group; p = p.parent) if (p.isLOD || !p.visible) return;
+      const g = o.geometry;
+      if (!g || !g.attributes.position) return;
+      const names = Object.keys(g.attributes).sort();
+      const sig = `${mat.uuid}|${o.layers.mask}|${names.map((n) => n + g.attributes[n].itemSize + (g.attributes[n].normalized ? 'n' : '')).join(',')}|${g.index ? 1 : 0}`;
+      let b = buckets.get(sig);
+      if (!b) buckets.set(sig, (b = { mat, names, layers: o.layers.mask, items: [], verts: 0, idx: 0, cast: false, receive: false, order: o.renderOrder, old: null }));
+      _m.multiplyMatrices(rootInv, o.matrixWorld);
+      b.items.push({ g, m: _m.clone() });
+      b.verts += g.attributes.position.count;
+      b.idx += g.index ? g.index.count : g.attributes.position.count;
+      b.cast ||= o.castShadow;
+      b.receive ||= o.receiveShadow;
+      if (merged.has(o)) b.old = (b.old || 0) + 1;
+      victims.push(o);
+    });
+    // a bucket that only holds an already-merged mesh stays as it is
+    for (const [sig, b] of buckets) {
+      if (b.items.length === 1 && b.old === 1) {
+        buckets.delete(sig);
+        victims.splice(victims.indexOf(c.merged.find((m) => m.geometry === b.items[0].g)), 1);
+      }
+    }
+    for (const o of victims) {
+      o.parent.remove(o);
+      if (merged.has(o)) {
+        o.geometry.dispose();
+        c.merged.splice(c.merged.indexOf(o), 1);
+      }
+    }
+    for (const b of buckets.values()) {
+      const geo = mergeBucket(b);
+      const mesh = new THREE.Mesh(geo, b.mat);
+      mesh.castShadow = b.cast;
+      mesh.receiveShadow = b.receive;
+      mesh.layers.mask = b.layers;
+      mesh.renderOrder = b.order;
+      mesh.matrixAutoUpdate = false;
+      mesh.name = `${c.group.name}:${b.mat.name || 'mat'}`;
+      c.group.add(mesh);
+      c.merged.push(mesh);
+    }
+    for (const mesh of c.merged) {
+      const geo = mesh.geometry;
+      if (!geo.boundingSphere) geo.computeBoundingSphere();
+      const s = geo.boundingSphere;
+      maxR = Math.max(maxR, Math.hypot(s.center.x - c.cx, s.center.z - c.cz) + s.radius);
+    }
+    c.r = Math.max(c.r, maxR);
+    c.group.traverse((o) => {
+      if (o.isMesh) after++;
+    });
+    return { before, after };
   }
 
   update(focus, dist) {

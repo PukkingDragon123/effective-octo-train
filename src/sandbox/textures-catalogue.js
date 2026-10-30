@@ -36,7 +36,8 @@ export default async function ({ engine, cameraRig, params, rendering }) {
     r.setRenderTarget(null);
     r.render(s, c);
   };
-  await preloadTextures();
+  await preloadTextures(undefined, null, { awaitPrinted: true });
+  await preloadTextures(['foliage_world', 'foliage_world_normal']); // opt-in photo pair (not in the default preload)
   const root = new THREE.Group();
   scene.add(root);
   const eye = new THREE.Object3D();

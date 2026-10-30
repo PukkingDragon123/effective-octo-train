@@ -62,12 +62,19 @@ export class Ambience {
       const L = lm[key];
       if (L) mist(key === 'shrineMaRuay' ? L.centre || L.pos : L.pos, key === 'bananaGrove' || key === 'shrineApproach' ? 24 : 16, key === 'ghostGate' ? 1.5 : 1);
     }
-    // moths at the lit set pieces (at most 6 lamps)
+    this._add = add;
+    if (this.world.complete !== false) this._initMoths();
+  }
+
+  /** Moths at the lit set pieces (at most 6 lamps; waits for a progressive build to finish). */
+  _initMoths() {
+    this._moths = true;
+    const lm = this.world.landmarks || {};
     let n = 0;
     for (const L of Object.values(lm)) {
       const a = L.anchors?.lampAnchor;
       if (!a || n >= 6) continue;
-      add('moths', { object: a, count: 18, radius: 1.0, seed: 20 + n });
+      this._add('moths', { object: a, count: 18, radius: 1.0, seed: 20 + n });
       n++;
     }
   }
@@ -75,6 +82,7 @@ export class Ambience {
   update(dt, focus) {
     if (!this.enabled) return;
     if (!this._inited) this._init();
+    if (!this._moths && this.world.complete) this._initMoths();
     // leaves fall around (and a little ahead of) the focus
     _p.copy(focus);
     _p.y = this.world.getHeight(focus.x, focus.z);

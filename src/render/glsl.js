@@ -84,6 +84,7 @@ uniform vec3 dlbAmbient;
 uniform float dlbFlash;
 uniform vec3 dlbSkyZenith;
 uniform vec3 dlbSkyHorizon;
+uniform highp sampler3D dlbFogNoiseTex;
 #endif
 `;
 
@@ -95,10 +96,19 @@ uniform vec3 dlbSkyHorizon;
 export const DLB_FOG_COMMON = /* glsl */ `
 #ifndef DLB_FOG_COMMON_INCLUDED
 #define DLB_FOG_COMMON_INCLUDED
+// Smoothstep-interpolated value noise (same shape as dlbNoise3) from the 32³ lattice
+// texture: the warped coordinate makes the hardware trilinear filter do the smooth blend,
+// so it is ONE 3D fetch instead of 8 hashes (tiles every 32 cells).
+float dlbFogNoise3(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = x - i;
+  f = f * f * (3.0 - 2.0 * f);
+  return texture(dlbFogNoiseTex, (i + f + 0.5) * (1.0 / 32.0)).r;
+}
 float dlbFogNoiseAt(vec3 p) {
   vec3 drift = vec3(dlbWindDir.x, 0.0, dlbWindDir.y) * dlbTime * (0.35 + dlbWindStrength * 1.2) + vec3(0.0, dlbTime * 0.05, dlbTime * 0.02);
   vec3 q = (p - drift) * 0.085;
-  return dlbNoise3(q) * 0.62 + dlbNoise3(q * 2.37 + vec3(7.1, 3.3, 1.9)) * 0.38;
+  return dlbFogNoise3(q) * 0.62 + dlbFogNoise3(q * 2.37 + vec3(7.1, 3.3, 1.9)) * 0.38;
 }
 // integral of exp(-k * (y(t) - base)) along a ray, analytic
 float dlbExpLayer(vec3 ro, vec3 rd, float d, float k) {

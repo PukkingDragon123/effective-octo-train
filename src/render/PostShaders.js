@@ -109,19 +109,18 @@ void main() {
 `;
 
 /**
- * Final composite + grade -> display-referred sRGB (written to a HalfFloat target; the
- * OUTPUT pass then sharpens it and adds canvas / grain / fade / letterbox / dither).
+ * Final composite + grade -> display-referred sRGB, dithered and stored in an 8-bit target
+ * (the dither is applied here, before the 8-bit store, so the night gradients never band).
+ * The OUTPUT pass then sharpens / upscales it and adds blood / fade / letterbox.
  */
 export const FINAL_FRAG = /* glsl */ `
 #include <dlb_common>
 uniform sampler2D tScene;
-uniform sampler2D tPaint;
 uniform sampler2D tBloom;
 uniform sampler2D tBlur;
 uniform sampler2D tShafts;
 uniform vec2 uRes;
 uniform float uTime;
-uniform float uPaint;
 uniform float uExposure;
 uniform float uSaturation;
 uniform float uContrast;
@@ -138,7 +137,6 @@ uniform float uBloom;
 uniform float uShafts;
 uniform vec3 uShaftCol;
 uniform float uVignette;
-uniform float uChroma;
 uniform float uHorror;
 uniform float uAmulet;
 uniform float uBlur;
@@ -146,39 +144,6 @@ uniform float uDistortion;
 uniform vec4 uFlash;
 varying vec2 vUv;
 
-#ifdef PAINT
-// perceptual (range-compressed) luma, so the edge test works in the dark night frame
-float pl(vec3 c) { float l = dlbLuma(c) * uExposure; return sqrt(l / (1.0 + l)); }
-// Edge / detail protection: the paint layer is only allowed on flat tonal areas. Local
-// contrast in a 1 px cross + 2 px diagonals keeps texture detail, foliage edges, text and
-// faces from the original frame; soft masses (fog, sky, shadowed foliage) get the strokes.
-float paintWeight(vec2 uv) {
-  vec2 px = 1.0 / uRes;
-  float c = pl(texture2D(tScene, uv).rgb);
-  float n = pl(texture2D(tScene, uv + vec2(0.0, px.y)).rgb);
-  float s = pl(texture2D(tScene, uv - vec2(0.0, px.y)).rgb);
-  float e = pl(texture2D(tScene, uv + vec2(px.x, 0.0)).rgb);
-  float w = pl(texture2D(tScene, uv - vec2(px.x, 0.0)).rgb);
-  float d1 = pl(texture2D(tScene, uv + px * vec2(2.0, 2.0)).rgb);
-  float d2 = pl(texture2D(tScene, uv + px * vec2(-2.0, -2.0)).rgb);
-  float mn = min(min(min(c, n), min(s, e)), min(w, min(d1, d2)));
-  float mx = max(max(max(c, n), max(s, e)), max(w, max(d1, d2)));
-  float con = (mx - mn) / (0.08 + mx);
-  return uPaint * mix(1.0, 0.12, smoothstep(0.03, 0.22, con));
-}
-#endif
-
-vec3 comp(vec2 uv, float pw) {
-  vec3 s = texture2D(tScene, uv).rgb;
-#ifdef PAINT
-  vec3 p = texture2D(tPaint, uv).rgb;
-  // keep tiny bright details (stars, fireflies, sparks, far lamps) that Kuwahara would erase
-  vec3 d = max(s - p, vec3(0.0));
-  float dl = dlbLuma(d) * uExposure;
-  s = mix(s, p, pw) + d * pw * smoothstep(0.015, 0.12, dl) * 0.9;
-#endif
-  return s;
-}
 vec3 RRTAndODTFit(vec3 v) {
   vec3 a = v * (v + 0.0245786) - 0.000090537;
   vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
@@ -218,18 +183,14 @@ void main() {
     warp += normalize(cc + 1e-5) * rip * 0.0022 * uAmulet;
   }
   uv += warp;
-  // ---- composite + chromatic aberration (lens edges only: the centre stays crisp) ------
-  float pw = 0.0;
-#ifdef PAINT
-  pw = paintWeight(uv);
-#endif
+  // ---- composite (+ the horror edge fringe; lens chromatic aberration is off) ---------
   vec3 col;
-  float ca = uChroma * smoothstep(0.3, 1.1, r) * 1.2 + uHorror * edge * 0.8;
+  float ca = uHorror * edge * 0.8;
   if (ca > 0.001) {
     vec2 off = cc * 0.0045 * ca;
-    col = vec3(comp(uv + off, pw).r, comp(uv, pw).g, comp(uv - off, pw).b);
+    col = vec3(texture2D(tScene, uv + off).r, texture2D(tScene, uv).g, texture2D(tScene, uv - off).b);
   } else {
-    col = comp(uv, pw);
+    col = texture2D(tScene, uv).rgb;
   }
   // ---- bloom, shafts, menu blur, flash ---------------------------------------------
   vec3 bloom = texture2D(tBloom, uv).rgb;
@@ -274,33 +235,32 @@ void main() {
   // vignette
   float vig = smoothstep(0.25, 1.15, r);
   col *= 1.0 - vig * vig * (uVignette * 0.85 + uHorror * 0.4);
-  gl_FragColor = vec4(toSRGB(col), 1.0);
+  // dither (8-bit target)
+  col = toSRGB(col) + (dlbHash12(gl_FragCoord.xy + 0.5) - 0.5) / 255.0;
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
 /**
- * Output pass (display space): optional FXAA-lite (only when the scene target has no MSAA),
- * contrast-adaptive sharpening (AMD FidelityFX CAS style), blood splatter, then the canvas / paper texture,
- * fine film grain, fade, letterbox and dither — added AFTER sharpening so they never get
- * amplified.
+ * Output pass (display space) -> screen: optional FXAA-lite (only when the scene target has
+ * no MSAA), contrast-adaptive sharpening (AMD FidelityFX CAS style) that doubles as the
+ * upscaler when dynamic resolution renders below the canvas size (taps at source-texel
+ * spacing, bilinear), then blood splatter, fade and letterbox — added AFTER sharpening so
+ * they never get amplified. (Dither happens in the grade pass, before its 8-bit store.)
  */
 export const OUTPUT_FRAG = /* glsl */ `
 #include <dlb_common>
 uniform sampler2D tSrc;
-uniform sampler2D tPaint;
-uniform sampler2D tCanvas;
-uniform vec2 uRes;
+uniform vec2 uRes;        // output (canvas) size in pixels
+uniform vec2 uTexel;      // 1 / source size
 uniform float uTime;
 uniform float uSharp;     // 0..1 (0 = off)
-uniform float uCanvas;
-uniform float uPaintDir;
-uniform float uGrain;
 uniform float uFade;
 uniform vec3 uFadeColor;
 uniform float uLetterbox;
 varying vec2 vUv;
 ${BLOOD_OVERLAY_GLSL}
-vec3 T(vec2 o) { return texture2D(tSrc, vUv + o / uRes).rgb; }
+vec3 T(vec2 o) { return texture2D(tSrc, vUv + o * uTexel).rgb; }
 float L(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 void main() {
   vec3 a = T(vec2(-1.0, -1.0)), b = T(vec2(0.0, -1.0)), c = T(vec2(1.0, -1.0));
@@ -316,7 +276,7 @@ void main() {
       vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), (lNW + lSW) - (lNE + lSE));
       float red = max((lNW + lNE + lSW + lSE) * 0.03125, 1.0 / 128.0);
       float rcpMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + red);
-      dir = clamp(dir * rcpMin, -6.0, 6.0) / uRes;
+      dir = clamp(dir * rcpMin, -6.0, 6.0) * uTexel;
       vec3 rA = 0.5 * (texture2D(tSrc, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture2D(tSrc, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);
       vec3 rB = rA * 0.5 + 0.25 * (texture2D(tSrc, vUv - dir * 0.5).rgb + texture2D(tSrc, vUv + dir * 0.5).rgb);
       float lB = L(rB);
@@ -343,23 +303,6 @@ void main() {
   }
   // ---- blood on the lens (death / attacks): painterly splatter, thick dried rims, runs ---------
   if (uBlood > 0.001) col = applyBlood(col, vUv);
-  // ---- canvas / paper texture + directional brush grain (handmade surface) ------------------
-  float l = L(col);
-  if (uCanvas > 0.0) {
-    vec2 fc = gl_FragCoord.xy;
-    vec4 cv = texture2D(tCanvas, fc / 340.0);
-    float paper = texture2D(tCanvas, fc / 900.0 + 0.37).g;
-    float ph = texture2D(tPaint, vUv).a * 3.14159265 * uPaintDir;
-    vec2 rd = vec2(cos(ph), sin(ph));
-    vec2 q = vec2(dot(fc, rd), dot(fc, vec2(-rd.y, rd.x)));
-    float grainDir = texture2D(tCanvas, q / vec2(220.0, 34.0)).b;
-    float k = ((cv.r - 0.5) * 0.03 + (paper - 0.5) * 0.04 + (grainDir - 0.5) * 0.05) * uCanvas;
-    col *= 1.0 + k * (0.4 + 0.6 * smoothstep(0.0, 0.4, l));
-    col += (paper - 0.5) * 0.004 * uCanvas;
-  }
-  // ---- film grain: fine, luminance-only, strongest in the mids ----------------------------
-  float n = dlbHash12(gl_FragCoord.xy + fract(uTime * 13.7) * 311.0) + dlbHash12(gl_FragCoord.xy * 1.37 - fract(uTime * 7.3) * 157.0) - 1.0;
-  col += n * uGrain * 0.045 * (0.35 + l) * (1.0 - l);
   // fade to colour
   col = mix(col, uFadeColor, clamp(uFade, 0.0, 1.0));
   // letterbox bars (2.39:1 at letterbox = 1)
@@ -371,8 +314,6 @@ void main() {
     float m = smoothstep(bar - px, bar + px, vUv.y) * smoothstep(bar - px, bar + px, 1.0 - vUv.y);
     col *= m;
   }
-  // dither (8-bit output)
-  col += (dlbHash12(gl_FragCoord.xy + 0.5) - 0.5) / 255.0;
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }
 `;

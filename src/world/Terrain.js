@@ -287,7 +287,7 @@ export class Terrain {
     const o = this._near;
     const cd = this._coarseDist(x, z);
     if (cd < EXACT_R + 6 || exactOnly) {
-      const b = this.road._nearest(x, z, EXACT_R + 8, null);
+      const b = this.road._nearest(x, z, EXACT_R + 8, null, this._nb || (this._nb = { sp: null, i: 0, t: 0, d: 0 }));
       if (b) {
         const sp = b.sp;
         const a = sp.points[b.i], c = sp.points[b.i + 1];
@@ -390,7 +390,7 @@ export class Terrain {
     // creek
     let wet = 0;
     if (this.creek) {
-      const b = this.creek.net._nearest(x, z, 48, null);
+      const b = this.creek.net._nearest(x, z, 48, null, this._cb || (this._cb = { sp: null, i: 0, t: 0, d: 0 }));
       if (b) {
         const sp = b.sp;
         const a = sp.points[b.i], c = sp.points[b.i + 1];
@@ -425,11 +425,10 @@ export class Terrain {
   // -------------------------------------------------------------------------------------
   // meshes
   // -------------------------------------------------------------------------------------
-  /** Build all tiles. Yields to the event loop regularly (await). */
-  async build(onProgress) {
+  /** Origins [tx, tz] of every tile that touches the road corridor (in build order). */
+  tileOrigins() {
+    if (this._origins) return this._origins;
     const T = W.terrainTile;
-    const res = W.terrainRes;
-    const n = T / res; // cells per side
     const keys = [];
     for (let tz = this.minz; tz < this.maxz; tz += T) {
       for (let tx = this.minx; tx < this.maxx; tx += T) {
@@ -439,11 +438,58 @@ export class Terrain {
         if (near) keys.push([tx, tz]);
       }
     }
-    const attr = { e: 0, pad: 0, wet: 0, ditch: 0, cut: 0 };
+    this._origins = keys;
+    return keys;
+  }
+
+  /**
+   * Declare the tiles that will be built later (progressive world build): until then sample()
+   * computes the exact same surface on demand.
+   */
+  setPending(origins) {
+    this._pending = new Set(origins.map(([tx, tz]) => this._tileKey(tx, tz)));
+    if (!this._fmask) this._buildFeatureMask();
+  }
+
+  /** Key of the tile containing (x, z). */
+  tileKeyAt(x, z) {
+    const T = W.terrainTile;
+    return this._tileKey(Math.floor((x - this.minx) / T) * T + this.minx, Math.floor((z - this.minz) / T) * T + this.minz);
+  }
+
+  /** True while the tile under (x, z) is declared but not built yet. */
+  isPending(x, z) {
+    return !!this._pending && this._pending.size > 0 && this._pending.has(this.tileKeyAt(x, z));
+  }
+
+  /** Build all tiles (or the given origins). Yields to the event loop regularly (await). */
+  async build(onProgress, origins = null) {
+    const keys = origins || this.tileOrigins();
+    if (!this._fmask) this._buildFeatureMask();
     let done = 0;
     let lastYield = performance.now();
-    this._buildFeatureMask();
     for (const [tx, tz] of keys) {
+      this.buildTile(tx, tz);
+      done++;
+      onProgress?.(done / keys.length);
+      if (performance.now() - lastYield > 40) {
+        await new Promise((r) => setTimeout(r, 0));
+        lastYield = performance.now();
+      }
+    }
+  }
+
+  /** Build one 64 m tile now (no-op if built). Returns the tile (or null outside the corridor). */
+  buildTile(tx, tz) {
+    const key = this._tileKey(tx, tz);
+    const have = this.tiles.get(key);
+    if (have) return have;
+    if (!this._fmask) this._buildFeatureMask();
+    const T = W.terrainTile;
+    const res = W.terrainRes;
+    const n = T / res; // cells per side
+    const attr = this._attr || (this._attr = { e: 0, pad: 0, wet: 0, ditch: 0, cut: 0 });
+    {
       const nv = n + 1;
       const ap = nv + 2; // apron for normals
       const H = new Float32Array(ap * ap);
@@ -479,10 +525,6 @@ export class Terrain {
           H[k] = H[k00] * w00 + H[k10] * w10 + H[k01] * w01 + H[k11] * w11;
           for (let c = 0; c < 4; c++) AE[k * 4 + c] = AE[k00 * 4 + c] * w00 + AE[k10 * 4 + c] * w10 + AE[k01 * 4 + c] * w01 + AE[k11 * 4 + c] * w11;
         }
-        if (performance.now() - lastYield > 40) {
-          await new Promise((r) => setTimeout(r, 0));
-          lastYield = performance.now();
-        }
       }
       for (let j = 1; j <= nv; j++) {
         for (let i = 1; i <= nv; i++) {
@@ -496,13 +538,13 @@ export class Terrain {
           inside[k] = this._coarseDist(x, z) < W.corridor + 6 ? 1 : 0;
         }
       }
+      this._pending?.delete(key);
       const tile = this._makeTile(tx, tz, nv, ap, H, A, inside, res);
       if (tile) {
-        this.tiles.set(this._tileKey(tx, tz), tile);
+        this.tiles.set(key, tile);
         this.group.add(tile.mesh);
       }
-      done++;
-      onProgress?.(done / keys.length);
+      return tile;
     }
   }
 
@@ -559,18 +601,25 @@ export class Terrain {
       }
     }
     if (ymin === Infinity) return null;
+    const big = nv * nv > 65535;
     const makeIndex = (step) => {
-      const idx = [];
+      const cap = Math.ceil((nv - 1) / step) ** 2 * 6;
+      const idx = big ? new Uint32Array(cap) : new Uint16Array(cap);
+      let n = 0;
       for (let j = 0; j < nv - 1; j += step) {
         for (let i = 0; i < nv - 1; i += step) {
           const a = j * nv + i, b = a + step, c = a + step * nv, d = c + step;
           if (!(inside[a] || inside[b] || inside[c] || inside[d])) continue;
           // alternate diagonal for less directional artefacts
-          if ((i / step + j / step) & 1) idx.push(a, c, b, b, c, d);
-          else idx.push(a, c, d, a, d, b);
+          if ((i / step + j / step) & 1) {
+            idx[n] = a; idx[n + 1] = c; idx[n + 2] = b; idx[n + 3] = b; idx[n + 4] = c; idx[n + 5] = d;
+          } else {
+            idx[n] = a; idx[n + 1] = c; idx[n + 2] = d; idx[n + 3] = a; idx[n + 4] = d; idx[n + 5] = b;
+          }
+          n += 6;
         }
       }
-      return nv * nv > 65535 ? new Uint32Array(idx) : new Uint16Array(idx);
+      return n === cap ? idx : idx.slice(0, n);
     };
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -593,13 +642,64 @@ export class Terrain {
     return tile;
   }
 
-  /** Fast terrain height from the built tiles (bilinear). Falls back to the analytic field. */
+  /**
+   * Height of the terrain grid vertex at integer offsets (ox, oz) from (minx, minz): exactly the
+   * value a built tile stores there (pass 1 samples at odd offsets, exact near roads / features,
+   * else the average of the exact neighbours). Used before the tile itself is built.
+   */
+  _vertexHeight(ox, oz) {
+    const key = ox * 65536 + oz;
+    const c = this._vCache;
+    const hit = c.get(key);
+    if (hit !== undefined) return hit;
+    const res = W.terrainRes;
+    const x = this.minx + ox * res, z = this.minz + oz * res;
+    const oddX = ox & 1, oddZ = oz & 1;
+    let h;
+    if ((oddX && oddZ) || this._needsExact(x, z)) h = this.heightRaw(x, z);
+    else {
+      const xs = oddX ? [ox] : [ox - 1, ox + 1], zs = oddZ ? [oz] : [oz - 1, oz + 1];
+      let s = 0, n = 0;
+      for (const a of xs) for (const b of zs) {
+        s += this.heightRaw(this.minx + a * res, this.minz + b * res);
+        n++;
+      }
+      h = s / n;
+    }
+    if (c.size > 200000) c.clear();
+    c.set(key, h);
+    return h;
+  }
+
+  /** Height where no tile is built (yet): the same triangulated grid surface as a built tile. */
+  _sampleUnbuilt(x, z) {
+    if (!this._vCache) this._vCache = new Map();
+    if (!this._fmask) this._buildFeatureMask();
+    const res = W.terrainRes;
+    const fx = (x - this.minx) / res, fz = (z - this.minz) / res;
+    const i = Math.floor(fx), j = Math.floor(fz);
+    const u = fx - i, v = fz - j;
+    const h00 = this._vertexHeight(i, j), h10 = this._vertexHeight(i + 1, j);
+    const h01 = this._vertexHeight(i, j + 1), h11 = this._vertexHeight(i + 1, j + 1);
+    // tile-local parity of the diagonal (tiles start at multiples of 64 m from minx/minz)
+    if ((i + j) & 1) {
+      if (u + v <= 1) return h00 + (h10 - h00) * u + (h01 - h00) * v;
+      return h11 + (h01 - h11) * (1 - u) + (h10 - h11) * (1 - v);
+    }
+    if (v >= u) return h00 + (h11 - h01) * u + (h01 - h00) * v;
+    return h00 + (h10 - h00) * u + (h11 - h10) * v;
+  }
+
+  /** Fast terrain height from the built tiles (bilinear). Unbuilt tiles: computed on demand. */
   sample(x, z) {
     const T = W.terrainTile;
     const tx = Math.floor((x - this.minx) / T) * T + this.minx;
     const tz = Math.floor((z - this.minz) / T) * T + this.minz;
     const tile = this.tiles.get(this._tileKey(tx, tz));
-    if (!tile) return this._natural(x, z);
+    if (!tile) {
+      if (this._pending && this._pending.has(this._tileKey(tx, tz))) return this._sampleUnbuilt(x, z);
+      return this._natural(x, z);
+    }
     const fx = (x - tx) / tile.res, fz = (z - tz) / tile.res;
     const i = Math.min(tile.nv - 2, Math.max(0, Math.floor(fx))), j = Math.min(tile.nv - 2, Math.max(0, Math.floor(fz)));
     const u = fx - i, v = fz - j;

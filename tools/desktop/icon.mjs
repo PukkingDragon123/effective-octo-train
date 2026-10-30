@@ -1,8 +1,15 @@
-// Generates the desktop icon: a red ember flame with a bone-white core on a near-black
-// rounded tile. Pure Node (zlib only), deterministic. Exports PNG, ICO (Windows) and
-// ICNS (macOS) buffers; `node tools/desktop/icon.mjs out.png` writes a 512 px preview.
+// The desktop icon. Source art: tools/desktop/icon.png (a committed copy of the itch.io icon,
+// release/itch/icon.png: the woman in white, cropped from the cover render); if neither file
+// exists it falls back to the procedural ember flame on a near-black rounded tile below.
+// Pure Node (zlib only), deterministic. Exports PNG, ICO (Windows) and ICNS (macOS) buffers;
+// `node tools/desktop/icon.mjs out.png` writes a 512 px preview.
 import zlib from 'node:zlib';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+export const ICON_SOURCES = [path.join(HERE, 'icon.png'), path.resolve(HERE, '../../release/itch/icon.png')];
 
 const BG = [11, 9, 9];
 const RED = [168, 26, 22];
@@ -57,8 +64,8 @@ function shade(x, y) {
   return c;
 }
 
-/** RGBA pixels of the icon at `size` px, 4x4 supersampled. */
-export function renderIcon(size) {
+/** RGBA pixels of the procedural flame icon at `size` px, 4x4 supersampled. */
+export function renderFlame(size) {
   const px = Buffer.alloc(size * size * 4);
   const S = 4;
   for (let j = 0; j < size; j++) {
@@ -78,6 +85,164 @@ export function renderIcon(size) {
     }
   }
   return px;
+}
+
+// ---------------------------------------------------------------- source PNG (8-bit RGB / RGBA / grey)
+/** Decode a non-interlaced 8-bit PNG to { w, h, px: RGBA Buffer }. */
+export function decodePNG(buf) {
+  if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error('not a PNG');
+  let off = 8, w = 0, h = 0, depth = 0, type = 0, interlace = 0, palette = null, trns = null;
+  const idat = [];
+  while (off < buf.length) {
+    const len = buf.readUInt32BE(off);
+    const kind = buf.toString('ascii', off + 4, off + 8);
+    const data = buf.subarray(off + 8, off + 8 + len);
+    if (kind === 'IHDR') {
+      w = data.readUInt32BE(0);
+      h = data.readUInt32BE(4);
+      depth = data[8];
+      type = data[9];
+      interlace = data[12];
+    } else if (kind === 'PLTE') palette = data;
+    else if (kind === 'tRNS') trns = data;
+    else if (kind === 'IDAT') idat.push(data);
+    else if (kind === 'IEND') break;
+    off += 12 + len;
+  }
+  if (depth !== 8 || interlace) throw new Error('icon PNG must be 8-bit, non-interlaced');
+  const ch = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[type];
+  if (!ch) throw new Error('unsupported PNG colour type ' + type);
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = w * ch;
+  const cur = Buffer.alloc(stride), prev = Buffer.alloc(stride);
+  const px = Buffer.alloc(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const ft = raw[y * (stride + 1)];
+    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    for (let i = 0; i < stride; i++) {
+      const a = i >= ch ? cur[i - ch] : 0, b = prev[i], c = i >= ch ? prev[i - ch] : 0;
+      let p = line[i];
+      if (ft === 1) p += a;
+      else if (ft === 2) p += b;
+      else if (ft === 3) p += (a + b) >> 1;
+      else if (ft === 4) {
+        const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c);
+        p += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      cur[i] = p & 255;
+    }
+    for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4, s = x * ch;
+      if (type === 6) cur.copy(px, o, s, s + 4);
+      else if (type === 2) { px[o] = cur[s]; px[o + 1] = cur[s + 1]; px[o + 2] = cur[s + 2]; px[o + 3] = 255; }
+      else if (type === 3) {
+        const k = cur[s];
+        px[o] = palette[k * 3]; px[o + 1] = palette[k * 3 + 1]; px[o + 2] = palette[k * 3 + 2];
+        px[o + 3] = trns && k < trns.length ? trns[k] : 255;
+      } else {
+        px[o] = px[o + 1] = px[o + 2] = cur[s];
+        px[o + 3] = type === 4 ? cur[s + 1] : 255;
+      }
+    }
+    cur.copy(prev);
+  }
+  return { w, h, px };
+}
+
+let _source;
+/** The icon source art (first existing file of ICON_SOURCES), or null for the procedural flame. */
+export function iconSource() {
+  if (_source !== undefined) return _source;
+  _source = null;
+  for (const f of ICON_SOURCES) {
+    if (!fs.existsSync(f)) continue;
+    try {
+      _source = decodePNG(fs.readFileSync(f));
+      _source.file = f;
+      break;
+    } catch (e) {
+      console.warn(`icon: cannot read ${f} (${e.message}), trying the next source`);
+    }
+  }
+  return _source;
+}
+
+const toLin = (v) => ((v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const toSRGB = (v) => Math.round(255 * Math.min(1, Math.max(0, v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055)));
+
+/** Resample the (square) source to size x size: exact area average in linear light when shrinking,
+ *  bilinear when enlarging; a light unsharp mask keeps the small Windows sizes crisp. */
+function resample(src, size) {
+  const { w, h, px } = src;
+  const n = Math.min(w, h), ox = (w - n) >> 1, oy = (h - n) >> 1;
+  const lin = new Float32Array(w * h * 4);
+  for (let i = 0; i < w * h; i++) {
+    const a = px[i * 4 + 3] / 255;
+    lin[i * 4] = toLin(px[i * 4]) * a;
+    lin[i * 4 + 1] = toLin(px[i * 4 + 1]) * a;
+    lin[i * 4 + 2] = toLin(px[i * 4 + 2]) * a;
+    lin[i * 4 + 3] = a;
+  }
+  const out = new Float32Array(size * size * 4);
+  const k = n / size;
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const o = (j * size + i) * 4;
+      if (k > 1) {
+        const x0 = ox + i * k, x1 = x0 + k, y0 = oy + j * k, y1 = y0 + k;
+        let r = 0, g = 0, b = 0, a = 0, wsum = 0;
+        for (let y = Math.floor(y0); y < Math.ceil(y1); y++) {
+          const wy = Math.min(y + 1, y1) - Math.max(y, y0);
+          for (let x = Math.floor(x0); x < Math.ceil(x1); x++) {
+            const wx = Math.min(x + 1, x1) - Math.max(x, x0), wt = wx * wy, s = (y * w + x) * 4;
+            r += lin[s] * wt; g += lin[s + 1] * wt; b += lin[s + 2] * wt; a += lin[s + 3] * wt; wsum += wt;
+          }
+        }
+        out[o] = r / wsum; out[o + 1] = g / wsum; out[o + 2] = b / wsum; out[o + 3] = a / wsum;
+      } else {
+        const fx = Math.min(n - 1, Math.max(0, (i + 0.5) * k - 0.5)), fy = Math.min(n - 1, Math.max(0, (j + 0.5) * k - 0.5));
+        const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(n - 1, x0 + 1), y1 = Math.min(n - 1, y0 + 1);
+        const tx = fx - x0, ty = fy - y0;
+        for (let c = 0; c < 4; c++) {
+          const s = (yy, xx) => lin[((oy + yy) * w + ox + xx) * 4 + c];
+          out[o + c] = (s(y0, x0) * (1 - tx) + s(y0, x1) * tx) * (1 - ty) + (s(y1, x0) * (1 - tx) + s(y1, x1) * tx) * ty;
+        }
+      }
+    }
+  }
+  // unsharp mask (3x3 box) for the downscaled sizes
+  const amt = k > 1 ? Math.min(0.5, 0.12 * Math.log2(k)) : 0;
+  const res = Buffer.alloc(size * size * 4);
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const o = (j * size + i) * 4;
+      const a = out[o + 3];
+      for (let c = 0; c < 3; c++) {
+        let v = out[o + c];
+        if (amt > 0) {
+          let sum = 0, cnt = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const y = j + dy, x = i + dx;
+              if (x < 0 || y < 0 || x >= size || y >= size) continue;
+              sum += out[(y * size + x) * 4 + c];
+              cnt++;
+            }
+          }
+          v = v + (v - sum / cnt) * amt;
+        }
+        res[o + c] = a > 0 ? toSRGB(Math.max(0, v) / a) : 0;
+      }
+      res[o + 3] = Math.round(a * 255);
+    }
+  }
+  return res;
+}
+
+/** RGBA pixels of the icon at `size` px (the source art, or the procedural flame). */
+export function renderIcon(size) {
+  const src = iconSource();
+  return src ? resample(src, size) : renderFlame(size);
 }
 
 const CRC = new Int32Array(256).map((_, n) => {
@@ -157,5 +322,5 @@ export function icns() {
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   const out = process.argv[2] || 'icon-preview.png';
   fs.writeFileSync(out, png(512));
-  console.log('wrote', out);
+  console.log('wrote', out, 'from', iconSource()?.file || 'the procedural flame');
 }
