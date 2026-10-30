@@ -52,7 +52,8 @@ export const DEFAULT_SETTINGS = {
   volSfx: 0.9,
   volAmbience: 0.85,
   volVoice: 1.0,
-  // accessibility
+  // accessibility / content
+  gore: 'full', // 'full' | 'reduced' (darker, sparser blood; no lingering gore close-ups)
   reduceFlashes: false,
   cameraShake: 1.0,
 };

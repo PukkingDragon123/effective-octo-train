@@ -47,6 +47,7 @@ export class Placement {
     this.colliderCount = 0;
     this.batcher = new ChunkBatcher(this.group, 96);
     this.stats = {};
+    this.dressTimes = {};
   }
 
   // =====================================================================================
@@ -280,8 +281,10 @@ export class Placement {
     const keys = Object.keys(world.landmarks);
     for (let i = 0; i < keys.length; i++) {
       const lm = world.landmarks[keys[i]];
+      const tl0 = performance.now();
       try {
         this._buildLandmark(lm);
+        (T.lm || (T.lm = {}))[lm.key] = Math.round(performance.now() - tl0);
       } catch (e) {
         console.error('[world] landmark', lm.key, 'failed', e);
       }
@@ -305,7 +308,7 @@ export class Placement {
       if (r.lights && r.lights.length) this.lightHandles.push(...P.addPropLights(r));
     }
     lap('lights');
-    this.stats = { ms: Math.round(performance.now() - t0), phases: T, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount };
+    this.stats = { ms: Math.round(performance.now() - t0), phases: T, dress: this.dressTimes, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount };
     onProgress?.(1);
   }
 
@@ -630,6 +633,7 @@ export class Placement {
         await yieldFrame();
       }
       const sp = road.get(it.id);
+      const ti0 = performance.now();
       try {
         switch (it.type) {
           case 'pole': {
@@ -715,6 +719,8 @@ export class Placement {
       } catch (e) {
         console.error('[world] dressing', it.type, it.kind || '', 'failed', e);
       }
+      const dk = it.type + (it.type === 'pole' ? (it.lamp ? 'L' : '') + (it.lantern ? 'X' : '') : it.type === 'sign' ? ':' + it.kind : '');
+      this.dressTimes[dk] = (this.dressTimes[dk] || 0) + Math.round(performance.now() - ti0);
     }
   }
 

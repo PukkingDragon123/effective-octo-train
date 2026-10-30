@@ -1,8 +1,16 @@
 // Audio sandbox.
 //   ?sandbox=audio                 manual test board (buttons for every sound, loops, engine, music, radio, voice, ambience)
 //   ?sandbox=audio&test=1          automated OfflineAudioContext render of every sound id + engine RPMs + music moods +
-//                                  voice murmur + radio chunks + ambience -> window.__audioReport (+ on-screen table).
-//                                  window.__audioTest is a Promise of the report.
+//                                  voice murmur + radio chunks + ambience -> window.__audioReport (+ on-screen table),
+//                                  then the recorded-sample check -> window.__audioSampleReport: the manifest loads,
+//                                  every file fetches + decodes (duration, loudness, loop alignment, NaN), and offline
+//                                  renders through the sample paths (one-shots, segments, loops, retrigger, ambience
+//                                  beds, engine layers, radio static / ching / jingles, ranat notes in the music).
+//                                  window.__audioTest is a Promise of the report; the sandbox only signals ready when
+//                                  it is done, so give the harness time: node tools/shot.mjs --sandbox=audio
+//                                  --params="test=1" --timeout=900000 --eval="return window.__audioReport"
+//                                  group=sfx|sfxA|sfxB|systems|samples runs a subset; hrtf=0 = equal-power (faster);
+//                                  samples=0 skips the sample check.
 //   ?sandbox=audio&spec=a,b,c      offline-render the listed ids (or engine@rpm, mood:name, voice, radio:n, amb) and draw
 //                                  spectrograms + waveforms for visual QA.
 import * as THREE from 'three';
@@ -11,6 +19,8 @@ import { AudioCore } from '../audio/Engine.js';
 import { EngineSound } from '../audio/EngineSound.js';
 import { Music } from '../audio/Music.js';
 import { Ambience } from '../audio/Ambience.js';
+import { Radio } from '../audio/Radio.js';
+import { SampleBank, sampleLoudness, detectPitch } from '../audio/Samples.js';
 import { SOUNDS } from '../audio/Synth/registry.js';
 
 let SR = 32000;
@@ -117,9 +127,9 @@ function stats(buf) {
 }
 
 // ---------------------------------------------------------------- offline renders
-function offlineCore(dur, ch = 2) {
+function offlineCore(dur, ch = 2, samples = null) {
   const ctx = new OfflineAudioContext(ch, Math.ceil(dur * SR), SR);
-  const core = new AudioCore(ctx, { sync: true });
+  const core = new AudioCore(ctx, { sync: true, samples });
   core.cache = sharedCache;
   core.maxCacheBytes = 1e12;
   core.spatial.setListener(0, 1.6, 0);
@@ -148,8 +158,8 @@ function fakeSys(core) {
   return { core, ambience: { state: { wetness: 0 } }, play: (id, o) => core.play(id, o), loop: (id, o) => core.loop(id, o), setMuffle: (v) => core.setMuffle(v) };
 }
 
-async function renderEngine(rpm, load, kind = 'car', speed = 0, dur = 2.5) {
-  const { ctx, core } = offlineCore(dur);
+async function renderEngine(rpm, load, kind = 'car', speed = 0, dur = 2.5, bank = null, surface = 'asphalt') {
+  const { ctx, core } = offlineCore(dur, 2, bank);
   const es = new EngineSound(fakeSys(core), kind);
   const obj = new THREE.Object3D();
   obj.position.set(0, 0.8, -1.8);
@@ -163,6 +173,8 @@ async function renderEngine(rpm, load, kind = 'car', speed = 0, dur = 2.5) {
   es.setLoad(load);
   es.setGear(kind === 'car' ? 2 : 1);
   es.setSpeed(speed);
+  es.setSurface(surface);
+  if (bank) renderEngine.last = { recIdle: !!es.recIdle, recTyre: Object.keys(es.recTyre || {}) };
   for (let i = 0; i < 40; i++) es.update(0.05);
   for (let t = 0.1; t < dur; t += 0.1) ctx.suspend(t).then(() => {
     es.update(0.1);
@@ -196,14 +208,22 @@ async function renderRadio(station, n = 0, ci = 1) {
   return ctx.startRendering();
 }
 
-async function renderAmbience(state, dur = 8) {
-  const { ctx, core } = offlineCore(dur);
+async function renderAmbience(state, dur = 8, bank = null) {
+  const { ctx, core } = offlineCore(dur, 2, bank);
   const sys = fakeSys(core);
   const a = new Ambience(sys);
   sys.ambience = a;
   a._attachCore(core);
   a.set(state);
   a.cicada[0] = { phase: 'sustain', t: 30, g: 1 };
+  if (bank) {
+    await bank.ready;
+    for (let i = 0; i < 4; i++) {
+      a.update(0.25);
+      await a.whenLoaded();
+    }
+    renderAmbience.last = a.layers();
+  }
   for (let i = 0; i < 20; i++) a.update(0.25);
   for (let t = 0.1; t < dur; t += 0.25) ctx.suspend(t).then(() => {
     a.update(0.25);
@@ -256,6 +276,178 @@ async function runTests(onRow, group = 'all') {
   await add('ambience:dawn', () => renderAmbience({ hour: 29.6, wind: 0.2 }));
   await add('ambience:dread', () => renderAmbience({ hour: 23, dread: 1 }));
   return rows;
+}
+
+// ---------------------------------------------------------------- recorded samples
+const db = (v) => +(20 * Math.log10(Math.max(v, 1e-9))).toFixed(1);
+
+/** One-shot / loop through AudioCore with the sample bank (buffers prefetched so playback starts synchronously). */
+async function renderSample(bank, id, opts = {}) {
+  const mode = opts.loop ? 'loop' : 'play';
+  await bank.prefetch([id, opts.sample].filter(Boolean), 0, { loops: true, maxFiles: 12 });
+  const sm = bank.resolve(id, { ...opts, sampleVariant: opts.sampleVariant }, mode);
+  if (!sm) throw new Error(`no recording resolves for ${id} (${mode})`);
+  const buf = await bank.get(sm, 0);
+  if (!buf) throw new Error(`decode failed for ${sm.file}`);
+  const segDur = sm.mode === 'segment' ? (sm.seg?.beats ? buf.duration / sm.seg.beats : sm.seg?.dur ?? 4) : buf.duration;
+  const dur = Math.min(opts.loop ? 6 : 12, segDur / Math.max(0.2, sm.rate) + 0.6) + D0;
+  const { ctx, core } = offlineCore(dur, 2, bank);
+  const def = SOUNDS[id] || bank.defFor(id, sm.key);
+  const spatial = !def.stereo && !def.stereoCenter && def.bus !== 'ui' && def.bus !== 'music';
+  const o = { ...opts, delay: D0, rate: 1, ...(spatial ? { position: { x: 0.5, y: 1.6, z: -1.2 } } : {}) };
+  const h = opts.loop ? core.loop(id, o) : core.play(id, o);
+  for (let t = 0.1; t < dur; t += 0.25) ctx.suspend(t).then(() => {
+    core.update(0.25, null);
+    ctx.resume();
+  });
+  const out = await ctx.startRendering();
+  out._info = { key: sm.key, mode: sm.mode, file: sm.file, usedSample: !!h.sample || !!h.retrigger, normDb: db(bank.normGain(buf, sampleLoudness(id, sm.key))) };
+  return out;
+}
+
+async function renderRadioSamples(bank, what, dur = 6) {
+  const { ctx, core } = offlineCore(dur, 2, bank);
+  const r = new Radio(fakeSys(core));
+  r._attachCore(core);
+  await bank.ready;
+  await bank.prefetch(['radio_static', 'ching', 'khaen_phrase', 'khim_phrase'], 0, { loops: true });
+  await new Promise((res) => setTimeout(res, 50));
+  if (what === 'static') {
+    r.hour = 23;
+    r.on = true;
+    r.station = 3; // 03:00 station outside its hour: static + whispers
+  }
+  for (let t = 0.1; t < dur; t += 0.1) ctx.suspend(t).then(() => {
+    r.update(0.1);
+    ctx.resume();
+  });
+  const out = await ctx.startRendering();
+  out._info = { staticRecorded: !!r.staticSrc?.buffer?._file, instruments: r.sampledInstruments || [] };
+  return out;
+}
+
+async function renderMusicSamples(bank, mood = 'menu', dur = 14) {
+  const { ctx, core } = offlineCore(dur, 2, bank);
+  const m = new Music(fakeSys(core));
+  m._attachCore(core);
+  await bank.ready;
+  await bank.prefetch(['ranat_note', 'ching'], 0);
+  await new Promise((res) => setTimeout(res, 50));
+  m.setMood(mood, { fade: 1, delay: 0 });
+  m.scheduleUntil(dur);
+  const out = await ctx.startRendering();
+  out._info = { ranat: (m.sampled.ranat || []).map((x) => Math.round(x.f0)), ching: (m.sampled.ching || []).length };
+  return out;
+}
+
+async function runSampleTests(onRow) {
+  const report = { manifest: null, files: [], failed: [], loops: [], renders: [], bad: [], keys: 0 };
+  const bank = new SampleBank();
+  bank.maxBytes = 1024 * 1048576;
+  const ok = await bank.load();
+  report.manifest = bank.info();
+  onRow?.({ name: `manifest ${ok ? 'ok' : 'FAILED ' + bank.error}: ${report.manifest.keys} keys / ${report.manifest.files} files`, sample: true, error: ok ? null : bank.error });
+  if (!ok) {
+    report.bad.push('manifest');
+    return report;
+  }
+  bank.attach(new OfflineAudioContext(1, 1, SR));
+  // 1) every file fetches + decodes; measure, then release it
+  const t0 = performance.now();
+  const jobs = [];
+  for (const e of Object.values(bank.entries)) {
+    e.files.forEach((file, idx) => {
+      jobs.push(Promise.resolve(bank.get({ e, idx }, 1)).then((buf) => {
+        if (!buf) {
+          report.failed.push(file);
+          return;
+        }
+        const st = buf._stats;
+        const row = { key: e.key, file, dur: +buf.duration.toFixed(2), ch: buf.numberOfChannels, sr: buf.sampleRate, rmsDb: db(st.rms), stDb: db(st.st), peak: +st.peak.toFixed(3), nan: st.nan };
+        if (e.loop && e.loopSamples[idx]) {
+          row.loopExtraMs = +((buf._loopExtra || 0) * 1000).toFixed(1);
+          row.loopRegion = buf._loopEnd ? [+buf._loopStart.toFixed(4), +buf._loopEnd.toFixed(4)] : 'whole';
+          report.loops.push({ file, extraMs: row.loopExtraMs, region: row.loopRegion });
+        }
+        if (row.rmsDb < -70 || row.nan) report.bad.push(file);
+        report.files.push(row);
+        bank.drop(file);
+      }));
+    });
+  }
+  await Promise.all(jobs);
+  report.decodeMs = Math.round(performance.now() - t0);
+  report.keys = Object.keys(bank.entries).length;
+  report.failed.forEach((f) => report.bad.push(f));
+  onRow?.({ name: `decoded ${report.files.length}/${report.manifest.files} files in ${report.decodeMs} ms, ${report.failed.length} failed`, sample: true, error: report.failed.length ? report.failed.join(' ') : null });
+
+  // 2) offline renders through the sample paths
+  const add = async (name, fn, check) => {
+    const t1 = performance.now();
+    let row;
+    try {
+      const buf = await fn();
+      row = { name, ...stats(buf), ms: Math.round(performance.now() - t1), ...(buf._info || {}) };
+      const why = check?.(row);
+      if (why) row.error = why;
+    } catch (err) {
+      row = { name, error: String(err?.stack || err).slice(0, 300) };
+    }
+    if (row.error || row.nan || row.silent || row.clip > 20) report.bad.push(name);
+    report.renders.push(row);
+    onRow?.(row);
+  };
+  const used = (r) => (r.usedSample ? null : 'synth was used');
+  for (const [id, o] of [
+    ['door_close', {}], ['door_open', {}], ['handbrake', { variant: 0 }], ['handbrake', { variant: 1 }], ['engine_start', {}], ['engine_stall', {}],
+    ['gecko', {}], ['dog_bark', {}], ['owl', {}], ['footstep_gravel', {}], ['footstep_asphalt', {}], ['knock', {}], ['whisper', {}], ['bell_temple', {}],
+    ['wiper', {}], ['heartbeat', {}], ['mosquito_buzz', {}], ['gong', {}], ['dog_bark_far', {}], ['scream_close', {}],
+  ]) await add(`rec:${id}${o.variant != null ? '#' + o.variant : ''}`, () => renderSample(bank, id, o), used);
+  for (const id of ['heartbeat', 'wiper', 'monk_chant', 'breath_neck', 'electric_buzz', 'indicator_tick', 'giant_hand_rumble']) await add(`rec:${id}[loop]`, () => renderSample(bank, id, { loop: true }), used);
+  const recBeds = (r) => {
+    const L = renderAmbience.last || [];
+    const recOn = L.filter((l) => l.mode === 'rec' && l.rec.some((x) => x.state === 'on'));
+    r.bedsRec = recOn.map((l) => l.slot).join(' ');
+    r.bedsSynth = L.filter((l) => l.mode === 'synth' && l.level > 0.001).map((l) => l.slot).join(' ');
+    return recOn.length ? null : 'no recorded bed playing';
+  };
+  await add('rec:ambience:22h', () => renderAmbience({ hour: 22, wind: 0.4, nearWater: 0.5 }, 8, bank), recBeds);
+  await add('rec:ambience:01h_dense', () => renderAmbience({ hour: 25, wind: 0.3, forestDensity: 1.4 }, 8, bank), recBeds);
+  await add('rec:ambience:rain_in_car', () => renderAmbience({ hour: 22, rain: 0.8, insideCar: true, windowsOpen: 0 }, 8, bank), recBeds);
+  await add('rec:ambience:light_rain_outside', () => renderAmbience({ hour: 23, rain: 0.25, wind: 0.5 }, 8, bank), recBeds);
+  await add('rec:ambience:dawn', () => renderAmbience({ hour: 29.6, wind: 0.2 }, 8, bank), recBeds);
+  await add('rec:ambience:dread', () => renderAmbience({ hour: 23, dread: 1 }, 8, bank), recBeds);
+  const eng = (r) => {
+    Object.assign(r, renderEngine.last || {});
+    return null;
+  };
+  await add('rec:engine@820 (recorded idle)', () => renderEngine(820, 0.05, 'car', 0, 2.5, bank), eng);
+  await add('rec:engine@2500 gravel 60', () => renderEngine(2500, 0.6, 'car', 60, 2.5, bank, 'gravel'), eng);
+  await add('rec:engine@3000 asphalt 80', () => renderEngine(3000, 0.5, 'car', 80, 2.5, bank, 'asphalt'), eng);
+  await add('rec:bike@1450 (recorded idle)', () => renderEngine(1450, 0.05, 'bike', 0, 2.5, bank), eng);
+  await add('rec:radio static', () => renderRadioSamples(bank, 'static'), (r) => (r.staticRecorded ? null : 'synth static'));
+  await add('rec:radio luk thung (ching)', async () => {
+    await renderRadioSamples(bank, 'register', 0.5);
+    const { ctx, core } = offlineCore(9, 2, bank);
+    const b = core.task('radioS:1:0:1', 'radioChunk', { station: 1, n: 0, ci: 1 });
+    core.playBuffer(b, { delay: D0, bus: 'radio', muffle: false, reverb: 0.05 });
+    return ctx.startRendering();
+  });
+  await add('rec:radio dj jingle (khaen)', async () => {
+    const { ctx, core } = offlineCore(9, 2, bank);
+    const b = core.task('radioS:1:1:0', 'radioChunk', { station: 1, n: 1, ci: 0 });
+    core.playBuffer(b, { delay: D0, bus: 'radio', muffle: false, reverb: 0.05 });
+    return ctx.startRendering();
+  });
+  await add('rec:mood:menu (ranat)', () => renderMusicSamples(bank, 'menu'), (r) => (r.ranat?.length ? null : 'no ranat samples'));
+  await add('rec:mood:nostalgic (ching)', () => renderMusicSamples(bank, 'nostalgic'), (r) => (r.ching ? null : 'no ching samples'));
+  report.bank = bank.info();
+  report.coverage = {
+    play: SOUND_IDS.filter((id) => bank.covers(id, 'play')).length,
+    loop: SOUND_IDS.filter((id) => SOUNDS[id].loopable || SOUNDS[id].loopInterval).filter((id) => bank.covers(id, 'loop')).length,
+    synthOnly: SOUND_IDS.filter((id) => !bank.covers(id, 'play')),
+  };
+  return report;
 }
 
 // ---------------------------------------------------------------- spectrogram view
@@ -463,6 +655,10 @@ function reportTable(root) {
       if (r.silent) flags += ' SILENT';
       if (r.clip > 20) flags += ' CLIP' + r.clip;
     }
+    if (r.sample && !r.error) {
+      el('div', 'white-space:pre;color:#d8b46a', wrap, r.name);
+      return;
+    }
     const line = r.error ? `${r.name} ERROR ${r.error.slice(0, 60)}` : `${r.name.padEnd(26)} ${String(r.dur).padStart(5)}s ${String(r.rmsDb).padStart(6)} ${r.peak.toFixed(2)} ${String(r.centroid).padStart(5)}Hz${flags}`;
     el('div', `white-space:pre;color:${flags ? '#ff8070' : '#cfd8c8'}`, wrap, line);
   };
@@ -484,11 +680,24 @@ export default async function ({ engine, cameraRig, params }) {
     const onRow = reportTable(root);
     if (params.get('sr')) SR = Number(params.get('sr'));
     if (params.get('hrtf') === '0') TEST_HRTF = false;
-    window.__audioTest = runTests(onRow, params.get('group') || 'all').then((rows) => {
+    const group = params.get('group') || 'all';
+    window.__audioTest = (async () => {
+      const rows = group === 'samples' ? [] : await runTests(onRow, group);
       const bad = rows.filter((r) => r.error || r.nan || r.silent || r.clip > 20);
       window.__audioReport = { rows, bad: bad.map((r) => r.name), count: rows.length };
+      if ((group === 'all' || group === 'samples') && params.get('samples') !== '0') {
+        try {
+          window.__audioSampleReport = await runSampleTests(onRow);
+        } catch (err) {
+          window.__audioSampleReport = { bad: ['exception'], error: String(err?.stack || err) };
+        }
+        const sr = window.__audioSampleReport;
+        window.__audioReport.samples = { ok: !sr.bad?.length, bad: sr.bad, files: sr.files?.length, failed: sr.failed?.length, renders: sr.renders?.length, coverage: sr.coverage };
+      }
       return window.__audioReport;
-    });
+    })();
+    // the harness's eval runs once the sandbox resolves: finish the report first
+    await window.__audioTest;
     return;
   }
   manualBoard(root, cameraRig);
@@ -521,4 +730,4 @@ function specView(root, params) {
   }
 }
 
-export { runTests, stats, renderSound, renderEngine, renderMood, renderVoice, renderRadio, renderAmbience };
+export { runTests, runSampleTests, stats, renderSound, renderSample, renderEngine, renderMood, renderVoice, renderRadio, renderAmbience };

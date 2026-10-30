@@ -4,11 +4,20 @@
 // roar amplitude-modulated by the firing pulses, gear whine, idle unevenness, rev
 // limiter, decel crackle, tyre roll noise per surface and wind noise vs speed.
 //
+//
+// Recorded samples layered in when the manifest has them: the starter crank + catch (engine_start;
+// trimmed so it catches on the gameplay crank timer, then crossfaded into the model), a real idle
+// (engine_idle / bike_idle) that dominates near idle rpm and hands over to the model as revs rise,
+// gravel tyre roll (tyres_gravel) and cabin road noise (car_interior_cruise) vs speed.
+//
 //   engineSound.setOn(true|false, {instant, stall}) · setRPM(rpm) · setLoad(0..1 | -1..1)
 //   setGear(g) · setSpeed(kmh) · setSurface('asphalt'|'gravel'|'grass'|'dirt'|'wood'|'concrete'|'puddle') · attach(obj, bodyObj?)
+//   crankFail() -> handle   (the starter cranks but the engine will not catch)
 import { Wander, rngFrom, alloc, noiseBurst, normalize } from './Synth/dsp.js';
 import { thud } from './Synth/lib.js';
 import { ENGINE_START_CRANK } from './Synth/sfxCar.js';
+import { SOUNDS } from './Synth/registry.js';
+import { detectCatch, sampleLoudness } from './Samples.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const smooth = (a, b, v) => {
@@ -28,6 +37,9 @@ const PROFILES = {
     tyre: 1,
     ref: 3,
     startSfx: 'engine_start',
+    idleRec: 'engine_idle',
+    idleRecDb: -21,
+    tyreRec: { gravel: ['tyres_gravel', -15], cruise: ['car_interior_cruise', -19] },
   },
   bike: {
     cfg: 'bike',
@@ -40,6 +52,9 @@ const PROFILES = {
     tyre: 0.6,
     ref: 2,
     startSfx: null,
+    idleRec: 'bike_idle',
+    idleRecDb: -22,
+    tyreRec: null,
   },
 };
 
@@ -81,6 +96,8 @@ export class EngineSound {
       if (opts.instant || !this.P.startSfx || opts.silent) {
         this._startAt = now;
         this._rpmS = this.P.idle * 1.4;
+      } else if (this._recordedStart(opts, now)) {
+        this._rpmS = this.P.idle * 1.05;
       } else {
         const v = opts.variant ?? (Math.random() < 0.5 ? 0 : 1);
         const crank = ENGINE_START_CRANK[v] ?? 0.85;
@@ -93,6 +110,35 @@ export class EngineSound {
       if (opts.stall) this.sys.play('engine_stall', { object: this.object, bus: 'sfx', muffle: false, volume: this.volume });
       this._shutdownT = now;
     }
+  }
+  /** Recorded crank + catch, trimmed so the engine catches when the gameplay crank timer ends. */
+  _recordedStart(opts, now) {
+    const core = this.core;
+    const bank = core.samples;
+    const sm = bank?.resolve(this.P.startSfx, {}, 'play');
+    if (!sm || sm.mode !== 'shot') return false;
+    const buf = bank.get(sm, 0);
+    if (!buf || buf instanceof Promise) return false; // still loading: the synth start this time
+    const v = opts.variant ?? (Math.random() < 0.5 ? 0 : 1);
+    const crank = opts.crank ?? ENGINE_START_CRANK[v] ?? 0.85;
+    const tc = detectCatch(buf);
+    const off = clamp(tc - crank, 0, Math.max(0, tc - 0.35));
+    const catchAt = now + (tc - off);
+    const def = SOUNDS[this.P.startSfx] || {};
+    const h = core.playBuffer(buf, {
+      object: this.object, bus: 'sfx', muffle: false, offset: off, fadeIn: off > 0 ? 0.04 : 0,
+      volume: this.volume * bank.normGain(buf, sampleLoudness(this.P.startSfx, sm.key)), ref: def.ref ?? 3, reverb: def.reverb ?? 0.15,
+    });
+    bank.stats.plays++;
+    this._recStart = { h, stopAt: catchAt + 1.2 };
+    this._startAt = catchAt + 0.3;
+    return true;
+  }
+  /** The starter cranks but the engine will not catch (recorded engine_crank_fail, else a long synth crank). */
+  crankFail(opts = {}) {
+    const o = { object: this.object, bus: 'sfx', muffle: false, volume: this.volume * (opts.volume ?? 1), mustPlay: true };
+    if (this.core?.samples?.covers('engine_crank_fail', 'play')) return this.sys.play('engine_crank_fail', o);
+    return this.sys.play('ignition', { ...o, count: opts.count ?? 2, interval: 1.6 });
   }
   setRPM(rpm) {
     this.rpm = Math.max(0, rpm || 0);
@@ -246,7 +292,7 @@ export class EngineSound {
     this.windBP.connect(this.windG);
     this.windG.connect(core.buses.sfx.direct);
 
-    this._loading = this._loadBuffers();
+    this._loading = this._loadBuffers().then(() => this._recLoading);
   }
 
   async _loadBuffers() {
@@ -260,6 +306,8 @@ export class EngineSound {
       }
     });
     const beds = ['tyre_asphalt', 'tyre_gravel', 'tyre_grass', 'noise_pink'].map((k) => Promise.resolve(core.task(`bed:${k}:3`, 'bed', { kind: k, seed: 3 }, 1)).then((buf) => ({ k, buf })));
+    // recorded layers attach whenever they arrive (they never hold up the synth engine)
+    this._recLoading = this._loadRecorded().catch(() => null);
     const [ls, bs] = await Promise.all([Promise.all(jobs), Promise.all(beds)]);
     if (!this.core) return;
     const ctx = core.ctx;
@@ -295,14 +343,82 @@ export class EngineSound {
         s3.start(ctx.currentTime, Math.random() * buf.duration);
         s3.connect(this.rattleBP);
       } else {
+        const name = k.slice(5);
+        if (this.recTyre?.[name]) {
+          s.stop(); // a recording replaces this synth texture
+          continue;
+        }
         const g = ctx.createGain();
         g.gain.value = 0;
         s.connect(g);
         g.connect(this.tyreLP);
-        this.tyreG[k.slice(5)] = { s, g };
+        this.tyreG[name] = { s, g };
       }
     }
     this.ready = true;
+  }
+
+  /** Recorded layers (idle, tyres, cabin road noise). Missing/failed recordings are skipped. */
+  async _loadRecorded() {
+    const core = this.core;
+    const bank = core.samples;
+    this.recTyre = {};
+    if (!bank) return;
+    await Promise.race([bank.ready, new Promise((r) => setTimeout(r, 2500))]);
+    if (!this.core || !bank.usable) return;
+    const ctx = core.ctx;
+    const loopSrc = (buf, dest, gainNode) => {
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      s.loop = true;
+      if (buf._loopEnd) {
+        s.loopStart = buf._loopStart;
+        s.loopEnd = buf._loopEnd;
+      }
+      s.connect(gainNode);
+      gainNode.connect(dest);
+      s.start(ctx.currentTime, (buf._loopStart || 0) + Math.random() * ((buf._loopEnd || buf.duration) - (buf._loopStart || 0)));
+      bank.pin(buf._file);
+      return s;
+    };
+    const load = async (key, idx = 0) => {
+      const e = bank.entry(key);
+      if (!e || !e.loop) return null;
+      return Promise.resolve(bank.get({ e, idx: Math.min(idx, e.files.length - 1) }, 1));
+    };
+    const jobs = [];
+    if (this.P.idleRec) {
+      jobs.push(load(this.P.idleRec, 0).then((buf) => {
+        if (!buf || !this.core) return;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 3000;
+        lp.Q.value = 0.5;
+        lp.connect(this.src.input);
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        this.recIdle = { s: loopSrc(buf, lp, g), g, lp, norm: bank.normGain(buf, this.P.idleRecDb, 'rms', 2) };
+      }));
+    }
+    for (const [name, [key, db]] of Object.entries(this.P.tyreRec || {})) {
+      jobs.push(load(key, 0).then((buf) => {
+        if (!buf || !this.core) return;
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        // gravel replaces the synth texture inside the tyre path; cabin road noise has its own level
+        const s = loopSrc(buf, name === 'cruise' ? this.tyreSrc.input : this.tyreOut, g);
+        this.recTyre[name] = { s, g, norm: bank.normGain(buf, db, 'rms', 2) };
+        if (this.tyreG[name]) {
+          try {
+            this.tyreG[name].s.stop();
+          } catch (e) {
+            /* ignore */
+          }
+          delete this.tyreG[name];
+        }
+      }));
+    }
+    await Promise.all(jobs.map((j) => j.catch(() => null)));
   }
 
   _pop() {
@@ -347,6 +463,14 @@ export class EngineSound {
     this._rpmS += (target - this._rpmS) * k;
     const loadT = this.load;
     this._loadS += (loadT - this._loadS) * (1 - Math.exp(-dt * 7));
+    // recorded start: let it ring through the catch, then hand over to the model
+    if (this._recStart && now >= this._recStart.stopAt) {
+      this._recStart.h.stop(this.on ? 1.0 : 0.3);
+      this._recStart = null;
+    } else if (this._recStart && !this.on) {
+      this._recStart.h.stop(0.25);
+      this._recStart = null;
+    }
     // engine on/off envelope
     let onT = this.on && now >= this._startAt ? 1 : 0;
     const fadeSpeed = this.on ? 2.2 : 3.5;
@@ -408,8 +532,16 @@ export class EngineSound {
     const bright = (1100 + rpm * 0.55 + ld * 2600) * (1 - 0.35 * muffle);
     this.lp.frequency.setTargetAtTime(clamp(bright, 300, 9000), now, tc);
     const lash = this._lashT && now - this._lashT < 0.12 ? 0.8 : 1;
-    const level = this._onGain * P.gain * this.volume * (0.5 + 0.25 * ld + 0.25 * rpmN) * limCut * lash;
+    // recorded idle: dominant at idle rpm, gone by ~1.9x idle or under load
+    const ri = this.recIdle;
+    const recW = ri ? (1 - smooth(P.idle * 1.1, P.idle * 1.9, rpm)) * (1 - 0.6 * smooth(0.15, 0.6, ld)) : 0;
+    const level = this._onGain * P.gain * this.volume * (0.5 + 0.25 * ld + 0.25 * rpmN) * limCut * lash * (1 - 0.65 * recW);
     this.out.gain.setTargetAtTime(level, now, 0.02);
+    if (ri) {
+      ri.g.gain.setTargetAtTime(this._onGain * this.volume * ri.norm * recW * limCut, now, 0.04);
+      ri.s.playbackRate.setTargetAtTime(clamp(rpm / P.idle, 0.6, 2.2), now, tc);
+      ri.lp.frequency.setTargetAtTime(clamp((2600 + ld * 3000) * (1 - 0.3 * muffle), 800, 8000), now, 0.05);
+    }
     // intake
     this.intakeBP.frequency.setTargetAtTime(250 + rpm * 0.18, now, tc);
     this.intakeLevel.gain.setTargetAtTime(this._onGain * (0.04 + 0.4 * ld * (0.3 + rpmN)), now, tc);
@@ -428,10 +560,23 @@ export class EngineSound {
     const sp = this.speed;
     const roll = smooth(0.5, 20, sp) * (0.35 + 0.65 * Math.min(1, sp / 80));
     const surf = this.surface === 'gravel' || this.surface === 'dirt' ? 'gravel' : this.surface === 'grass' ? 'grass' : 'asphalt';
+    const rt = this.recTyre || {};
     for (const [name, t] of Object.entries(this.tyreG)) {
-      const want = name === surf ? 1 : 0;
+      // with recorded cabin road noise the synth asphalt texture stays underneath at half level
+      const want = name === surf ? (name === 'asphalt' && rt.cruise ? 0.5 : 1) : 0;
       t.g.gain.setTargetAtTime(want, now, 0.12);
       t.s.playbackRate.setTargetAtTime(clamp(0.45 + sp / 55, 0.3, 2.5), now, 0.05);
+    }
+    if (rt.gravel) {
+      // recorded gravel bypasses the synth tyre low-pass; tyreOut carries the speed level
+      rt.gravel.g.gain.setTargetAtTime(surf === 'gravel' ? rt.gravel.norm * 1.4 : 0, now, 0.12);
+      rt.gravel.s.playbackRate.setTargetAtTime(clamp(0.72 + sp / 160, 0.6, 1.4), now, 0.08);
+    }
+    if (rt.cruise) {
+      const paved = surf === 'asphalt' ? 1 : 0.35;
+      const lvl = smooth(3, 45, sp) * (0.45 + 0.55 * Math.min(1, sp / 90)) * paved * this.volume * rt.cruise.norm;
+      rt.cruise.g.gain.setTargetAtTime(lvl, now, 0.15);
+      rt.cruise.s.playbackRate.setTargetAtTime(clamp(0.78 + sp / 260, 0.75, 1.3), now, 0.1);
     }
     const wet = this.sys.ambience?.state?.wetness ?? 0;
     this.tyreLP.frequency.setTargetAtTime(350 + sp * 22 + wet * 2500, now, 0.1);
@@ -443,6 +588,13 @@ export class EngineSound {
   }
 
   dispose() {
+    for (const r of [this.recIdle, ...Object.values(this.recTyre || {})]) {
+      try {
+        r?.s.stop();
+      } catch (e) {
+        /* ignore */
+      }
+    }
     for (const l of this.layers || []) {
       try {
         l.s.stop();

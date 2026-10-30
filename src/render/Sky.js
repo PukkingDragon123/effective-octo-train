@@ -26,14 +26,14 @@ function K(h, o) {
 const KEYS = [
   // 21-23 DREAD: near-black teal, desaturated, cold, green-tinted fog
   K(21.0, {
-    zenith: 0x0a1113, mid: 0x131f1d, horizon: 0x253837, fog: 0x1f312b, fogDensity: 0.022, fogH: 0.05, fogK: 0.12, fogNoise: 0.7,
+    zenith: 0x0a1113, mid: 0x131f1d, horizon: 0x1f302f, fog: 0x16241f, fogDensity: 0.022, fogH: 0.05, fogK: 0.12, fogNoise: 0.7,
     amb: 0x6f9a92, ambI: 0.144, hemiSky: 0x527672, hemiGround: 0x0b0f0a, hemiI: 0.484, moonC: 0x9fbcc0, moonI: 0.324,
     stars: 0.15, clouds: 0.82, cloudC: 0x1f2e2c, skyVis: 0.55, surreal: 0, dawn: 0, moonScatter: 0.6, glow: 0x000000, glowI: 0,
     exposure: 3.5, sat: 0.66, contrast: 1.1, temp: -0.16, tint: 0.05, lift: [0.003, 0.008, 0.008], gain: [0.96, 1.0, 0.98],
     shadowTint: 0x163432, highTint: 0xcfa36a, split: 0.32,
   }),
   K(22.5, {
-    zenith: 0x080d0f, mid: 0x111a1a, horizon: 0x20312f, fog: 0x1a2b26, fogDensity: 0.025, fogH: 0.055, fogK: 0.12, fogNoise: 0.75,
+    zenith: 0x080d0f, mid: 0x111a1a, horizon: 0x1b2a28, fog: 0x13201c, fogDensity: 0.025, fogH: 0.055, fogK: 0.12, fogNoise: 0.75,
     amb: 0x6f9a92, ambI: 0.128, hemiSky: 0x4a6e6a, hemiGround: 0x0a0d09, hemiI: 0.44, moonC: 0x9fbcc0, moonI: 0.288,
     stars: 0.1, clouds: 0.85, cloudC: 0x1c2928, skyVis: 0.5, surreal: 0.05, dawn: 0, moonScatter: 0.55, glow: 0x000000, glowI: 0,
     exposure: 3.5, sat: 0.62, contrast: 1.12, temp: -0.18, tint: 0.06, lift: [0.003, 0.008, 0.008], gain: [0.96, 1.0, 0.98],
@@ -41,14 +41,14 @@ const KEYS = [
   }),
   // 23-02 SURREAL: sickly green + crimson, reddish moon, purple haze
   K(23.5, {
-    zenith: 0x0f0b17, mid: 0x1a1425, horizon: 0x362b44, fog: 0x2b223c, fogDensity: 0.02, fogH: 0.045, fogK: 0.12, fogNoise: 0.7,
+    zenith: 0x0f0b17, mid: 0x1a1425, horizon: 0x2e253a, fog: 0x211a2e, fogDensity: 0.02, fogH: 0.045, fogK: 0.12, fogNoise: 0.7,
     amb: 0x86a052, ambI: 0.128, hemiSky: 0x6c8a46, hemiGround: 0x140a12, hemiI: 0.484, moonC: 0xd07a5a, moonI: 0.306,
     stars: 0.25, clouds: 0.62, cloudC: 0x2b1f36, skyVis: 0.62, surreal: 1, dawn: 0, moonScatter: 0.9, glow: 0x3a0c14, glowI: 0.25,
     exposure: 3.4, sat: 0.84, contrast: 1.1, temp: -0.04, tint: 0.12, lift: [0.006, 0.006, 0.008], gain: [1.02, 0.97, 0.98],
     shadowTint: 0x2a4a1c, highTint: 0xd0303c, split: 0.4,
   }),
   K(25.0, {
-    zenith: 0x0d0915, mid: 0x181324, horizon: 0x312748, fog: 0x252037, fogDensity: 0.016, fogH: 0.035, fogK: 0.13, fogNoise: 0.6,
+    zenith: 0x0d0915, mid: 0x181324, horizon: 0x2a223e, fog: 0x1c182a, fogDensity: 0.016, fogH: 0.035, fogK: 0.13, fogNoise: 0.6,
     amb: 0x86a052, ambI: 0.128, hemiSky: 0x627f48, hemiGround: 0x120a10, hemiI: 0.484, moonC: 0xd8705a, moonI: 0.36,
     stars: 0.45, clouds: 0.42, cloudC: 0x271e37, skyVis: 0.72, surreal: 1, dawn: 0, moonScatter: 0.85, glow: 0x30101a, glowI: 0.2,
     exposure: 3.3, sat: 0.86, contrast: 1.08, temp: -0.02, tint: 0.1, lift: [0.006, 0.006, 0.009], gain: [1.02, 0.97, 0.99],
@@ -56,14 +56,14 @@ const KEYS = [
   }),
   // 02-04 CALM: warmer amber, stars, fireflies, soft blue moonlight
   K(26.3, {
-    zenith: 0x070b14, mid: 0x0f1725, horizon: 0x1f2a3b, fog: 0x18212f, fogDensity: 0.009, fogH: 0.022, fogK: 0.14, fogNoise: 0.5,
+    zenith: 0x070b14, mid: 0x0f1725, horizon: 0x1c2636, fog: 0x141c28, fogDensity: 0.009, fogH: 0.022, fogK: 0.14, fogNoise: 0.5,
     amb: 0x6a7a98, ambI: 0.16, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.6, moonC: 0xc4d2ea, moonI: 0.6,
     stars: 1.0, clouds: 0.2, cloudC: 0x141c2a, skyVis: 0.9, surreal: 0, dawn: 0, moonScatter: 0.8, glow: 0x000000, glowI: 0,
     exposure: 3.3, sat: 0.88, contrast: 1.05, temp: 0.07, tint: 0.0, lift: [0.003, 0.005, 0.01], gain: [1.03, 1.0, 0.96],
     shadowTint: 0x2a3858, highTint: 0xe8b070, split: 0.3,
   }),
   K(27.6, {
-    zenith: 0x080d18, mid: 0x111a2a, horizon: 0x232f43, fog: 0x1b2535, fogDensity: 0.01, fogH: 0.028, fogK: 0.15, fogNoise: 0.5,
+    zenith: 0x080d18, mid: 0x111a2a, horizon: 0x202b3e, fog: 0x17202e, fogDensity: 0.01, fogH: 0.028, fogK: 0.15, fogNoise: 0.5,
     amb: 0x6a7a98, ambI: 0.17, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.62, moonC: 0xc4d2ea, moonI: 0.55,
     stars: 0.9, clouds: 0.22, cloudC: 0x172031, skyVis: 0.9, surreal: 0, dawn: 0.0, moonScatter: 0.7, glow: 0x000000, glowI: 0,
     exposure: 3.2, sat: 0.9, contrast: 1.04, temp: 0.06, tint: 0.0, lift: [0.003, 0.005, 0.01], gain: [1.03, 1.0, 0.97],

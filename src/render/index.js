@@ -10,6 +10,7 @@
 //   Sky.js        sky dome, time of day, lights, weather, grade targets
 //   LightPool.js  pooled real lights + glows + ground pools + flicker; Beams.js volumetric cones
 //   Particles.js  GPU instanced particle emitters
+//   Silhouette.js silhouetteMaterial: fog-aware painted 2D flats (distant tree lines)
 import * as THREE from 'three';
 import { GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals } from './uniforms.js';
 import { installFogChunks, installMaterialInjection } from './Fog.js';
@@ -19,6 +20,7 @@ import { sky } from './Sky.js';
 import { lightPool } from './LightPool.js';
 import { particles } from './Particles.js';
 import { createVolumetricBeam } from './Beams.js';
+import { silhouetteMaterial } from './Silhouette.js';
 import { brushTexture, canvasTexture, glowTexture } from './noiseTex.js';
 import { RENDER_CAPS, captureCaps, crispTexture, crispMaterialTextures } from './caps.js';
 import { bus } from '../core/Events.js';
@@ -27,7 +29,7 @@ import { settings } from '../core/Settings.js';
 export {
   GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals,
   paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug,
-  postfx, sky, lightPool, particles, createVolumetricBeam,
+  postfx, sky, lightPool, particles, createVolumetricBeam, silhouetteMaterial,
   brushTexture, canvasTexture, glowTexture,
   RENDER_CAPS, crispTexture, crispMaterialTextures,
 };

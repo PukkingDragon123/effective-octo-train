@@ -27,6 +27,12 @@ World placement truth: `src/world/layout.js`.
 - Art target: **painterly semi-realistic**, hand-painted texture feel, restrained natural
   colours, rough worn materials, volumetric fog. Not photoreal, not cartoon, not
   low-poly or plastic.
+- **Never use lazy model shapes** (owner's hard rule): no primitive mash-ups of boxes,
+  cylinders and spheres. Model real forms: traced profiles, lathes, extrusions of real
+  cross-sections, swept curves, bevels/chamfers, tapered irregular hand-made shapes,
+  enough segments where the eye lands. Hero assets (taxi, motorbike) are modelled in
+  headless Blender (`tools/blender/`) and loaded as GLB.
+- **Super sharp, detailed, handmade, polished**: no blur-based looks (see GAME_DESIGN §9).
 - No real-world brands, logos, or copyrighted designs; make original fictional Thai-style ones.
 - Test visually: `node tools/shot.mjs --sandbox=<name> --out=.shots/<name>.png` then
   Read the PNG. Fix every console error it prints. `.shots/` is gitignored.

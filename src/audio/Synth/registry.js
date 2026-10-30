@@ -9,7 +9,7 @@ import { renderInstrument } from './instruments.js';
 import { renderMurmur, renderSung } from './speech.js';
 import { renderEngineLoop, CAR_CFG, BIKE_CFG } from './engineModel.js';
 import { renderBed } from './beds.js';
-import { programItem, renderRadioChunk, RADIO_SR } from './songs.js';
+import { programItem, renderRadioChunk, setSampled, RADIO_SR } from './songs.js';
 
 export const SOUNDS = { ...CAR_SFX, ...FOLEY_SFX, ...ANIMAL_SFX, ...HORROR_SFX };
 export const DEFAULT_SR = 32000;
@@ -112,6 +112,11 @@ export function runTask(type, a) {
     case 'bed': {
       const r = renderBed(a.kind, a.sr || DEFAULT_SR, a.seed || 1, { ...(a.opts || {}), sr: a.sr });
       return { channels: r.channels.map((c) => sanitize(c, true)), sr: r.sr };
+    }
+    case 'setSampled': {
+      // recorded instrument PCM for the radio renderer (registered in every worker)
+      for (const [name, list] of Object.entries(a || {})) setSampled(name, list);
+      return { channels: [], sr: RADIO_SR };
     }
     case 'radioChunk': {
       const plan = programItem(a.station, a.n);

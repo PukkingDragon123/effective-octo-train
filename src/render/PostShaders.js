@@ -1,3 +1,5 @@
+import { BLOOD_OVERLAY_GLSL } from './Blood.js';
+
 // Bloom, light shafts, copy and final-grade shaders for PostFX.
 
 export const COPY_FRAG = /* glsl */ `
@@ -278,7 +280,7 @@ void main() {
 
 /**
  * Output pass (display space): optional FXAA-lite (only when the scene target has no MSAA),
- * contrast-adaptive sharpening (AMD FidelityFX CAS style), then the canvas / paper texture,
+ * contrast-adaptive sharpening (AMD FidelityFX CAS style), blood splatter, then the canvas / paper texture,
  * fine film grain, fade, letterbox and dither — added AFTER sharpening so they never get
  * amplified.
  */
@@ -297,6 +299,7 @@ uniform float uFade;
 uniform vec3 uFadeColor;
 uniform float uLetterbox;
 varying vec2 vUv;
+${BLOOD_OVERLAY_GLSL}
 vec3 T(vec2 o) { return texture2D(tSrc, vUv + o / uRes).rgb; }
 float L(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 void main() {
@@ -338,6 +341,8 @@ void main() {
     vec3 s = (win * w + col) / (1.0 + 4.0 * w);
     col = clamp(s, 0.0, 1.0);
   }
+  // ---- blood on the lens (death / attacks): painterly splatter, thick dried rims, runs ---------
+  if (uBlood > 0.001) col = applyBlood(col, vUv);
   // ---- canvas / paper texture + directional brush grain (handmade surface) ------------------
   float l = L(col);
   if (uCanvas > 0.0) {

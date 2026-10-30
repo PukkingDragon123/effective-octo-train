@@ -5,7 +5,10 @@
 // varied (transpose / ornament / retrograde / truncate) so phrases feel composed
 // but never loop. Thai colour: 7-tone equal tuning (pentatonic subsets), ranat
 // rolls, khim tremolo, khong + temple bell, ching/chap time-keeping.
+// Recorded instruments (manifest ranat_note, ching) replace the synthesized ranat
+// strikes (repitched from their detected pitch) and ching/chap hits once decoded.
 import { FATHER_SONG } from './Synth/songs.js';
+import { detectPitch } from './Samples.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const T7 = (step) => Math.pow(2, step / 7);
@@ -105,7 +108,8 @@ class Player {
   /** Schedule a note. opts {vel, gain, pan, rate, extra, env:{a,r,dur}, send} */
   note(inst, f, when, o = {}) {
     if (this.stopped) return false;
-    const b = this.buf(inst, f, o.vel ?? 0.7, o.extra || null);
+    const rec = this.music.sampledNote(inst, f);
+    const b = rec ? rec.buf : this.buf(inst, f, o.vel ?? 0.7, o.extra || null);
     if (!b) {
       // long events (drones, pads, swells) must not vanish while the worker renders them: retry
       if (o.env || o.retry) (this.retries ||= []).push({ inst, f, when, o, until: when + 4 });
@@ -114,12 +118,18 @@ class Player {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = b;
-    if (o.rate) src.playbackRate.value = o.rate;
+    if (o.rate || rec) src.playbackRate.value = (o.rate || 1) * (rec ? rec.rate : 1);
     if (o.detune) src.detune.value = o.detune;
     const g = ctx.createGain();
     const vel = o.vel ?? 0.7;
-    const lvl = (o.gain ?? 1) * (0.55 + vel * 0.5);
-    if (o.env) {
+    const lvl = (o.gain ?? 1) * (0.55 + vel * 0.5) * (rec ? rec.gain : 1);
+    if (rec?.damp) {
+      // chap: the recorded cymbal pair held together (choked)
+      g.gain.setValueAtTime(lvl, when);
+      g.gain.setTargetAtTime(0, when + 0.04, 0.035);
+      src.start(when);
+      src.stop(when + 0.3);
+    } else if (o.env) {
       const { a = 0.01, r = 0.5, dur = b.duration } = o.env;
       g.gain.setValueAtTime(0, when);
       g.gain.linearRampToValueAtTime(lvl, when + a);
@@ -649,9 +659,55 @@ export class Music {
     this.player = null;
     this.old = [];
     this.volume = 1;
+    this.sampled = {}; // inst -> [{buf, f0, gain}] recorded instrument notes
   }
+
+  /** Recorded replacement for an instrument note: {buf, rate, gain, damp} or null (synth). */
+  sampledNote(inst, f) {
+    const kind = inst === 'chap' ? 'ching' : inst;
+    const list = this.sampled[kind];
+    if (!list?.length || this.core?.samples?.enabled === false) return null;
+    if (kind === 'ching') {
+      const s = list[Math.floor(Math.random() * list.length)];
+      return { buf: s.buf, rate: (inst === 'chap' ? 1.06 : 1) * (1 + (Math.random() - 0.5) * 0.03), gain: s.gain * (inst === 'chap' ? 0.8 : 1), damp: inst === 'chap' };
+    }
+    // nearest recorded pitch, repitched (a wooden bar tolerates about +-1.5 octaves)
+    let best = null, bd = Infinity;
+    for (const s of list) {
+      const d = Math.abs(Math.log(f / s.f0));
+      if (d < bd) {
+        bd = d;
+        best = s;
+      }
+    }
+    if (!best || bd > Math.log(3)) return null;
+    return { buf: best.buf, rate: f / best.f0, gain: best.gain, damp: false };
+  }
+
+  _loadSampled() {
+    const bank = this.core?.samples;
+    if (!bank) return;
+    Promise.resolve(bank.ready).then(() => {
+      for (const [inst, key] of [['ranat', 'ranat_note'], ['ching', 'ching']]) {
+        const e = bank.entry(key);
+        if (!e) continue;
+        e.files.forEach((f, idx) => {
+          Promise.resolve(bank.get({ e, idx }, 2)).then((buf) => {
+            if (!buf) return;
+            bank.pin(buf._file);
+            const f0 = inst === 'ranat' ? detectPitch(buf) : 1;
+            if (!(f0 > 60 && f0 < 4000)) return;
+            // synthesized instrument notes peak at 0.9: match that
+            (this.sampled[inst] ||= []).push({ buf, f0, gain: 0.9 / Math.max(1e-4, buf._stats?.peak || 1) });
+          });
+        });
+      }
+    });
+  }
+
   _attachCore(core) {
     this.core = core;
+    this._loadSampled();
     const ctx = core.ctx;
     this.input = ctx.createGain();
     this.revIn = ctx.createGain();

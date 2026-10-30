@@ -244,7 +244,7 @@ export class TaxiLights {
     // dash backlight + gauges
     const dashT = elec * (lightsOn ? 1 : 0.55);
     this.dashLevel = damp(this.dashLevel, dashT, 6, dt);
-    this.dash.intensity = this.dashLevel * 0.2;
+    this.dash.intensity = this.dashLevel * 0.16;
     const inside = this.taxi.isCameraInside?.() ? 1 : 0;
     this.fillLevel = damp(this.fillLevel, inside * (1 - this.domeLevel * 0.8), 3, dt);
     this.fill.intensity = this.fillLevel * 0.42;

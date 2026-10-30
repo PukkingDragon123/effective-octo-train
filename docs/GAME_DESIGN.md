@@ -74,6 +74,20 @@ pencil notes appear on it (persistent knowledge).
 | `r9` | ถ้าไฟในรถดับเอง อย่าเปิดมันอีก | If the cabin light goes out by itself, don't switch it back on. | Turning it on during that event triggers a ceiling-crawl attack. |
 | `r10` | ผ่านศาลให้บีบแตรสองครั้ง ขอทางเจ้าที่ | Honk twice when you pass a shrine, to ask the spirits for passage. | A real Thai custom. Optional, but each honk earns "respect", which shortens and softens some encounters. |
 
+**Back of the paper (r11–r16)**: written in smudged **red ink in a different, shakier
+hand**. It is Somchai's handwriting, left for whoever drives next, revealed late in the night.
+Ah Kong only says *"ด้านหลังด้วยนะ อย่าลืมพลิกดู"* ("Turn it over too"). All are active
+from the start. Each has a learned exception that is not written down:
+
+| id | Thai | English | Mechanic | Exception |
+|---|---|---|---|---|
+| `r11` | ถ้ามิเตอร์ขึ้นเลข ๔๔๔ ให้จอดทันที ก้มหน้า แล้วนับในใจถึงสิบ ห้ามมองกระจกบานไหนทั้งนั้น | Meter shows 444: stop, bow your head, count to ten, look at no glass. | Stop within 8 s, then keep your eyes off every mirror and window for 10 s (looking down is safe) while something counts along outside. | With a monk aboard, the number means nothing. |
+| `r12` | ถ้ามีคนยืนกลางถนนแต่ไม่โบกรถ ห้ามเบรก ห้ามหักหลบ ขับทะลุไปเลย | Someone stands in the road but doesn't hail: don't brake, don't swerve, drive through. | Slowing under 15 km/h within 25 m, or swerving off the asphalt, lets it reach you. Passing through gives a cold flash and fogged glass, and it now stands behind you in the mirror. | If it's an animal (the elephants), stop and wait. |
+| `r13` | ถ้ามีเลือดหยดลงกระจกหน้า ห้ามปัดน้ำฝน ปล่อยให้มันไหลไป | Blood drips on the windshield: no wipers, let it run. | Wipers off within 3 s. Wiping smears it and shows what hangs from the roof; 3 s of wiping and it slides down onto the glass. | Uncle Saman spitting betel juice (น้ำหมาก) out of the window: only betel. |
+| `r14` | หลังเที่ยงคืน ห้ามลดกระจกให้ใครทั้งนั้น | After midnight, never roll a window down for anyone. | Something knocks and asks for a lighter or help. Opening a window past 30 % while it waits means an arm reaches in. | If the monk asks (holy-water blessing), roll it down. |
+| `r15` | ถ้าวิทยุเรียกชื่อแก ให้เปลี่ยนคลื่นทันที ห้ามปิด | The radio says your name: retune at once, never switch it off. | Retune within 5 s. Switching off means the voice carries on from the back seat (a rule-3 test). | Somchai's 03:00 song dedication "…to his son, ต้น": listen to the end (memory m_song). |
+| `r16` | ถ้านับคนในกระจกได้มากกว่าคนที่ขึ้นรถ อย่าทัก อย่าถาม อย่าจอด | One more person in the mirror than got in: say nothing, ask nothing, don't stop. | An extra figure appears in the rearview mirror only. A dialogue choice tempts you to ask "who is that?"; asking or stopping means it answers. | — |
+
 **Hidden line** (only legible when the paper gets wet in the rain or held near the cabin
 light, from loop 2 on): *"กฎทุกข้อมีข้อยกเว้น ยกเว้นข้อสาม"*. ("Every rule has an
 exception, except rule three.")
@@ -301,6 +315,25 @@ comes from hand-painted texture brushwork, fine modelled detail and colour gradi
 * 23–02 Surreal: sickly green plus crimson (lanterns), a reddish moon, purple haze.
 * 02–04 Calm: warmer amber cabin light, stars, fireflies, soft blue moonlight.
 * 04–06 Dawn: indigo → cyan → peach; glowing mist; golden sunrise rays through the trees at 05:45.
+
+## 9b. Blood and gore
+
+The horror is graphic when it lands, and crafted and painterly, never cartoonish.
+Setting `gore`: `full` (default) or `reduced` (darker, sparser, less saturated blood;
+no lingering close-ups).
+* **Ghost true forms:**
+  * The woman in white's neck splits as it snaps, and dark blood runs down the white dress.
+  * The ผีตายโหง at the accident curve is crushed, wet with blood, limbs bent wrong.
+  * Boy M's reflection shows a blood-soaked school shirt.
+* **In the taxi:**
+  * Bloody handprints and finger-smears on the glass.
+  * Blood dripping from the roof seam onto the dash.
+  * Stains seeping into a seat after a ghost leaves.
+  * Rule r13's blood on the windshield, which the wipers smear horribly.
+* **On the road:** dried blood and skid marks at the accident curve; fresh pools in the
+  headlights after certain encounters.
+* **Deaths:** screen blood splatter and drips (postfx), blood particles, gore reveals in
+  the death cinematics (giant hand, true form, window attack, dragged back).
 
 ## 10. Audio direction
 

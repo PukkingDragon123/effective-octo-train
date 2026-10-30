@@ -411,6 +411,34 @@ export function createGarage(opts = {}) {
     k.details(() => k.at([rx, 0, rz], -Math.PI / 2, null, () => shelves.forEach((y, i) => fillShelf(k, -sz.x / 2 + 0.03, y, 0, sz.x - 0.06, sz.z * 0.8, rng, i % 2 ? 'parts' : 'mixed'))));
     out.colliders.push({ x: rx, z: rz, hx: sz.z / 2, hz: sz.x / 2, yaw: 0 });
   }
+  // second steel shelf on the left wall by the entrance, loaded with tins and boxes
+  if (hasAsset('steel_frame_shelves_02')) {
+    const sx2 = xL + 0.36, sz2 = 2.15;
+    addAsset(k, 'steel_frame_shelves_02', { p: [sx2, 0, sz2], r: Math.PI / 2, w: { dust: 0.6, grime: 0.5, streak: 0.4 } });
+    const ss = assetSize('steel_frame_shelves_02');
+    const sh2 = assetShelves('steel_frame_shelves_02').filter((y) => y > 0.15 && y < ss.y - 0.05);
+    k.details(() => k.at([sx2, 0, sz2], Math.PI / 2, null, () => sh2.forEach((y, i) => fillShelf(k, -ss.x / 2 + 0.03, y, 0, ss.x - 0.06, ss.z * 0.8, rng, i % 2 ? 'mixed' : 'parts'))));
+    out.colliders.push({ x: sx2, z: sz2, hx: ss.z / 2, hz: ss.x / 2, yaw: 0 });
+  }
+  // ---- wall electrics: breaker box, conduits to the tube and the switch, an extension cord ------
+  const pbx = xL + 0.12, pby = 1.55, pbz = 3.0;
+  if (!useAsset(k, 'power_box_01', { p: [pbx + 0.2, pby, pbz], r: Math.PI / 2 }, { fit: { h: 0.42 }, w: { grime: 0.4, streak: 0.6, dust: 0.3 } })) {
+    k.add(mat('metal'), bbox(0.06, 0.42, 0.34, 0.008, 0.1), { p: [pbx + 0.03, pby, pbz], color: 0x8a8a80, w: { streak: 0.6 } });
+  }
+  const conduit = (pts, r = 0.012) => k.add(mat('plastic'), tube(pts, r, 5), { color: 0xc8c4b4, w: { dust: 0.5, grime: 0.3, streak: 0.3 } });
+  conduit([V(pbx, pby + 0.44, pbz - 0.05), V(pbx, HB + 0.05, pbz - 0.05)]);
+  conduit([V(pbx, HB - 0.12, pbz - 0.05), V(pbx, HB - 0.12, zB + 0.12), V(-0.6, HB - 0.12, zB + 0.12)]);
+  conduit([V(xL + 0.12, 1.32, zF - 0.45), V(xL + 0.12, pby - 0.02, zF - 0.45), V(pbx, pby - 0.02, pbz - 0.2)], 0.01);
+  for (let i = 0; i < 6; i++) k.add(mat('galv'), G('cclip', () => bbox(0.03, 0.02, 0.035, 0.003, 0.05)), { p: [xL + 0.115, 0.6 + i * 0.45 > HB ? HB - 0.13 : pby + 0.5 + i * 0.25, pbz - 0.05], color: 0x8a8a84, w: false });
+  k.add(mat('plastic'), G('switchbox', () => bbox(0.03, 0.12, 0.08, 0.006, 0.05)), { p: [xL + 0.115, 1.25, zF - 0.45], color: 0xd8d0c0, w: { grime: 0.6, dust: 0.3 } });
+  k.add(mat('plastic'), G('switchrocker', () => bbox(0.012, 0.035, 0.025, 0.003, 0.03)), { p: [xL + 0.135, 1.29, zF - 0.45], color: 0x3a3a3a, w: false });
+  k.details(() => {
+    // orange extension cord from the switch box sagging down to a power strip on the floor
+    k.add(mat('plastic'), tube(smoothPath([V(xL + 0.14, 1.25, zF - 0.42), V(xL + 0.3, 0.7, zF - 0.5), V(xL + 0.45, 0.05, zF - 0.7), V(xL + 1.0, 0.012, zF - 1.1), V(tx - 0.5, 0.012, tz + 1.0)], 24), 0.007, 4), { color: 0xd8701a, w: { grime: 0.4 } });
+    k.add(mat('plastic'), G('powerstrip', () => bbox(0.28, 0.035, 0.06, 0.008, 0.05)), { p: [tx - 0.5, 0, tz + 1.0], r: 0.4, color: 0xe0dcd0, w: { grime: 0.5 } });
+    useAsset(k, 'folding_wooden_stool', { p: [tx + 0.55, 0, tz + 0.95], r: -0.7 }, { fit: { h: 0.44 }, w: { grime: 0.3, dust: 0.3 } });
+    useAsset(k, 'dustpan', { p: [xL + 0.3, 0, zF - 0.95], r: [0, 1.2, 0] }, { w: { grime: 0.5 } });
+  });
   k.details(() => {
     useAsset(k, 'propane_tank', { p: [bx + 1.55, 0, bz + 0.05], r: 0.6 }, { fit: { h: 0.55 }, w: { grime: 0.5, streak: 0.5 } });
     useAsset(k, 'metal_stool_02', { p: [bx - 0.2, 0, bz + 0.72], r: 0.3 }, { fit: { h: 0.62 }, w: { dust: 0.3, grime: 0.4 } });

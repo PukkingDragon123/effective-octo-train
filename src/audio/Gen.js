@@ -94,6 +94,22 @@ export class GenService {
     return p;
   }
 
+  /** Run a state-setting task on the main thread and in every worker (e.g. registering sample PCM). */
+  broadcast(type, args) {
+    try {
+      runTask(type, args);
+    } catch (e) {
+      /* ignore */
+    }
+    for (const w of this.pool) {
+      try {
+        w.postMessage({ id: -this.nextId++, type, args });
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }
+
   _bump(jobId, prio) {
     const j = this.queue.find((q) => q.id === jobId);
     if (j) {
@@ -113,6 +129,7 @@ export class GenService {
   }
 
   _onMessage(w, msg) {
+    if (msg.id < 0) return; // broadcast acknowledgement (the worker's job slot is untouched)
     w._busy = false;
     const job = this.inflight.get(msg.id);
     this.inflight.delete(msg.id);

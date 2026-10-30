@@ -208,7 +208,7 @@ function paintBottom(c) {
       P.line(R.skirt, [[s + 0.02, 0.2 + r() * 0.2], [s + 0.02 + (r() - 0.5) * 0.03, 1]], shade(col, 1.12), 2 + r() * 3, 0.12);
     }
     // wrap overlap fold at the front-left (Thai sarong tuck)
-    if (o.bottom !== 'skirt_knee') {
+    if (o.bottom === 'skirt_wrap' || o.bottom === 'skirt_wrapknee') {
       P.line(R.skirt, [[0.62, 0], [0.6, 1]], shade(col, 0.6), 3, 0.5);
       P.line(R.torso, [[0.57, tWaist], [0.63, tWaist + 0.03], [0.6, 1]], shade(col, 0.6), 2.5, 0.5);
       // waist roll (the sarong is rolled down at the waist)

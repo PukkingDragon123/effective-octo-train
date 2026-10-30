@@ -110,5 +110,19 @@ export default async function (ctx) {
     mainLength: Math.round(world.road.length('main')),
     landmarks: Object.keys(world.landmarks).length,
     forest: world.forest?.stats?.(),
+    probe: probe(),
   });
+  function probe() {
+    const cam = engine.camera;
+    cam.updateMatrixWorld();
+    const rc = new THREE.Raycaster();
+    const out = { cam: cam.position.toArray().map((v) => +v.toFixed(2)), ground: +world.getHeight(cam.position.x, cam.position.z).toFixed(2), hits: [] };
+    for (const [nx, ny] of [[0, 0], [0, -0.5], [-0.5, 0], [0.5, 0]]) {
+      rc.setFromCamera(new THREE.Vector2(nx, ny), cam);
+      const h = rc.intersectObject(engine.scene, true).find((i) => i.object.visible && !i.object.isSprite);
+      out.hits.push(h ? `${h.object.name || h.object.type}@${h.distance.toFixed(1)}` : 'none');
+    }
+    out.fog = GLOBAL_UNIFORMS.uFogDensity?.value;
+    return out;
+  }
 }

@@ -6,8 +6,11 @@
 //   4  dhamma talk
 // radio.setOn(b) · next() · setStation(n) · setStatic(0..1 ghost interference) · setVolume(v) · attach(obj) · setHour(h)
 // Emits bus 'audio:radio' {on, station, song, title, memory?}.
+// Recorded samples (when the manifest has them): the static bed (radio_static), ching/chap hits in the
+// luk thung rhythm and khaen / khim phrases as station idents (registered into the song renderer).
 import { bus } from '../core/Events.js';
-import { programItem } from './Synth/songs.js';
+import { programItem, RADIO_SR } from './Synth/songs.js';
+import { toMono } from './Samples.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 export const STATION_NAMES = {
@@ -154,15 +157,62 @@ export class Radio {
     send.gain.value = 0.25;
     this.speaker.connect(send);
     send.connect(core.buses.radio.sendCab);
-    // static bed
-    Promise.resolve(core.task('bed:static:1', 'bed', { kind: 'static', seed: 1 }, 1)).then((buf) => {
-      const s = ctx.createBufferSource();
-      s.buffer = buf;
-      s.loop = true;
-      s.connect(this.staticGain);
-      s.start();
+    // static bed: recorded (radio_static, rms-matched to the synth bed) or synthesized
+    const bank = core.samples;
+    const synthStatic = () =>
+      Promise.resolve(core.task('bed:static:1', 'bed', { kind: 'static', seed: 1 }, 1)).then((buf) => this._staticBed(buf, 1));
+    Promise.resolve(bank?.ready).then(() => {
+      const e = bank?.entry('radio_static');
+      if (!e || !bank.enabled) return synthStatic();
+      return Promise.resolve(bank.get({ e, idx: 0 }, 1)).then((buf) => {
+        if (!buf) return synthStatic();
+        bank.pin(buf._file);
+        this._staticBed(buf, bank.normGain(buf, -24, 'rms', 2));
+      });
     });
+    this._loadSampledInstruments();
     if (this.on) this._startStation(this.station || 1, 0.3);
+  }
+
+  _staticBed(buf, gain) {
+    if (!this.core || !buf) return;
+    const ctx = this.core.ctx;
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    s.loop = true;
+    if (buf._loopEnd) {
+      s.loopStart = buf._loopStart;
+      s.loopEnd = buf._loopEnd;
+    }
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    s.connect(g);
+    g.connect(this.staticGain);
+    s.start(ctx.currentTime, Math.random() * buf.duration * 0.9);
+    this.staticSrc = s;
+  }
+
+  /** Decode ching / khaen / khim recordings and hand them to the radio song renderer (all workers). */
+  _loadSampledInstruments() {
+    const core = this.core;
+    const bank = core.samples;
+    if (!bank || !core.gen?.broadcast) return;
+    Promise.resolve(bank.ready).then(async () => {
+      if (!bank.enabled) return;
+      const take = async (key, maxDur) => {
+        const e = bank.entry(key);
+        if (!e) return [];
+        const bufs = await Promise.all(e.files.map((f, idx) => Promise.resolve(bank.get({ e, idx }, 2))));
+        return bufs.filter(Boolean).map((b) => toMono(b, RADIO_SR, maxDur, 0.9 / Math.max(1e-4, b._stats?.peak || 1)));
+      };
+      const [ching, khaen, khim] = await Promise.all([take('ching', 1.6), take('khaen_phrase', 3.2), take('khim_phrase', 3.2)]);
+      const reg = {};
+      if (ching.length) reg.ching = ching;
+      if (khaen.length) reg.jingle1 = khaen; // luk thung station: khaen
+      if (khim.length) reg.jingle2 = khim; // old songs station: khim
+      if (Object.keys(reg).length) core.gen.broadcast('setSampled', reg);
+      this.sampledInstruments = Object.keys(reg);
+    }).catch((err) => console.warn('[audio] radio samples', err));
   }
 
   _stopProgram(fade = 0.05) {

@@ -161,6 +161,76 @@ export function detectCatch(buf) {
   return buf._catch;
 }
 
+function fftMag(x) {
+  const n = x.length;
+  const re = Float64Array.from(x), im = new Float64Array(n);
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) [re[i], re[j]] = [re[j], re[i]];
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = (-2 * Math.PI) / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let j = 0; j < len / 2; j++) {
+        const a = i + j, b = a + len / 2;
+        const br = re[b] * cr - im[b] * ci, bi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - br;
+        im[b] = im[a] - bi;
+        re[a] += br;
+        im[a] += bi;
+        const nr = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr;
+        cr = nr;
+      }
+    }
+  }
+  const m = new Float64Array(n / 2);
+  for (let k = 0; k < n / 2; k++) m[k] = Math.hypot(re[k], im[k]);
+  return m;
+}
+
+/** Pitched one-shots (a ranat bar): strongest spectral peak (Hz) just after the onset. */
+export function detectPitch(buf, fmin = 110, fmax = 2600) {
+  if (buf._f0 != null) return buf._f0;
+  const d = buf.getChannelData(0);
+  const sr = buf.sampleRate;
+  let on = 0, pk = 0;
+  for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > pk) pk = Math.abs(d[i]);
+  while (on < d.length && Math.abs(d[on]) < pk * 0.2) on++;
+  const N = 8192;
+  const x = new Float64Array(N);
+  const s0 = Math.min(d.length - 1, on + Math.floor(sr * 0.02)); // skip the mallet click
+  for (let i = 0; i < N && s0 + i < d.length; i++) x[i] = d[s0 + i] * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N));
+  const m = fftMag(x);
+  const k0 = Math.max(1, Math.floor((fmin * N) / sr)), k1 = Math.min(m.length - 2, Math.ceil((fmax * N) / sr));
+  let best = k0;
+  for (let k = k0; k <= k1; k++) if (m[k] > m[best]) best = k;
+  const a = m[best - 1], b = m[best], c = m[best + 1];
+  const p = (a - c) / (2 * (a - 2 * b + c) || 1);
+  buf._f0 = ((best + (Math.abs(p) < 1 ? p : 0)) * sr) / N;
+  return buf._f0;
+}
+
+/** Mono Float32Array of a buffer at `sr` (linear interpolation; for lo-fi uses like the radio). */
+export function toMono(buf, sr, maxDur = 8, gain = 1) {
+  const ratio = buf.sampleRate / sr;
+  const n = Math.min(Math.floor(buf.length / ratio), Math.floor(maxDur * sr));
+  const out = new Float32Array(n);
+  const chs = [];
+  for (let c = 0; c < buf.numberOfChannels; c++) chs.push(buf.getChannelData(c));
+  const g = gain / chs.length;
+  for (let i = 0; i < n; i++) {
+    const x = i * ratio, i0 = Math.floor(x), f = x - i0;
+    let v = 0;
+    for (const d of chs) v += d[i0] + ((d[i0 + 1] ?? d[i0]) - d[i0]) * f;
+    out[i] = v * g;
+  }
+  return out;
+}
+
 function decode(ctx, ab) {
   return new Promise((resolve, reject) => {
     try {

@@ -158,6 +158,14 @@ function withTiming(plan) {
 }
 
 // ---------------------------------------------------------------- rendering
+// Recorded instrument PCM registered by the main thread (mono, RADIO_SR, peak ~0.9):
+//   ching: [hits] (chap = a choked hit) · jingle1 / jingle2: [phrases] (station idents for DJ breaks)
+const SAMPLED = {};
+/** Register recorded instrument samples (also called inside each synth worker). */
+export function setSampled(name, list) {
+  if (Array.isArray(list) && list.length) SAMPLED[name] = list.filter((x) => x instanceof Float32Array && x.length > 16);
+  else delete SAMPLED[name];
+}
 const noteCache = new Map();
 function noteBuf(inst, f, vel, extra) {
   const key = inst + ':' + f.toFixed(2) + ':' + vel + ':' + (extra ? JSON.stringify(extra) : '');
@@ -191,8 +199,17 @@ export function renderRadioChunk(plan, ci) {
     const at = plan.kind === 'dj' ? 0.9 : 0.6;
     mixInto(out, buffer, Math.floor(at * sr), plan.kind === 'dj' ? 1.1 : 1.35);
     if (plan.kind === 'dj') {
-      // station jingle: quick khim arpeggio
-      [0, 4, 7, 12, 16].forEach((s, i) => mixInto(out, noteBuf('khim', mtof(67 + s), 0.85), Math.floor((0.05 + i * 0.09) * sr), 0.25));
+      const jingles = SAMPLED['jingle' + plan.station];
+      if (jingles?.length) {
+        // station ident: a recorded khaen / khim phrase, faded under the DJ
+        const j = jingles[plan.idx % jingles.length];
+        const n = Math.min(j.length, Math.floor((at + 1.4) * sr));
+        const fade = Math.floor(0.6 * sr);
+        for (let i = 0; i < n; i++) out[i] += j[i] * 0.3 * (i > n - fade ? (n - i) / fade : 1);
+      } else {
+        // station jingle: quick khim arpeggio
+        [0, 4, 7, 12, 16].forEach((s, i) => mixInto(out, noteBuf('khim', mtof(67 + s), 0.85), Math.floor((0.05 + i * 0.09) * sr), 0.25));
+      }
     }
     if (plan.bell) mixInto(out, noteBuf('bell', 880, 0.45), 0, 0.2);
     // room tone
@@ -213,7 +230,17 @@ export function renderRadioChunk(plan, ci) {
   const rng = rngFrom(plan.idx * 101 + ci * 7 + plan.station);
   const put = (inst, f, tSec, gain, vel = 0.85, extra = null) => {
     if (tSec < -0.01 || tSec > ch.dur + 0.01) return;
-    mixInto(out, noteBuf(inst, f, vel, extra), Math.floor(Math.max(0, tSec) * sr), gain);
+    const at = Math.floor(Math.max(0, tSec) * sr);
+    if ((inst === 'ching' || inst === 'chap') && SAMPLED.ching?.length) {
+      // recorded ching; chap = the pair pressed together (choked after ~40 ms)
+      const hit = SAMPLED.ching[Math.floor(rng() * SAMPLED.ching.length)];
+      const choke = inst === 'chap' ? Math.floor(0.04 * sr) : hit.length;
+      const n = Math.min(hit.length, inst === 'chap' ? Math.floor(0.25 * sr) : hit.length, out.length - at);
+      const g = gain * (0.9 + rng() * 0.2);
+      for (let i = 0; i < n; i++) out[at + i] += hit[i] * g * (i < choke ? 1 : Math.exp(-(i - choke) / (0.03 * sr)));
+      return;
+    }
+    mixInto(out, noteBuf(inst, f, vel, extra), at, gain);
   };
   const swing = plan.kind === 'ballad' ? 0.62 : 0.5;
   for (let b = 0; b < nb; b++) {

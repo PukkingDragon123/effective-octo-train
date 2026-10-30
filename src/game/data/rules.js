@@ -1,12 +1,13 @@
 // RULES: Ah Kong's handwritten paper + the tunable parameters behind each rule.
 //
 // RULES[i] = {
-//   id: 'r1'..'r10',
+//   id: 'r1'..'r16' (r11-r16 are on the BACK of the paper: side:'back', red ink, Somchai's hand),
 //   th, en: the full line as written on the paper,
 //   shortTH, shortEN: compact label (pencil notes, debug HUD, death card references),
 //   mechanic: one-line designer note,
 //   params: numbers the gameplay rule system reads (all seconds / degrees / km/h / metres),
 //   optional: true for custom rules that never kill (r10),
+//   side: 'back' for r11-r16, exception: {th,en} the learned exception (not written on the paper),
 // }
 // HIDDEN_LINE = { th, en, minLoop, revealWhen:['wet','cabinLight'] }.
 // RULE_PARAMS = flat map of every tunable used by the rule system (single source of truth).
@@ -54,6 +55,27 @@ export const RULE_PARAMS = {
   respectPerHonk: 1,
   respectMax: 6,
   respectEncounterSoften: 0.12, // each respect point shortens soft encounters by 12 %
+  // --- back side of the paper (red ink, Somchai's handwriting) ---------------------
+  // r11: meter shows 444
+  meter444StopWithinSeconds: 8, // must be under meter444StopSpeedKmh within this
+  meter444StopSpeedKmh: 3,
+  meter444CountSeconds: 10, // then keep eyes off every mirror and window for this long
+  meter444LookDownPitchDeg: -22, // looking down at the dash/lap (pitch below this) is always safe
+  // r12: someone standing in the road who does NOT hail
+  roadFigureNoBrakeMinKmh: 15, // dropping below this within roadFigureDangerM = it reaches you
+  roadFigureDangerM: 25,
+  roadFigureMaxSwerveLateralM: 2.6, // swerving off the asphalt to avoid it also counts as failing
+  // r13: blood on the windshield
+  bloodWiperGraceSeconds: 3, // wipers must be OFF within this after the first drip
+  bloodWipeFailSeconds: 3, // wiping blood this long = what's on the roof slides down
+  // r14: no window down after midnight
+  windowRuleFromHour: 24,
+  windowOpenFailAmount: 0.3, // rolled down more than 30 % while something is at the window
+  // r15: the radio says your name
+  radioNameTuneSeconds: 5, // change station within this; switching OFF instead escalates to a back-seat voice
+  // r16: one more in the mirror than got in
+  extraPassengerSeconds: [12, 20], // how long the extra reflection stays
+  extraPassengerStopSpeedKmh: 3,
 };
 
 export const RULES = [
@@ -148,6 +170,76 @@ export const RULES = [
     optional: true,
     params: { windowSeconds: RULE_PARAMS.honkWindowSeconds, radiusM: RULE_PARAMS.honkShrineRadiusM, respectPerHonk: RULE_PARAMS.respectPerHonk, respectMax: RULE_PARAMS.respectMax },
   },
+  // ---------------------------------------------------------------------------------
+  // BACK OF THE PAPER: rules 11-16, in smudged RED ink and a DIFFERENT, shakier hand.
+  // Ah Kong: "ด้านหลังด้วยนะ อย่าลืมพลิกดู" (Turn it over too). It is Somchai's
+  // handwriting, left for whoever drives next (revealed late in the night).
+  // ---------------------------------------------------------------------------------
+  {
+    id: 'r11',
+    side: 'back',
+    th: 'ถ้ามิเตอร์ขึ้นเลข ๔๔๔ ให้จอดทันที ก้มหน้า แล้วนับในใจถึงสิบ ห้ามมองกระจกบานไหนทั้งนั้น',
+    en: 'If the meter shows 444, stop at once, bow your head and count to ten. Do not look at any glass.',
+    shortTH: 'มิเตอร์ ๔๔๔ จอด ก้มหน้า นับสิบ',
+    shortEN: 'Meter 444: stop, head down, count ten',
+    mechanic: 'Meter glitches to 444.00. Stop within 8 s, then for 10 s keep the gaze off every mirror and window (looking down is safe). Something counts along with you outside.',
+    params: { stopWithin: RULE_PARAMS.meter444StopWithinSeconds, stopSpeedKmh: RULE_PARAMS.meter444StopSpeedKmh, countSeconds: RULE_PARAMS.meter444CountSeconds, lookDownPitchDeg: RULE_PARAMS.meter444LookDownPitchDeg },
+    exception: { th: 'มีพระอยู่ในรถ เลขนี้ไม่มีความหมาย', en: 'With a monk aboard, the number means nothing.' },
+  },
+  {
+    id: 'r12',
+    side: 'back',
+    th: 'ถ้ามีคนยืนกลางถนนแต่ไม่โบกรถ ห้ามเบรก ห้ามหักหลบ ขับทะลุไปเลย',
+    en: "If someone stands in the road but doesn't hail you, don't brake, don't swerve. Drive straight through.",
+    shortTH: 'ยืนกลางถนนไม่โบก ขับทะลุ',
+    shortEN: 'Standing, not hailing: drive through',
+    mechanic: 'A figure in the lane. Slowing under 15 km/h within 25 m, or swerving off the asphalt, lets it reach you. Driving through = cold flash, glass fogs, it now stands behind you in the mirror.',
+    params: { minKmh: RULE_PARAMS.roadFigureNoBrakeMinKmh, dangerM: RULE_PARAMS.roadFigureDangerM, maxSwerveM: RULE_PARAMS.roadFigureMaxSwerveLateralM },
+    exception: { th: 'ถ้าเป็นสัตว์ ให้หยุดรอ', en: 'If it is an animal, stop and wait.' },
+  },
+  {
+    id: 'r13',
+    side: 'back',
+    th: 'ถ้ามีเลือดหยดลงกระจกหน้า ห้ามปัดน้ำฝน ปล่อยให้มันไหลไป',
+    en: 'If blood drips onto the windshield, do not use the wipers. Let it run.',
+    shortTH: 'เลือดหยดกระจก ห้ามปัด',
+    shortEN: 'Blood on the glass: no wipers',
+    mechanic: 'Blood drips from the roof edge. Wipers must be OFF within 3 s; wiping smears it and shows what hangs above, and 3 s of wiping = it slides down onto the glass.',
+    params: { graceSeconds: RULE_PARAMS.bloodWiperGraceSeconds, failSeconds: RULE_PARAMS.bloodWipeFailSeconds },
+    exception: { th: 'ถ้าเป็นน้ำหมาก ก็แค่น้ำหมาก', en: 'If it is betel juice, it is only betel juice.' },
+  },
+  {
+    id: 'r14',
+    side: 'back',
+    th: 'หลังเที่ยงคืน ห้ามลดกระจกให้ใครทั้งนั้น',
+    en: 'After midnight, never roll your window down for anyone.',
+    shortTH: 'หลังเที่ยงคืน ห้ามลดกระจก',
+    shortEN: 'After midnight: windows stay up',
+    mechanic: 'Something knocks and asks for help or a light. Opening a window past 30 % while it waits = an arm reaches in.',
+    params: { fromHour: RULE_PARAMS.windowRuleFromHour, failAmount: RULE_PARAMS.windowOpenFailAmount },
+    exception: { th: 'พระขอ ให้ลด', en: 'If a monk asks, roll it down.' },
+  },
+  {
+    id: 'r15',
+    side: 'back',
+    th: 'ถ้าวิทยุเรียกชื่อแก ให้เปลี่ยนคลื่นทันที ห้ามปิด',
+    en: 'If the radio says your name, change the station at once. Do not switch it off.',
+    shortTH: 'วิทยุเรียกชื่อ เปลี่ยนคลื่น ห้ามปิด',
+    shortEN: 'Radio says your name: retune, never off',
+    mechanic: 'The DJ voice says "ต้น…". Retune within 5 s. Switching off instead = the same voice continues from the back seat (a rule-3 test).',
+    params: { tuneSeconds: RULE_PARAMS.radioNameTuneSeconds },
+    exception: { th: 'ถ้าเป็นเพลงที่พ่อขอ ฟังให้จบ', en: 'If it is a song your father requested, listen to the end.' },
+  },
+  {
+    id: 'r16',
+    side: 'back',
+    th: 'ถ้านับคนในกระจกได้มากกว่าคนที่ขึ้นรถ อย่าทัก อย่าถาม อย่าจอด',
+    en: 'If you count more people in the mirror than got in, say nothing, ask nothing, do not stop.',
+    shortTH: 'ในกระจกเกินมาหนึ่ง อย่าทัก',
+    shortEN: 'One too many in the mirror: say nothing',
+    mechanic: 'An extra figure sits beside the passenger in the rearview mirror only. A dialogue choice tempts you to ask "who is that?"; asking or stopping = it answers.',
+    params: { durationSeconds: RULE_PARAMS.extraPassengerSeconds, stopSpeedKmh: RULE_PARAMS.extraPassengerStopSpeedKmh },
+  },
 ];
 
 /** Only legible when the paper is wet (rain) or held near the cabin light, from loop 2 on. */
@@ -165,6 +257,13 @@ export const PAPER = {
   footer: { th: 'ขับดี ๆ นะ ไอ้หนุ่ม  — อากง', en: 'Drive carefully, young man.  — Ah Kong' },
   // the old man's hand-drawn sketch at the bottom: a fork with arrows
   forkSketch: { left: { th: 'ตาย', en: 'dead' }, right: { th: 'เป็น', en: 'living' } },
+  // back side: red ink, a different (Somchai's) hand
+  back: {
+    title: { th: 'ที่อากงไม่ได้เขียน', en: "What Ah Kong didn't write" },
+    footer: { th: 'ใครขับต่อจากฉัน… ขอให้ได้กลับบ้าน — ส.', en: 'Whoever drives after me… I hope you get home.  — S.' },
+    ink: 'red',
+    hand: 'somchai',
+  },
 };
 
 /**
@@ -182,6 +281,13 @@ export const PENCIL_NOTES = {
   r8: { th: 'กำพระแน่น ๆ หายใจช้า ๆ', en: 'grip the amulet. breathe slow' },
   r9: { th: 'มืดก็ปล่อยให้มืด', en: 'if it goes dark, let it' },
   r10: { th: 'ปี๊น ปี๊น — เจ้าที่ใจดีขึ้น', en: 'beep beep. the spirits ease off' },
+  r11: { th: 'ก้มหน้า นับช้า ๆ มีอะไรนับตามด้วย', en: 'head down. count slow. something counts with me' },
+  r12: { th: 'อย่าเบรก ทะลุไปเลย มันเย็นมาก', en: "don't brake. go through. it's so cold" },
+  r13: { th: 'ที่ปัด OFF! บนหลังคามีอะไรห้อยอยู่', en: 'wipers OFF! something hangs off the roof' },
+  r14: { th: 'มันขอไฟแช็ก อย่าลดกระจก', en: "it asked for a lighter. window stays UP" },
+  r15: { th: 'เปลี่ยนคลื่น อย่าปิด!', en: 'retune. never OFF!' },
+  r16: { th: 'ในกระจกมีเด็กอีกคน... ไม่ถาม', en: "another kid in the mirror... didn't ask" },
+  back: { th: 'ลายมือด้านหลัง... ลายมือพ่อ', en: "the handwriting on the back... it's Dad's" },
   hidden: { th: 'ข้อสาม... ไม่มีข้อยกเว้น', en: 'rule 3... no exceptions' },
   'p:sri': { th: 'ป้าศรี = คน (หายใจขึ้นกระจก)', en: 'Auntie Sri = human (breath on glass)' },
   'p:womanWhite': { th: 'ชุดขาว = ไม่มีเงา ห้ามมอง!', en: 'white dress = no reflection. DON\'T LOOK' },

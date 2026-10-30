@@ -145,28 +145,51 @@ const TYPES = {
       rel = mod(rel, box) - box * 0.5;
       wp = uOrigin + rel;
       wp.y = uOrigin.y + rel.y + 0.4;
-      vec3 lit = pDirect(wp) * 1.3 + dlbAmbient * 0.8 + dlbSunScatter * 2.0;
+      // invisible in the dark: lights up only inside the headlight cone / near lamps / at dawn
+      vec3 lit = pDirect(wp) * 1.6 + dlbAmbient * 0.06 + dlbSunScatter * 2.0;
       col = vec4(uColor * lit * uIntensity, 1.0);
       size = 0.012 + aSeed2.z * 0.012;
       shape = 0.0;
     `,
   },
-  leaves: {
-    count: 90, radius: 12, height: 9, blending: NORMAL, mode: WORLD, minPx: 1.0, color: 0x6a5a30, cameraCentred: false,
+  spores: {
+    // fine pale spores / seed fluff hanging in the air, slow lazy drift; visible only in beams
+    count: 340, radius: 8, height: 3.2, blending: ADD, mode: BILLBOARD, minPx: 1.1, color: 0xe4f2cc, cameraCentred: true, lead: 0.55,
     body: /* glsl */ `
-      float fall = 0.55 + aSeed2.x * 0.6;
+      vec3 box = vec3(uRadius * 2.0, uHeight, uRadius * 2.0);
+      vec3 drift = vec3(uWindV.x, 0.02, uWindV.y) * t * 0.3 + vec3(sin(t * 0.21 + aSeed2.x * 20.0), sin(t * 0.17 + aSeed2.y * 20.0) * 0.6, cos(t * 0.19 + aSeed2.z * 20.0)) * 0.45;
+      vec3 rel = aSeed.xyz * box + drift - uOrigin;
+      rel = mod(rel, box) - box * 0.5;
+      wp = uOrigin + rel;
+      wp.y = uOrigin.y + rel.y + 0.3;
+      float hl = dlbHeadlightAt(wp);
+      vec3 lit = dlbHeadlightColor * hl * 9.0 + dlbLampLightAt(wp) * 1.0 + dlbSunScatter * 1.5;
+      float tw = 0.7 + 0.3 * sin(t * (1.3 + aSeed2.w * 2.0) + aSeed.w * 30.0);
+      col = vec4(uColor * lit * tw * uIntensity, 1.0);
+      size = 0.006 + aSeed2.z * 0.007;
+      shape = 0.0;
+    `,
+  },
+  leaves: {
+    // painted tumbling leaves; setIntensity(<1) thins them out, setIntensity(>1) = a gust:
+    // every leaf is pushed downwind and spins faster (integrated on the CPU, no popping)
+    count: 90, radius: 12, height: 9, blending: NORMAL, mode: WORLD, minPx: 1.0, color: 0x6a5a30, cameraCentred: false, countByIntensity: true,
+    body: /* glsl */ `
+      float fall = 0.45 + aSeed2.x * 0.5;
       float ph = fract(aSeed.y + t * fall / uHeight);
       vec3 sway = vec3(sin(t * (1.2 + aSeed2.y) + aSeed.w * 20.0), 0.0, cos(t * (0.9 + aSeed2.z) + aSeed.x * 20.0)) * 0.6;
-      vec3 p = vec3((aSeed.x * 2.0 - 1.0) * uRadius, uHeight * (1.0 - ph), (aSeed.z * 2.0 - 1.0) * uRadius);
-      p.xz += uWindV * 4.0 * ph * uHeight / fall * 0.15;
-      wp = uOrigin + p + sway;
-      rot = t * (1.5 + aSeed2.w * 3.0) + aSeed.w * 6.28;
-      misc.y = t * (0.8 + aSeed2.x * 2.0) + aSeed2.y * 6.28;
+      vec2 xz = (aSeed.xz * 2.0 - 1.0) * uRadius + uWindV * 0.6 * ph * uHeight / fall + uGust * (0.6 + aSeed2.x * 0.8);
+      xz = mod(xz + uRadius, 2.0 * uRadius) - uRadius;
+      float edgeF = 1.0 - smoothstep(uRadius * 0.8, uRadius, max(abs(xz.x), abs(xz.y)));
+      wp = uOrigin + vec3(xz.x, uHeight * (1.0 - ph), xz.y) + sway;
+      rot = uSpin * (1.5 + aSeed2.w * 3.0) + aSeed.w * 6.28;
+      misc.y = uSpin * (0.8 + aSeed2.x * 2.0) + aSeed2.y * 6.28;
+      misc.w = aSeed2.y;
       size = 0.07 + aSeed2.z * 0.05;
       vec3 tint = mix(vec3(0.42, 0.33, 0.14), vec3(0.25, 0.33, 0.12), aSeed2.y);
       tint = mix(tint, vec3(0.5, 0.22, 0.1), step(0.82, aSeed2.w));
-      vec3 lit = pAmbient(wp) * 1.2 + pDirect(wp) + dlbSunScatter * 3.0;
-      col = vec4(tint * uColor * 2.2 * lit, smoothstep(0.0, 0.05, ph) * (1.0 - smoothstep(0.95, 1.0, ph)));
+      vec3 lit = pAmbient(wp) * 1.2 + pDirect(wp) * 1.3 + dlbSunScatter * 3.0;
+      col = vec4(tint * uColor * 2.2 * lit, smoothstep(0.0, 0.05, ph) * (1.0 - smoothstep(0.95, 1.0, ph)) * edgeF);
       shape = 4.0;
     `,
   },
@@ -309,6 +332,8 @@ uniform float uMinPx;
 uniform float uStreak;
 uniform float uViewportH;
 uniform vec2 uWindV;
+uniform vec2 uGust;   // accumulated gust push (m, xz)
+uniform float uSpin;  // accumulated spin phase (time that runs faster in gusts)
 varying vec2 vUv;
 varying vec4 vCol;
 varying vec4 vMisc;
@@ -408,14 +433,21 @@ void main() {
     float r = length(p);
     a = smoothstep(0.45, 0.75, r) * (1.0 - smoothstep(0.8, 1.0, r)) * (0.6 + 0.4 * step(0.5, fract(atan(p.y, p.x) * 1.6)));
   } else if (sh == 4) {
-    // leaf: pointed ellipse + midrib
+    // painted leaf: pointed blade with a slightly ragged edge, midrib, veins, stem, dark rim
     vec2 q = p;
-    float w = (1.0 - q.y * q.y) * 0.55;
-    a = 1.0 - smoothstep(w * 0.85, w, abs(q.x));
-    a *= step(-1.0, q.y) * (1.0 - step(1.0, q.y));
-    if (a < 0.5) discard;
-    a = 1.0;
-    gl_FragColor = vec4(vCol.rgb * (0.55 + 0.45 * vMisc.z) * (0.85 + 0.15 * step(0.06, abs(q.x))), vCol.a);
+    float rnd = vMisc.w;
+    float w = (1.0 - q.y * q.y) * 0.55 * (1.0 - 0.12 * rnd * (0.5 + 0.5 * sin(q.y * 11.0 + rnd * 40.0)));
+    float ax = abs(q.x);
+    bool stem = ax < 0.035 && q.y < -0.6;
+    if (!stem && ax > w) discard;
+    float rimD = smoothstep(w * 0.6, w, ax);
+    float rib = 1.0 - smoothstep(0.0, 0.045, ax);
+    float veins = smoothstep(0.8, 1.0, sin((q.y - ax * 1.1) * 20.0 + rnd * 6.0)) * (1.0 - rimD);
+    float spots = step(0.7, rnd) * smoothstep(0.55, 0.75, dlbNoise2(q * 4.0 + rnd * 17.0));
+    vec3 c = vCol.rgb * (0.55 + 0.45 * vMisc.z);
+    c *= (1.0 - rimD * 0.3) * (1.0 + rib * 0.3 + veins * 0.18) * (1.0 - spots * 0.45);
+    if (stem) c = vCol.rgb * 0.6;
+    gl_FragColor = vec4(c, vCol.a);
     return;
   } else if (sh == 5 || sh == 7) {
     // smoke / mist puff: noisy soft blob
@@ -481,6 +513,8 @@ class Emitter {
       uStreak: { value: def.streak ?? 0.03 },
       uViewportH: { value: 1080 },
       uWindV: { value: new THREE.Vector2() },
+      uGust: { value: new THREE.Vector2() },
+      uSpin: { value: GLOBAL_UNIFORMS.uTime.value },
     });
     const mat = new THREE.ShaderMaterial({
       uniforms: this.uniforms, vertexShader: VERT(type, def), fragmentShader: FRAG,
@@ -520,11 +554,20 @@ class Emitter {
     if (this.groundFromCamera) u.uGround.value = camera.position.y - 1.6;
     const W = GLOBAL_UNIFORMS;
     u.uWindV.value.copy(W.uWindDir.value).multiplyScalar(W.uWindStrength.value);
+    // gusts (intensity > 1): integrate a downwind push + faster spin so nothing pops
+    const gust = Math.max(0, this.intensity - 1);
+    u.uSpin.value = (u.uSpin.value + dt * (1 + gust * 2.5)) % 10000;
+    if (gust > 0) {
+      const push = dt * gust * (1.5 + W.uWindStrength.value * 4);
+      u.uGust.value.x = (u.uGust.value.x + W.uWindDir.value.x * push) % 1000;
+      u.uGust.value.y = (u.uGust.value.y + W.uWindDir.value.y * push) % 1000;
+    }
     // active fade
     const a = u.uActive.value;
     u.uActive.value = a + (this._activeTarget - a) * Math.min(1, dt * 3);
     let frac = 1;
     if (this.def.intensityUniform) frac = Math.min(1, W[this.def.intensityUniform].value * this.intensity);
+    else if (this.def.countByIntensity) frac = Math.min(1, Math.max(0, this.intensity));
     u.uCountFrac.value = frac;
     u.uIntensity.value = this.intensity;
     // distance cull
@@ -553,10 +596,13 @@ class Particles {
   }
   /**
    * Spawn an emitter. type: 'fireflies'|'moths'|'mosquitoes'|'rain'|'dust'|'pollen'|'leaves'|'incense'|'smoke'|
-   *   'sparks'|'mist'|'headlightBugs'|'ash'|'drips'|'splash'|'embers'
+   *   'sparks'|'mist'|'headlightBugs'|'ash'|'drips'|'splash'|'embers'|'spores'
    * opts: { position?: Vector3, object?: Object3D, offset?: Vector3, radius?, count?, color?, follow?: Object3D, burst?: bool, intensity? }
    * Extra opts: height, groundY (splash / mist plane), seed, active, autoDispose (burst emitters).
-   *   Camera-centred types (rain, splash, dust, pollen, mist) follow the camera when no position/object is given.
+   *   Camera-centred types (rain, splash, dust, pollen, spores, mist) follow the camera when no position/object is given.
+   *   dust / pollen / spores are only visible where light hits them (headlight cone, lamps, dawn sun).
+   *   leaves: setIntensity(v) — v < 1 thins the fall, v > 1 is a gust (push downwind + faster tumble).
+   *   moths: position = a lamp (orbit it) or a canopy point with a bigger radius / height.
    *   headlightBugs: pass `object` = the vehicle (bugs swarm in front of its -Z).
    * Returns handle { object, setActive(bool), setIntensity(v), setPosition(v), dispose() } (+ burst(), type).
    */

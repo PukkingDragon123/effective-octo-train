@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import {
   paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, particles, postfx, GLOBAL_UNIFORMS,
-  createVolumetricBeam, applyWindShadows,
+  createVolumetricBeam, applyWindShadows, silhouetteMaterial,
 } from '../render/index.js';
 import { makeRng, noise } from '../core/math.js';
 import { LAYERS } from '../core/layers.js';
@@ -42,6 +42,32 @@ function leafClusterTexture(seed = 3, hue = 0) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
+  return t;
+}
+
+// painted tree-line flat: canopy blobs + trunks, alpha cut-out
+function treeLineTexture(seed = 21) {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 256;
+  const g = c.getContext('2d');
+  const rng = makeRng(seed);
+  g.fillStyle = '#56664e';
+  for (let i = 0; i < 26; i++) {
+    const x = rng() * 1024, w = 6 + rng() * 10, top = 60 + rng() * 120;
+    g.fillRect(x, top, w, 256 - top);
+  }
+  for (let i = 0; i < 140; i++) {
+    const x = rng() * 1024, y = 30 + Math.pow(rng(), 0.7) * 150, r = 14 + rng() * 34;
+    g.fillStyle = `hsl(${80 + rng() * 30}, ${12 + rng() * 14}%, ${30 + rng() * 14}%)`;
+    g.beginPath();
+    g.ellipse(x, y, r * (1 + rng() * 0.6), r * (0.7 + rng() * 0.4), rng() * 3, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.fillRect(0, 200, 1024, 56);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.RepeatWrapping;
   return t;
 }
 
@@ -346,14 +372,32 @@ export default async function ({ engine, cameraRig, params, settings }) {
   scene.add(hood);
   hood.visible = P('hood', '0') === '1';
 
+  // --- painted silhouette flats in the fog (stage-set tree lines) ------------------------------------------------
+  if (P('flats', '1') !== '0') {
+    const tl = treeLineTexture();
+    [[-150, 16, 1.6], [-200, 22, 2.4]].forEach(([z, hgt, fs], k) => {
+      const geo = new THREE.PlaneGeometry(260, hgt);
+      geo.translate(0, hgt / 2 - 0.5, 0);
+      const map = tl.clone();
+      map.repeat.set(3 + k, 1);
+      map.offset.x = k * 0.37;
+      map.needsUpdate = true;
+      const flat = new THREE.Mesh(geo, silhouetteMaterial({ map, fogScale: fs, sway: 0.15, name: 'treeLine' + k }));
+      flat.position.set(roadX(z), 0, z);
+      scene.add(flat);
+    });
+  }
+
   // --- particles -------------------------------------------------------------------------------------------
   particles.emit('rain', {});
   particles.emit('splash', { groundY: 0.03 });
   particles.emit('dust', { intensity: 1 });
   particles.emit('mist', { groundY: 0.0, intensity: hour >= 28 ? 1.3 : 1.5, count: 60 });
   if (hour >= 25.5 && hour < 28.6) particles.emit('fireflies', { position: new THREE.Vector3(roadX(-40), 0, -40), radius: 18, count: 80 });
-  particles.emit('leaves', { position: new THREE.Vector3(roadX(-20), 0, -20), radius: 10 });
+  const leavesH = particles.emit('leaves', { position: new THREE.Vector3(roadX(-14), 0, -14), radius: 10 });
   particles.emit('pollen', { intensity: hour >= 28.5 ? 1.5 : 0.6 });
+  particles.emit('spores', { intensity: 1 });
+  if (P('gust', '0') === '1') leavesH.setIntensity(2.5);
   particles.emit('headlightBugs', { object: hood, offset: new THREE.Vector3(0, -0.4, -1.2) });
   particles.emit('incense', { position: new THREE.Vector3(roadX(-30) - 4.6, 0.6, -29.6) });
   particles.emit('embers', { position: new THREE.Vector3(roadX(-30) - 4.6, 0.6, -29.6), count: 12, radius: 0.1, height: 0.8 });

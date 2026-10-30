@@ -44,9 +44,25 @@ vec3 dlbWindDisplace(vec3 wp, vec3 origin, vec3 nW, float h) {
   // leaf: tree sway + per-leaf flutter along the normal
   float k = hs * hs * 0.0009 + max(hs, 0.0) * 0.003;
   d = wd * (0.5 + 0.5 * sin(t * 0.6 + ph)) * k * gust + side * sin(t * 0.8 + ph * 1.3) * k * 0.4;
-  float fl = sin(t * (5.5 + 2.0 * gust) + dot(wp, vec3(2.3, 1.9, 2.7))) * sin(t * 3.1 + dot(wp, vec3(-1.1, 2.3, 0.9)));
-  d += nW * fl * 0.035 * dlbWindParams.y * (0.35 + gust);
-  d.y += sin(t * 1.7 + dot(wp, vec3(1.3, 0.0, 1.7))) * 0.015 * gust;
+  #ifdef DLB_LEAF_PIVOT
+  {
+    // rigid per-card flutter: every card rocks / twists about its own pivot with its own phase
+    vec3 r = wp - dlbPivotW.xyz;
+    float cph = dlbPivotW.w * 6.2831853 + ph;
+    float amp = dlbWindParams.y * (0.3 + gust);
+    float a1 = (sin(t * (4.2 + 1.8 * gust) + cph) * 0.7 + sin(t * 7.3 + cph * 2.3) * 0.3) * 0.2 * amp;
+    float a2 = sin(t * 2.6 + cph * 1.7) * 0.11 * amp;
+    d += cross(side, r) * a1 + cross(vec3(0.0, 1.0, 0.0), r) * a2;
+    d.y += sin(t * 1.9 + cph) * 0.012 * gust;
+  }
+  #else
+  {
+    // per-vertex flutter along the normal (spatially coherent, per-instance phase)
+    float fl = sin(t * (5.5 + 2.0 * gust) + dot(wp, vec3(2.3, 1.9, 2.7)) + ph * 3.0) * sin(t * 3.1 + dot(wp, vec3(-1.1, 2.3, 0.9)) + ph * 1.7);
+    d += nW * fl * 0.035 * dlbWindParams.y * (0.35 + gust);
+    d.y += sin(t * 1.7 + dot(wp, vec3(1.3, 0.0, 1.7)) + ph) * 0.015 * gust;
+  }
+  #endif
 #elif DLB_WIND == 4
   // grass: bend downwind, travelling waves sweep across fields
   float k = clamp(hs, 0.0, 2.5);
@@ -78,6 +94,10 @@ varying vec3 vDlbWP;
 varying vec3 vDlbWN;
 varying float vDlbH;
 #endif
+#ifdef DLB_LEAF_PIVOT
+attribute vec4 aLeafPivot; // xyz card pivot (object space), w phase 0..1
+vec4 dlbPivotW = vec4(0.0);
+#endif
 ${WIND_GLSL}
 `;
 
@@ -101,6 +121,9 @@ const VERT_PROJECT = /* glsl */ `
   vec3 dlbNW = normalize(dlbM3 * dlbNObj);
   float dlbHeight = dlbWP0.y - dlbOrigin.y;
   #if DLB_WIND > 0
+    #ifdef DLB_LEAF_PIVOT
+      dlbPivotW = vec4((dlbM * vec4(aLeafPivot.xyz, 1.0)).xyz, aLeafPivot.w);
+    #endif
     vec3 dlbDisp = dlbWindDisplace(dlbWP0, dlbOrigin, dlbNW, dlbHeight);
     float dlbS2 = max(dot(dlbM3[0], dlbM3[0]), 1e-8);
     transformed += (dlbDisp * dlbM3) / dlbS2;
@@ -119,6 +142,8 @@ const FRAG_COMMON = /* glsl */ `
 #include <dlb_common>
 #include <dlb_globals>
 #include <dlb_fog_common>
+#include <dlb_headlight>
+uniform float dlbHlBoost;
 varying vec3 vDlbWP;
 varying vec3 vDlbWN;
 varying float vDlbH;
@@ -253,6 +278,18 @@ const FRAG_EMISSIVE = /* glsl */ `
     totalEmissiveRadiance += dlbPaint2.w * (rim * 0.06 + 0.008) * vec3(0.55, 0.7, 0.75) * (1.0 + dlbRim);
   }
   #endif
+  #ifdef DLB_HLBOOST
+  {
+    // headlight fill: foliage inside the beam reads as bright pale green masses against
+    // the near-black forest, whatever way the individual cards face
+    float hl = dlbHeadlightAt(vDlbWP);
+    if (hl > 0.0) {
+      vec3 dc = diffuseColor.rgb;
+      vec3 pale = mix(dc, vec3(dlbLuma(dc)) * vec3(0.9, 1.14, 0.74), 0.45);
+      totalEmissiveRadiance += pale * dlbHeadlightColor * (hl * 21.0 * dlbHlBoost);
+    }
+  }
+  #endif
 `;
 
 const FRAG_ENV = /* glsl */ `
@@ -267,7 +304,12 @@ const FRAG_ENV = /* glsl */ `
 
 const FRAG_TRANSLUCENT_END = /* glsl */ `
   #ifdef DLB_TRANSLUCENT
-    reflectedLight.directDiffuse += dlbTransAcc * diffuseColor.rgb * vec3(1.05, 1.18, 0.5) * dlbPaint2.y * 0.6;
+  {
+    // light through the leaves: pale yellow-green, a little desaturated (thin leaf tissue)
+    vec3 dc = diffuseColor.rgb;
+    vec3 tc = mix(dc * vec3(1.05, 1.2, 0.5), vec3(dlbLuma(dc)) * vec3(0.95, 1.3, 0.62), 0.4) + vec3(0.004, 0.007, 0.002);
+    reflectedLight.directDiffuse += dlbTransAcc * tc * dlbPaint2.y * 0.65;
+  }
   #endif
 `;
 
@@ -420,6 +462,7 @@ function baseMaterial(opts) {
 export function paintedMaterial(opts = {}) {
   const m = baseMaterial(opts);
   m.userData.painted = { ...opts };
+  delete m.userData.painted._patch;
   const windMode = WIND_MODES[opts.wind || 'none'] ?? 0;
   const translucency = opts.translucency ?? 0;
   const pale = opts.pale ?? 0;
@@ -432,6 +475,7 @@ export function paintedMaterial(opts = {}) {
     dlbPaint2: { value: new THREE.Vector4(opts.windStrength ?? 1, translucency, opts.triplanarScale ?? 0.5, pale) },
     dlbPaint3: { value: new THREE.Vector4(opts.sss ?? 0.6, opts.dirtHeight ?? 0.5, opts.puddles ?? 1, opts.envReflect ?? 1) },
     dlbRim: { value: opts.rim ?? 0 },
+    dlbHlBoost: { value: opts.headlightBoost ?? 0 },
     dlbWindParams: { value: new THREE.Vector4(opts.windHeightScale ?? 1, opts.flutter ?? 1, opts.windPhase ?? 0, 0) },
     dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x445424) },
     dlbDirtColor: { value: new THREE.Color(opts.dirtColor ?? 0x3a2f24) },
@@ -446,6 +490,8 @@ export function paintedMaterial(opts = {}) {
   if (translucency > 0) defines.push('#define DLB_TRANSLUCENT');
   if (skin) defines.push('#define DLB_SKIN');
   if (pale > 0 || opts.paleCapable) defines.push('#define DLB_PALE');
+  if ((opts.headlightBoost ?? 0) > 0) defines.push('#define DLB_HLBOOST');
+  if (opts.leafPivot && windMode > 0) defines.push('#define DLB_LEAF_PIVOT');
   if (_debugView) defines.push('#define DLB_DEBUG ' + (DEBUG_VIEWS.indexOf(_debugView) + 1));
   const defStr = defines.join('\n') + '\n';
   const cacheKey = 'dlbPainted|' + defines.join('|');
@@ -467,15 +513,25 @@ export function paintedMaterial(opts = {}) {
       .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\n' + FRAG_ENV)
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + FRAG_TRANSLUCENT_END)
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n' + FRAG_DEBUG);
+    // internal hook for specialised render-module materials (blood decals, ...)
+    if (opts._patch) opts._patch(shader);
   };
-  m.customProgramCacheKey = () => cacheKey;
+  const key = opts._key ? cacheKey + '|' + opts._key : cacheKey;
+  m.customProgramCacheKey = () => key;
   return m;
 }
 
-/** Alpha-tested, double-sided, translucent, wind-swayed foliage (leaf cards, grass, ferns). */
+/**
+ * Alpha-tested, double-sided, translucent, wind-swayed foliage (leaf cards, grass, ferns).
+ * Crisp cut-outs: alpha-to-coverage in the MSAA scene target (a plain sharp alpha test
+ * otherwise). Extra opts: headlightBoost=0.35 (pale-green fill inside the headlight beam),
+ * leafPivot=false (geometry has `aLeafPivot` vec4 = card pivot xyz in object space + phase
+ * 0..1 -> rigid per-card flutter about the pivot, layered on the branch / tree sway).
+ */
 export function foliageMaterial(opts = {}) {
   return paintedMaterial({
     alphaTest: 0.5, side: THREE.DoubleSide, wind: 'leaf', translucency: 0.5, roughness: 0.8, brush: 0.5, wet: 0.6, puddles: 0,
+    headlightBoost: 0.35,
     ...opts,
   });
 }
@@ -488,7 +544,7 @@ export function skinMaterial(opts = {}) {
   return paintedMaterial(o);
 }
 
-/** Change painted-material parameters at runtime: {brush, wet, moss, dirt, windStrength, translucency, pale, sss}. */
+/** Change painted-material parameters at runtime: {brush, wet, moss, dirt, windStrength, translucency, pale, sss, rim, envReflect, headlightBoost}. */
 export function setPaintedParams(material, p = {}) {
   const u = material?.userData?.uniforms;
   if (!u) return;
@@ -502,6 +558,7 @@ export function setPaintedParams(material, p = {}) {
   if (p.sss !== undefined) u.dlbPaint3.value.x = p.sss;
   if (p.rim !== undefined) u.dlbRim.value = p.rim;
   if (p.envReflect !== undefined) u.dlbPaint3.value.w = p.envReflect;
+  if (p.headlightBoost !== undefined) u.dlbHlBoost.value = p.headlightBoost; // needs headlightBoost > 0 at creation
 }
 
 // ---------------------------------------------------------------------------
@@ -520,7 +577,8 @@ export function getWindDepthMaterial(material) {
     alphaTest: material.alphaTest,
     side: material.side,
   });
-  const defStr = `#define DLB_DEPTH\n#define DLB_WIND ${mode}\n`;
+  const pivot = !!(material.userData?.painted?.leafPivot && mode > 0);
+  const defStr = `#define DLB_DEPTH\n#define DLB_WIND ${mode}\n` + (pivot ? '#define DLB_LEAF_PIVOT\n' : '');
   d.onBeforeCompile = (shader) => {
     if (u) {
       shader.uniforms.dlbPaint2 = u.dlbPaint2;
@@ -530,7 +588,7 @@ export function getWindDepthMaterial(material) {
       .replace('#include <common>', '#include <common>\n' + VERT_COMMON)
       .replace('#include <project_vertex>', VERT_PROJECT);
   };
-  d.customProgramCacheKey = () => 'dlbDepth|' + mode;
+  d.customProgramCacheKey = () => 'dlbDepth|' + mode + (pivot ? '|pivot' : '');
   _depthCache.set(material, d);
   return d;
 }
