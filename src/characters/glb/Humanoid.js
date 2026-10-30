@@ -574,6 +574,12 @@ export class HumanoidGLB {
       for (const s of ['l', 'r']) rig.addEuler(I['clavicle_' + s], 0.06 * old, 0, 0);
     }
     if (L.child > 0) { rig.addEuler(I.Head, 0.04 * L.child, 0, 0); }
+    // the UAL idle stance is wide for everyday Thai passengers: bring the feet under the hips
+    if (mode === 'stand') {
+      const k = (1 - this.anim.moving) * (this.look.sex === 'f' ? 0.05 : 0.08);
+      rig.addEuler(I.thigh_l, 0, 0, -k); rig.addEuler(I.thigh_r, 0, 0, k);
+      rig.addEuler(I.foot_l, 0, 0, k); rig.addEuler(I.foot_r, 0, 0, -k);
+    }
     // breathing: chest rise, clavicles, subtle belly; faster when afraid
     const fear = this.faceS.expr.fear;
     const br = Math.sin(tm * (1.55 + fear * 1.6 + this.anim.moving * 0.8)) * (1 + fear * 0.6);

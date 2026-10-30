@@ -20,6 +20,9 @@ import { TaxiLights } from './Lights.js';
 import { CarPhysics, CAR, setPhysicsWetness } from './CarPhysics.js';
 import { TaxiControls, STATIONS } from './TaxiControls.js';
 import { DIM } from './TaxiBody.js';
+import { getVehicleAssets } from './VehicleAssets.js';
+import { buildTaxiFromGLB } from './TaxiGLB.js';
+import { Garland, AmuletCluster, GARLAND_UNIFORMS } from './Garland.js';
 
 // Taxi-local frame: +X right, +Y up, -Z forward. Right-hand drive (Thailand): driver sits at +X.
 export const TAXI_ANCHORS = {
@@ -70,7 +73,7 @@ function audioOwner() {
 }
 
 export class Taxi {
-  /** opts { world, interactions=false, controls=false } */
+  /** opts { world, interactions=false, controls=false, procedural=false (ignore taxi.glb) } */
   constructor(opts = {}) {
     this.kind = 'taxi';
     this.world = opts.world || null;
@@ -89,16 +92,33 @@ export class Taxi {
     this.bodyPivot.add(this.bodyInner);
 
     // ---- build ------------------------------------------------------------------------------
-    const ext = buildTaxiExterior();
+    // professional model when taxi.glb is loaded (loadVehicleAssets), procedural otherwise
+    let ext = null, int = null, glbAnchors = null;
+    const assets = getVehicleAssets();
+    if (assets.taxi && !opts.procedural) {
+      try {
+        const r = buildTaxiFromGLB(assets.taxi, TAXI_ANCHORS);
+        ext = r.ext;
+        int = r.int;
+        glbAnchors = r.anchors;
+      } catch (e) {
+        console.warn('[vehicle] taxi.glb could not be bound; using the procedural taxi', e);
+        ext = int = glbAnchors = null;
+      }
+    }
+    if (!ext) {
+      ext = buildTaxiExterior();
+      int = buildTaxiInterior(ext);
+    }
+    this.model = ext.glb ? 'glb' : 'procedural';
     this.ext = ext;
     this.bodyInner.add(ext.shell);
     for (const w of ext.wheels) this.chassis.add(w.pivot);
-    const int = buildTaxiInterior(ext);
     this.interior = int.group;
     this.parts = int.parts;
     this.bodyInner.add(this.interior);
-    // vacant lamp face (per-taxi emissive material)
-    {
+    // vacant lamp face (per-taxi emissive material; the GLB has its own vacant_lamp)
+    if (this.parts.vacantGroup) {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.065), ext.lenses.vacant);
       face.rotation.y = Math.PI; // faces forward (through the windshield)
       face.position.set(0, 0, -0.0235);
@@ -114,9 +134,11 @@ export class Taxi {
       const a = new THREE.Object3D();
       a.name = k;
       a.position.set(v[0], v[1], v[2]);
+      if (glbAnchors?.[k]) a.position.copy(glbAnchors[k]);
       this.bodyInner.add(a);
       this.anchors[k] = a;
     }
+    const glb = !!ext.glb;
     // anchors that follow moving parts
     const reparent = (name, parent) => {
       const a = this.anchors[name];
@@ -127,23 +149,30 @@ export class Taxi {
     this.root.updateMatrixWorld(true);
     reparent('steeringWheel', this.parts.steering.pivot);
     reparent('hornPad', this.parts.steering.spin);
-    this.anchors.hornPad.position.set(0, -0.005, 0.05);
-    this.anchors.sunVisorDriver.position.set(0, 0, 0);
-    this.parts.photoAnchor.add(this.anchors.sunVisorDriver);
-    this.anchors.gloveBox.position.set(0, 0, 0);
-    this.parts.gloveAnchor.add(this.anchors.gloveBox);
-    if (this.parts.stickerAnchor) {
-      this.anchors.dashSticker.position.set(0, 0, 0.002);
-      this.parts.stickerAnchor.add(this.anchors.dashSticker);
+    if (glb) {
+      // GLB: keep the (empty / derived) positions, just follow the moving parts
+      reparent('sunVisorDriver', this.parts.visors.driver);
+      reparent('gloveBox', this.parts.gloveAnchor);
+      if (this.parts.stickerAnchor) reparent('dashSticker', this.parts.stickerAnchor);
+    } else {
+      this.anchors.hornPad.position.set(0, -0.005, 0.05);
+      this.anchors.sunVisorDriver.position.set(0, 0, 0);
+      this.parts.photoAnchor.add(this.anchors.sunVisorDriver);
+      this.anchors.gloveBox.position.set(0, 0, 0);
+      this.parts.gloveAnchor.add(this.anchors.gloveBox);
+      if (this.parts.stickerAnchor) {
+        this.anchors.dashSticker.position.set(0, 0, 0.002);
+        this.parts.stickerAnchor.add(this.anchors.dashSticker);
+      }
+      this.anchors.amuletHang.position.copy(INT.mirrorPos).add(new THREE.Vector3(0, -0.01, -0.005));
     }
-    this.anchors.amuletHang.position.copy(INT.mirrorPos).add(new THREE.Vector3(0, -0.01, -0.005));
     this.seats = { driver: this.anchors.driverSeat, frontPassenger: this.anchors.frontPassengerSeat, rearLeft: this.anchors.rearLeftSeat, rearRight: this.anchors.rearRightSeat, rearCenter: this.anchors.rearCenterSeat };
 
     // ---- state -------------------------------------------------------------------------------
     this.state = {
       keyInserted: false, ignition: 'off', engineOn: false, gear: settings.get('transmission') === 'manual' ? 'N' : 'P', handbrake: true, headlights: 'off', cabinLight: false,
       indicator: 'off', wipers: 0, radioOn: false, radioStation: 0, meterOn: false, vacantLamp: true, horn: false,
-      windows: { fl: 0, fr: 0, rl: 0, rr: 0 }, doors: { fl: 0, fr: 0, rl: 0, rr: 0, trunk: 0 }, glovebox: false, visor: false, locked: false,
+      windows: { fl: 0, fr: 0, rl: 0, rr: 0 }, doors: { fl: 0, fr: 0, rl: 0, rr: 0, trunk: 0, hood: 0 }, glovebox: false, visor: false, locked: false,
     };
 
     // ---- systems -----------------------------------------------------------------------------
@@ -156,6 +185,18 @@ export class Taxi {
     this.physicsSim.onBump = (k) => this._onBump(k);
     this.physicsSim.onShift = () => audio.play('gear_shift', { object: this.root, volume: 0.25 });
     this.controls = new TaxiControls(this);
+    // ---- hanging decorations (JS for both model paths): amulets on chains + jasmine garland ----
+    {
+      const hang = this.anchorLocal('amuletHang');
+      this.amulets = new AmuletCluster(this, this.bodyInner, hang.clone().add(new THREE.Vector3(0.006, 0, 0)), [
+        { kind: 'arch', w: 0.024, h: 0.034, metal: 'gold', len: 0.105, dx: -0.012, twist: 0.4 },
+        { kind: 'coin', w: 0.026, metal: 'silver', len: 0.13, dx: 0.004, twist: -0.3, chainMetal: 'brass' },
+        { kind: 'rect', w: 0.02, h: 0.03, metal: 'brass', len: 0.085, dx: 0.016, twist: 1.2 },
+      ]);
+      this.garland = new Garland(this, this.bodyInner, { mode: 'hang', at: hang.clone().add(new THREE.Vector3(-0.022, 0, 0.002)), seed: 11 });
+      this.parts.swings.push(this.amulets, this.garland);
+      this.dashGarlands = [];
+    }
     this.physics = { speed: 0, rpm: 0, steer: 0, wheelAngle: 0, onRoad: true, roadRef: null, frozen: false, sim: this.physicsSim };
     Object.defineProperty(this.physics, 'frozen', {
       get: () => this.physicsSim.frozen,
@@ -352,6 +393,63 @@ export class Taxi {
     await new Promise((r) => setTimeout(r, opts.delay ?? 400));
     if (!this.state.engineOn) await this.setControl('ignition', 'start', opts);
   }
+  /**
+   * Lay a jasmine garland on the dashboard (Grandma Bua's gift). opts {at: Vector3 body-local
+   * (default: on the dash in front of the passenger), scale=1.25, seed}. Returns the garland
+   * ({dispose()}); it settles on the dash, jostles over bumps, drops petals and wilts with
+   * GARLAND_UNIFORMS.uWilt.
+   */
+  addDashGarland(opts = {}) {
+    const at = opts.at ? opts.at.clone() : new THREE.Vector3(-0.3, 1.0, -0.8);
+    // find the dash surface under the spot
+    const ray = new THREE.Raycaster();
+    this.root.updateMatrixWorld(true);
+    const o = this.bodyInner.localToWorld(at.clone().setY(1.2));
+    ray.set(o, new THREE.Vector3(0, -1, 0).applyQuaternion(this.bodyInner.getWorldQuaternion(new THREE.Quaternion())));
+    ray.far = 0.8;
+    const hit = ray.intersectObjects(this.cabinSurfaces(), false)[0];
+    const y = hit ? this.bodyInner.worldToLocal(hit.point.clone()).y : 0.94;
+    at.y = y + 0.006;
+    const g = new Garland(this, this.bodyInner, { mode: 'dash', at, floorY: y + 0.004, scale: opts.scale ?? 1.25, seed: opts.seed ?? 31, yaw: opts.yaw ?? 0.25, tassels: 2 });
+    this.parts.swings.push(g);
+    this.dashGarlands.push(g);
+    const dispose = g.dispose.bind(g);
+    g.dispose = () => {
+      dispose();
+      this.parts.swings.splice(this.parts.swings.indexOf(g), 1);
+      this.dashGarlands.splice(this.dashGarlands.indexOf(g), 1);
+    };
+    return g;
+  }
+  /** Wilting of every garland 0..1 (ghost-heavy rides): GARLAND_UNIFORMS.uWilt. */
+  get garlandWilt() {
+    return GARLAND_UNIFORMS.uWilt.value;
+  }
+  set garlandWilt(v) {
+    GARLAND_UNIFORMS.uWilt.value = clamp(v, 0, 1);
+  }
+  /** Anchor position in body (bodyInner) space. */
+  anchorLocal(name, out = new THREE.Vector3()) {
+    const a = this.anchors[name];
+    if (!a) return out.set(0, 0, 0);
+    this.root.updateMatrixWorld(true);
+    return this.bodyInner.worldToLocal(a.getWorldPosition(out));
+  }
+  /** Opaque cabin + body meshes (for raycasts: stains, drips, petals). Cached. */
+  cabinSurfaces() {
+    if (this._surfaces) return this._surfaces;
+    const out = [];
+    const skip = new Set();
+    for (const id of this.glass.ids) skip.add(this.glass.panes[id].mesh);
+    for (const m of this.mirrors.list) skip.add(m.mesh);
+    const take = (root) => root.traverse((o) => {
+      if (o.isMesh && !o.isInstancedMesh && !skip.has(o) && o.layers.isEnabled(0) && o.visible && !o.material?.transparent) out.push(o);
+    });
+    take(this.interior);
+    take(this.ext.shell);
+    this._surfaces = out;
+    return out;
+  }
   /** True for the taxi that currently drives the shared engine / radio sounds (player's or nearest). */
   isAudioOwner() {
     return audioOwner() === this;
@@ -509,7 +607,7 @@ export class Taxi {
       w.spin.rotation.x = -sim.wheelSpin[idx];
       if (w.front) w.pivot.rotation.y = sim.wheelSteer;
       // suspension travel: wheels stay on the ground while the body moves
-      w.pivot.position.y = DIM.wheelR;
+      w.pivot.position.y = w.radius ?? DIM.wheelR;
     }
     this._fwdUpdate();
   }
@@ -562,6 +660,10 @@ export class Taxi {
   }
 
   _setupWiperMasks() {
+    if (this.ext.maskWipers) {
+      for (const [pu, pv, r0, r1] of this.ext.maskWipers) this.glass.addWiper([pu, pv], r0, r1);
+      return;
+    }
     const ws = this.glass.panes.windshield;
     if (!ws || !ws.uvRange) return;
     const [u0, u1, v0, v1] = ws.uvRange;
@@ -661,6 +763,9 @@ export class Taxi {
     this._offSettings?.();
     this.autopilot(null);
     this.controls.dispose();
+    this.garland?.dispose();
+    this.amulets?.dispose();
+    for (const g of [...(this.dashGarlands || [])]) g.dispose();
     this.lights.dispose();
     this.glass.dispose();
     this.mirrors.dispose();

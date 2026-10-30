@@ -11,6 +11,21 @@ and by sunrise it is peaceful and emotional.
 
 ---
 
+## 0. Owner's standing directions
+
+* **The game is 100 % Thai** (`settings.language = 'th'` by default) with **almost zero
+  text**. Information comes through the world, voices, sound and the rules paper.
+  English exists only as an optional helper (`language = 'both'`).
+* **One typeface for everything: Srisakdi.**
+* **Dialogue is interactive:** Ton replies through short Thai choices (with timeouts, and
+  silence is a valid answer). Replies change what passengers say, reveal clues, can break
+  rules (r7, r16), and decide the endings.
+* **Several endings** (see §1 and `src/game/data/endings.js`).
+* **Death = being stuck in the loop:** you wake again at 21:00 at the garage with déjà vu.
+  Ah Kong, the passengers and the taxi (a tally of scratches on the dash) remember a
+  little more each time.
+* Super sharp, detailed, handmade visuals; never lazy primitive models (§9).
+
 ## 1. Premise and story
 
 **You are ต้น (Ton), 27.** You left your hill-country hometown for Bangkok years ago
@@ -239,11 +254,13 @@ trigger **only when you aren't looking**, then reveal when you are.
 
 ## 8. Opening, menu and tutorial
 
-* **Main menu**: a live cinematic in the real world at the fork. An old taxi drives
-  through thick fog toward ศาลเจ้ามารวย. A *human* passenger gets out and wanders down
-  the LEFT (ghost) road; a gigantic hand rises slowly from the fog and closes around
-  them. Elegant minimal menu: **NEW GAME · RESUME · SETTINGS · CREDITS**. Credits
-  include **Made by Pukking Dragon**.
+* **Main menu** (owner's direction): always a **live driving scene**. The old taxi drives
+  itself through the night forest on autopilot while slow cinematic cameras cut between
+  the cabin (over the empty driver's seat, the garland swinging), the headlights in the
+  fog, and the mirrors. Now and then it reaches ศาลเจ้ามารวย and the incident plays: a
+  human passenger walks down the LEFT road and the gigantic hand closes around them.
+  Thai-only menu: เริ่มเกมใหม่ · เล่นต่อ · ตั้งค่า · ทีมผู้สร้าง (credits include
+  **Made by Pukking Dragon**).
 * **New Game** → slot picker → the camera dives into the fog and comes out on the
   motorbike. No loading cut.
 * **Motorbike intro (playable)**: first-person hands on the handlebars of an old
