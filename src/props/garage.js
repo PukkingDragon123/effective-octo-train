@@ -415,7 +415,7 @@ export function createGarage(opts = {}) {
     useAsset(k, 'propane_tank', { p: [bx + 1.55, 0, bz + 0.05], r: 0.6 }, { fit: { h: 0.55 }, w: { grime: 0.5, streak: 0.5 } });
     useAsset(k, 'metal_stool_02', { p: [bx - 0.2, 0, bz + 0.72], r: 0.3 }, { fit: { h: 0.62 }, w: { dust: 0.3, grime: 0.4 } });
     if (useAsset(k, 'hand_truck', { p: [xR - 0.75, 0, zF - 0.85], r: [-0.18, -0.5, 0, 'YXZ'] }, { w: { grime: 0.5, streak: 0.5 } })) out.colliders.push({ x: xR - 0.75, z: zF - 0.85, r: 0.3 });
-    useAsset(k, 'cement_bag', { p: [-0.2, 0.12, zB + 1.15], r: [0, 0.2, 0] }, { fit: { w: 0.42 }, w: { dust: 0.8 } });
+    useAsset(k, 'cement_bag', { p: [0.75, 0, zB + 1.35], r: 0.3 }, { fit: { w: 0.42 }, w: { dust: 0.8 } });
   });
 
   group.add(k.build({ name: 'garage', detailDistance: 45 }));
