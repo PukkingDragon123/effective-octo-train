@@ -154,6 +154,18 @@ export function computeLayout(P) {
     set('hand' + s, wr, basisFromYZ(dx, dy, dz, ox, oy, oz));
     L['hand' + s].dir = [dx, dy, dz];
     L['hand' + s].dorsal = [ox, oy, oz];
+    // fingers from the hand layout (hand-local -> rig)
+    const HB = L['hand' + s].basis;
+    const HX = [HB[0], HB[1], HB[2]], HY = [HB[3], HB[4], HB[5]], HZ = [HB[6], HB[7], HB[8]];
+    const toRig = (p) => [wr[0] + HX[0] * p[0] + HY[0] * p[1] + HZ[0] * p[2], wr[1] + HX[1] * p[0] + HY[1] * p[1] + HZ[1] * p[2], wr[2] + HX[2] * p[0] + HY[2] * p[1] + HZ[2] * p[2]];
+    const toRigDir = (d) => [HX[0] * d[0] + HY[0] * d[1] + HZ[0] * d[2], HX[1] * d[0] + HY[1] * d[1] + HZ[1] * d[2], HX[2] * d[0] + HY[2] * d[1] + HZ[2] * d[2]];
+    const HL = handLayout(P, sg);
+    for (const f of FINGERS) {
+      const d = HL[f];
+      const d1 = toRigDir(d.d1), d2 = toRigDir(d.d2);
+      set(f + '1' + s, toRig(d.k1), basisFromYZ(d1[0], d1[1], d1[2], HZ[0], HZ[1], HZ[2]));
+      set(f + '2' + s, toRig(d.k2), basisFromYZ(d2[0], d2[1], d2[2], HZ[0], HZ[1], HZ[2]));
+    }
     // legs
     const hp = [sg * P.hipJointX, P.hipJointY, 0.0];
     const an = [sg * (P.hipJointX + P.legSpread), P.ankleY, 0.03];

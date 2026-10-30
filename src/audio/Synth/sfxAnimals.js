@@ -1,7 +1,7 @@
 // Animals of the Thai night forest: dogs, tokay gecko, owls, koel, rooster,
 // dawn birds, elephants, frogs, cicadas, mosquito. Mostly formant synthesis.
 import { TAU, alloc, normalize, mixInto, SVF, Biquad, OnePole, Wander, noiseBurst, addModes, Osc, fadeOut, fadeIn, loopify, Reson, clamp, rngFrom } from './dsp.js';
-import { L } from './sfxCar.js';
+import { L } from './lib.js';
 import { VoxScore, renderVox, vowelParams } from './vox.js';
 
 const vox = (sr, rng, build, opts = {}) => {

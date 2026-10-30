@@ -3,7 +3,7 @@
 // item names: see ITEMS below (or a factory name like createSala). eye=1 puts the camera
 // at human eye height (1.6 m). yaw = degrees around the target (0 = in front, +Z side).
 import * as THREE from 'three';
-import { sky, lightPool, paintedMaterial } from '../render/index.js';
+import { sky, lightPool, paintedMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
 import { tex } from '../textures/index.js';
 import * as P from '../props/index.js';
 
@@ -111,7 +111,8 @@ export default async function ({ engine, cameraRig, params }) {
   const itemName = params.get('item') || 'all';
   const hour = Number(params.get('hour') ?? 22);
   sky.setHour(hour);
-  if (!scene.fog && params.get('fog') !== '0') scene.fog = new THREE.FogExp2(0x0b1016, Number(params.get('fog') ?? 0.02));
+  sky.setWeather?.({ rain: Number(params.get('rain') ?? 0), fog: Number(params.get('fog') ?? 0), wind: 0.3 }, 0);
+  sky.setWetness?.(Number(params.get('wet') ?? 0.5));
 
   // ground + road
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400, 1, 1).rotateX(-Math.PI / 2), paintedMaterial({ color: 0x4a4636, map: tex('soil', { repeat: [80, 80] }) }));
@@ -172,13 +173,24 @@ export default async function ({ engine, cameraRig, params }) {
   const cam = view.cam ? view.cam.clone() : V(target.x + Math.sin(yaw) * dist, h, target.z + Math.cos(yaw) * dist);
   cameraRig.cinematic({ position: cam, lookAt: target, cut: true, fov: num('fov', 60) });
 
-  // headlight-like fill from the camera
+  // taxi-headlight-like fill from below the camera (same setup as the render sandbox)
   const fill = num('fill', 1);
   if (fill > 0) {
-    const s = new THREE.SpotLight(0xfff0dd, 40 * fill, 60, 0.55, 0.6, 2);
-    s.position.copy(cam).add(V(0, -0.5, 0));
-    s.target.position.copy(target);
+    const hl = cam.clone().add(V(0, -0.7, 0));
+    const look = target.clone();
+    look.y = Math.min(look.y, hl.y);
+    const dd = cam.distanceTo(target);
+    const s = new THREE.SpotLight(0xfff0d8, 2500 * fill * Math.min(1, (dd / 22) ** 2), 70, 0.6, 0.55, 2);
+    s.position.copy(hl);
+    s.target.position.copy(look);
+    s.castShadow = params.get('shadows') !== '0';
+    s.shadow.mapSize.set(1024, 1024);
+    s.shadow.bias = -0.0005;
+    s.shadow.camera.near = 0.3;
     scene.add(s, s.target);
+    GLOBAL_UNIFORMS.uHeadlightPos.value.copy(hl);
+    GLOBAL_UNIFORMS.uHeadlightDir.value.copy(look).sub(hl).normalize();
+    GLOBAL_UNIFORMS.uHeadlightOn.value = 1;
   }
   window.__props = { placed, P, ITEMS };
 }

@@ -20,7 +20,8 @@ const _s = new THREE.Vector3();
  */
 export class GridSurface {
   /** posFn(r, c) -> [x, y, z] */
-  constructor(rows, cols, posFn, { closedCols = false } = {}) {
+  constructor(rows, cols, posFn, { closedCols = false, invert = false } = {}) {
+    this.invert = invert; // swap winding + normals (when the grid's natural orientation faces inward)
     this.rows = rows;
     this.cols = cols;
     this.closedCols = closedCols;
@@ -65,7 +66,7 @@ export class GridSurface {
     }
     for (let i = 0; i < N.length; i += 3) {
       const l = Math.hypot(N[i], N[i + 1], N[i + 2]) || 1;
-      const s = flip ? -1 / l : 1 / l;
+      const s = flip !== this.invert ? -1 / l : 1 / l;
       N[i] *= s;
       N[i + 1] *= s;
       N[i + 2] *= s;
@@ -117,6 +118,7 @@ export class GridSurface {
         const a = vert(r, c), b = vert(r + 1, c), d = vert(r, c + 1), e = vert(r + 1, c + 1);
         let flip = !!opts.flip;
         if (opts.mirror) flip = !flip;
+        if (this.invert) flip = !flip;
         if (!flip) idx.push(a, b, e, a, e, d);
         else idx.push(a, e, b, a, d, e);
       }
@@ -385,3 +387,55 @@ export function boxUV(g, scale = 1) {
 }
 
 export { mergeGeometries };
+
+/**
+ * Sweep a closed 2D profile ([[side, up], ...]) along a 3D path (Vector3[]).
+ * Frames use a fixed world up (or opts.up) so bumpers / strips stay level.
+ * opts: { up: Vector3, capEnds: true, scaleFn(i)->number }
+ */
+export function sweep(path, profile, opts = {}) {
+  const up = opts.up || new THREE.Vector3(0, 1, 0);
+  const n = path.length, m = profile.length;
+  const T = new THREE.Vector3(), S = new THREE.Vector3(), U = new THREE.Vector3();
+  const pos = [];
+  for (let i = 0; i < n; i++) {
+    const a = path[Math.max(0, i - 1)], b = path[Math.min(n - 1, i + 1)];
+    T.subVectors(b, a).normalize();
+    S.crossVectors(T, up).normalize();
+    U.crossVectors(S, T).normalize();
+    const sc = opts.scaleFn ? opts.scaleFn(i) : 1;
+    for (let j = 0; j < m; j++) {
+      const [ps, pu] = profile[j];
+      pos.push([path[i].x + S.x * ps * sc + U.x * pu * sc, path[i].y + S.y * ps * sc + U.y * pu * sc, path[i].z + S.z * ps * sc + U.z * pu * sc]);
+    }
+  }
+  const grid = new GridSurface(n, m, (r, c) => pos[r * m + c], { closedCols: true });
+  const g = grid.build(() => true, { uv: (r, c) => [r / (n - 1), c / m] });
+  if (opts.capEnds === false) return g;
+  // caps: fan around the centroid of the end profiles
+  const caps = [];
+  for (const [r, flip] of [[0, true], [n - 1, false]]) {
+    const ctr = new THREE.Vector3();
+    for (let j = 0; j < m; j++) ctr.add(new THREE.Vector3(...pos[r * m + j]));
+    ctr.multiplyScalar(1 / m);
+    const cp = [ctr.x, ctr.y, ctr.z], ix = [];
+    const verts = [cp];
+    for (let j = 0; j < m; j++) verts.push(pos[r * m + j]);
+    for (let j = 0; j < m; j++) {
+      const a = 1 + j, b = 1 + ((j + 1) % m);
+      if (flip) ix.push(0, b, a);
+      else ix.push(0, a, b);
+    }
+    const cg = new THREE.BufferGeometry();
+    cg.setAttribute('position', new THREE.Float32BufferAttribute(verts.flat(), 3));
+    cg.setIndex(ix);
+    cg.computeVertexNormals();
+    cg.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(verts.length * 2), 2));
+    caps.push(cg);
+  }
+  // winding check: profile orientation may be either way; ensure caps face outward
+  return mergeGeometries([g, ...caps.map((c) => c.toNonIndexed ? c : c)].map((x) => {
+    if (!x.index) return x;
+    return x;
+  }), false) || g;
+}

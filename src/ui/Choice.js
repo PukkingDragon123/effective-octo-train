@@ -81,7 +81,7 @@ export class Choice {
       ctx = nav.push({
         root: row, modal, layout: 'horizontal', wrap: false, name: 'choice',
         items: () => btns,
-        initial: Math.max(0, options.findIndex((o) => o.key === (c.focusKey ?? null))),
+        initial: Math.max(0, options.findIndex((o) => o.key === (c.focusKey ?? c.defaultKey))),
         keymap: modal ? null : keymap,
         padmap: modal ? null : { left: 'left', right: 'right', select: 'select' },
         consumeActions: ['interact', 'confirm', 'indicatorLeft', 'indicatorRight', 'skip'],

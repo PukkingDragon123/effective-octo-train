@@ -5,10 +5,11 @@
 import * as THREE from 'three';
 import { clamp, lerp, smoothstep, noise } from '../core/math.js';
 import { ellipsoid, sphere, roundCone, capsule, custom, SDFGrid, primsBounds, basisFromYZ, basisFromEuler, smin, sdEllipsoid } from './SDF.js';
-import { surfaceNets, computeAO, smoothAttribute } from './Mesher.js';
+import { surfaceNets, finishMesh, computeAO, smoothAttribute } from './Mesher.js';
+import { decimate } from './Decimate.js';
 import { BONE_INDEX as BI, BONE_COUNT } from './Rig.js';
 import { outfitPlan, shell, skirtPrim, patternColor, hexRGB, planeD } from './Clothing.js';
-import { buildHandPart, buildFootPart } from './Hands.js';
+import { buildHandParts, buildFootParts } from './Hands.js';
 
 const V = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
@@ -477,51 +478,91 @@ export function paintSkin(base, x, y, z, ao, P, spec, out, region) {
  * opts: { prims, h, margin, relax, region(prims...) default, weightFn(region,x,y,z,dense), colorFn(mat,x,y,z,ao,region,n,out) , smoothW, clip }
  */
 export function buildPart(opts) {
+  return paintPart(meshPart(opts), opts);
+}
+
+/** Mesh a primitive stack (in its own local frame). Returns { mesh, ao, grid, rawTris }. */
+export function meshPart(opts) {
   const prims = opts.prims;
   const b = opts.bounds || primsBounds(prims, 0.03);
   const grid = new SDFGrid(b.slice(0, 3), b.slice(3), opts.h).build(prims, opts.margin ?? 0.05);
-  const mesh = surfaceNets(grid, { relax: opts.relax ?? 2, project: 2, clip: opts.clip });
+  let mesh = surfaceNets(grid, { relax: opts.relax ?? 2, project: 2, clip: opts.clip });
+  const rawTris = mesh.indices.length / 3;
+  if (opts.targetTris && rawTris > opts.targetTris) {
+    const d = decimate(mesh.positions, mesh.indices, opts.targetTris, { weightFn: opts.detailFn, lengthPenalty: opts.lengthPenalty ?? 2e-7 });
+    mesh = finishMesh(grid, d.positions, d.indices, { relax: 0, project: 1 });
+  }
   const ao = computeAO(mesh, grid, opts.ao || {});
+  return { mesh, ao, grid, rawTris };
+}
+
+/** Mirror a local-space meshed part across x = 0 (positions, normals, winding). */
+export function mirrorMeshed(md) {
+  const m = md.mesh;
+  const pos = new Float32Array(m.positions), nor = new Float32Array(m.normals);
+  for (let i = 0; i < pos.length; i += 3) { pos[i] = -pos[i]; nor[i] = -nor[i]; }
+  const idx = new Uint32Array(m.indices.length);
+  for (let i = 0; i < idx.length; i += 3) { idx[i] = m.indices[i]; idx[i + 1] = m.indices[i + 2]; idx[i + 2] = m.indices[i + 1]; }
+  return { mesh: { positions: pos, normals: nor, indices: idx, count: m.count, adj: m.adj }, ao: md.ao, grid: md.grid, mirrored: true, rawTris: md.rawTris };
+}
+
+/**
+ * Compute material/region/weights/colours. opts.xform(local[3]) -> rig[3] (and xformN for normals)
+ * maps local mesh space into rig space (identity when omitted). Ownership lookups use local coords
+ * (un-mirrored when md.mirrored).
+ */
+export function paintPart(md, opts) {
+  const { mesh, ao, grid } = md;
   const n = mesh.count;
-  const pos = mesh.positions;
+  const lp = mesh.positions;
+  const pos = opts.xform ? new Float32Array(n * 3) : lp;
+  const nor = opts.xform ? new Float32Array(n * 3) : mesh.normals;
+  if (opts.xform) {
+    const t = [0, 0, 0];
+    for (let v = 0; v < n; v++) {
+      opts.xform(lp[v * 3], lp[v * 3 + 1], lp[v * 3 + 2], t);
+      pos[v * 3] = t[0]; pos[v * 3 + 1] = t[1]; pos[v * 3 + 2] = t[2];
+      opts.xformN(mesh.normals[v * 3], mesh.normals[v * 3 + 1], mesh.normals[v * 3 + 2], t);
+      nor[v * 3] = t[0]; nor[v * 3 + 1] = t[1]; nor[v * 3 + 2] = t[2];
+    }
+  }
   const dense = new Float32Array(n * BONE_COUNT);
   const colors = new Float32Array(n * 3);
   const mats = new Array(n);
   const regions = new Array(n);
-  const cand = [];
   const col = [0, 0, 0];
+  const own = [null, null];
   const wtmp = new Float32Array(BONE_COUNT);
+  const mx = md.mirrored ? -1 : 1;
   for (let v = 0; v < n; v++) {
     const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
-    cand.length = 0;
-    let best = null, bestScore = Infinity, reg = null, regD = Infinity;
-    for (const p of prims) {
-      const bb = p.bbox;
-      const pad = 0.05;
-      if (x < bb[0] - pad || y < bb[1] - pad || z < bb[2] - pad || x > bb[3] + pad || y > bb[4] + pad || z > bb[5] + pad) continue;
-      if (p.op === 'sub') continue;
-      const d = p.eval(x, y, z);
-      const sc = d - (p.bias || 0);
-      if (sc < bestScore) { bestScore = sc; best = p; }
-      if (p.region && p.mat === 'skin' && d < regD) { regD = d; reg = p.region; }
-    }
+    grid.owners(lp[v * 3] * mx, lp[v * 3 + 1], lp[v * 3 + 2], own);
+    const best = own[0];
+    let reg = own[1] ? own[1].region : null;
     if (best && best.region === 'skirt') reg = 'skirt';
-    if (!reg) reg = opts.defaultRegion || 'torso';
+    if (!reg || opts.defaultRegion) reg = opts.defaultRegion || reg || 'torso';
     regions[v] = reg;
     const mat = best ? best.mat : 'skin';
     mats[v] = mat;
     wtmp.fill(0);
-    opts.weightFn(reg, x, y, z, wtmp, best);
+    opts.weightFn(reg, x, y, z, wtmp, best, lp[v * 3] * mx, lp[v * 3 + 1], lp[v * 3 + 2]);
     dense.set(wtmp, v * BONE_COUNT);
-    opts.colorFn(mat, x, y, z, ao[v], reg, mesh.normals, v, col, best);
+    opts.colorFn(mat, x, y, z, ao[v], reg, nor, v, col, best, lp[v * 3] * mx, lp[v * 3 + 1], lp[v * 3 + 2]);
     colors[v * 3] = lin(col[0]);
     colors[v * 3 + 1] = lin(col[1]);
     colors[v * 3 + 2] = lin(col[2]);
   }
-  if (opts.smoothW !== 0) smoothAttribute(mesh, dense, BONE_COUNT, opts.smoothW ?? 2, 0.5);
-  smoothAttribute(mesh, colors, 3, 1, 0.6);
+  const meshView = { adj: mesh.adj, count: n };
+  if (opts.smoothW !== 0) {
+    const active = [];
+    for (let bi = 0; bi < BONE_COUNT; bi++) {
+      for (let v = 0; v < n; v++) if (dense[v * BONE_COUNT + bi] > 0) { active.push(bi); break; }
+    }
+    smoothAttribute(meshView, dense, BONE_COUNT, opts.smoothW ?? 2, 0.5, active);
+  }
+  smoothAttribute(meshView, colors, 3, 1, 0.6);
   const { si, sw } = packWeights(dense, n);
-  return { positions: pos, normals: mesh.normals, indices: mesh.indices, colors, skinIndex: si, skinWeight: sw, count: n, mats, regions, ao };
+  return { positions: pos, normals: nor, indices: mesh.indices, colors, skinIndex: si, skinWeight: sw, count: n, mats, regions, ao, rawTris: md.rawTris };
 }
 
 /** Merge parts into a single BufferGeometry. */
@@ -662,9 +703,9 @@ export function buildBodyGeometry(spec, P, L, quality = 1) {
     if (mat === 'skin') return paintSkin(skin, x, y, z, ao, P, spec, out, reg);
     return garmentColor(mat, x, y, z, ao, out);
   };
-  const h = (0.0155 * s) / quality;
+  const h = 0.0135 * s;
   const bodyPart = buildPart({
-    prims, h, margin: 0.05, relax: 2,
+    prims, h, margin: 0.045, relax: 2, targetTris: Math.round(11500 * quality),
     weightFn: (reg, x, y, z, w) => W.weights(reg, x, y, z, w),
     colorFn,
     ao: { strength: 4 },
@@ -673,8 +714,8 @@ export function buildBodyGeometry(spec, P, L, quality = 1) {
   });
   const parts = [bodyPart];
   const ctx = { spec, P, L, plan, skin, W, garmentColor, colorFn };
-  for (const side of ['L', 'R']) parts.push(buildHandPart(ctx, side, quality));
-  for (const side of ['L', 'R']) parts.push(buildFootPart(ctx, side, quality));
+  parts.push(...buildHandParts(ctx, quality));
+  parts.push(...buildFootParts(ctx, quality));
   const geo = mergeParts(parts, { plan });
   geo.userData.buildMs = performance.now() - t0;
   geo.userData.tris = geo.index.count / 3;

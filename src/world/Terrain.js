@@ -20,6 +20,7 @@ export class Terrain {
     this.pads = []; // {x,z,hx,hz,cos,sin,h,blend,kind}
     this.creek = null; // { net, spline, waterAt(c) }
     this.ponds = []; // {x,z,r,depth}
+    this.mods = []; // authored dips / mounds
     this.tiles = new Map(); // key -> tile
     this.group = new THREE.Group();
     this.group.name = 'terrain';
@@ -70,6 +71,9 @@ export class Terrain {
       const pts = sp.points;
       for (let i = 0; i < pts.length; i += 2) {
         const p = pts[i];
+        // base = IDW of (road height - hills at the road): near a road the natural ground is the road
+        // height plus only the cross-gradient of the hills (cut on one side, fill on the other)
+        const rel = p.y - this._hills(p.x, p.z);
         const ci = Math.round((p.x - this.minx) / COARSE), cj = Math.round((p.z - this.minz) / COARSE);
         for (let dj = -rc; dj <= rc; dj++) {
           const j = cj + dj;
@@ -91,7 +95,7 @@ export class Terrain {
             }
             const w = 1 / (d2 + 900);
             wsum[k] += w;
-            hsum[k] += w * p.y;
+            hsum[k] += w * rel;
           }
         }
       }
@@ -251,11 +255,28 @@ export class Terrain {
   /** Hills relative to the road base: large rolling noise (continuous across roads). */
   _hills(x, z) {
     const n = this.noise;
-    return (n.fbm2(x / 210, z / 210, 3) * 15 + n.noise2D(x / 70 + 11, z / 70 - 3) * 3.5) * this.scaleE;
+    return (n.fbm2(x / 230, z / 230, 3) * 22 + n.noise2D(x / 75 + 11, z / 75 - 3) * 4 + n.noise2D(x / 26 - 7, z / 26 + 5) * 1.2) * this.scaleE;
   }
 
   _natural(x, z) {
-    return this._base(x, z) + this._hills(x, z);
+    return this._base(x, z) + this._hills(x, z) + this._localMod(x, z);
+  }
+
+  /** Authored terrain features: dips / mounds {x,z,r,dh} (e.g. the ravine below the accident curve). */
+  _localMod(x, z) {
+    let h = 0;
+    for (const m of this.mods) {
+      const d = Math.hypot(x - m.x, z - m.z);
+      if (d < m.r) {
+        const t = 1 - d / m.r;
+        h += m.dh * t * t * (3 - 2 * t);
+      }
+    }
+    return h;
+  }
+
+  addMod(x, z, r, dh) {
+    this.mods.push({ x, z, r, dh });
   }
 
   /**
@@ -320,7 +341,9 @@ export class Terrain {
     if (!nr.sp) {
       h = N + detail;
     } else if (e < 0) {
-      h = nr.hr - 0.28; // hidden under the asphalt ribbon (which has an edge lip)
+      // hidden under the asphalt; rises to just below the slab at the edge so crumbled
+      // edges reveal shoulder gravel rather than a trench
+      h = nr.hr - 0.06 - 0.24 * smoothstep(0, 1.1, -e);
     } else {
       const sh = this.sh;
       const hr = nr.hr;

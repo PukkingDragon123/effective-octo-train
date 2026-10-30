@@ -89,6 +89,19 @@ export function thaiHour(hour) {
   return `${hh - 18} ทุ่ม`; // 19..23
 }
 
+const TH_NUM_WORDS = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า', 'สิบ', 'สิบเอ็ด'];
+/** Same as thaiHour but spelled out, for title cards: 'ห้าทุ่ม', 'ตีสอง', 'เที่ยงคืน'. */
+export function thaiHourWords(hour) {
+  const hh = ((Math.floor(hour) % 24) + 24) % 24;
+  if (hh === 0) return 'เที่ยงคืน';
+  if (hh >= 1 && hh <= 5) return `ตี${TH_NUM_WORDS[hh]}`;
+  if (hh >= 6 && hh <= 11) return `${hh === 6 ? 'หก' : TH_NUM_WORDS[hh]}โมงเช้า`;
+  if (hh === 12) return 'เที่ยงวัน';
+  if (hh >= 13 && hh <= 15) return `บ่าย${TH_NUM_WORDS[hh - 12]}โมง`;
+  if (hh >= 16 && hh <= 18) return `${TH_NUM_WORDS[hh - 12]}โมงเย็น`;
+  return `${TH_NUM_WORDS[hh - 18]}ทุ่ม`;
+}
+
 /** Parse 'HH:MM' -> hour number (keeps 21..30 range for the night). */
 export function parseClock(str) {
   const m = /^(\d{1,2}):(\d{2})/.exec(String(str || ''));

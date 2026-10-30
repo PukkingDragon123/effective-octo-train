@@ -125,6 +125,7 @@ export class Roll {
       this._raf = requestAnimationFrame(tick);
       const dt = Math.min(0.1, (now - this._last) / 1000);
       this._last = now;
+      if (this.view.closest('.dlb-still')) return; // frozen for headless screenshots
       if (this.delay > 0) this.delay -= dt;
       else if (this.manualHold > 0) this.manualHold -= dt;
       else this.y += this.speed * dt;

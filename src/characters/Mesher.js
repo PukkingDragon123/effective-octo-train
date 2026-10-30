@@ -19,12 +19,15 @@ export function surfaceNets(grid, opts = {}) {
   const cornerOff = [0, 1, sy, sy + 1, sz, sz + 1, sz + sy, sz + sy + 1];
   const cornerXYZ = [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1];
   const vals = new Float32Array(8);
+  const skipD = h * 1.9;
 
   // 1. vertices
   for (let k = 0; k < nz - 1; k++) {
     for (let j = 0; j < ny - 1; j++) {
       let idx = j * sy + k * sz;
       for (let i = 0; i < nx - 1; i++, idx++) {
+        const d0 = data[idx];
+        if (d0 > skipD || d0 < -skipD) continue;
         let mask = 0;
         for (let c = 0; c < 8; c++) {
           const v = data[idx + cornerOff[c]];
@@ -123,6 +126,13 @@ export function surfaceNets(grid, opts = {}) {
     vcount = nv;
   }
 
+  return finishMesh(grid, pos, indices, opts);
+}
+
+/** Relax (tangential), project onto the iso-surface and compute normals for an indexed mesh. */
+export function finishMesh(grid, pos, indices, opts = {}) {
+  const vcount = pos.length / 3;
+  const h = grid.h;
   const mesh = { positions: pos, indices, count: vcount, normals: new Float32Array(vcount * 3) };
   const adj = buildAdjacency(mesh);
   mesh.adj = adj;
@@ -272,26 +282,26 @@ export function computeAO(mesh, grid, opts = {}) {
   return ao;
 }
 
-/** Smooth a per-vertex attribute (stride components) over the mesh graph. */
-export function smoothAttribute(mesh, arr, stride, iterations = 1, keep = 0.5) {
+/** Smooth a per-vertex attribute (stride components) over the mesh graph. comps: optional list of component indices to smooth. */
+export function smoothAttribute(mesh, arr, stride, iterations = 1, keep = 0.5, comps = null) {
   const { offsets, list } = mesh.adj;
   const n = mesh.count;
-  let src = arr;
-  let dst = new Float32Array(arr.length);
+  const cl = comps || Array.from({ length: stride }, (_, i) => i);
+  const nc = cl.length;
+  const tmp = new Float32Array(n * nc);
   for (let it = 0; it < iterations; it++) {
     for (let v = 0; v < n; v++) {
       const s = offsets[v], e = offsets[v + 1];
       const c = e - s;
-      for (let k = 0; k < stride; k++) {
+      for (let ci = 0; ci < nc; ci++) {
+        const k = cl[ci];
+        if (!c) { tmp[v * nc + ci] = arr[v * stride + k]; continue; }
         let acc = 0;
-        for (let q = s; q < e; q++) acc += src[list[q] * stride + k];
-        dst[v * stride + k] = c ? src[v * stride + k] * keep + (acc / c) * (1 - keep) : src[v * stride + k];
+        for (let q = s; q < e; q++) acc += arr[list[q] * stride + k];
+        tmp[v * nc + ci] = arr[v * stride + k] * keep + (acc / c) * (1 - keep);
       }
     }
-    const t = src;
-    src = dst;
-    dst = t === arr ? new Float32Array(arr.length) : t;
+    for (let v = 0; v < n; v++) for (let ci = 0; ci < nc; ci++) arr[v * stride + cl[ci]] = tmp[v * nc + ci];
   }
-  if (src !== arr) arr.set(src);
   return arr;
 }

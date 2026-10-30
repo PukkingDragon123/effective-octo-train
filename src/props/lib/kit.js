@@ -16,6 +16,7 @@ const _e = new THREE.Euler();
 const _s = new THREE.Vector3();
 const _t = new THREE.Vector3();
 const _nm = new THREE.Matrix3();
+const _lp = new THREE.Vector3();
 
 /** Default weathering. All amounts 0..1. Heights are prop-local metres. */
 export const DEFAULT_WEATHER = {
@@ -81,6 +82,8 @@ export class Kit {
     this.seed = seed;
     this.rng = makeRng(seed * 7919 + 13);
     this.buckets = new Map();
+    this.detailBuckets = new Map();
+    this.detail = false; // when true, parts go into the distance-culled detail LOD
     this.stack = [new THREE.Matrix4()];
     this.setWeather(weather);
     this.no = ((seed * 0.6180339) % 1) * 97.3; // noise offset per prop
@@ -128,15 +131,16 @@ export class Kit {
   /**
    * Add a geometry. o = { p, r, s, color, w (weather overrides | false), uv:'box'|'keep',
    *   uvScale, uvOffset:[u,v], jitter (normal displacement m), jitterFreq, deform(fnVec3),
-   *   colorFn(pos, nor, color) (prop-local), shade (brightness multiplier) }
+   *   colorFn(pos, nor, color, localPos) (pos/nor prop space, localPos = geometry space), shade (brightness multiplier) }
    * The geometry is not modified (copied).
    */
   add(material, geo, o = {}) {
     if (!material) throw new Error('Kit.add: material missing');
-    let b = this.buckets.get(material);
+    const map = this.detail || o.detail ? this.detailBuckets : this.buckets;
+    let b = map.get(material);
     if (!b) {
       b = new Bucket(material);
-      this.buckets.set(material, b);
+      map.set(material, b);
     }
     const pa = geo.attributes.position;
     let na = geo.attributes.normal;
@@ -171,6 +175,7 @@ export class Kit {
         const d = noise.noise3D(_p.x * jf + no, _p.y * jf, _p.z * jf - no) * jit;
         _p.addScaledVector(_n, d);
       }
+      _lp.copy(_p);
       _p.applyMatrix4(m);
       _n.applyMatrix3(_nm).normalize();
       b.pos.push(_p.x, _p.y, _p.z);
@@ -197,7 +202,7 @@ export class Kit {
       if (ca) _c.fromBufferAttribute(ca, i).multiply(base);
       else _c.copy(base);
       if (w) weatherColor(_c, _p, _n, w, no);
-      if (o.colorFn) o.colorFn(_p, _n, _c);
+      if (o.colorFn) o.colorFn(_p, _n, _c, _lp);
       b.col.push(_c.r, _c.g, _c.b);
     }
     if (geo.index) {
@@ -219,20 +224,47 @@ export class Kit {
     return this;
   }
 
-  /** Bake into a Group of one Mesh per material. opts {name, shadows=true} */
+  /** Run fn with every added part going to the distance-culled detail LOD. */
+  details(fn) {
+    const d = this.detail;
+    this.detail = true;
+    try {
+      fn(this);
+    } finally {
+      this.detail = d;
+    }
+    return this;
+  }
+
+  /**
+   * Bake into a Group of one Mesh per material. opts {name, shadows=true, detailDistance=30}
+   * Detail parts (small offerings, clutter) go into a THREE.LOD child that hides them beyond
+   * detailDistance (three updates LODs automatically during render).
+   */
   build(opts = {}) {
     const g = new THREE.Group();
     if (opts.name) g.name = opts.name;
-    for (const b of this.buckets.values()) {
-      if (!b.count) continue;
+    const mk = (b, parent, shadowsDefault) => {
+      if (!b.count) return;
       const mesh = new THREE.Mesh(bucketGeometry(b), b.material);
       mesh.name = (opts.name || 'prop') + ':' + (b.material.name || 'mat');
-      const sh = b.material.userData.shadows ?? opts.shadows ?? true;
+      const sh = b.material.userData.shadows ?? shadowsDefault;
       mesh.castShadow = !!sh;
       mesh.receiveShadow = b.material.userData.receiveShadow ?? true;
       mesh.matrixAutoUpdate = false;
       mesh.updateMatrix();
-      g.add(mesh);
+      parent.add(mesh);
+    };
+    for (const b of this.buckets.values()) mk(b, g, opts.shadows ?? true);
+    if (this.detailBuckets.size) {
+      const near = new THREE.Group();
+      near.name = 'details';
+      for (const b of this.detailBuckets.values()) mk(b, near, false);
+      const lod = new THREE.LOD();
+      lod.name = (opts.name || 'prop') + ':detailLOD';
+      lod.addLevel(near, 0);
+      lod.addLevel(new THREE.Object3D(), opts.detailDistance ?? 30);
+      g.add(lod);
     }
     return g;
   }
@@ -325,13 +357,14 @@ function axisCoords(half, r, seg, bs) {
 
 /**
  * Bevelled box centred at the origin. r = bevel radius, seg = max flat segment length
- * (more segments = smoother weathering gradients), bs = bevel segments.
+ * (number or [sx,sy,sz]; more segments = smoother weathering gradients), bs = bevel segments.
  * opts.bottom: true -> origin at the bottom face centre instead of centre.
  */
 export function bevelBox(w, h, d, r = 0.015, seg = 0.35, bs = 1, opts = {}) {
   r = Math.min(r, w * 0.49, h * 0.49, d * 0.49);
   const hx = w / 2, hy = h / 2, hz = d / 2;
-  const cx = axisCoords(hx, r, seg, bs), cy = axisCoords(hy, r, seg, bs), cz = axisCoords(hz, r, seg, bs);
+  const sg = Array.isArray(seg) ? seg : [seg, seg, seg];
+  const cx = axisCoords(hx, r, sg[0], bs), cy = axisCoords(hy, r, sg[1], bs), cz = axisCoords(hz, r, sg[2], bs);
   const ix = hx - r, iy = hy - r, iz = hz - r;
   const pos = [], nor = [], uv = [], idx = [];
   let vi = 0;

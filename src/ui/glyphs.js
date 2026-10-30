@@ -68,8 +68,7 @@ function padCap(name) {
     });
   }
   if (name === 'LS' || name === 'RS' || name === 'L3' || name === 'R3') {
-    const t = name[0];
-    return h('span', { class: `dlb-pad is-stick${name.endsWith('3') ? ' is-press' : ''}` }, t);
+    return h('span', { class: `dlb-pad is-stick${name.endsWith('3') ? ' is-press' : ''}` }, name);
   }
   if (name === 'Start') return h('span', { class: 'dlb-pad is-pill', html: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 5h8M4 8h8M4 11h8" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>' });
   if (name === 'Back') return h('span', { class: 'dlb-pad is-pill', html: '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="4" width="6" height="5" rx="1" fill="none" stroke="currentColor"/><rect x="7" y="7" width="6" height="5" rx="1" fill="none" stroke="currentColor"/></svg>' });

@@ -221,7 +221,14 @@ export class SDFGrid {
     this.nx = Math.ceil((max[0] - min[0]) / h) + 5;
     this.ny = Math.ceil((max[1] - min[1]) / h) + 5;
     this.nz = Math.ceil((max[2] - min[2]) / h) + 5;
-    this.data = new Float32Array(this.nx * this.ny * this.nz).fill(1);
+    const N = this.nx * this.ny * this.nz;
+    this.data = new Float32Array(N).fill(1);
+    // ownership: which primitive "wins" the material (min d - bias) and which anatomical
+    // primitive (region != null, mat 'skin') is nearest, per voxel
+    this.mscore = new Float32Array(N).fill(1e9);
+    this.mown = new Int16Array(N).fill(-1);
+    this.rscore = new Float32Array(N).fill(1e9);
+    this.rown = new Int16Array(N).fill(-1);
     this.sx = 1;
     this.sy = this.nx;
     this.sz = this.nx * this.ny;
@@ -229,9 +236,14 @@ export class SDFGrid {
 
   /** Fold primitives into the grid. margin: extra evaluation band beyond k. */
   build(prims, margin = 0.04) {
-    const { h, ox, oy, oz, nx, ny, nz, data } = this;
-    for (const p of prims) {
+    const { h, ox, oy, oz, nx, ny, nz, data, mscore, mown, rscore, rown } = this;
+    this.prims = prims;
+    for (let pi = 0; pi < prims.length; pi++) {
+      const p = prims[pi];
       if (p.op === 'paint') continue;
+      const bias = p.bias || 0;
+      const isReg = p.region && p.mat === 'skin';
+      const owns = p.op === 'add';
       const pad = p.k + margin;
       const bb = p.bbox;
       const i0 = Math.max(0, Math.floor((bb[0] - pad - ox) / h));
@@ -243,15 +255,27 @@ export class SDFGrid {
       const ev = p.eval;
       const kk = p.k;
       const op = p.op;
+      // band-limited primitives (garment shells) only matter near the current surface
+      const band = p.band;
+      const bLo = band ? band[0] : -1e9, bHi = band ? band[1] : 1e9;
       for (let k = k0; k <= k1; k++) {
         const z = oz + k * h;
         for (let j = j0; j <= j1; j++) {
           const y = oy + j * h;
           let idx = i0 + j * nx + k * nx * ny;
           for (let i = i0; i <= i1; i++, idx++) {
+            if (band) {
+              const cur = data[idx];
+              if (cur < bLo || cur > bHi) continue;
+            }
             const x = ox + i * h;
             const d = ev(x, y, z);
             const g = data[idx];
+            if (owns) {
+              const sc = d - bias;
+              if (sc < mscore[idx]) { mscore[idx] = sc; mown[idx] = pi; }
+              if (isReg && d < rscore[idx]) { rscore[idx] = d; rown[idx] = pi; }
+            }
             if (op === 'add') {
               if (kk <= 0) data[idx] = d < g ? d : g;
               else {
@@ -268,6 +292,20 @@ export class SDFGrid {
       }
     }
     return this;
+  }
+
+  /** Owner primitives at the voxel nearest to a point: returns [matPrim, regionPrim] (may be null). */
+  owners(x, y, z, out) {
+    const { h, ox, oy, oz, nx, ny, nz } = this;
+    let i = Math.round((x - ox) / h), j = Math.round((y - oy) / h), k = Math.round((z - oz) / h);
+    i = i < 0 ? 0 : i >= nx ? nx - 1 : i;
+    j = j < 0 ? 0 : j >= ny ? ny - 1 : j;
+    k = k < 0 ? 0 : k >= nz ? nz - 1 : k;
+    const idx = i + j * nx + k * nx * ny;
+    const m = this.mown[idx], r = this.rown[idx];
+    out[0] = m >= 0 ? this.prims[m] : null;
+    out[1] = r >= 0 ? this.prims[r] : null;
+    return out;
   }
 
   /** Trilinear sample of the field at a point. */

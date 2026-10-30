@@ -457,3 +457,41 @@ export function colorOut(img, o = {}) {
 export function dataOut(bytes, w, h, o = {}) {
   return { w, h, data: bytes, srgb: false, alpha: !!o.alpha, wrap: o.wrap || 'repeat', meta: o.meta };
 }
+
+/** smoothstep-mapped copy of a field. */
+export function smask(src, lo, hi, mul = 1) {
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i++) out[i] = sstep(lo, hi, src[i]) * mul;
+  return out;
+}
+
+/** Combine fields: out[i] = fn(i). */
+export function field(n, fn) {
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = fn(i);
+  return out;
+}
+
+/** Lichen / stain blotches: soft discs with ragged edges. Returns mask 0..1. */
+export function blotches(w, h, rng, count, rLo, rHi, raggedField, hard = 0.6) {
+  const m = new Float32Array(w * h);
+  for (let c = 0; c < count; c++) {
+    const r = rLo + Math.pow(rng(), 2) * (rHi - rLo);
+    const cx = rng() * w, cy = rng() * h;
+    const r2 = r * r;
+    const val = 0.6 + rng() * 0.4;
+    for (let y = Math.floor(cy - r); y <= cy + r; y++) {
+      const wy = ((y % h) + h) % h;
+      for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+        const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= r2) continue;
+        const i = wy * w + (((x % w) + w) % w);
+        const q = 1 - Math.sqrt(d2) / r + (raggedField ? raggedField[i] * 0.5 : 0);
+        const v = val * sstep(0, 1 - hard * 0.9, q);
+        if (v > m[i]) m[i] = v;
+      }
+    }
+  }
+  return m;
+}

@@ -1,5 +1,5 @@
 // Main menu (over the live cinematic) and the pause menu.
-import { h, enter, leave, clockString, thaiHour, parseClock } from './dom.js';
+import { h, enter, leave, clockString, thaiHourWords, parseClock } from './dom.js';
 import { screen, titleLockup, menuItem } from './common.js';
 import { keyHints, NAV_HINTS } from './glyphs.js';
 
@@ -96,7 +96,7 @@ export class PauseMenu {
       const t = typeof handlers.time === 'number' ? clockString(handlers.time) : handlers.time;
       timeEl = h('div', { class: 'dlb-pause__time' },
         h('div', { class: 't' }, t),
-        h('span', { class: 'th', attrs: { lang: 'th' } }, handlers.th || (hr != null ? thaiHour(hr) : '')),
+        h('span', { class: 'th', attrs: { lang: 'th' } }, handlers.th || (hr != null ? thaiHourWords(hr) : '')),
         handlers.en ? h('span', { class: 'en' }, handlers.en) : null);
     }
     this.el = screen('dlb-pause',

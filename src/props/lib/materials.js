@@ -107,7 +107,7 @@ export const GLOW = {
   fluoro_dim: { color: 0xc8e8d8, intensity: 2.2, base: 0x707a74 },
   bulb: { color: 0xffc070, intensity: 5.0, base: 0x4a3010 },
   red: { color: 0xff2a14, intensity: 3.2, base: 0x300404 },
-  lantern: { color: 0xff3a1a, intensity: 1.6, base: 0x8a1408 },
+  lantern: { color: 0xff2a10, intensity: 1.5, base: 0x5a0804 },
   lantern_white: { color: 0xfff0d0, intensity: 0.9, base: 0xb0a890 },
   amber: { color: 0xffa83a, intensity: 6.0, base: 0x402000 },
   candle: { color: 0xffb860, intensity: 6.0, base: 0x402008 },

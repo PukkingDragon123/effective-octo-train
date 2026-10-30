@@ -21,10 +21,14 @@ import * as THREE from 'three';
 import { lightPool } from '../render/index.js';
 
 export { createElectricPole, createWireSpan, createStreetlight, setLampOn, sampleCable } from './poles.js';
+export { createSpiritHouse, createIncensePot, createClothWrap } from './shrines.js';
+export { createSala, createBusStop } from './sala.js';
+export { createShrineMaRuay, createLanternString } from './maruay.js';
+export { createGarage } from './garage.js';
 export {
-  createSpiritHouse, createSala, createShrineMaRuay, createGarage, createBusStop, createNoodleStall, createBridge,
+  createNoodleStall, createBridge,
   createGuardrail, createBuddhaStatue, createForestTemple, createAccidentMemorial, createGhostGate, createVillageStop,
-  createSignPost, createConvexMirror, createIncensePot, createPond, createClothWrap, createDressing,
+  createSignPost, createConvexMirror, createPond, createDressing,
 } from './_stubs.js';
 export { LIGHT_PRESETS, lightSpec, flickerValue } from './lib/lights.js';
 
@@ -47,6 +51,8 @@ export function addPropLights(result, pool = lightPool) {
   if (!result || !result.lights) return [];
   if (result.lightHandles) return result.lightHandles;
   result.lightHandles = result.lights.map((spec) => pool.add(spec));
+  // emissive lamp meshes follow the pooled light's live flicker level
+  for (const c of result.lampControllers || []) c.handle = result.lightHandles[c.lightIndex ?? 0] || null;
   return result.lightHandles;
 }
 

@@ -489,3 +489,66 @@ export function facets(w, h, opts = {}) {
   }
   return { h: out, edge, id: W.id, cx, cy };
 }
+
+/** Vertical drips: values run DOWN the image from sources with per-column decay (tileable). */
+export function drip(mask, w, h, seed = 1, decayLo = 0.97, decayHi = 0.995) {
+  const out = Float32Array.from(mask);
+  const dec = new Float32Array(w);
+  for (let x = 0; x < w; x++) dec[x] = decayLo + (decayHi - decayLo) * hash1(x >> 1, seed);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let x = 0; x < w; x++) {
+      let v = out[(h - 1) * w + x];
+      const d = dec[x];
+      for (let y = 0; y < h; y++) {
+        const i = y * w + x;
+        v *= d;
+        if (out[i] > v) v = out[i];
+        else out[i] = v;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Pseudo-calligraphic glyph (reads as a brushed Chinese character from a distance) drawn
+ * into field f. cx,cy centre, size px. Deterministic per rng.
+ */
+export function pseudoGlyph(f, w, h, cx, cy, size, rng, val = 1) {
+  const s = size / 2;
+  const g = (v) => Math.round(v * 4) / 4; // snap to quarter grid
+  const stroke = (x0, y0, x1, y1, wd) => {
+    const steps = 6;
+    for (let i = 0; i < steps; i++) {
+      const t0 = i / steps, t1 = (i + 1) / steps;
+      const taper = 0.55 + 0.45 * Math.sin(Math.PI * (t0 + 0.08));
+      line(f, w, h, cx + (x0 + (x1 - x0) * t0) * s, cy + (y0 + (y1 - y0) * t0) * s, cx + (x0 + (x1 - x0) * t1) * s, cy + (y0 + (y1 - y0) * t1) * s, wd * taper * s, val, 'max');
+    }
+  };
+  const wd = 0.085 + rng() * 0.03;
+  const split = rng();
+  const boxes = split < 0.4 ? [[-0.85, -0.85, -0.15, 0.85], [0.05, -0.85, 0.85, 0.85]] : split < 0.7 ? [[-0.85, -0.85, 0.85, -0.1], [-0.85, 0.1, 0.85, 0.85]] : [[-0.85, -0.85, 0.85, 0.85]];
+  for (const [ax, ay, bx, by] of boxes) {
+    const nh = 1 + Math.floor(rng() * 3), nv = 1 + Math.floor(rng() * 2);
+    for (let i = 0; i < nh; i++) {
+      const y = g(ay + (by - ay) * ((i + 0.5) / nh));
+      const xa = ax + rng() * 0.15, xb = bx - rng() * 0.15;
+      stroke(xa, y + (rng() - 0.5) * 0.08, xb, y - 0.04 - rng() * 0.05, wd);
+    }
+    for (let i = 0; i < nv; i++) {
+      const x = g(ax + (bx - ax) * ((i + 0.5) / nv) + (rng() - 0.5) * 0.2);
+      stroke(x, ay + rng() * 0.1, x + (rng() - 0.5) * 0.05, by - rng() * 0.1, wd * 1.05);
+    }
+    if (rng() < 0.7) {
+      // sweeping diagonal (pie / na)
+      const x0 = (ax + bx) / 2, y0 = (ay + by) / 2;
+      stroke(x0, y0, x0 - (bx - ax) * 0.45, by, wd);
+      if (rng() < 0.6) stroke(x0, y0, x0 + (bx - ax) * 0.45, by, wd * 1.2);
+    }
+    if (rng() < 0.5) {
+      // dots
+      const x = ax + (bx - ax) * rng(), y = ay + (by - ay) * 0.15;
+      stroke(x, y, x + 0.08, y + 0.12, wd * 1.2);
+    }
+  }
+}

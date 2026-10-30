@@ -1,0 +1,199 @@
+// WORLD TEXT: every piece of written Thai/English in the world and on screen that isn't
+// dialogue: road and shop signs, posters, the noodle menu, the garage calendar, the phone
+// message, chapter cards, death cards and loading lines. All names are fictional.
+// Every text is { th, en } (en may be a translation note for purely Thai signage).
+//
+// Exports: GAME_TITLE, PHONE_MESSAGE, SIGNS, SHOP_SIGNS, POSTERS, NOODLE_MENU, GARAGE_CALENDAR,
+//   TAXI_TEXT, PAPER_TITLE, CHAPTERS, DEATH_CARDS, DEATH_FOOTER, LOADING_LINES, MENU_TEXT, HOUR_WORDS
+import { PAPER } from './rules.js';
+
+export const GAME_TITLE = {
+  en: "DON'T LOOK BACK IN HORROR",
+  th: 'กะดึก ห้ามหันหลัง',
+  taglineTH: 'ซ้ายสำหรับคนตาย ขวาสำหรับคนเป็น',
+  taglineEN: 'Left for the dead. Right for the living.',
+  studio: 'Pukking Dragon',
+};
+
+/** The text that starts it all (shown on Ton's cracked phone in the intro). */
+export const PHONE_MESSAGE = {
+  fromTH: 'ไม่ทราบหมายเลข', fromEN: 'Unknown number', time: '20:41',
+  th: 'รับคนขับกะดึก ติดต่ออากงที่อู่ กม.9', en: 'Night-shift driver wanted. See Ah Kong at the KM 9 garage.',
+};
+
+/** Thai time words for each game hour (21..30). */
+export const HOUR_WORDS = {
+  21: { th: 'สามทุ่ม', en: '9 p.m.' }, 22: { th: 'สี่ทุ่ม', en: '10 p.m.' }, 23: { th: 'ห้าทุ่ม', en: '11 p.m.' },
+  24: { th: 'เที่ยงคืน', en: 'Midnight' }, 25: { th: 'ตีหนึ่ง', en: '1 a.m.' }, 26: { th: 'ตีสอง', en: '2 a.m.' },
+  27: { th: 'ตีสาม', en: '3 a.m.' }, 28: { th: 'ตีสี่', en: '4 a.m.' }, 29: { th: 'ตีห้า', en: '5 a.m.' }, 30: { th: 'หกโมงเช้า', en: '6 a.m.' },
+};
+
+/** Chapter cards on each hour change: ui.chapter({ time, th, en }). */
+export const CHAPTERS = [
+  { hour: 21, time: '21:00', th: 'สามทุ่ม — ใครโบกก็ต้องรับ', en: 'Nine O\'Clock — Whoever Waves, You Stop' },
+  { hour: 22, time: '22:00', th: 'สี่ทุ่ม — หญิงสาวที่โค้งร้อยศพ', en: 'Ten O\'Clock — The Girl at the Curve' },
+  { hour: 23, time: '23:00', th: 'ห้าทุ่ม — เคาะสามที', en: 'Eleven O\'Clock — Three Knocks' },
+  { hour: 24, time: '00:00', th: 'เที่ยงคืน — เด็กในกระจก', en: 'Midnight — The Boy in the Mirror' },
+  { hour: 25, time: '01:00', th: 'ตีหนึ่ง — ใต้ต้นกล้วย', en: 'One A.M. — Beneath the Banana Leaves' },
+  { hour: 26, time: '02:00', th: 'ตีสอง — เจริญพร โยม', en: 'Two A.M. — Blessings, Layman' },
+  { hour: 27, time: '03:00', th: 'ตีสาม — เพลงเก่าเล่าความหลัง', en: 'Three A.M. — An Old Song' },
+  { hour: 28, time: '04:00', th: 'ตีสี่ — ฟ้าสาง', en: 'Four A.M. — Blue Hour' },
+  { hour: 29, time: '05:00', th: 'ตีห้า — เสาไฟต้นสุดท้าย', en: 'Five A.M. — The Last Streetlight' },
+  { hour: 30, time: '06:00', th: 'หกโมงเช้า — รุ่งสาง', en: 'Six A.M. — Dawn' },
+];
+
+/** Death screen text: ui.deathCard(DEATH_CARDS[type]). `rule` names the rule that was broken, if any. */
+export const DEATH_CARDS = {
+  giantHand: { th: 'ทางซ้าย ไม่ใช่ทางของคนเป็น', en: 'The left road is not for the living.', rule: 'r2' },
+  trueForm: { th: 'บางใบหน้า ไม่ควรถูกมอง', en: 'Some faces are not meant to be seen.', rule: 'r4' },
+  roadFold: { th: 'ถนนพับกลับมา หาคนที่ถูกทิ้งไว้', en: 'The road folds back for those you leave behind.', rule: 'r1' },
+  windowAttack: { th: 'คนตาย ไม่อยากไปทางคนเป็น', en: 'The dead do not want the road of the living.', rule: 'r2' },
+  dragBack: { th: 'เขาแค่อยากกลับบ้าน', en: 'He only wanted to go home.', rule: 'r2' },
+  home: { th: 'บ้าน ไม่ใช่ที่ของคนตาย', en: 'Home is no place for the dead.', rule: 'r2' },
+  lookBack: { th: 'คุณหันไปมอง', en: 'You looked back.', rule: 'r3' },
+  ceilingCrawl: { th: 'ความมืดนั้น ไม่ได้ว่างเปล่า', en: 'The dark was not empty.', rule: 'r9' },
+  trunk: { th: 'คุณจอด', en: 'You stopped.', rule: 'r5' },
+  nameCall: { th: 'คุณขานรับ', en: 'You answered.', rule: 'r7' },
+  radio: { th: 'เพลงนั้น ไม่มีวันจบ', en: 'The song never ended.', rule: 'r6' },
+  breath: { th: 'สิ่งที่หายใจอยู่ข้างหลัง ได้เห็นหน้าคุณแล้ว', en: 'What breathed behind you has seen your face.', rule: 'r8' },
+  yaiSpeed: { th: 'ไม่มีใครวิ่งชนะยาย', en: 'Nobody outruns Granny.', rule: null },
+  crash: { th: 'ถนนเส้นนี้ ไม่ให้อภัยคนใจร้อน', en: 'This road does not forgive the hurried.', rule: null },
+};
+export const DEATH_FOOTER = { th: 'สามทุ่ม · อู่ กม.9', en: '21:00 · KM 9 Garage' };
+
+/** Road signs and set-dressing text (signTex kinds in parentheses). */
+export const SIGNS = {
+  kmMarker: { th: 'กม. {km}', en: 'KM {km}' }, // ('km_marker' {km})
+  curveWarning: { th: 'โค้งอันตราย ลดความเร็ว', en: 'Dangerous curve. Slow down.' }, // ('curve_warning')
+  accidentCurve: { th: 'โค้งร้อยศพ ขับช้า ๆ ได้ถึงบ้าน', en: 'Hundred Corpses Curve. Drive slow, get home.' }, // ('warning_sign')
+  elephantCrossing: { th: 'ระวัง ช้างป่าข้ามถนน', en: 'Caution: wild elephants crossing' }, // ('elephant_crossing')
+  speedLimit: { th: 'ความเร็วไม่เกิน ๖๐', en: 'Speed limit 60', kmh: 60 }, // ('speed_sign' {kmh})
+  villageWelcome: { th: 'บ้านห้วยทราย ยินดีต้อนรับ', en: 'Welcome to Huai Sai Village' }, // ('village_sign')
+  forkLeft: { th: 'ทางเก่า (ปิด)', en: 'Old road (closed)' }, // ('fork_sign' {side:'left'})
+  forkRight: { th: 'บ้านห้วยทราย ๒ กม.', en: 'Huai Sai Village 2 km' }, // ('fork_sign' {side:'right'})
+  forkAhead: { th: 'หยุด! ทางแยกศาลเจ้ามารวย', en: 'STOP! Ma Ruay Shrine junction ahead' },
+  shrineBoard: { th: 'ศาลเจ้ามารวย', en: 'Ma Ruay Shrine', chinese: '財來廟' }, // ('shrine_board')
+  shrineCouplets: [ // ('couplet' {text}) — "Ma Ruay" puns on มา (come) + รวย (rich)
+    { th: 'มาไหว้แล้วรวย', en: 'Come to pray, leave rich' },
+    { th: 'ผ่านทางปลอดภัย', en: 'Pass by in safety' },
+  ],
+  honkPlease: { th: 'ผ่านศาล โปรดบีบแตร', en: 'Passing the shrine? Please honk.' },
+  busStop: { th: 'ป้ายหยุดรถประจำทาง สาย ๙ (งดให้บริการ)', en: 'Bus stop, Route 9 (service discontinued)' }, // ('bus_stop_sign')
+  temple: { th: 'วัดป่าเงียบสงัด', en: 'Wat Pa Ngiap Sa-ngat (the Silent Forest Temple)' }, // ('temple_sign')
+  garage: { th: 'อู่กง ซ่อมได้ทุกอย่าง ยกเว้นหัวใจ', en: "Kong's Garage — we fix everything but hearts" }, // ('garage_sign')
+  garageNoSmoking: { th: 'ห้ามสูบบุหรี่', en: 'No smoking', note: 'Hangs right above where Ah Kong smokes.' },
+  noLitter: { th: 'ห้ามทิ้งขยะ ผีเห็นนะ', en: 'No littering. The ghosts can see you.' },
+  nightWalkers: { th: 'ระวังคนเดินข้ามถนน (ช่วงกลางคืน)', en: 'Watch for pedestrians (at night)' },
+  bridge: { th: 'สะพานห้วยเงียบ', en: 'Silent Creek Bridge' },
+  spurRoad: { th: 'ทางลัด กม.9 ←', en: '← Shortcut to KM 9' },
+};
+
+export const SHOP_SIGNS = {
+  noodleShop: { th: 'ก๋วยเตี๋ยวเรือป้าเล็ก เปิด ๒๔ ชม.', en: "Auntie Lek's Boat Noodles — open 24 hrs" },
+  morningMarket: { th: 'ตลาดเช้าห้วยทราย', en: 'Huai Sai Morning Market' },
+  garlandStall: { th: 'พวงมาลัยยายบัว', en: "Grandma Bua's Garlands" },
+  grocery: { th: 'ร้านชำเจ๊หมวย (ปิดกิจการ)', en: "Jae Muay's Grocery (closed down)" },
+  ice: { th: 'น้ำแข็งหลอด', en: 'Tube ice' },
+  massage: { th: 'นวดแผนไทย ชม.ละ ๒๐๐', en: 'Thai massage, 200 an hour' },
+  lottery: { th: 'ลอตเตอรี่ งวดนี้ เลขเด็ด!', en: 'Lottery tickets — lucky numbers this draw!' },
+  fuel: { th: 'ปั๊มหลอด น้ำมัน ลิตรละ', en: 'Hand-pump fuel, per litre' },
+};
+
+/** Faded posters on salas, the bus stop and poles. variant = signTex('poster', {variant}). */
+export const POSTERS = [
+  {
+    variant: 'missingBoy', where: ['busStop', 'sala1'],
+    th: ['ประกาศตามหาเด็กหาย', 'ด.ช. เอ็ม อายุ ๙ ขวบ', 'ใส่ชุดนักเรียน ถือกล่องข้าว', 'หายตัวไปบริเวณป้ายรถเมล์ กม.11'],
+    en: ['MISSING CHILD', 'Master M, age 9', 'In school uniform, carrying a lunchbox', 'Last seen at the KM 11 bus stop'],
+  },
+  {
+    variant: 'samanConcert', where: ['sala2', 'noodleShop'],
+    th: ['คืนนี้! งานวัดประจำปี', 'สมาน เสียงทอง', 'พร้อมหางเครื่องเต็มวง', 'พ.ศ. ๒๕๒๖'],
+    en: ['TONIGHT! Annual temple fair', 'Saman Golden-Voice', 'With full dancing troupe', '1983'],
+  },
+  {
+    variant: 'witnessAppeal', where: ['accidentCurve'],
+    th: ['ขอความช่วยเหลือ', 'ใครเห็นเหตุการณ์อุบัติเหตุ', 'มอเตอร์ไซค์ล้ม โค้ง กม.10 คืนฝนตก', 'โปรดแจ้งญาติผู้เสียชีวิต'],
+    en: ['PLEASE HELP', 'Did you witness the accident?', 'Motorbike crash, KM 10 curve, a rainy night', 'Please contact the family'],
+  },
+  {
+    variant: 'driverWanted', where: ['sala1', 'garage'],
+    th: ['รับคนขับกะดึก', 'ติดต่ออากง อู่ กม.9', 'ไม่ต้องมีประสบการณ์', 'ขอแค่ทำตามกฎ'],
+    en: ['NIGHT-SHIFT DRIVER WANTED', 'See Ah Kong, KM 9 garage', 'No experience needed', 'Just follow the rules'],
+  },
+  {
+    variant: 'templeFair', where: ['forestTemple', 'marketLamp'],
+    th: ['ขอเชิญร่วมทำบุญ', 'ทอดผ้าป่าสามัคคี', 'วัดป่าเงียบสงัด'],
+    en: ['You are invited to make merit', 'Community robe-offering ceremony', 'Wat Pa Ngiap Sa-ngat'],
+  },
+];
+
+/** Auntie Lek's menu board (prices in baht). */
+export const NOODLE_MENU = {
+  titleTH: 'ก๋วยเตี๋ยวเรือป้าเล็ก', titleEN: "Auntie Lek's Boat Noodles",
+  items: [
+    { th: 'ก๋วยเตี๋ยวเรือน้ำตก', en: 'Boat noodles, nam tok', price: 40 },
+    { th: 'เส้นเล็กน้ำตก', en: 'Thin rice noodles, nam tok', price: 40, note: "Somchai's usual (no bean sprouts)" },
+    { th: 'บะหมี่ต้มยำ', en: 'Tom yum egg noodles', price: 45 },
+    { th: 'เกาเหลา', en: 'Noodle soup, no noodles', price: 50 },
+    { th: 'พิเศษ', en: 'Extra large', price: 10, prefix: '+' },
+    { th: 'กาแฟโบราณ ร้อน', en: 'Old-style coffee, hot', price: 20 },
+    { th: 'กาแฟโบราณ เย็น', en: 'Old-style coffee, iced', price: 25 },
+    { th: 'โอเลี้ยง', en: 'Iced black coffee', price: 20 },
+    { th: 'ปาท่องโก๋ (๓ ตัว)', en: 'Fried dough sticks (3)', price: 10 },
+    { th: 'ขนมปังสังขยา', en: 'Toast with pandan custard', price: 25 },
+    { th: 'ไข่ลวก', en: 'Soft-boiled eggs', price: 10 },
+  ],
+  footnote: { th: 'ไม่มีเหล้าขาย (ลุงเปี๊ยกไม่ต้องมาขอ)', en: 'No alcohol sold (Uncle Piak, don\'t even ask)' },
+  coffeePrice: 20, // the m_noodle interaction costs this much
+};
+
+/** The old Thai-Chinese wall calendar in the garage: stuck on the month Somchai died. */
+export const GARAGE_CALENDAR = {
+  titleTH: 'ปฏิทินมงคล อู่กง', titleEN: "Kong's Garage Lucky Calendar",
+  monthTH: 'กันยายน', monthEN: 'September',
+  circledDay: 14,
+  noteTH: 'ทำบุญ ๗ วัน ไอ้ชาย', noteEN: "Chai's 7th-day merit-making",
+  footerTH: 'ขอให้ร่ำรวย ปลอดภัย ตลอดปี', footerEN: 'Wealth and safety all year round',
+  designNote: 'Red-and-gold tear-off calendar with a fictional wealth deity; pages not torn since September (the rainy season).',
+};
+
+/** Text on and in the taxi. */
+export const TAXI_TEXT = {
+  roofSign: { th: 'แท็กซี่มิเตอร์', en: 'TAXI-METER' },
+  vacantLamp: { th: 'ว่าง', en: 'VACANT' },
+  plate: { text: 'ทข ๑๔๔๑', province: 'วังเวง', th: 'ทข ๑๔๔๑ วังเวง', en: 'TK 1441, Wang Weng' },
+  meter: { fareTH: 'ค่าโดยสาร', fareEN: 'FARE', unitTH: 'บาท', unitEN: 'THB', distTH: 'ระยะทาง', distEN: 'DIST', startFare: 35 },
+  doorDecal: { th: 'ขับช้า ๆ ลูกเมียรออยู่', en: 'Drive slow, the family is waiting' },
+  dashSticker: { variant: 'blueElephant', note: 'Faded blue baby-elephant cartoon (original design). Memory m_sticker.' },
+  sunVisorPhoto: { back: { th: 'ไอ้ต้น ๗ ขวบ', en: 'Ton, age 7' } },
+};
+
+/** Title block of Ah Kong's rules paper (the rules themselves are in rules.js). */
+export const PAPER_TITLE = PAPER.title;
+
+/** Lines shown while loading (and on the death card, randomly). */
+export const LOADING_LINES = [
+  { th: 'กระจกบอกความจริง มากกว่าตา', en: 'Mirrors tell more truth than eyes.' },
+  { th: 'คนเป็นหายใจ แล้วกระจกจะเป็นฝ้า', en: 'The living breathe, and the glass fogs.' },
+  { th: 'ถ้าพระในมือร้อนขึ้น คนข้างหลังไม่ใช่คน', en: 'If the amulet grows warm, whoever is behind you is not human.' },
+  { th: 'ผ่านศาล บีบแตรสองที', en: 'Passing a shrine? Two honks.' },
+  { th: 'คนตายจำราคาเก่า จำโรงพยาบาลที่ปิดไปแล้ว', en: 'The dead remember old prices, and hospitals long closed.' },
+  { th: 'รถไม่ยุบ... ก็ไม่มีใครนั่งอยู่จริง', en: "If the car doesn't sink... nobody's really sitting there." },
+  { th: 'ร้านป้าเล็กเปิดทั้งคืน กาแฟแก้วละยี่สิบ', en: "Auntie Lek's is open all night. Coffee, twenty baht." },
+  { th: 'ตุ๊กแกร้องเจ็ดที...', en: 'The gecko calls seven times...' },
+  { th: 'บางบรรทัดในกระดาษ ต้องเปียกก่อนถึงจะอ่านออก', en: 'Some lines on the paper only show when it gets wet.' },
+  { th: 'อย่าหัน', en: "Don't look back." },
+];
+
+/** Optional labels the UI may use (it may also keep its own). */
+export const MENU_TEXT = {
+  newGame: { th: 'เริ่มเกมใหม่', en: 'NEW GAME' },
+  resume: { th: 'เล่นต่อ', en: 'RESUME' },
+  settings: { th: 'ตั้งค่า', en: 'SETTINGS' },
+  credits: { th: 'ผู้สร้าง', en: 'CREDITS' },
+  quit: { th: 'กลับเมนูหลัก', en: 'QUIT TO MENU' },
+  saved: { th: 'บันทึกแล้ว', en: 'Saved' },
+  loopCounter: { th: 'คืนที่ {n}', en: 'Night {n}' },
+  memories: { th: 'ความทรงจำ {n}/7', en: 'Memories {n}/7' },
+};

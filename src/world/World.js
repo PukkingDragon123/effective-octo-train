@@ -1,92 +1,21 @@
 // World: road network + terrain + forest + placed props (contract: docs/ARCHITECTURE.md "world").
-// STUB IMPLEMENTATION — the world agent replaces internals; signatures must stay.
 import * as THREE from 'three';
 import { LAYOUT } from './layout.js';
-import { paintedMaterial } from '../render/index.js';
+import { RoadSpline, RoadNetwork } from './Road.js';
+import { generateRoadLayout } from './RoadGen.js';
+import { Terrain } from './Terrain.js';
+import { buildRoadMeshes } from './RoadMesh.js';
+import { createTerrainMaterial, createWaterMaterial } from './worldMaterials.js';
+import { planLandmarks } from './Plan.js';
+import { W } from './constants.js';
+import { settings } from '../core/Settings.js';
+import { tex } from '../textures/index.js';
+import { sampleTextureRed } from './shaderUtil.js';
 
-const UP = new THREE.Vector3(0, 1, 0);
+export { RoadSpline, RoadNetwork };
 
-/** Dense polyline spline with arc-length parameterisation. */
-export class RoadSpline {
-  constructor(id, points, { closed = false, width = LAYOUT.roadWidth } = {}) {
-    this.id = id;
-    this.closed = closed;
-    this.width = width;
-    this.points = points; // Vector3[] ~1 m apart
-    this.cum = [0];
-    for (let i = 1; i < points.length; i++) this.cum.push(this.cum[i - 1] + points[i].distanceTo(points[i - 1]));
-    this.length = this.cum[this.cum.length - 1];
-  }
-  /** Sample at arc length s. Writes into out = {pos, tangent, right, up, width}. */
-  sample(s, out = { pos: new THREE.Vector3(), tangent: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3(0, 1, 0), width: 0 }) {
-    const L = this.length;
-    s = this.closed ? ((s % L) + L) % L : Math.max(0, Math.min(L, s));
-    let lo = 0, hi = this.cum.length - 1;
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >> 1;
-      if (this.cum[mid] <= s) lo = mid; else hi = mid;
-    }
-    const seg = this.cum[hi] - this.cum[lo] || 1;
-    const t = (s - this.cum[lo]) / seg;
-    out.pos.lerpVectors(this.points[lo], this.points[hi], t);
-    out.tangent.subVectors(this.points[hi], this.points[lo]).normalize();
-    out.right.crossVectors(out.tangent, UP).normalize();
-    out.up.set(0, 1, 0);
-    out.width = this.width;
-    return out;
-  }
-}
-
-/** Road graph: splines + projection queries. */
-export class RoadNetwork {
-  constructor() {
-    this.splines = new Map();
-    this.connections = []; // {kind:'fork'|'merge'|'junction', a:{id,s}, b:{id,s}}
-  }
-  add(spline) {
-    this.splines.set(spline.id, spline);
-    return spline;
-  }
-  get(id) {
-    return this.splines.get(id);
-  }
-  length(id) {
-    return this.splines.get(id).length;
-  }
-  sample(id, s, out) {
-    return this.splines.get(id).sample(s, out);
-  }
-  /**
-   * Project a world position onto the nearest road.
-   * Returns { id, s, lateral (+ = right of travel direction), distance, pos, tangent, right, width, onRoad }.
-   * preferId biases ties toward the spline the vehicle is already on.
-   */
-  project(p, preferId = null) {
-    let best = null;
-    for (const sp of this.splines.values()) {
-      const pts = sp.points;
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a = pts[i], b = pts[i + 1];
-        const abx = b.x - a.x, abz = b.z - a.z;
-        const len2 = abx * abx + abz * abz || 1;
-        let t = ((p.x - a.x) * abx + (p.z - a.z) * abz) / len2;
-        t = Math.max(0, Math.min(1, t));
-        const cx = a.x + abx * t, cz = a.z + abz * t;
-        let d = Math.hypot(p.x - cx, p.z - cz);
-        if (sp.id === preferId) d -= 0.5;
-        if (!best || d < best.d) best = { d, sp, i, t };
-      }
-    }
-    const sp = best.sp;
-    const s = sp.cum[best.i] + (sp.cum[best.i + 1] - sp.cum[best.i]) * best.t;
-    const smp = sp.sample(s);
-    const lateral = (p.x - smp.pos.x) * smp.right.x + (p.z - smp.pos.z) * smp.right.z;
-    return {
-      id: sp.id, s, lateral, distance: Math.abs(lateral), pos: smp.pos, tangent: smp.tangent, right: smp.right,
-      width: sp.width, onRoad: Math.abs(lateral) < sp.width / 2,
-    };
-  }
-}
+const _v = new THREE.Vector3();
+const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
 export class World {
   constructor() {
@@ -96,92 +25,199 @@ export class World {
     this.landmarks = {};
     this.pickups = {};
     this.fork = null;
+    this.terrain = null;
+    this.forest = null;
+    this.placement = null;
+    this.roadPieces = [];
+    this.drawDistance = settings.get('drawDistance') ?? 150;
+    this.density = settings.get('foliageDensity') ?? 1;
+    this._pr = null;
+    this._focus = new THREE.Vector3(1e9, 0, 1e9);
+    this.built = false;
   }
 
-  /** Build everything. opts: { onProgress(fraction, label), quality }. */
+  /** Build everything. opts: { onProgress(fraction, label{th,en}), quality, forest=true, props=true } */
   async build(opts = {}) {
-    // stub: a big wobbly ring for main + short branches
-    const R = 540;
-    const main = [];
-    const n = Math.round(LAYOUT.mainLength);
-    for (let i = 0; i <= n; i++) {
-      const a = (i / n) * Math.PI * 2 * 0.97;
-      const r = R + Math.sin(a * 5) * 30;
-      main.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a * 3) * 4, Math.sin(a) * r));
+    const prog = (f, th, en) => opts.onProgress?.(f, { th, en });
+    const t0 = performance.now();
+    prog(0.01, 'กำลังวางเส้นทาง…', 'Laying out the roads…');
+    // ---- roads ------------------------------------------------------------------------
+    const gen = generateRoadLayout(LAYOUT);
+    this.layoutMeta = gen.meta;
+    for (const id of ['main', 'ghost', 'human', 'spur']) {
+      const g = gen.splines[id];
+      const sp = new RoadSpline(id, g.points);
+      sp.curvature = g.curvature;
+      sp.meta.tags = g.tags;
+      this.road.add(sp);
     }
-    this.road.add(new RoadSpline('main', main));
-    const F = main[main.length - 1], M = main[0];
-    const mk = (id, bulge) => {
-      const pts = [];
-      for (let i = 0; i <= 200; i++) {
-        const t = i / 200;
-        const p = new THREE.Vector3().lerpVectors(F, M, t);
-        const dir = new THREE.Vector3().subVectors(M, F).normalize();
-        const side = new THREE.Vector3().crossVectors(dir, UP);
-        p.addScaledVector(side, Math.sin(t * Math.PI) * bulge);
-        pts.push(p);
-      }
-      return new RoadSpline(id, pts);
-    };
-    this.road.add(mk('ghost', -25));
-    this.road.add(mk('human', 25));
-    const spur = [];
-    const j = this.road.sample('main', LAYOUT.mainLength * 0.068);
-    for (let i = 0; i <= 600; i++) spur.push(j.pos.clone().addScaledVector(j.right, 600 - i));
-    this.road.add(new RoadSpline('spur', spur));
+    const L = this.road.length('main');
+    const sJ = LAYOUT.landmarks.spurJunction.u * L;
+    this.road.connections.push(
+      { kind: 'fork', a: { id: 'main', s: L }, b: { id: 'ghost', s: 0 } },
+      { kind: 'fork', a: { id: 'main', s: L }, b: { id: 'human', s: 0 } },
+      { kind: 'merge', a: { id: 'ghost', s: this.road.length('ghost') }, b: { id: 'main', s: 0 } },
+      { kind: 'merge', a: { id: 'human', s: this.road.length('human') }, b: { id: 'main', s: 0 } },
+      { kind: 'junction', a: { id: 'spur', s: this.road.length('spur') }, b: { id: 'main', s: sJ } },
+    );
+    this.features = gen.meta.features.map((f) => ({ ...f }));
+    await yieldFrame();
 
-    // ground + road ribbons
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000).rotateX(-Math.PI / 2), paintedMaterial({ color: 0x1c2416 }));
-    ground.position.y = -0.05;
-    this.group.add(ground);
-    for (const sp of this.road.splines.values()) this.group.add(this._ribbon(sp));
+    // ---- plan landmarks (pads / clearings needed by terrain & forest) --------------------
+    const plan = planLandmarks(this.road, LAYOUT);
+    this.plan = plan;
+    this.fork = plan.fork;
 
-    // landmarks
-    for (const [key, lm] of Object.entries(LAYOUT.landmarks)) {
-      const sp = this.road.get(lm.spline);
-      const s = lm.u * sp.length;
-      const smp = sp.sample(s);
-      const sideSign = lm.side === 'L' ? -1 : lm.side === 'R' ? 1 : 0;
-      const pos = smp.pos.clone().addScaledVector(smp.right, sideSign * (sp.width / 2 + lm.offset));
-      const yaw = Math.atan2(-smp.tangent.x, -smp.tangent.z);
-      const stopPos = smp.pos.clone().addScaledVector(smp.right, LAYOUT.laneOffset * (sideSign <= 0 ? 1 : -1));
-      this.landmarks[key] = { key, kind: lm.kind, pos, yaw, roadRef: { id: sp.id, s }, side: lm.side, waitPos: pos.clone(), stopPos, facing: yaw };
+    // ---- terrain ------------------------------------------------------------------------
+    prog(0.05, 'กำลังปั้นภูเขา…', 'Shaping the hills…');
+    this.terrain = new Terrain(this.road, LAYOUT, { material: createTerrainMaterial() });
+    for (const p of plan.pads) this.terrain.addPad(p);
+    // ravine below the outside (left) of the Hundred Corpses Curve
+    const acc = this.features.find((f) => f.tag === 'accident');
+    if (acc) {
+      const main = this.road.get('main');
+      const sa = (acc.s0 + acc.s1) / 2;
+      const c = main.pointAt(sa, -(W.halfWidth + 26));
+      this.terrain.addMod(c.x, c.z, 42, -10 * (LAYOUT.elevationRange / 18));
     }
+    const pond = plan.landmarks.hiddenPond;
+    if (pond) this.terrain.addPond(pond.pos.x, pond.pos.z, 6.5, 1.3);
+    this.terrain.prepare();
+    await yieldFrame();
+    await this.terrain.build((f) => prog(0.06 + f * 0.3, 'กำลังปั้นภูเขา…', 'Shaping the hills…'));
+    this.group.add(this.terrain.group);
+
+    // ---- road surfaces & water ---------------------------------------------------------------
+    prog(0.37, 'กำลังราดยางมะตอย…', 'Paving the old road…');
+    const roads = buildRoadMeshes(this.road, LAYOUT);
+    this.roadPieces = roads.pieces;
+    this.roadMaterials = roads.materials;
+    this.group.add(roads.group);
+    this.waterMaterial = createWaterMaterial();
+    const creek = this.terrain.buildCreekWater(this.waterMaterial);
+    if (creek) this.group.add(creek);
+    await yieldFrame();
+
+    // ---- landmark ground heights ---------------------------------------------------------------
+    for (const lm of Object.values(plan.landmarks)) {
+      lm.pos.y = lm.sideSign === 0 && lm.kind !== 'shrine_maruay' ? lm.roadHeight + 0.025 : this.getHeight(lm.pos.x, lm.pos.z);
+      lm.waitPos.y = this.getHeight(lm.waitPos.x, lm.waitPos.z);
+    }
+    this.landmarks = plan.landmarks;
     for (const k of LAYOUT.pickups) this.pickups[k] = this.landmarks[k];
-    const f = this.landmarks.shrineMaRuay;
-    this.fork = { pos: f.pos.clone(), yaw: f.yaw, leftSplineId: 'ghost', rightSplineId: 'human', mainS: this.road.length('main') };
-    opts.onProgress?.(1, 'done');
+
+    // ---- forest --------------------------------------------------------------------------------
+    if (opts.forest !== false) {
+      const { Forest } = await import('./Forest.js');
+      this.forest = new Forest(this, { density: this.density });
+      await this.forest.build((f, th, en) => prog(0.4 + f * 0.4, th || 'กำลังปลูกป่า…', en || 'Growing the forest…'));
+      this.group.add(this.forest.group);
+    }
+
+    // ---- props & landmarks ---------------------------------------------------------------------
+    if (opts.props !== false) {
+      const { Placement } = await import('./Placement.js');
+      this.placement = new Placement(this);
+      await this.placement.build((f) => prog(0.82 + f * 0.16, 'กำลังตั้งศาลและเสาไฟ…', 'Raising shrines and poles…'));
+      this.group.add(this.placement.group);
+      if (this.landmarks.shrineMaRuay) this.fork.shrine = this.landmarks.shrineMaRuay.prop;
+    }
+
+    this._settingsOff = settings.onChange(({ key }) => {
+      if (key === 'foliageDensity' || key === 'graphicsPreset' || key === '*') this.setDensity(settings.get('foliageDensity') ?? 1);
+      if (key === 'drawDistance' || key === 'graphicsPreset' || key === '*') this.drawDistance = settings.get('drawDistance') ?? 150;
+    });
+    this.built = true;
+    this.buildMs = performance.now() - t0;
+    prog(1, 'พร้อมแล้ว', 'Ready');
     return this;
   }
 
-  _ribbon(sp) {
-    const pos = [];
-    const idx = [];
-    const tmp = { pos: new THREE.Vector3(), tangent: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3(), width: 0 };
-    const steps = Math.ceil(sp.length / 2);
-    for (let i = 0; i <= steps; i++) {
-      sp.sample((i / steps) * sp.length, tmp);
-      const l = tmp.pos.clone().addScaledVector(tmp.right, -sp.width / 2);
-      const r = tmp.pos.clone().addScaledVector(tmp.right, sp.width / 2);
-      pos.push(l.x, l.y + 0.02, l.z, r.x, r.y + 0.02, r.z);
-      if (i < steps) {
-        const a = i * 2;
-        idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+  /** Ground / road surface height at x,z. The asphalt surface wins on the road. */
+  getHeight(x, z) {
+    _v.set(x, 0, z);
+    const pr = (this._pr = this.road.project(_v, null, this._pr));
+    const hw = pr.width / 2;
+    if (pr.distance <= hw) {
+      const f = pr.lateral / hw;
+      let crown = 0.04 * (1 - f * f);
+      // crown fades out near junction ends (matches RoadMesh)
+      const sp = this.road.get(pr.id);
+      const d = Math.min(pr.s, sp.length - pr.s);
+      if (pr.id === 'main') crown *= Math.min(1, d / 40);
+      else if (pr.id === 'spur') crown *= Math.min(1, Math.max(0, (sp.length - pr.s - 12) / 25));
+      else crown *= Math.min(1, Math.max(0, (d - 30) / 30));
+      return pr.y + 0.025 + crown;
+    }
+    return this.terrain ? this.terrain.sample(x, z) : pr.y;
+  }
+
+  /** Footstep surface at x,z: 'asphalt'|'gravel'|'grass'|'wood'|'concrete'|'puddle'. */
+  surfaceAt(x, z) {
+    _v.set(x, 0, z);
+    const pr = (this._pr = this.road.project(_v, null, this._pr));
+    const hw = pr.width / 2;
+    if (pr.distance <= hw - 0.1) {
+      if (pr.id === 'main' && this.terrain?.creek && Math.abs(pr.s - this.terrain.creek.sB) < (this.terrain.bridgeLen || 26) / 2) return 'concrete';
+      if (this._isPuddle(pr.lateral, pr.s)) return 'puddle';
+      return 'asphalt';
+    }
+    // pads (set pieces)
+    if (this.terrain) {
+      for (const p of this.terrain.pads) {
+        const dx = x - p.x, dz = z - p.z;
+        if (Math.abs(dx) > p.r || Math.abs(dz) > p.r) continue;
+        const ux = dx * p.cos - dz * p.sin, uz = dx * p.sin + dz * p.cos;
+        if (Math.abs(ux) <= p.hx && Math.abs(uz) <= p.hz) return p.kind === 'concrete' ? 'concrete' : 'gravel';
       }
     }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    g.computeVertexNormals();
-    return new THREE.Mesh(g, paintedMaterial({ color: 0x2b2c2e, roughness: 0.7 }));
+    if (pr.distance <= hw + W.shoulder + 0.3) return 'gravel';
+    return 'grass';
   }
 
-  /** Terrain/road surface height at x,z. */
-  getHeight(x, z) {
-    const pr = this.road.project(new THREE.Vector3(x, 0, z));
-    return pr.distance < 8 ? pr.pos.y : 0;
+  _isPuddle(lat, s) {
+    const wet = 0.6;
+    if (!this._puddleTex) this._puddleTex = tex('puddle_mask');
+    const a = sampleTextureRed(this._puddleTex, lat * 0.105 + 0.31, s * 0.043);
+    const b = sampleTextureRed(this._puddleTex, lat * 0.071 + 0.62, s * 0.021 + 0.5);
+    if (a == null) return false;
+    const hw = W.halfWidth;
+    const aLat = Math.abs(lat);
+    const sm = (e0, e1, x) => Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+    const rut = [-2.3, -0.8, 0.8, 2.3].reduce((acc, c) => acc + Math.exp(-(((lat - c) / 0.38) ** 2)), 0);
+    const prof = 0.42 + 0.5 * sm(hw - 1.5, hw - 0.4, aLat) + 0.28 * rut;
+    const pv = Math.max(a, b * 0.92) * prof;
+    const thr = 0.86 + (0.5 - 0.86) * wet;
+    return pv > thr + 0.025;
   }
 
-  /** Streaming / culling / animation. focus = Vector3 (camera or taxi). */
-  update(dt, focus) {}
+  /** Streaming / culling / LOD / wind. focus = Vector3 (camera or taxi). */
+  update(dt, focus) {
+    if (!this.built || !focus) return;
+    const dd = this.drawDistance;
+    if (this.terrain) this.terrain.update(focus, dd);
+    for (const p of this.roadPieces) {
+      const d = Math.hypot(p.cx - focus.x, p.cz - focus.z) - p.r;
+      p.mesh.visible = d < dd + 20;
+    }
+    if (this.waterMaterial?.userData.flow) this.waterMaterial.userData.flow.offset.y -= dt * 0.12;
+    if (this.forest) this.forest.update(dt, focus);
+    if (this.placement) this.placement.update(dt, focus);
+  }
+
+  /** Foliage density multiplier (settings.foliageDensity). */
+  setDensity(f) {
+    this.density = f;
+    if (this.forest) this.forest.setDensity(f);
+  }
+
+  dispose() {
+    this._settingsOff?.();
+    this.placement?.dispose?.();
+    this.forest?.dispose?.();
+    this.group.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+    });
+    this.group.removeFromParent();
+  }
 }

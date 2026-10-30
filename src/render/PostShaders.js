@@ -150,7 +150,10 @@ vec3 comp(vec2 uv) {
   vec3 s = texture2D(tScene, uv).rgb;
 #ifdef PAINT
   vec3 p = texture2D(tPaint, uv).rgb;
-  s = mix(s, p, uPaint);
+  // keep tiny bright details (stars, fireflies, sparks, far lamps) that Kuwahara would erase
+  vec3 d = max(s - p, vec3(0.0));
+  float dl = dlbLuma(d) * uExposure;
+  s = mix(s, p, uPaint) + d * uPaint * smoothstep(0.015, 0.12, dl) * 0.9;
 #endif
   return s;
 }
@@ -171,7 +174,7 @@ vec3 toSRGB(vec3 c) {
   c = clamp(c, 0.0, 1.0);
   return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
 }
-vec3 hueOf(vec3 c) { return c / max(dlbLuma(c), 1e-4); }
+vec3 hueOf(vec3 c) { return sqrt(c / max((c.r + c.g + c.b) / 3.0, 1e-5)); }
 
 void main() {
   vec2 uv = vUv;
@@ -221,8 +224,13 @@ void main() {
   vec3 sh = mix(vec3(1.0), hueOf(uShadowTint), uSplit * (1.0 - smoothstep(0.0, 0.42, l)));
   vec3 hi = mix(vec3(1.0), hueOf(uHighTint), uSplit * 0.8 * smoothstep(0.3, 0.95, l));
   col *= sh * hi;
-  // contrast (S-curve around mid grey)
-  col = clamp((col - 0.42) * uContrast + 0.42, 0.0, 1.0);
+  // contrast: smooth S-curve around a low pivot (keeps painted shadows from crushing)
+  {
+    const float pv = 0.32;
+    vec3 lo = pv * pow(clamp(col / pv, 0.0, 1.0), vec3(uContrast));
+    vec3 hi = 1.0 - (1.0 - pv) * pow(clamp((1.0 - col) / (1.0 - pv), 0.0, 1.0), vec3(uContrast));
+    col = mix(lo, hi, step(pv, col));
+  }
   l = dlbLuma(col);
   float sat = uSaturation * (1.0 - uHorror * 0.8);
   col = max(mix(vec3(l), col, sat), vec3(0.0));

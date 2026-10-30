@@ -80,6 +80,8 @@ uniform float dlbSurreal;
 uniform float dlbDawn;
 uniform vec3 dlbAmbient;
 uniform float dlbFlash;
+uniform vec3 dlbSkyZenith;
+uniform vec3 dlbSkyHorizon;
 #endif
 `;
 
@@ -115,7 +117,7 @@ vec3 dlbFogTint(vec3 rd) {
   c += dlbSunScatter * (dlbPhaseHG(cs, 0.72) * 3.0 + 0.25 * max(cs, 0.0));
   float cm = dot(rd, dlbMoonDir);
   c += dlbMoonScatter * (dlbPhaseHG(cm, 0.8) * 2.5 + 0.15);
-  c += dlbFlash * vec3(0.5, 0.55, 0.65);
+  c += dlbFlash * vec3(0.05, 0.055, 0.07);
   return c;
 }
 // light scattered toward the camera by the headlight beam and nearby lamps
@@ -148,13 +150,36 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
     vec3 oc = ro - lp.xyz;
     float b = dot(rd, oc);
     float c = dot(oc, oc);
-    float h = sqrt(max(c - b * b, 0.09));
+    float h2 = max(c - b * b, 0.09);
+    float h = sqrt(h2);
     float tm = min(d, max(-b, 0.0) + lp.w);
-    float I = (atan((tm + b) / h) - atan(b / h)) / h;
+    // windowed 1/r^2 kernel: integral of 1/(h^2+t^2) - 1/(h^2+R^2+t^2), keeps the halo local
+    float R = lp.w * 0.32;
+    float H = sqrt(h2 + R * R);
+    float I = (atan((tm + b) / h) - atan(b / h)) / h - (atan((tm + b) / H) - atan(b / H)) / H;
     float dist = sqrt(c);
-    acc += lc * (I * 0.0796 * (sigma * 14.0 + 0.012) * exp(-sigma * dist * 0.7));
+    acc += lc * (max(I, 0.0) * 0.0011 * (sigma * 14.0 + 0.012) * exp(-sigma * dist * 0.5));
   }
   return acc;
+}
+// Cheap environment radiance for reflections (no env map): sky gradient seen through the
+// haze, darker below the horizon, plus the nearest lamps as soft reflected glows.
+vec3 dlbEnvRadiance(vec3 r, vec3 wp, float rough) {
+  float y = r.y;
+  vec3 sky = mix(dlbSkyHorizon, dlbSkyZenith, smoothstep(0.0, 0.75, y));
+  vec3 c = mix(dlbFogTint(r), sky, smoothstep(0.0, 0.55, y) * 0.65);
+  c = mix(c, dlbFogColor * 0.35, smoothstep(0.02, -0.35, y));
+  float k = mix(2600.0, 30.0, sqrt(clamp(rough, 0.0, 1.0)));
+  for (int i = 0; i < 4; i++) {
+    vec3 lc = dlbLampCol[i].rgb;
+    if (lc.r + lc.g + lc.b < 1e-4) continue;
+    vec3 lv = dlbLampPos[i].xyz - wp;
+    float d2 = dot(lv, lv);
+    float cs = dot(r, lv * inversesqrt(max(d2, 1e-4)));
+    float g = exp(-(1.0 - cs) * k) * (k / 60.0 + 1.0) * 0.012;
+    c += lc * g / (1.0 + d2 * 0.08);
+  }
+  return c;
 }
 // Full fog: returns the fogged colour of a surface at world position wp.
 vec3 dlbApplyFog(vec3 col, vec3 wp, vec2 fragXY) {
@@ -204,7 +229,7 @@ vec3 dlbLampLightAt(vec3 p) {
     float fall = max(0.0, 1.0 - d2 / max(r * r, 1e-3));
     acc += lc * fall * fall / (1.0 + d2);
   }
-  return acc;
+  return acc * 0.012;
 }
 #endif
 `;

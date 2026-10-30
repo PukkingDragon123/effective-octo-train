@@ -22,8 +22,8 @@ export const DIM = {
   rEnd: 0.085,
   axleF: -1.36,
   axleR: 1.1,
-  archR: 0.372,
-  archY: 0.3,
+  archR: 0.342,
+  archY: 0.296,
   track: 0.705,
   wheelR: 0.29,
   wheelW: 0.175,
@@ -181,7 +181,7 @@ export function buildLowerGrid() {
     }
     return ring;
   });
-  const grid = new GridSurface(zs.length, LB.cols, (r, c) => [rings[r][c][0], rings[r][c][1], zs[r]]);
+  const grid = new GridSurface(zs.length, LB.cols, (r, c) => [rings[r][c][0], rings[r][c][1], zs[r]], { invert: true });
   // arc-length v per station
   const vArc = rings.map((ring) => {
     const acc = [0];
@@ -208,8 +208,8 @@ export const GH = {
   winBottom: 0.035,
   winTop: 0.9,
   wsTop: 0.94,
-  rwTop: 0.93,
-  qTop: 0.86,
+  rwTop: 0.94,
+  qTop: 0.82,
 };
 
 /**

@@ -63,17 +63,28 @@ export function shell(group, thick, clip, o = {}) {
   for (const p of prims) for (let i = 0; i < 3; i++) { bb[i] = Math.min(bb[i], p.bbox[i] - tmax - 0.01); bb[i + 3] = Math.max(bb[i + 3], p.bbox[i + 3] + tmax + 0.01); }
   if (o.bbox) for (let i = 0; i < 3; i++) { bb[i] = Math.max(bb[i], o.bbox[i]); bb[i + 3] = Math.min(bb[i + 3], o.bbox[i + 3]); }
   const kk = o.blend ?? 0.03;
+  const n = prims.length;
+  const pad = tmax + kk + 0.03;
+  const boxes = new Float32Array(n * 6);
+  for (let i = 0; i < n; i++) for (let j = 0; j < 6; j++) boxes[i * 6 + j] = prims[i].bbox[j] + (j < 3 ? -pad : pad);
+  const ks = prims.map((p) => Math.max(kk, p.k));
   const fn = (x, y, z) => {
     let d = 1;
-    for (let i = 0; i < prims.length; i++) {
+    let first = true;
+    for (let i = 0; i < n; i++) {
+      const o6 = i * 6;
+      if (x < boxes[o6] || y < boxes[o6 + 1] || z < boxes[o6 + 2] || x > boxes[o6 + 3] || y > boxes[o6 + 4] || z > boxes[o6 + 5]) continue;
       const di = prims[i].eval(x, y, z);
-      d = i === 0 ? di : smin(d, di, Math.max(kk, prims[i].k));
+      d = first ? di : smin(d, di, ks[i]);
+      first = false;
     }
     d -= typeof thick === 'number' ? thick : thick(x, y, z);
     if (clip) d = smax(d, clip(x, y, z), o.clipK ?? 0.004);
     return d;
   };
-  return custom(fn, bb, { k: o.k ?? 0.006, mat: o.mat || 'top', bias: o.bias ?? 0.004, region: null, tag: o.tag || 'shell' });
+  const prim = custom(fn, bb, { k: o.k ?? 0.006, mat: o.mat || 'top', bias: o.bias ?? 0.004, region: null, tag: o.tag || 'shell' });
+  prim.band = [-0.035, tmax + 0.035];
+  return prim;
 }
 
 /** Elliptical tube/skirt around the vertical axis from yTop (radii at top) to yBot with flare & folds. */

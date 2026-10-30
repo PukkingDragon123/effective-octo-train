@@ -1,7 +1,7 @@
 // Foley: footsteps, hands, paper, fire, water, wood, bells and ritual objects.
 import { TAU, alloc, normalize, mixInto, SVF, OnePole, Wander, noiseBurst, creak, addModes, Osc, fadeOut, fadeIn, loopify, bakeVerb } from './dsp.js';
 import { excite, burst, thud, metalTick, plasticClick, rattle, scrape, crackle, rustle, bubble, woodModes, bellPartials } from './lib.js';
-import { L } from './sfxCar.js';
+import { L } from './lib.js';
 
 function heel(b, sr, rng, at, { f = 95, t60 = 0.09, gain = 1, slap = 0.5, slapF = 1200 } = {}) {
   thud(b, sr, rng, at, { f, fEnd: f * 0.7, t60, noise: 0.6, click: 0, gain });

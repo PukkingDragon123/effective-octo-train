@@ -91,50 +91,49 @@ export function deityHeadGeo() {
 // ---------------------------------------------------------------------------
 function deityBodySDF(x, y, z) {
   const ax = abs(x);
-  let d = ellipsoid(x, y, z, 0, 0.42, -0.02, 0.2, 0.26, 0.15);
-  d = smin(d, sphere(x, y, z, 0, 0.33, 0.06, 0.17), 0.08); // belly
-  d = smin(d, capsule(x, y, z, -0.19, 0.6, -0.03, 0.19, 0.6, -0.03, 0.075), 0.08); // shoulders
-  // wide sleeves
-  d = smin(d, capsule(ax, y, z, 0.2, 0.58, -0.02, 0.255, 0.38, 0.07, 0.07, 0.095), 0.05);
-  d = smin(d, capsule(ax, y, z, 0.255, 0.38, 0.07, 0.15, 0.31, 0.25, 0.1, 0.115), 0.04);
-  // hands
-  d = smin(d, ellipsoid(ax, y, z, 0.12, 0.31, 0.3, 0.038, 0.032, 0.045), 0.02);
+  let d = ellipsoid(x, y, z, 0, 0.42, -0.02, 0.19, 0.25, 0.14);
+  d = smin(d, sphere(x, y, z, 0, 0.32, 0.05, 0.15), 0.08); // belly
+  d = smin(d, capsule(x, y, z, -0.18, 0.6, -0.03, 0.18, 0.6, -0.03, 0.07), 0.08); // shoulders
+  // arms in wide sleeves, forearms resting forward on the lap
+  d = smin(d, capsule(ax, y, z, 0.2, 0.58, -0.02, 0.225, 0.4, 0.05, 0.065, 0.075), 0.05);
+  d = smin(d, capsule(ax, y, z, 0.225, 0.4, 0.05, 0.11, 0.335, 0.235, 0.075, 0.08), 0.04);
+  d = smin(d, rbox(ax, y, z, 0.18, 0.27, 0.15, 0.055, 0.07, 0.075, 0.05), 0.05); // hanging sleeve cloth
+  d = smin(d, ellipsoid(ax, y, z, 0.085, 0.335, 0.275, 0.034, 0.03, 0.04), 0.02); // hands
   // lap / thighs
   d = smin(d, capsule(ax, y, z, 0.1, 0.1, -0.02, 0.12, 0.11, 0.3, 0.105), 0.07);
-  // shins + robe skirt to the floor (seat height 0.46)
-  d = smin(d, capsule(ax, y, z, 0.12, 0.1, 0.31, 0.125, -0.36, 0.34, 0.085, 0.1), 0.05);
-  d = smin(d, rbox(x, y, z, 0, -0.14, 0.27, 0.2, 0.25, 0.09, 0.06), 0.06);
+  // shins + robe skirt to the floor (seat height 0.5)
+  d = smin(d, capsule(ax, y, z, 0.12, 0.1, 0.31, 0.125, -0.4, 0.34, 0.085, 0.1), 0.05);
+  d = smin(d, rbox(x, y, z, 0, -0.16, 0.27, 0.2, 0.27, 0.09, 0.06), 0.06);
   // shoes
-  d = smin(d, ellipsoid(ax, y, z, 0.12, -0.42, 0.42, 0.055, 0.04, 0.095), 0.02);
+  d = smin(d, ellipsoid(ax, y, z, 0.12, -0.46, 0.42, 0.055, 0.04, 0.095), 0.02);
   // collar
-  d = smin(d, torusY(x, y * 1.0, z, 0, 0.64, -0.01, 0.07, 0.022), 0.03);
+  d = smin(d, torusY(x, y, z, 0, 0.64, -0.01, 0.07, 0.022), 0.03);
   return d;
 }
 const ROBE = C(0x8e1d14), ROBE_D = C(0x5a0e0a), GOLDP = C(0xd2a040), INNER = C(0x2c4a3a), SHOE = C(0x1a1410), HAND = C(0xe4b58f);
 function deityBodyColor(x, y, z, nx, ny, nz, out) {
   const ax = abs(x);
   out.copy(ROBE);
-  // fold shading
+  // fold shading + faint brocade
   const f = noise.noise3D(x * 18, y * 6, z * 18);
   lerpC(out, out, ROBE_D, sat(0.3 + f * 0.6) * 0.5);
+  const br = sin(x * 70 + sin(y * 50) * 1.5) * sin(y * 70);
+  if (br > 0.75) lerpC(out, out, GOLDP, 0.18);
   // inner green garment front panel
-  if (z > 0.05 && ax < 0.06 + max(0, 0.45 - y) * 0.12 && y > -0.1 && y < 0.6) lerpC(out, out, INNER, 0.85);
-  // gold trims: collar, cuffs, hem, belt, embroidered roundel on chest
+  if (z > 0.05 && ax < 0.055 + max(0, 0.45 - y) * 0.1 && y > -0.1 && y < 0.6) lerpC(out, out, INNER, 0.85);
+  // gold trims: collar, cuffs, hem, belt
   const collar = band(hypot(x, z + 0.01) - 0.075, 0.03) * band(y - 0.63, 0.04);
-  const hem = band(y + 0.33, 0.035);
+  const hem = band(y + 0.37, 0.035);
   const belt = band(y - 0.25, 0.018) * (z > 0 ? 1 : 0.4);
-  const cuff = band(hypot(ax - 0.15, y - 0.31, z - 0.25) - 0.1, 0.02);
-  const roundel = z > 0.08 ? band(hypot(x, y - 0.44) - 0.06, 0.012) : 0;
-  const g = max(collar, hem, belt, cuff, roundel);
+  const cuff = band(hypot(ax - 0.12, y - 0.335, z - 0.235) - 0.08, 0.02);
+  const g = max(collar, hem, belt, cuff);
   lerpC(out, out, GOLDP, g);
-  // pattern dots (embroidery)
-  if (z > 0 && (sin(x * 120) * sin(y * 120) > 0.85)) lerpC(out, out, GOLDP, 0.45);
-  if (y < -0.37 && z > 0.36) out.copy(SHOE);
-  if (z > 0.27 && y > 0.27 && y < 0.36 && ax > 0.08 && ax < 0.16) out.copy(HAND);
+  if (y < -0.41 && z > 0.36) out.copy(SHOE);
+  if (z > 0.25 && y > 0.3 && y < 0.37 && ax < 0.12) out.copy(HAND);
   return out;
 }
 export function deityBodyGeo() {
-  return sculpt('deityBody', deityBodySDF, [-0.34, -0.5, -0.22, 0.34, 0.72, 0.56], 0.012, { color: deityBodyColor, smooth: 1 });
+  return sculpt('deityBody', deityBodySDF, [-0.34, -0.5, -0.22, 0.34, 0.72, 0.56], 0.015, { color: deityBodyColor, smooth: 1 });
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +271,7 @@ function lionSDF(female) {
   };
 }
 export function lionGeo(female = false) {
-  return sculpt('lion:' + female, lionSDF(female), [-0.28, -0.02, -0.42, 0.28, 0.92, 0.36], 0.011, { color: buddhaColor(0), smooth: 1 });
+  return sculpt('lion:' + female, lionSDF(female), [-0.28, -0.02, -0.42, 0.28, 0.92, 0.36], 0.0135, { color: buddhaColor(0), smooth: 1 });
 }
 
 // ---------------------------------------------------------------------------
@@ -281,8 +280,8 @@ export function lionGeo(female = false) {
 function zebraSDF(x, y, z) {
   const ax = abs(x);
   let d = ellipsoid(x, y, z, 0, 0.2, 0, 0.058, 0.055, 0.13);
-  d = smin(d, capsule(ax, y, z, 0.035, 0.18, 0.09, 0.035, 0.0, 0.1, 0.02, 0.013), 0.015);
-  d = smin(d, capsule(ax, y, z, 0.035, 0.18, -0.09, 0.035, 0.0, -0.1, 0.022, 0.013), 0.015);
+  d = smin(d, capsule(ax, y, z, 0.035, 0.18, 0.09, 0.035, 0.0, 0.1, 0.022, 0.015), 0.015);
+  d = smin(d, capsule(ax, y, z, 0.035, 0.18, -0.09, 0.035, 0.0, -0.1, 0.024, 0.015), 0.015);
   d = smin(d, capsule(x, y, z, 0, 0.23, 0.1, 0, 0.33, 0.15, 0.03, 0.024), 0.02);
   d = smin(d, capsule(x, y, z, 0, 0.335, 0.15, 0, 0.3, 0.225, 0.024, 0.016), 0.012);
   d = smin(d, capsule(ax, y, z, 0.012, 0.35, 0.145, 0.018, 0.385, 0.135, 0.008, 0.004), 0.006);
@@ -298,7 +297,7 @@ function zebraColor(x, y, z, nx, ny, nz, out) {
   return out;
 }
 export function zebraGeo() {
-  return sculpt('zebra', zebraSDF, [-0.08, -0.01, -0.19, 0.08, 0.4, 0.25], 0.0058, { color: zebraColor, smooth: 1 });
+  return sculpt('zebra', zebraSDF, [-0.08, -0.01, -0.19, 0.08, 0.4, 0.25], 0.0078, { color: zebraColor, smooth: 1 });
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +328,7 @@ function dancerColor(x, y, z, nx, ny, nz, out) {
   return out;
 }
 export function dancerGeo() {
-  return sculpt('dancer', dancerSDF, [-0.075, -0.005, -0.085, 0.075, 0.28, 0.08], 0.0038, { color: dancerColor, smooth: 1 });
+  return sculpt('dancer', dancerSDF, [-0.075, -0.005, -0.085, 0.075, 0.28, 0.08], 0.0052, { color: dancerColor, smooth: 1 });
 }
 
 // ---------------------------------------------------------------------------
@@ -348,7 +347,7 @@ function elderSDF(female) {
 }
 const ESKIN = C(0xd8b090), EWHITE = C(0xe8e2d4), EDARK = C(0x3a2a3a), EHAIR = C(0xd8d8d8);
 export function elderGeo(female = false) {
-  return sculpt('elder:' + female, elderSDF(female), [-0.06, -0.005, -0.05, 0.06, 0.175, 0.07], 0.0035, {
+  return sculpt('elder:' + female, elderSDF(female), [-0.06, -0.005, -0.05, 0.06, 0.175, 0.07], 0.0046, {
     smooth: 1,
     color: (x, y, z, nx, ny, nz, out) => {
       if (y > 0.122) return out.copy(y > 0.145 && (z < 0.005 || ny > 0.6) ? EHAIR : ESKIN);

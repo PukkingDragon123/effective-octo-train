@@ -1,6 +1,6 @@
 // Electric hums, horror stings/hits, supernatural voices, ritual drones and UI.
 import { TAU, alloc, normalize, mixInto, SVF, Biquad, OnePole, Wander, Brown, Pink, noiseBurst, creak, addModes, Osc, fadeOut, fadeIn, loopify, bakeVerb, reverse, Reson, clamp, rngFrom } from './dsp.js';
-import { L } from './sfxCar.js';
+import { L } from './lib.js';
 import { excite, burst, thud, metalTick, rattle, scrape, crackle, woodModes, bellPartials } from './lib.js';
 import { VoxScore, renderVox, vowelParams } from './vox.js';
 import { renderMurmur, parseThai, buildSpeechScore, voicePreset } from './speech.js';

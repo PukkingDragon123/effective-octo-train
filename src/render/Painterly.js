@@ -90,9 +90,9 @@ void main() {
   vec4 m[8];
   vec3 s[8];
   for (int k = 0; k < 8; k++) { m[k] = vec4(0.0); s[k] = vec3(0.0); }
-  for (int y = -6; y <= 6; y++) {
+  for (int y = -9; y <= 9; y++) {
     if (y < -maxY || y > maxY) continue;
-    for (int x = -6; x <= 6; x++) {
+    for (int x = -9; x <= 9; x++) {
       if (x < -maxX || x > maxX) continue;
       vec2 p = vec2(float(x), float(y));
       vec2 vv = vec2(cp * p.x - sp * p.y, sp * p.x + cp * p.y);

@@ -1,0 +1,263 @@
+// ENCOUNTERS: every scare, folklore sighting, rule event and "beautiful moment" the
+// encounter director can stage (GAME_DESIGN §6). The director picks free-drive encounters
+// by hour/where/chance/cooldown; ride encounters are scheduled by PASSENGERS[].encounters.
+//
+// ENCOUNTERS[id] = {
+//   id, nameTH, nameEN,
+//   kind: 'scare'|'folklore'|'rule'|'beautiful'|'story',
+//   hours: [from, to] | [[from,to], ...]   game hours 21..30 (24 = 00:00, 30 = 06:00), `to` exclusive,
+//   where: 'any' | 'freeDrive' | 'nearLandmark:<LAYOUT key>' | 'ride:<passengerId>' | 'ride:anyGhost'  (string or array: any match),
+//   gazeMode: 'notLooking' (spawn only outside the view, reveal when looked at) | 'mirrorOnly' |
+//             'sideWindow' (only visible through a side window) | 'any',
+//   cooldownSec, chance (0..1 per director check, ~every 6 s while eligible; ride-scheduled ones ignore chance),
+//   durationSec: [min,max], ruleId?: 'r1'..'r10' when it is a rule event,
+//   creature?: creatures/ factory name, respectSoftens?: r10 respect shortens it, amuletRepels?: holding the amulet ends it,
+//   lines?: [Line] spoken when it starts, whispers?: [Line] random ambient whispers while it runs,
+//   choice?: { prompt:Line, options:[{key,th,en}], timeout, defaultKey }, outcomes?: { key: { lines:[Line], result:'death:<type>'|'safe'|'ending:<id>' } },
+//   staging: designer notes for the director / creatures programmer,
+// }
+// Lines follow the Line schema (SCHEMA.md). who:'voice' = disembodied.
+
+const V = (th, en, x = {}) => ({ who: 'voice', th, en, tone: 'ghost', ...x });
+const W = (th, en) => ({ who: 'voice', th, en, tone: 'whisper' });
+const T = (th, en, x = {}) => ({ who: 'player', th, en, tone: 'thought', ...x });
+
+export const ENCOUNTERS = {
+  // ---------------------------------------------------------------- dread 21–23
+  treeWatcher: {
+    id: 'treeWatcher', nameTH: 'คนยืนในป่า', nameEN: 'Tree Watcher', kind: 'scare',
+    hours: [21, 23], where: ['freeDrive', 'ride:sri'], gazeMode: 'sideWindow',
+    cooldownSec: 150, chance: 0.35, durationSec: [6, 14], creature: 'createWindowGhost', respectSoftens: true,
+    lines: [T('มีคน... ยืนอยู่ในป่า', "Someone's... standing in the trees.")],
+    staging: 'Pale figure 8–15 m off the road between trunks, visible only through a side window. When looked at directly (>0.4 s) it is gone; reappears 60–90 m ahead on the same side.',
+  },
+  womanRunning: {
+    id: 'womanRunning', nameTH: 'ผู้หญิงวิ่งข้างรถ', nameEN: 'Woman Running Beside the Car', kind: 'scare',
+    hours: [21, 23], where: 'freeDrive', gazeMode: 'mirrorOnly',
+    cooldownSec: 240, chance: 0.2, durationSec: [8, 12], creature: 'createWindowGhost', amuletRepels: true,
+    whispers: [W('รอด้วย...', 'Wait for me...'), W('ช้าหน่อย...', 'Slow down...')],
+    staging: 'First only in the left side mirror, keeping pace at any speed; then through the side window. Her neck turns toward the driver while her body keeps running.',
+  },
+  salaShadows: {
+    id: 'salaShadows', nameTH: 'เงาหลังศาลา', nameEN: 'Shadows Behind the Sala', kind: 'scare',
+    hours: [21, 24], where: ['nearLandmark:sala1', 'nearLandmark:sala2', 'ride:sri'], gazeMode: 'notLooking',
+    cooldownSec: 300, chance: 0.5, durationSec: [4, 7],
+    staging: 'Two or three dark figures slip between the sala pillars as the taxi passes; never in full view.',
+  },
+  phiTaiHong: {
+    id: 'phiTaiHong', nameTH: 'ผีตายโหง', nameEN: 'Phi Tai Hong', kind: 'folklore',
+    hours: [[22, 23], [24, 25]], where: 'nearLandmark:accidentCurve', gazeMode: 'any',
+    cooldownSec: 600, chance: 0.6, durationSec: [6, 10], creature: 'createPhiTaiHong', respectSoftens: true,
+    whispers: [W('เจ็บ... เจ็บ...', 'It hurts... it hurts...'), W('หมวกฉันอยู่ไหน...', "Where's my helmet...")],
+    staging: 'Broken, wet figure crouched by the wreaths and the old crashed motorbike, twitching. Stands up as the headlights pass.',
+  },
+
+  // ---------------------------------------------------------------- ride 2 set pieces
+  fingersDoorFrame: {
+    id: 'fingersDoorFrame', nameTH: 'นิ้วเกาะขอบประตู', nameEN: 'Fingers on the Door Frame', kind: 'scare',
+    hours: [21, 30], where: 'ride:womanWhite', gazeMode: 'notLooking',
+    cooldownSec: 0, chance: 1, durationSec: [5, 8], creature: 'createWindowGhost',
+    staging: 'Long grey fingers curl around the rear-left window frame from outside while moving; they tighten when looked at, then slide away.',
+  },
+  upsideDownHead: {
+    id: 'upsideDownHead', nameTH: 'หัวห้อยหน้ากระจก', nameEN: 'Upside-Down Head', kind: 'scare',
+    hours: [21, 30], where: 'ride:womanWhite', gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [4, 6], creature: 'createWindowGhost',
+    staging: 'Her head (wet hair hanging up) lowers slowly into the top of the windshield from the roof while she is still seated in the back. Wipers pass through the hair.',
+  },
+  faceAgainstGlass: {
+    id: 'faceAgainstGlass', nameTH: 'หน้าแนบกระจก', nameEN: 'Face Against the Glass', kind: 'scare',
+    hours: [21, 30], where: ['ride:womanWhite', 'ride:saman'], gazeMode: 'sideWindow',
+    cooldownSec: 0, chance: 1, durationSec: [3, 5], creature: 'createWindowGhost',
+    staging: 'A face presses against the side glass from outside and smears the condensation (taxi.addGlassMark face). In ride 7 it is Saman\'s own face, grinning, while he also sits inside.',
+  },
+  cabinLightDies: {
+    id: 'cabinLightDies', nameTH: 'ไฟในรถดับเอง', nameEN: 'The Cabin Light Dies', kind: 'rule', ruleId: 'r9',
+    hours: [21, 27], where: ['ride:womanWhite', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 600, chance: 0.15, durationSec: [10, 16],
+    lines: [T('ไฟดับ... เอง', 'The light... went out by itself.')],
+    whispers: [W('ดีแล้ว... มืดดีแล้ว', "Good... the dark is good."), W('ข้างบน...', 'Up here...')],
+    outcomes: {
+      lightOn: { lines: [V('เห็นแล้ว...', 'I see you now...')], result: 'death:ceilingCrawl' },
+      waited: { lines: [], result: 'safe' },
+    },
+    staging: 'If the cabin light is on it flickers and dies; if it is off, the dashboard dims too. Scratching across the headliner. Switching it back on = ceiling crawl.',
+  },
+  twistedNeckReflection: {
+    id: 'twistedNeckReflection', nameTH: 'คอบิดในกระจก', nameEN: 'Twisted Neck in the Mirror', kind: 'scare',
+    hours: [21, 30], where: 'ride:anyGhost', gazeMode: 'mirrorOnly',
+    cooldownSec: 900, chance: 0.25, durationSec: [2, 4],
+    staging: 'humanoid.createReflectionDouble({ neckTwist: 1.6 }): direct view normal, the reflection\'s head bent 90° and staring. Snaps back when the player looks away from the mirror.',
+  },
+
+  // ---------------------------------------------------------------- surreal 22–02
+  wireCrawler: {
+    id: 'wireCrawler', nameTH: 'ตัวอะไรบนสายไฟ', nameEN: 'Wire Crawler', kind: 'folklore',
+    hours: [22, 25], where: ['freeDrive', 'ride:piak'], gazeMode: 'any',
+    cooldownSec: 400, chance: 0.25, durationSec: [6, 10], creature: 'createWireCrawler',
+    staging: 'Long-limbed thing crawling along the sagging wires overhead, lit in pulses by flickering streetlights; the wires bounce. Visible through the top of the windshield.',
+  },
+  roofCrawler: {
+    id: 'roofCrawler', nameTH: 'อะไรอยู่บนหลังคา', nameEN: 'Roof Crawler', kind: 'scare',
+    hours: [22, 26], where: 'freeDrive', gazeMode: 'any',
+    cooldownSec: 500, chance: 0.18, durationSec: [5, 9], amuletRepels: true,
+    lines: [T('บนหลังคา... มีอะไรเดินอยู่', "Something's... walking on the roof.")],
+    staging: 'Dents and thumps on the roof, the headliner bulges, a shadow crosses the windshield top edge; a hand slaps the windshield once, then it leaps into the trees.',
+  },
+  somethingEnormous: {
+    id: 'somethingEnormous', nameTH: 'ร่างยักษ์ในป่า', nameEN: 'Something Enormous', kind: 'folklore',
+    hours: [23, 25], where: ['freeDrive', 'ride:piak', 'ride:boyM'], gazeMode: 'any',
+    cooldownSec: 900, chance: 0.15, durationSec: [5, 8], creature: 'createForestGiant',
+    lines: [T('ต้นไม้... ขยับ?', 'Did the trees... move?')],
+    staging: 'A vast silhouette moves between the trunks 40–80 m away, lit for a moment by a streetlight. The ground thuds faintly; the amulet warms.',
+  },
+  yaiSpeed: {
+    id: 'yaiSpeed', nameTH: 'ยายสปีด', nameEN: 'Yai Speed', kind: 'folklore',
+    hours: [23, 25], where: ['freeDrive', 'ride:piak'], gazeMode: 'any',
+    cooldownSec: 600, chance: 0.3, durationSec: [10, 18], creature: 'createYaiSpeed', amuletRepels: true, respectSoftens: true,
+    lines: [T('...ยาย?', '...Granny?')],
+    whispers: [V('หึ หึ หึ...', 'Heh heh heh...')],
+    outcomes: {
+      slowed: { lines: [T('ปล่อยให้แกแซงไป...', 'Let her pass...')], result: 'safe' },
+      raced: { lines: [V('แข่งกับยายเหรอ...', 'Racing Granny, are we...')], result: 'scare:hood' },
+    },
+    staging: 'An old woman sprints alongside at any speed with an impossible gait, overtakes, turns her head 180° while running. Slow down (<35 km/h) and she passes. Stare + accelerate and she lands on the hood (scare, crack in the glass); holding the amulet throws her off.',
+  },
+  krasue: {
+    id: 'krasue', nameTH: 'กระสือ', nameEN: 'Krasue', kind: 'folklore',
+    hours: [24, 26], where: ['nearLandmark:bananaGrove', 'ride:boyM', 'ride:nuan'], gazeMode: 'any',
+    cooldownSec: 600, chance: 0.6, durationSec: [8, 14], creature: 'createKrasue',
+    staging: 'A floating woman\'s head with glowing entrails drifts through the banana trees, green-gold light on the leaves. It notices the car, then loses interest.',
+  },
+  krahang: {
+    id: 'krahang', nameTH: 'กระหัง', nameEN: 'Krahang', kind: 'folklore',
+    hours: [25, 27], where: ['freeDrive', 'ride:nuan', 'ride:monk'], gazeMode: 'any',
+    cooldownSec: 600, chance: 0.4, durationSec: [6, 10], creature: 'createKrahang',
+    staging: 'A man flying on winnowing-basket wings with a pestle tail crosses the canopy against the red moon; wing-beats like flapping rice baskets.',
+  },
+  radioSelfOn: {
+    id: 'radioSelfOn', nameTH: 'วิทยุเปิดเอง', nameEN: 'The Radio Turns Itself On', kind: 'rule', ruleId: 'r6',
+    hours: [21, 30], where: 'ride:boyM', gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [8, 20],
+    lines: [{ who: 'radio', th: '♪ หนึ่ง... สอง... สาม... ข้ามถนน... ♪', en: '♪ One... two... three... cross the road... ♪', tone: 'ghost' }],
+    outcomes: {
+      off: { lines: [], result: 'safe' },
+      ignored: { lines: [{ who: 'radio', th: 'ปิด... ปิด... ปิด...', en: 'Off... off... OFF...', tone: 'ghost' }], result: 'death:radio' },
+    },
+    staging: 'taxi.setControl("radio", true) by itself; static + a warped children\'s counting song. Boy M asks for it off; RULE_PARAMS.radioGraceSeconds then escalation.',
+  },
+  nameCall: {
+    id: 'nameCall', nameTH: 'เสียงเรียกชื่อ', nameEN: 'A Voice Calls Your Name', kind: 'rule', ruleId: 'r7',
+    hours: [22, 29], where: ['ride:nuan', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 900, chance: 0.12, durationSec: [8, 12],
+    lines: [
+      V('ต้น...', 'Ton...', { tone: 'whisper' }),
+      V('ต้น... ลูก... แม่เอง', "Ton... sweetheart... it's Mum."),
+      V('เปิดประตูให้แม่หน่อย แม่หนาว', "Open the door for Mum. I'm cold."),
+    ],
+    choice: {
+      prompt: T('มีเสียงเรียกจากข้างนอก...', 'A voice outside is calling...'),
+      options: [{ key: 'answer', th: 'ครับ?', en: 'Yes?' }, { key: 'silent', th: '(เงียบ)', en: '(stay silent)' }],
+      timeout: 6, defaultKey: 'silent',
+    },
+    outcomes: {
+      answer: { lines: [V('...ได้ยินแล้ว', '...I heard you.', { tone: 'whisper' })], result: 'death:nameCall' },
+      silent: { lines: [V('ต้น... ต้น...', 'Ton... Ton...', { tone: 'whisper' })], result: 'safe' },
+      windowOpened: { lines: [V('ขอบใจจ้ะ...', 'Thank you, dear...')], result: 'death:nameCall' },
+    },
+    staging: 'Voice moves around the car outside (HRTF), first sweet then wrong. Stopping + opening a window while it calls = death. Emits nameCallAnswered / nameCallIgnored.',
+  },
+  breathOnNeck: {
+    id: 'breathOnNeck', nameTH: 'ลมหายใจรดต้นคอ', nameEN: 'Breath on the Neck', kind: 'rule', ruleId: 'r8',
+    hours: [22, 28], where: ['ride:saman', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 900, chance: 0.1, durationSec: [5, 8], amuletRepels: true,
+    lines: [T('ลมหายใจ... ที่ต้นคอ', 'Breath... on my neck.')],
+    whispers: [W('หันมาสิ...', 'Turn around...'), W('ข้างหลังนี่...', 'Right behind you...'), W('ฮืออ...', 'Hhhhh...')],
+    outcomes: {
+      held: { lines: [], result: 'safe' },
+      failed: { lines: [V('เห็นหน้าแล้ว', 'Now I see your face.')], result: 'death:breath' },
+    },
+    staging: 'Cold breath sound right behind the driver\'s head, rear-right window fogs from inside, hairs on the neck (camera micro-shake). Hold amulet (gold aura) + look within RULE_PARAMS.breathLookForwardConeDeg. Emits breathPassed.',
+  },
+  trunkKnocks: {
+    id: 'trunkKnocks', nameTH: 'เสียงเคาะท้ายรถ', nameEN: 'Three Knocks from the Trunk', kind: 'rule', ruleId: 'r5',
+    hours: [22, 26], where: ['ride:piak', 'freeDrive'], gazeMode: 'any',
+    cooldownSec: 900, chance: 0.1, durationSec: [20, 30],
+    lines: [],
+    whispers: [V('เปิด... ให้หน่อย...', 'Let... me... out...')],
+    outcomes: {
+      kept: { lines: [V('...คราวหน้านะ', '...next time, then.', { tone: 'whisper' })], result: 'safe' },
+      stopped: { lines: [V('จอดแล้ว...', 'You stopped...')], result: 'death:trunk' },
+    },
+    staging: 'knock ×3 (RULE_PARAMS.knockIntervalSeconds) from inside the trunk, emits knock1..knock3. Trunk lid rattles in the mirror. Stay above knockStopSpeedKmh for knockDangerSeconds.',
+  },
+  reflectionStays: {
+    id: 'reflectionStays', nameTH: 'เงาในกระจกที่ไม่ยอมลง', nameEN: 'The Reflection That Stays', kind: 'scare',
+    hours: [21, 30], where: 'ride:boyM', gazeMode: 'mirrorOnly',
+    cooldownSec: 0, chance: 1, durationSec: [6, 10],
+    lines: [{ who: 'boyM', th: 'พี่ครับ... ผมยังอยู่นี่', en: "Mister... I'm still here.", tone: 'ghost' }],
+    staging: 'Wrong-fork aftermath for ride 4: the boy is gone, but his reflection remains seated and slowly turns to look at you; then the road folds (dragBack).',
+  },
+
+  // ---------------------------------------------------------------- calm & dawn (beautiful)
+  strayDogs: {
+    id: 'strayDogs', nameTH: 'หมาวัดวิ่งไล่รถ', nameEN: 'Temple Dogs Chase the Taxi', kind: 'beautiful',
+    hours: [26, 28], where: ['nearLandmark:forestTemple', 'ride:monk', 'ride:saman'], gazeMode: 'any',
+    cooldownSec: 400, chance: 0.5, durationSec: [8, 12],
+    staging: '3–5 scruffy dogs (createQuadruped("dog")) burst out barking and chase the taxi for 100 m, then trot back proudly.',
+  },
+  monkBlessing: {
+    id: 'monkBlessing', nameTH: 'หลวงพี่ให้พร', nameEN: "The Monk's Blessing", kind: 'story',
+    hours: [21, 30], where: 'ride:monk', gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [10, 14],
+    whispers: [W('สาธุ...', 'Sadhu...'), W('สาธุ...', 'Sadhu...'), W('สาธุ...', 'Sadhu...')],
+    staging: 'While he chants, every ghost along the road (tree watcher, sala shadows, the woman in white far off, M at the bus stop) glows faintly gold and wai\'s the passing car. Music swells softly.',
+  },
+  fireflies: {
+    id: 'fireflies', nameTH: 'หิ่งห้อย', nameEN: 'Fireflies', kind: 'beautiful',
+    hours: [26, 29], where: 'any', gazeMode: 'any',
+    cooldownSec: 300, chance: 0.4, durationSec: [20, 40],
+    staging: 'Clouds of fireflies pulse in sync over the ditch and the banana leaves.',
+  },
+  noodleShopOpen: {
+    id: 'noodleShopOpen', nameTH: 'ร้านป้าเล็กยังเปิด', nameEN: "Auntie Lek's Is Still Open", kind: 'beautiful',
+    hours: [21, 30], where: 'nearLandmark:noodleShop', gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [0, 0],
+    lines: [{ who: 'auntieLek', th: 'แวะก่อนไหมหนุ่ม กาแฟร้อน ๆ', en: 'Stopping by, dear? Hot coffee.' }],
+    staging: 'Optional stop during free drive. Auntie Lek is human: coffee and snacks, memory m_noodle. See WORLD_TEXT.noodleMenu and MEMORIES.m_noodle.',
+  },
+  elephants: {
+    id: 'elephants', nameTH: 'ช้างป่าข้ามถนน', nameEN: 'Elephant Family Crossing', kind: 'beautiful',
+    hours: [28, 29], where: ['ride:bua', 'nearLandmark:elephantCrossing'], gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [20, 30],
+    staging: 'Mother, aunt and a calf cross in the blue-hour mist; the calf stops to look at the headlights, then hurries after its mother. If the player honks they trumpet softly. Spawn on the road ahead of the taxi during ride 8 (the sign at elephantCrossing is behind the marketLamp pickup). Emits "elephants".',
+  },
+  dawnBirds: {
+    id: 'dawnBirds', nameTH: 'นกเช้า', nameEN: 'Dawn Chorus', kind: 'beautiful',
+    hours: [28, 30], where: 'any', gazeMode: 'any',
+    cooldownSec: 120, chance: 0.6, durationSec: [30, 60],
+    staging: 'Magpie-robins, bulbuls and roosters; a flock of egrets lifts off a paddy beyond the trees.',
+  },
+  monksAlms: {
+    id: 'monksAlms', nameTH: 'พระบิณฑบาต', nameEN: 'Monks on the Alms Round', kind: 'beautiful',
+    hours: [29, 30], where: ['ride:somchai', 'any'], gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [15, 25],
+    staging: 'A line of barefoot monks in saffron walks single file along the misty roadside with alms bowls; villagers kneel with rice. One small novice waves.',
+  },
+  fatherCall: {
+    id: 'fatherCall', nameTH: 'เสียงพ่อจากเบาะหลัง', nameEN: "Father's Voice from the Back Seat", kind: 'rule', ruleId: 'r3',
+    hours: [29, 30], where: 'ride:somchai', gazeMode: 'any',
+    cooldownSec: 0, chance: 1, durationSec: [12, 20],
+    outcomes: {
+      lookedBack: { lines: [], result: 'ending:endless' },
+      drove: { lines: [], result: 'ending:dawn' },
+      forgave: { lines: [], result: 'ending:forgive' },
+    },
+    staging: 'At the mist gate he steps out; door closes; then his voice from the rear-right seat (RIDE_SOMCHAI.finale). Camera look limits stay open: the player must choose not to turn.',
+  },
+};
+
+export const ENCOUNTER_IDS = Object.keys(ENCOUNTERS);
+
+/** Death ids produced by encounter outcomes ('death:<id>'); each has a card in WORLD_TEXT.deathCards. */
+export const ENCOUNTER_DEATHS = ['ceilingCrawl', 'radio', 'nameCall', 'breath', 'trunk'];

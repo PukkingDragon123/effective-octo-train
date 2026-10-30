@@ -72,10 +72,15 @@ function makeTexture(key, raw) {
   t.colorSpace = raw.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   const wrap = raw.wrap === 'clamp' ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
   t.wrapS = t.wrapT = wrap;
-  t.magFilter = THREE.LinearFilter;
-  t.minFilter = THREE.LinearMipmapLinearFilter;
-  t.generateMipmaps = true;
-  t.anisotropy = 8;
+  if (raw.meta && raw.meta.nearest) {
+    t.magFilter = t.minFilter = THREE.NearestFilter;
+    t.generateMipmaps = false;
+  } else {
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 8;
+  }
   t.name = key;
   t.userData = { key, alpha: !!raw.alpha, ...(raw.meta || {}) };
   t.needsUpdate = true;
@@ -83,6 +88,7 @@ function makeTexture(key, raw) {
 }
 
 function familySize(f, opts) {
+  if (f.fixed) return f.size;
   if (opts.size) return opts.size;
   const base = f.size ?? 512;
   return Math.max(f.minSize ?? 128, Math.round((base * qualityScale()) / 64) * 64);

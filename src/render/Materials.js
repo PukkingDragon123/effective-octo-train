@@ -117,13 +117,15 @@ const VERT_PROJECT = /* glsl */ `
 const FRAG_COMMON = /* glsl */ `
 #include <dlb_common>
 #include <dlb_globals>
+#include <dlb_fog_common>
 varying vec3 vDlbWP;
 varying vec3 vDlbWN;
 varying float vDlbH;
 uniform sampler2D dlbBrushTex;
 uniform vec4 dlbPaint;  // x brush, y wet, z moss, w dirt
 uniform vec4 dlbPaint2; // x windStrength, y translucency, z triplanarScale, w pale
-uniform vec4 dlbPaint3; // x skin sss, y dirtHeight, z puddles, w emissive rim
+uniform vec4 dlbPaint3; // x skin sss, y dirtHeight, z puddles, w env reflection strength
+uniform float dlbRim;
 uniform vec3 dlbMossColor;
 uniform vec3 dlbDirtColor;
 #ifdef DLB_TRIPLANAR
@@ -243,7 +245,17 @@ const FRAG_EMISSIVE = /* glsl */ `
   #ifdef DLB_PALE
   {
     float rim = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
-    totalEmissiveRadiance += dlbPaint2.w * (rim * 0.06 + 0.008) * vec3(0.55, 0.7, 0.75) * (1.0 + dlbPaint3.w);
+    totalEmissiveRadiance += dlbPaint2.w * (rim * 0.06 + 0.008) * vec3(0.55, 0.7, 0.75) * (1.0 + dlbRim);
+  }
+  #endif
+`;
+
+const FRAG_ENV = /* glsl */ `
+  #ifndef USE_ENVMAP
+  {
+    vec3 dlbRv = reflect(-geometryViewDir, geometryNormal);
+    vec3 dlbRw = inverseTransformDirection(dlbRv, viewMatrix);
+    radiance += dlbEnvRadiance(dlbRw, vDlbWP, material.roughness) * dlbPaint3.w * (1.0 - 0.5 * material.roughness);
   }
   #endif
 `;
@@ -379,7 +391,8 @@ export function paintedMaterial(opts = {}) {
     dlbBrushTex: { value: brushTexture() },
     dlbPaint: { value: new THREE.Vector4(opts.brush ?? 0.6, opts.wet ?? 0.5, opts.moss ?? 0, opts.dirt ?? 0) },
     dlbPaint2: { value: new THREE.Vector4(opts.windStrength ?? 1, translucency, opts.triplanarScale ?? 0.5, pale) },
-    dlbPaint3: { value: new THREE.Vector4(opts.sss ?? 0.6, opts.dirtHeight ?? 0.5, opts.puddles ?? 1, opts.rim ?? 0) },
+    dlbPaint3: { value: new THREE.Vector4(opts.sss ?? 0.6, opts.dirtHeight ?? 0.5, opts.puddles ?? 1, opts.envReflect ?? 1) },
+    dlbRim: { value: opts.rim ?? 0 },
     dlbWindParams: { value: new THREE.Vector4(opts.windHeightScale ?? 1, opts.flutter ?? 1, opts.windPhase ?? 0, 0) },
     dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x34431f) },
     dlbDirtColor: { value: new THREE.Color(opts.dirtColor ?? 0x3a2f24) },
@@ -411,6 +424,7 @@ export function paintedMaterial(opts = {}) {
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' + FRAG_ROUGHNESS)
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + FRAG_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + FRAG_EMISSIVE)
+      .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\n' + FRAG_ENV)
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + FRAG_TRANSLUCENT_END);
   };
   m.customProgramCacheKey = () => cacheKey;
@@ -445,7 +459,8 @@ export function setPaintedParams(material, p = {}) {
   if (p.translucency !== undefined) u.dlbPaint2.value.y = p.translucency;
   if (p.pale !== undefined) u.dlbPaint2.value.w = p.pale;
   if (p.sss !== undefined) u.dlbPaint3.value.x = p.sss;
-  if (p.rim !== undefined) u.dlbPaint3.value.w = p.rim;
+  if (p.rim !== undefined) u.dlbRim.value = p.rim;
+  if (p.envReflect !== undefined) u.dlbPaint3.value.w = p.envReflect;
 }
 
 // ---------------------------------------------------------------------------

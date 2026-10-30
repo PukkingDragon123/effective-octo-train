@@ -165,10 +165,10 @@ export function createElectricPole(opts = {}) {
       p.z *= s;
     },
     color: 0xb8b2a4,
-    colorFn: (p, n, c) => {
+    colorFn: (p, n, c, lp) => {
       // reflective road stripes near the base on roadside poles
-      if (stripes && p.y > 0.6 && p.y < 1.8) {
-        const s = Math.floor((p.y - 0.6) / 0.2);
+      if (stripes && lp.y > 0.6 && lp.y < 1.8) {
+        const s = Math.floor((lp.y - 0.6) / 0.2);
         if (s % 2 === 0) c.multiplyScalar(0.18);
         else c.lerp(_white, 0.55);
       }
@@ -281,7 +281,7 @@ export function createElectricPole(opts = {}) {
         // tank with cooling fins, lid, bushings
         k.add(mat('metal'), G('tank', () => cyl(0.23, 0.23, 0.82, 16, 0.02, 4)), {
           p: [x, 0, tz], color: 0x8a908a, w: { ground: 0, grime: 0.2, grimeH: 0.3, streak: 0.9, streakColor: 0x6a3a1a, vary: 0.2 },
-          colorFn: (p, nn, cc) => { if (Math.abs(Math.sin(Math.atan2(p.z - tz, p.x - x) * 14)) > 0.8) cc.multiplyScalar(0.72); },
+          colorFn: (p, nn, cc, lp) => { if (Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 14)) > 0.8) cc.multiplyScalar(0.72); },
         });
         k.add(mat('metal'), G('tlid', () => cyl(0.25, 0.25, 0.05, 16, 0.012)), { p: [x, 0.82, tz], color: 0x7a7e78, w: { streak: 0.5 } });
         for (let b = 0; b < 2; b++) {

@@ -28,7 +28,7 @@ export const GLOBAL_UNIFORMS = {
   /** 0..1 how patchy / drifting the fog is (3D noise modulation). */
   uFogNoise: { value: 0.6 },
   /** Linear colour * strength of the light the headlights scatter into fog. */
-  uHeadlightColor: { value: new THREE.Color(1.0, 0.86, 0.66) },
+  uHeadlightColor: { value: new THREE.Color(1.0, 0.86, 0.66).multiplyScalar(0.12) },
   /** x = cos(outer half-angle), y = cos(inner half-angle), z = range (m), w = ray-march steps. */
   uHeadlightCone: { value: new THREE.Vector4(Math.cos(0.5), Math.cos(0.2), 46, 8) },
   /** Direction TOWARD the sun / moon (world) and the colour they scatter into fog (forward lobe). */
@@ -47,6 +47,9 @@ export const GLOBAL_UNIFORMS = {
   uSunLight: { value: new THREE.Color(0, 0, 0) },
   /** Brief global lightning / flash term (sky + fog), 0..1. */
   uFlash: { value: 0 },
+  /** Sky colours (linear) for cheap environment reflections on wet / glossy surfaces. */
+  uSkyZenith: { value: new THREE.Color(0.002, 0.004, 0.005) },
+  uSkyHorizon: { value: new THREE.Color(0.01, 0.02, 0.02) },
 };
 
 /** dlb-prefixed aliases used by the injected shader code (same value objects). */
@@ -78,6 +81,8 @@ export const SHADER_GLOBALS = {
   dlbDawn: GLOBAL_UNIFORMS.uDawn,
   dlbAmbient: GLOBAL_UNIFORMS.uAmbient,
   dlbFlash: GLOBAL_UNIFORMS.uFlash,
+  dlbSkyZenith: GLOBAL_UNIFORMS.uSkyZenith,
+  dlbSkyHorizon: GLOBAL_UNIFORMS.uSkyHorizon,
 };
 
 /** Add the dlb* global uniforms to a uniforms object (never overwrites existing keys). */

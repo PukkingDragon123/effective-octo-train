@@ -45,6 +45,7 @@ function passMaterial(frag, uniforms, defines = {}) {
 }
 
 const _v3 = new THREE.Vector3();
+const _dir = new THREE.Vector3();
 const _size = new THREE.Vector2();
 
 class PostFX {
@@ -186,7 +187,7 @@ class PostFX {
     this.sceneRT = makeRT(w, h, { depth: true, samples, name: 'dlbScene' });
     this.copyRT = null; // allocated on demand (glass)
     const q = this._quality;
-    const pw = q === 'high' ? w : Math.ceil(w / 2), ph = q === 'high' ? h : Math.ceil(h / 2);
+    const pw = Math.ceil(w / 2), ph = Math.ceil(h / 2);
     this.paintRT = makeRT(pw, ph, { name: 'dlbPaint' });
     this.tensorRT = q === 'high' ? makeRT(Math.ceil(w / 2), Math.ceil(h / 2), { name: 'dlbTensor' }) : null;
     this.tensorBlurRT = q === 'high' ? makeRT(Math.ceil(w / 2), Math.ceil(h / 2), { name: 'dlbTensor2' }) : null;
@@ -310,17 +311,17 @@ class PostFX {
         this._pass(renderer, this.matGauss, this.tensorRT);
         mat = this.matKuwaAniso;
         mat.uniforms.tTensor.value = this.tensorRT.texture;
-        mat.uniforms.uRadius.value = clamp(5.0 * hs, 2.5, 6);
-        mat.uniforms.uTexel.value.set(1 / w, 1 / h);
+        mat.uniforms.uRadius.value = clamp(6.0 * hs, 2.5, 7);
+        mat.uniforms.uTexel.value.set(1 / this.paintRT.width, 1 / this.paintRT.height);
         fu.uPaintDir.value = 1;
       } else if (q === 'medium') {
         mat = this.matKuwa8;
-        mat.uniforms.uRadius.value = clamp(3.2 * hs, 2.0, 5);
+        mat.uniforms.uRadius.value = clamp(5.0 * hs, 2.0, 6);
         mat.uniforms.uTexel.value.set(1 / this.paintRT.width, 1 / this.paintRT.height);
         fu.uPaintDir.value = 0;
       } else {
         mat = this.matKuwa4;
-        mat.uniforms.uRadius.value = clamp(2.5 * hs, 1.5, 4);
+        mat.uniforms.uRadius.value = clamp(4.0 * hs, 1.5, 4);
         mat.uniforms.uTexel.value.set(1 / this.paintRT.width, 1 / this.paintRT.height);
         fu.uPaintDir.value = 0;
       }
@@ -363,7 +364,7 @@ class PostFX {
     let shafts = 0;
     if (sky && sky.sunVisibility > 0.01) {
       _v3.copy(sky.sunDir).multiplyScalar(1000).add(camera.position).project(camera);
-      const facing = camera.getWorldDirection(new THREE.Vector3()).dot(sky.sunDir);
+      const facing = camera.getWorldDirection(_dir).dot(sky.sunDir);
       if (facing > 0.05) {
         const sx = _v3.x * 0.5 + 0.5, sy = _v3.y * 0.5 + 0.5;
         const onScreen = 1 - clamp((Math.max(Math.abs(sx - 0.5), Math.abs(sy - 0.5)) - 0.5) / 0.6, 0, 1);
@@ -408,6 +409,9 @@ class PostFX {
       fu.uShadowTint.value.copy(grade.shadowTint);
       fu.uHighTint.value.copy(grade.highlightTint);
       fu.uSplit.value = grade.split;
+    } else {
+      fu.uLift.value.set(0, 0, 0);
+      fu.uSplit.value = 0;
     }
     // brightness setting also lifts the deepest shadows a touch
     const lb = Math.max(0, cfg.brightness - 1) * 0.02;

@@ -1,0 +1,429 @@
+// Realtime vehicle engine: crossfaded pulse-model loops (3 rpm layers x on/off
+// load) played at playbackRate = rpm / baseRpm, through FIXED exhaust/pipe
+// resonances, a drive waveshaper and a load/rpm-dependent low-pass. Plus intake
+// roar amplitude-modulated by the firing pulses, gear whine, idle unevenness, rev
+// limiter, decel crackle, tyre roll noise per surface and wind noise vs speed.
+//
+//   engineSound.setOn(true|false, {instant, stall}) · setRPM(rpm) · setLoad(0..1 | -1..1)
+//   setGear(g) · setSpeed(kmh) · setSurface('asphalt'|'gravel'|'grass'|'dirt'|'wood'|'concrete'|'puddle') · attach(obj, bodyObj?)
+import { Wander, rngFrom, alloc, noiseBurst, normalize } from './Synth/dsp.js';
+import { thud } from './Synth/lib.js';
+import { ENGINE_START_CRANK } from './Synth/sfxCar.js';
+
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const smooth = (a, b, v) => {
+  const t = clamp((v - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+const PROFILES = {
+  car: {
+    cfg: 'car',
+    layers: [900, 2200, 4400],
+    idle: 820,
+    redline: 6200,
+    res: [[105, 1.3, 7], [290, 2, 4], [760, 2.5, 2], [1800, 1.5, -2]],
+    gain: 0.9,
+    whine: [0, 38, 23, 15.5, 11.5, 9.2], // Hz per km/h by gear (index = gear number; R uses 45)
+    tyre: 1,
+    ref: 3,
+    startSfx: 'engine_start',
+  },
+  bike: {
+    cfg: 'bike',
+    layers: [1500, 3800, 7200],
+    idle: 1450,
+    redline: 9000,
+    res: [[180, 1.8, 6], [420, 2.5, 5], [1250, 3, 3], [2600, 2, 1]],
+    gain: 0.75,
+    whine: [0, 60, 44, 33, 27, 22],
+    tyre: 0.6,
+    ref: 2,
+    startSfx: null,
+  },
+};
+
+export class EngineSound {
+  constructor(sys, kind = 'car') {
+    this.sys = sys;
+    this.kind = kind;
+    this.P = PROFILES[kind];
+    this.on = false;
+    this.rpm = this.P.idle;
+    this.load = 0;
+    this.gear = 'N';
+    this.speed = 0;
+    this.surface = 'asphalt';
+    this.object = null;
+    this.body = null;
+    this.volume = 1;
+    this.core = null;
+    this.ready = false;
+    this._rpmS = this.P.idle;
+    this._loadS = 0;
+    this._onGain = 0;
+    this._prevLoad = 0;
+    this._crackleT = 0;
+    this._limiterT = 0;
+    this._startAt = 0;
+    this._rng = rngFrom(kind === 'car' ? 4 : 5);
+    this._wander = new Wander(this._rng, 2.2);
+  }
+
+  // ---- public API (safe before audio init) ----
+  setOn(on, opts = {}) {
+    on = !!on;
+    if (on === this.on) return;
+    this.on = on;
+    if (!this.core) return;
+    const now = this.core.ctx.currentTime;
+    if (on) {
+      if (opts.instant || !this.P.startSfx || opts.silent) {
+        this._startAt = now;
+        this._rpmS = this.P.idle * 1.4;
+      } else {
+        const v = opts.variant ?? (Math.random() < 0.5 ? 0 : 1);
+        const crank = ENGINE_START_CRANK[v] ?? 0.85;
+        this.sys.play(this.P.startSfx, { object: this.object, variant: v, bus: 'sfx', muffle: false, volume: this.volume, mustPlay: true });
+        this._startAt = now + crank + 1.45;
+        this._rpmS = this.P.idle * 1.05;
+      }
+    } else {
+      this._startAt = Infinity;
+      if (opts.stall) this.sys.play('engine_stall', { object: this.object, bus: 'sfx', muffle: false, volume: this.volume });
+      this._shutdownT = now;
+    }
+  }
+  setRPM(rpm) {
+    this.rpm = Math.max(0, rpm || 0);
+  }
+  setLoad(load) {
+    this.load = clamp(load || 0, -1, 1);
+  }
+  setThrottle(t) {
+    this.setLoad(t);
+  }
+  setGear(g) {
+    if (g !== this.gear && this.core && this.on && this.kind === 'car') {
+      // momentary drivetrain lash
+      this._lashT = this.core.ctx.currentTime;
+    }
+    this.gear = g;
+  }
+  setSpeed(kmh) {
+    this.speed = Math.abs(kmh || 0);
+  }
+  setSurface(kind) {
+    this.surface = kind || 'asphalt';
+  }
+  setVolume(v) {
+    this.volume = v;
+  }
+  attach(object, body = null) {
+    this.object = object;
+    this.body = body || object;
+    if (this.src) {
+      this.src.voice.opts.object = object;
+      this.tyreSrc.voice.opts.object = this.body;
+    }
+  }
+
+  // ---- graph ----
+  _attachCore(core) {
+    this.core = core;
+    const ctx = core.ctx;
+    const P = this.P;
+    this.sum = ctx.createGain();
+    this.sum.gain.value = 0.8;
+    this.layers = [];
+    // waveshaper (soft drive)
+    this.shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) {
+      const x = (i / 1023) * 2 - 1;
+      curve[i] = Math.tanh(x * 2.2) / Math.tanh(2.2) + 0.05 * x * x; // slight asymmetry = even harmonics
+    }
+    this.shaper.curve = curve;
+    this.shaper.oversample = '2x';
+    let node = this.shaper;
+    this.sum.connect(this.shaper);
+    this.res = P.res.map(([f, q, g]) => {
+      const b = ctx.createBiquadFilter();
+      b.type = 'peaking';
+      b.frequency.value = f;
+      b.Q.value = q;
+      b.gain.value = g;
+      node.connect(b);
+      node = b;
+      return b;
+    });
+    this.hp = ctx.createBiquadFilter();
+    this.hp.type = 'highpass';
+    this.hp.frequency.value = 22;
+    node.connect(this.hp);
+    this.lp = ctx.createBiquadFilter();
+    this.lp.type = 'lowpass';
+    this.lp.Q.value = 0.6;
+    this.lp.frequency.value = 2000;
+    this.hp.connect(this.lp);
+    this.out = ctx.createGain();
+    this.out.gain.value = 0;
+    this.lp.connect(this.out);
+
+    // intake roar: noise AM'd by the engine signal
+    this.intakeBP = ctx.createBiquadFilter();
+    this.intakeBP.type = 'bandpass';
+    this.intakeBP.Q.value = 1.2;
+    this.intakeBP.frequency.value = 500;
+    this.intakeAM = ctx.createGain();
+    this.intakeAM.gain.value = 0;
+    this.intakeLevel = ctx.createGain();
+    this.intakeLevel.gain.value = 0;
+    this.intakeBP.connect(this.intakeAM);
+    this.sum.connect(this.intakeAM.gain); // audio-rate AM
+    this.intakeAM.connect(this.intakeLevel);
+    this.intakeLevel.connect(this.out);
+
+    // gear whine
+    this.whine = ctx.createOscillator();
+    this.whine.type = 'triangle';
+    this.whine.frequency.value = 400;
+    this.whineGain = ctx.createGain();
+    this.whineGain.gain.value = 0;
+    this.whine.connect(this.whineGain);
+    this.whineGain.connect(this.out);
+    this.whine.start();
+
+    // spatial source for the engine
+    const pseudo = (obj, ref) => ({ opts: { object: obj }, def: { ref, rolloff: 1 }, send: null });
+    this.src = core.spatial.createSource(pseudo(this.object, P.ref), { object: this.object, track: true });
+    this.out.connect(this.src.input);
+    this.src.output.connect(core.buses.sfx.direct);
+    const send = ctx.createGain();
+    send.gain.value = 0.12;
+    this.out.connect(send);
+    send.connect(core.buses.sfx.sendCab);
+
+    // tyres + wind (from the vehicle body)
+    this.tyreOut = ctx.createGain();
+    this.tyreOut.gain.value = 0;
+    this.tyreSrc = core.spatial.createSource(pseudo(this.body, 2.5), { object: this.body, track: true });
+    this.tyreOut.connect(this.tyreSrc.input);
+    this.tyreSrc.output.connect(core.buses.sfx.direct);
+    this.tyreLP = ctx.createBiquadFilter();
+    this.tyreLP.type = 'lowpass';
+    this.tyreLP.frequency.value = 800;
+    this.tyreLP.connect(this.tyreOut);
+    this.tyreG = {};
+    this.windBP = ctx.createBiquadFilter();
+    this.windBP.type = 'bandpass';
+    this.windBP.frequency.value = 900;
+    this.windBP.Q.value = 0.5;
+    this.windG = ctx.createGain();
+    this.windG.gain.value = 0;
+    this.windBP.connect(this.windG);
+    this.windG.connect(core.buses.sfx.direct);
+
+    this._loading = this._loadBuffers();
+  }
+
+  async _loadBuffers() {
+    const core = this.core;
+    const P = this.P;
+    const jobs = [];
+    P.layers.forEach((rpm, i) => {
+      for (const load of [0.9, 0.12]) {
+        const key = `eng:${P.cfg}:${rpm}:${load}`;
+        jobs.push(Promise.resolve(core.task(key, 'engineLoop', { cfg: P.cfg, rpm, load, seconds: 1.9, seed: 10 + i * 3 + (load > 0.5 ? 1 : 0) }, 1)).then((buf) => ({ buf, i, on: load > 0.5 })));
+      }
+    });
+    const beds = ['tyre_asphalt', 'tyre_gravel', 'tyre_grass', 'noise_pink'].map((k) => Promise.resolve(core.task(`bed:${k}:3`, 'bed', { kind: k, seed: 3 }, 1)).then((buf) => ({ k, buf })));
+    const [ls, bs] = await Promise.all([Promise.all(jobs), Promise.all(beds)]);
+    if (!this.core) return;
+    const ctx = core.ctx;
+    for (const { buf, i, on } of ls) {
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      s.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      s.connect(g);
+      g.connect(this.sum);
+      s.start(ctx.currentTime, Math.random() * buf.duration);
+      this.layers.push({ s, g, i, on, base: buf._meta?.baseRpm || P.layers[i] });
+    }
+    for (const { k, buf } of bs) {
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      s.loop = true;
+      s.start(ctx.currentTime, Math.random() * buf.duration);
+      if (k === 'noise_pink') {
+        s.connect(this.intakeBP);
+        const s2 = ctx.createBufferSource();
+        s2.buffer = buf;
+        s2.loop = true;
+        s2.playbackRate.value = 0.73;
+        s2.start(ctx.currentTime, Math.random() * buf.duration);
+        s2.connect(this.windBP);
+        this.windSrc = s2;
+      } else {
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        s.connect(g);
+        g.connect(this.tyreLP);
+        this.tyreG[k.slice(5)] = { s, g };
+      }
+    }
+    this.ready = true;
+  }
+
+  _pop() {
+    // decel crackle / backfire pop through the engine panner
+    const core = this.core;
+    const ctx = core.ctx;
+    if (!this._popBufs) {
+      this._popBufs = [];
+      for (let k = 0; k < 4; k++) {
+        const sr = 24000;
+        const b = alloc(sr, 0.12);
+        const rng = rngFrom(50 + k);
+        thud(b, sr, rng, 0, { f: 120 + k * 30, fEnd: 60, t60: 0.06, noise: 1.5, click: 0.8 });
+        noiseBurst(b, sr, rng, 0, 0.02, { f: 1800, q: 0.7, a: 0.0002, d: 0.01, gain: 0.6 });
+        normalize(b, 0.9);
+        this._popBufs.push(core.toAudioBuffer({ channels: [b], sr }));
+      }
+    }
+    const s = ctx.createBufferSource();
+    s.buffer = this._popBufs[Math.floor(Math.random() * 4)];
+    s.playbackRate.value = 0.85 + Math.random() * 0.3;
+    const g = ctx.createGain();
+    g.gain.value = 0.25 + Math.random() * 0.35;
+    s.connect(g);
+    g.connect(this.src.input);
+    s.start();
+    s.onended = () => {
+      s.disconnect();
+      g.disconnect();
+    };
+  }
+
+  update(dt) {
+    if (!this.core || !this.ready) return;
+    const ctx = this.core.ctx;
+    const now = ctx.currentTime;
+    const P = this.P;
+    dt = Math.min(0.1, Math.max(0, dt));
+    // smoothing
+    const target = this.on ? Math.max(this.rpm, now < this._startAt + 0.6 ? P.idle * 0.95 : 0, 200) : 0;
+    const k = 1 - Math.exp(-dt * 9);
+    this._rpmS += (target - this._rpmS) * k;
+    const loadT = this.load;
+    this._loadS += (loadT - this._loadS) * (1 - Math.exp(-dt * 7));
+    // engine on/off envelope
+    let onT = this.on && now >= this._startAt ? 1 : 0;
+    const fadeSpeed = this.on ? 2.2 : 3.5;
+    this._onGain += (onT - this._onGain) * (1 - Math.exp(-dt * fadeSpeed));
+    // shutdown rundown: rpm falls
+    if (!this.on) this._rpmS *= Math.exp(-dt * 3.2);
+
+    // idle unevenness (old carb engine hunting at idle)
+    const idleness = 1 - smooth(P.idle * 1.2, P.idle * 2.2, this._rpmS);
+    let rpm = this._rpmS * (1 + this._wander.next(dt) * 0.03 * idleness);
+
+    // rev limiter
+    let limCut = 1;
+    if (this.on && this.rpm >= P.redline - 40 && this.load > 0.5) {
+      this._limiterT += dt;
+      const ph = (this._limiterT * 13) % 1;
+      if (ph < 0.45) {
+        limCut = 0.18;
+        rpm -= 220;
+      }
+    } else this._limiterT = 0;
+
+    // decel crackle
+    if (this.on && this._prevLoad > 0.55 && this.load < 0.15 && this._rpmS > 3000) this._crackleT = 1.2;
+    this._prevLoad = this.load;
+    if (this._crackleT > 0) {
+      this._crackleT -= dt;
+      if (Math.random() < dt * 9) this._pop();
+    }
+
+    // layer crossfade (log-rpm, equal power) x load
+    const L = P.layers;
+    const lr = Math.log(Math.max(rpm, 50));
+    const wts = L.map(() => 0);
+    if (lr <= Math.log(L[0])) wts[0] = 1;
+    else if (lr >= Math.log(L[L.length - 1])) wts[L.length - 1] = 1;
+    else {
+      for (let i = 0; i < L.length - 1; i++) {
+        const a = Math.log(L[i]), b = Math.log(L[i + 1]);
+        if (lr >= a && lr <= b) {
+          const t = (lr - a) / (b - a);
+          wts[i] = Math.cos((t * Math.PI) / 2);
+          wts[i + 1] = Math.sin((t * Math.PI) / 2);
+        }
+      }
+    }
+    const ld = Math.max(0, this._loadS);
+    const onW = smooth(0.08, 0.7, ld);
+    const tc = 0.03;
+    for (const l of this.layers) {
+      const w = wts[l.i] * (l.on ? onW : 1 - onW * 0.85);
+      l.g.gain.setTargetAtTime(w, now, tc);
+      l.s.playbackRate.setTargetAtTime(clamp(rpm / l.base, 0.05, 4), now, tc);
+    }
+    // drive + tone
+    const rpmN = clamp(rpm / P.redline, 0, 1);
+    this.sum.gain.setTargetAtTime(0.55 + ld * 0.75 + rpmN * 0.2, now, tc);
+    const muffle = this.core.muffle;
+    const bright = (700 + rpm * 0.45 + ld * 2400) * (1 - 0.35 * muffle);
+    this.lp.frequency.setTargetAtTime(clamp(bright, 300, 9000), now, tc);
+    const lash = this._lashT && now - this._lashT < 0.12 ? 0.8 : 1;
+    const level = this._onGain * P.gain * this.volume * (0.4 + 0.35 * ld + 0.25 * rpmN + (this._loadS < -0.1 ? 0.05 : 0)) * limCut * lash;
+    this.out.gain.setTargetAtTime(level, now, 0.02);
+    // intake
+    this.intakeBP.frequency.setTargetAtTime(250 + rpm * 0.18, now, tc);
+    this.intakeLevel.gain.setTargetAtTime(this._onGain * (0.04 + 0.4 * ld * (0.3 + rpmN)), now, tc);
+    // gear whine (strongest in low gears, under load or overrun)
+    const g = this.gear;
+    const gi = g === 'R' ? 45 : typeof g === 'number' ? P.whine[g] || 0 : g === 'D' ? P.whine[Math.min(5, 1 + Math.floor(this.speed / 25))] : 0;
+    const wf = Math.max(30, this.speed * (gi || 10));
+    this.whine.frequency.setTargetAtTime(wf, now, 0.05);
+    const wg = gi ? smooth(2, 15, this.speed) * (0.006 + 0.01 * Math.abs(this._loadS)) * (g === 'R' ? 2.5 : 1) * this._onGain : 0;
+    this.whineGain.gain.setTargetAtTime(wg, now, 0.05);
+    // tyres
+    const sp = this.speed;
+    const roll = smooth(0.5, 20, sp) * (0.35 + 0.65 * Math.min(1, sp / 80));
+    const surf = this.surface === 'gravel' || this.surface === 'dirt' ? 'gravel' : this.surface === 'grass' ? 'grass' : 'asphalt';
+    for (const [name, t] of Object.entries(this.tyreG)) {
+      const want = name === surf ? 1 : 0;
+      t.g.gain.setTargetAtTime(want, now, 0.12);
+      t.s.playbackRate.setTargetAtTime(clamp(0.45 + sp / 55, 0.3, 2.5), now, 0.05);
+    }
+    const wet = this.sys.ambience?.state?.wetness ?? 0;
+    this.tyreLP.frequency.setTargetAtTime(350 + sp * 22 + wet * 2500, now, 0.1);
+    this.tyreOut.gain.setTargetAtTime(roll * P.tyre * 0.6 * this.volume * (1 + wet * 0.6), now, 0.08);
+    // wind past the body (more with windows open = less muffle)
+    const wind = Math.pow(Math.min(1, sp / 110), 2) * (0.12 + 0.45 * (1 - muffle));
+    this.windBP.frequency.setTargetAtTime(500 + sp * 9, now, 0.1);
+    this.windG.gain.setTargetAtTime(wind * this.volume, now, 0.1);
+  }
+
+  dispose() {
+    for (const l of this.layers || []) {
+      try {
+        l.s.stop();
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    try {
+      this.whine?.stop();
+    } catch (e) {
+      /* ignore */
+    }
+    this.out?.disconnect();
+    this.core = null;
+  }
+}

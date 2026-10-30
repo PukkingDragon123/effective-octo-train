@@ -312,17 +312,17 @@ export function lantern(k, o = {}) {
   const glow = o.glow ?? glowMat(o.white ? 'lantern_white' : 'lantern');
   k.at(o.p, o.r, o.s, () => {
     const prof = [];
-    for (let i = 0; i <= 10; i++) {
-      const t = i / 10;
-      prof.push([R * (0.38 + 0.62 * Math.sin(t * Math.PI)), -H * 0.08 - t * H * 0.84]);
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      prof.push([R * (0.28 + 0.72 * Math.pow(Math.sin(t * Math.PI), 0.7)), -H * 0.08 - t * H * 0.84]);
     }
     k.add(glow, G(`lantern:${R}:${H}`, () => {
       const g = lathe(prof.slice().reverse(), 16);
       return g;
-    }), { color: 0xffffff, w: false, colorFn: (p, n, c) => { const rib = Math.abs(Math.sin(Math.atan2(p.z, p.x) * 8)); c.multiplyScalar(0.75 + 0.25 * (1 - rib * rib * rib)); } });
+    }), { color: 0xffffff, w: false, colorFn: (p, n, c, lp) => { const rib = Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 8)); c.multiplyScalar(0.75 + 0.25 * (1 - rib * rib * rib)); } });
     const capc = o.white ? 0x2a2a2a : 0xc89a3a;
-    k.add(mat(o.white ? 'dark' : 'gold'), G(`lcap:${R}`, () => cyl(R * 0.42, R * 0.42, H * 0.08, 12, 0.004)), { p: [0, -H * 0.1, 0], color: capc });
-    k.add(mat(o.white ? 'dark' : 'gold'), G(`lcap:${R}`, () => cyl(R * 0.42, R * 0.42, H * 0.08, 12, 0.004)), { p: [0, -H * 0.98, 0], color: capc });
+    k.add(mat(o.white ? 'dark' : 'gold'), G(`lcap:${R}`, () => cyl(R * 0.3, R * 0.3, H * 0.07, 12, 0.004)), { p: [0, -H * 0.1, 0], color: capc });
+    k.add(mat(o.white ? 'dark' : 'gold'), G(`lcap:${R}`, () => cyl(R * 0.3, R * 0.3, H * 0.07, 12, 0.004)), { p: [0, -H * 0.97, 0], color: capc });
     // tassel
     if (o.tassel !== false) k.add(mat('cloth_static'), G(`tassel:${H}`, () => cyl(0.012, 0.03, H * 0.5, 8, 0, 1, false)), { p: [0, -H * 1.5, 0], color: o.white ? 0xe0dcd0 : 0xb81a14, w: false });
     k.add(mat('dark'), G('lhook', () => cyl(0.004, 0.004, H * 0.1, 4, 0)), { p: [0, -H * 0.1, 0], color: 0x222222 });
@@ -360,7 +360,7 @@ export function tire(k, o = {}) {
   k.at(o.p, o.r, o.s, () => {
     k.add(mat('rubber'), g, {
       p: o.upright ? [0, R, 0] : [0, W * 0.5, 0], r: o.upright ? [0, 0, Math.PI / 2] : null, color: 0x2a2826, w: { grime: 0.2, dust: 0.4, vary: 0.2 },
-      colorFn: (p, n, c) => { if (Math.abs(Math.sin(Math.atan2(p.z, p.x) * 40)) > 0.75) c.multiplyScalar(0.7); },
+      colorFn: (p, n, c, lp) => { if (Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 40)) > 0.75) c.multiplyScalar(0.7); },
     });
   });
 }
@@ -380,10 +380,10 @@ export function waterJar(k, o = {}) {
     const prof = [[0, 0], [0.18, 0], [0.22, 0.04], [0.33, 0.25], [0.35, 0.38], [0.3, 0.55], [0.22, 0.64], [0.2, 0.68], [0.23, 0.69], [0.21, 0.7], [0.17, 0.66], [0, 0.66]];
     k.add(mat('ceramic'), G('jar', () => lathe(prof, 20)), {
       color: 0x6a3a1c, w: { grime: 0.4, grimeH: 0.2, moss: 0.3, mossLow: o.moss ?? 0.3, mossH: 0.2, vary: 0.2 },
-      colorFn: (p, n, c) => {
+      colorFn: (p, n, c, lp) => {
         // dragon relief band: wavy pale yellow glaze
-        const a = Math.atan2(p.z, p.x);
-        const y = p.y / S;
+        const a = Math.atan2(lp.z, lp.x);
+        const y = lp.y;
         const wave = 0.4 + 0.07 * Math.sin(a * 3 + Math.sin(a * 7) * 0.5);
         const d = Math.abs(y - wave);
         if (d < 0.035) c.lerp(_cmari.set(0xd8b060), (1 - d / 0.035) * 0.8);
@@ -402,7 +402,7 @@ export function cone(k, o = {}) {
     k.add(mat('plastic'), G('conebase', () => bbox(0.36, 0.035, 0.36, 0.02, 0.1)), { color: 0x2a2a2a, w: { grime: 0.5 } });
     k.add(mat('plastic'), G('cone', () => cyl(0.025, 0.13, 0.66, 14, 0.005, 6)), {
       p: [0, 0.035, 0], color: 0xe0501a, w: { grime: 0.5, grimeH: 0.2, vary: 0.2 },
-      colorFn: (p, n, c) => { if ((p.y > 0.36 && p.y < 0.46) || (p.y > 0.53 && p.y < 0.6)) c.setRGB(0.75, 0.75, 0.72); },
+      colorFn: (p, n, c, lp) => { if ((lp.y > 0.33 && lp.y < 0.43) || (lp.y > 0.5 && lp.y < 0.57)) c.setRGB(0.75, 0.75, 0.72); },
     });
   });
 }
@@ -421,7 +421,7 @@ export function crate(k, o = {}) {
       const g = G('pcrate', () => bbox(0.46, 0.3, 0.32, 0.015, 0.06));
       k.add(mat('plastic'), g, {
         color: c, w: { grime: 0.4, grimeH: 0.15, dust: 0.4 },
-        colorFn: (p, n, cc) => { if (Math.abs(n.y) < 0.5 && p.y > 0.05 && p.y < 0.24 && Math.abs(Math.sin((p.x + p.z) * 40)) > 0.6) cc.multiplyScalar(0.25); },
+        colorFn: (p, n, cc, lp) => { if (Math.abs(n.y) < 0.5 && lp.y > 0.05 && lp.y < 0.24 && Math.abs(Math.sin((lp.x + lp.z) * 40)) > 0.6) cc.multiplyScalar(0.25); },
       });
     } else {
       // wooden crate of slats
@@ -497,7 +497,7 @@ export function helmet(k, o = {}) {
     });
     k.add(mat('plastic'), g, {
       p: [0, 0.02, 0], color: o.color ?? 0xb8b0a0, w: { grime: 0.5, grimeH: 0.12, vary: 0.2 },
-      colorFn: o.cracked ? (p, n, c) => { const v = Math.abs(p.x * 1.3 + Math.sin(p.z * 40) * 0.01 - p.y * 0.4 + 0.02); if (v < 0.006) c.multiplyScalar(0.15); } : null,
+      colorFn: o.cracked ? (p, n, c, lp) => { const v = Math.abs(lp.x * 1.3 + Math.sin(lp.z * 40) * 0.01 - lp.y * 0.4 + 0.02); if (v < 0.006) c.multiplyScalar(0.15); } : null,
     });
     k.add(mat('dark'), G('helmetliner', () => torus(0.148, 0.012, 5, 18).rotateX(Math.PI / 2).scale(1, 1, 1.15)), { p: [0, 0.02 + 0.15 * Math.cos(Math.PI * 0.62) * 1.05, 0], color: 0x1a1a1a });
     k.add(mat('plastic'), G('visor', () => new THREE.SphereGeometry(0.158, 12, 4, Math.PI / 2 - 0.9, 1.8, Math.PI * 0.32, Math.PI * 0.18).scale(1, 1.05, 1.15)), { p: [0, 0.02, 0], color: 0x3a3a30, w: false });

@@ -33,21 +33,26 @@ function companion(key, suffix) {
   return null;
 }
 
-export default async function ({ engine, cameraRig, params }) {
+export default async function ({ engine, cameraRig, params, rendering }) {
   const mode = params.get('mode') || 'grid';
   const page = Number(params.get('page') || 0);
   const post = params.get('post') === '1';
   const scene = engine.scene;
   scene.background = new THREE.Color(params.get('bg') || 0x1b1d20);
   const renderer = engine.renderer;
+  const bgColor = scene.background.clone();
   if (!post) {
+    // isolate from the game's render stack: no fog, sky, pooled lights or particles
+    for (const k of ['sky', 'lightPool', 'particles']) if (rendering?.[k]?.group) rendering[k].group.visible = false;
     engine.renderPipeline = (r, s, c) => {
+      s.fog = null;
+      s.background = bgColor;
+      r.toneMapping = THREE.NeutralToneMapping;
+      r.toneMappingExposure = 1.0;
       r.setRenderTarget(null);
       r.render(s, c);
     };
   }
-  renderer.toneMapping = THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = 1.0;
 
   const root = new THREE.Group();
   scene.add(root);
@@ -185,7 +190,7 @@ export default async function ({ engine, cameraRig, params }) {
       l.position.set(cx * cw, cy * ch - 0.66, 0);
       root.add(l);
     });
-    scene.background = new THREE.Color(params.get('bg') || 0x2a2e33);
+    bgColor.set(params.get('bg') || 0x2a2e33);
     fitCamera(cols * cw, rows * ch);
   } else if (mode === 'sign') {
     const kind = params.get('kind') || 'km_marker';
@@ -209,7 +214,7 @@ export default async function ({ engine, cameraRig, params }) {
       point.position.set(w * 0.55, 0, 2);
       animate = (tt) => point.position.set(w * 0.55 + Math.cos(tt * 1.5) * 1.5, Math.sin(tt) * 1.2, 1.5);
     }
-    scene.background = new THREE.Color(params.get('bg') || 0x2a2e33);
+    bgColor.set(params.get('bg') || 0x2a2e33);
     fitCamera(t.userData.normalMap ? w * 2.3 : w * 1.1, 2.5);
   } else if (mode === 'atlas') {
     const key = params.get('key') || 'leaf_banana';

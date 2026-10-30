@@ -1,5 +1,5 @@
 // Hour card: large thin numerals + Thai/English chapter title, ~4.5 s.
-import { h, sleep, enter, leave, parseClock, thaiHour, clockString } from './dom.js';
+import { h, sleep, enter, leave, parseClock, thaiHourWords, clockString } from './dom.js';
 import { screen } from './common.js';
 
 export class Chapter {
@@ -20,7 +20,7 @@ export class Chapter {
     const hour = typeof c.time === 'number' ? c.time : parseClock(c.time);
     const time = typeof c.time === 'number' ? clockString(c.time) : String(c.time || '');
     const [hh, mm] = time.split(':');
-    const word = c.word ?? (hour != null ? thaiHour(hour) : '');
+    const word = c.word ?? (hour != null ? thaiHourWords(hour) : '');
     const el = screen('dlb-chapter',
       h('div', { class: 'dlb-chapter__in' },
         word ? h('div', { class: 'dlb-chapter__word', attrs: { lang: 'th' } }, word) : null,

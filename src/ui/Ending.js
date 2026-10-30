@@ -27,7 +27,8 @@ export class Ending {
       let skipArm = false;
       let skipWake = null;
       const skipP = new Promise((r) => (skipWake = r));
-      const wait = (ms) => Promise.race([sleep(ms), skipP]);
+      const sp = Math.max(0.1, Number(e._speed) || 1); // debug/test time multiplier
+      const wait = (ms) => Promise.race([sleep(ms / sp), skipP]);
 
       const stage1 = h('div', { class: 'dlb-ending__stage' },
         h('div', { class: 'dlb-ending__cap' }, h('span', { class: 'th', attrs: { lang: 'th' } }, 'ตอนจบ'), 'Ending'),
@@ -102,7 +103,7 @@ export class Ending {
         if (e.credits !== false && !skipped) {
           view.classList.add('is-in');
           await new Promise((res) => {
-            r = new Roll(view, roll, { speed: 38, startDelay: 1.2, onEnd: () => setTimeout(res, 3500) });
+            r = new Roll(view, roll, { speed: 38 * sp, startDelay: 1.2 / sp, onEnd: () => setTimeout(res, 3500 / sp) });
             r.start();
             skipP.then(res);
           });

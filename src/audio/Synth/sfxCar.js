@@ -1,17 +1,9 @@
 // Car / cabin foley: old green-yellow taxi (doors, key, starter, controls,
 // knocks and impacts on the body). Every generator returns a mono Float32Array.
 import { TAU, alloc, normalize, mixInto, SVF, Biquad, OnePole, Wander, noiseBurst, creak, envAD, addModes, Osc, clamp, Pink, fadeOut } from './dsp.js';
-import { excite, burst, impulse, thud, metalTick, plasticClick, rattle, scrape, panelModes, glassModes, crackle } from './lib.js';
-import { renderEngineCurve, CAR_CFG } from './engineModel.js';
+import { L, excite, burst, impulse, thud, metalTick, plasticClick, rattle, scrape, panelModes, glassModes, crackle } from './lib.js';
+import { renderEngineCurve, CAR_CFG, BIKE_CFG } from './engineModel.js';
 
-/** Render a component into its own buffer, peak-normalise, mix at `at` with `gain`. */
-export function L(out, sr, at, dur, gain, fn) {
-  const t = alloc(sr, dur);
-  fn(t);
-  normalize(t, 1);
-  mixInto(out, t, Math.floor(at * sr), gain);
-  return out;
-}
 
 function starterWhir(out, sr, rng, at, dur, { crankHz = 3.6, gain = 1, slowEnd = false } = {}) {
   // starter motor turning a 4-cyl: 2 compressions per rev, motor loads up on each
@@ -37,6 +29,9 @@ function starterWhir(out, sr, rng, at, dur, { crankHz = 3.6, gain = 1, slowEnd =
   }
   return out;
 }
+
+/** Cranking time per engine_start variant (EngineSound syncs its loop to it). */
+export const ENGINE_START_CRANK = [0.82, 1.05];
 
 export const CAR_SFX = {
   door_open: {
@@ -144,7 +139,7 @@ export const CAR_SFX = {
   engine_start: {
     vars: 2, cabin: true, ref: 3, reverb: 0.15, sr: 32000,
     gen({ sr, rng, v }) {
-      const crank = 0.75 + rng() * 0.35;
+      const crank = ENGINE_START_CRANK[v] ?? 0.85;
       const dur = crank + 2.4;
       const out = alloc(sr, dur);
       L(out, sr, 0, 0.1, 0.4, (b) => metalTick(b, sr, rng, 0, { f: 1100, t60: 0.05 }));
@@ -570,6 +565,39 @@ export const CAR_SFX = {
       });
       L(out, sr, 0, dur, 0.4, (b) => noiseBurst(b, sr, rng, 0, dur, { type: 'lp', f: 300, q: 0.5, a: dur * 0.9, d: dur * 3 }));
       fadeOut(out, sr, 0.3);
+      return out;
+    },
+  },
+  motorbike_pass: {
+    // a distant old motorbike passing on another road (early night ambience)
+    vars: 2, ref: 8, rolloff: 0.6, reverb: 0.4, sr: 24000,
+    gen({ sr, rng, v }) {
+      const dur = 9;
+      const shifts = [0, 2.2, 4.6, 7.2];
+      const rpmAt = (t) => {
+        let k = 0;
+        while (k < shifts.length - 1 && t >= shifts[k + 1]) k++;
+        const u = (t - shifts[k]) / 2.4;
+        return 3600 + Math.min(1, u) * (2600 - k * 300) + Math.sin(t * 3) * 60;
+      };
+      const raw = renderEngineCurve(sr, BIKE_CFG, dur + 0.5, rpmAt, () => 0.7, 61 + v);
+      const out = alloc(sr, dur);
+      // doppler (time-warped read) + distance envelope + air absorption
+      const lp = new SVF(sr, 1500, 0.6);
+      let pos = 0;
+      const tc = 4.2 + rng() * 0.6;
+      for (let i = 0; i < out.length; i++) {
+        const t = i / sr;
+        const x = (t - tc) / 1.6;
+        const ratio = 1 + 0.045 * -Math.tanh(x);
+        pos += ratio;
+        const k = Math.floor(pos);
+        const f = pos - k;
+        const s = (raw[k] || 0) * (1 - f) + (raw[k + 1] || 0) * f;
+        const near = 1 / (1 + x * x);
+        lp.set(900 + 3500 * near, 0.6);
+        out[i] = lp.process(s) * (0.15 + 0.85 * near) * Math.min(1, t / 1.5, (dur - t) / 1.5);
+      }
       return out;
     },
   },

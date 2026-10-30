@@ -87,7 +87,7 @@ export class Nav {
 
   items(ctx) {
     if (ctx.items) return ctx.items().filter(Boolean);
-    return [...ctx.root.querySelectorAll('[data-nav]')].filter((el) => !el.closest('[hidden]'));
+    return [...ctx.root.querySelectorAll('[data-nav]')].filter((el) => !el.hidden);
   }
 
   owns(ctx, el) {
