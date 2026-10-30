@@ -3,12 +3,13 @@
 // Params: cam=driver|passenger|rear|mirror|dash, yaw, pitch, cabin=0|1, rain, fog (weather),
 //         condense=0..1, wipers=0|1|2, hour, lights=off|low|high, drive=1 (autopilot), marks=1
 import * as THREE from 'three';
-import { Taxi } from '../vehicle/index.js';
+import { Taxi, loadVehicleAssets } from '../vehicle/index.js';
 import { buildTestSet, addStreetlight, applyEnv } from './vehicle-common.js';
 import { lightPool, paintedMaterial } from '../render/index.js';
 import { LAYERS } from '../core/layers.js';
 
 export default async function ({ engine, cameraRig, params, interact }) {
+  if (params.get('procedural') !== '1') await loadVehicleAssets();
   const env = applyEnv(params, { hour: 22, rain: 0.7, fog: 0.25 });
   const { world, road } = buildTestSet(engine.scene);
   // streetlights: one ahead, one behind (shows in the mirrors)

@@ -101,8 +101,8 @@ export class Placement {
       if (f.tag === 'accident') {
         // guardrail broken open where the bike went through (the memorial stands in the gap)
         const sm = lms.accidentCurve ? lms.accidentCurve.roadRef.s : mid;
-        this.items.push({ type: 'guardrail', id: 'main', s0: f.s0 - 14, s1: sm - 3.2, side: outside, damaged: true, seed: 11 });
-        this.items.push({ type: 'guardrail', id: 'main', s0: sm + 3.2, s1: f.s1 + 12, side: outside, damaged: false, seed: 12 });
+        this.items.push({ type: 'guardrail', id: 'main', s0: f.s0 - 14, s1: sm - 3.2, side: outside, damaged: true, seed: 11, lampEvery: 1 });
+        this.items.push({ type: 'guardrail', id: 'main', s0: sm + 3.2, s1: f.s1 + 12, side: outside, damaged: false, seed: 12, lampEvery: 1 });
       } else {
         this.items.push({ type: 'guardrail', id: 'main', s0: f.s0 - 4, s1: f.s1 + 4, side: outside, damaged: rng() < 0.4, seed: 20 + this.items.length });
       }
@@ -305,7 +305,11 @@ export class Placement {
     this.group.updateMatrixWorld(true);
     // ---- lights (after placement: anchors are in their final place) --------------------------
     for (const r of this.results) {
-      if (r.lights && r.lights.length) this.lightHandles.push(...P.addPropLights(r));
+      if (!r.lights || !r.lights.length) continue;
+      // LightPool divides by (1 + priority): the props 'delineator' preset (priority -1) would
+      // never glow. Clamp to the lowest usable priority.
+      for (const sp of r.lights) if ((sp.priority ?? 0) <= -1) sp.priority = -0.6;
+      this.lightHandles.push(...P.addPropLights(r));
     }
     lap('lights');
     this.stats = { ms: Math.round(performance.now() - t0), phases: T, dress: this.dressTimes, ...merge, chunks: this.batcher.list.length, lights: this.lightHandles.length, colliders: this.colliderCount };

@@ -16,6 +16,8 @@ import { MergeBuilder, xform, roundedBox, lathe, rod, tube, GridSurface, deform,
 import { makeCanvas, toTexture, noiseCanvas } from './VehicleTextures.js';
 import { FONTS } from '../ui/fonts.js';
 import { submitHeadlight, releaseHeadlight } from './Lights.js';
+import { getVehicleAssets, instantiate } from './VehicleAssets.js';
+import { indexNodes, worldPos, boxOf } from './TaxiGLB.js';
 
 const _hp = new THREE.Vector3(), _hd = new THREE.Vector3();
 const BIKE_CONE = [Math.cos(0.45), Math.cos(0.18), 36];
@@ -90,7 +92,7 @@ function plateTex() {
   g.textAlign = 'center';
   g.font = `700 26px ${FONTS.sign}`;
   g.fillText('๑กข', 64, 32);
-  g.font = `600 14px ${FONTS.sign}`;
+  g.font = `700 14px ${FONTS.sign}`;
   g.fillText('เชียงราย', 64, 54);
   g.font = `700 26px ${FONTS.sign}`;
   g.fillText('357', 64, 84);
@@ -177,6 +179,7 @@ export class Motorcycle {
     const tailMesh = new THREE.Mesh(xform(tl, [0, 0.72, 0.86]), this._tailMat);
     this.leanGroup.add(tailMesh);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.13), m.plate);
+    this._proc = [procBody, tailMesh, plate];
     plate.position.set(0, 0.62, 0.9);
     this.leanGroup.add(plate);
     // seat
@@ -191,7 +194,8 @@ export class Motorcycle {
     // kickstand + pegs
     mb.add('black', rod([-0.08, 0.3, 0.05], [-0.22, 0.02, 0.12], 0.012, 6));
     for (const sx of [-1, 1]) mb.add('rubber', rod([sx * 0.1, 0.3, -0.02], [sx * 0.22, 0.3, -0.02], 0.016, 6));
-    this.leanGroup.add(mb.build({ paint: m.paint, shield: m.shield, black: m.black, engine: m.engine, rust: m.rust, chrome: m.chrome, seat: m.seat, foam: m.foam, rubber: m.rubber }));
+    const procBody = mb.build({ paint: m.paint, shield: m.shield, black: m.black, engine: m.engine, rust: m.rust, chrome: m.chrome, seat: m.seat, foam: m.foam, rubber: m.rubber });
+    this.leanGroup.add(procBody);
 
     // ---- steering assembly (fork, front wheel, handlebar, headlight, basket) -------------------
     const steer = new THREE.Group();
@@ -301,6 +305,17 @@ export class Motorcycle {
       }
     });
     if (this.beam) this.beam.castShadow = false;
+    this._proc.push(steer, this.rearWheel);
+    this._procSteer = steerYaw;
+    this.model = 'procedural';
+    const assets = getVehicleAssets();
+    if (assets.moto && !opts.procedural) {
+      try {
+        this._bindGLB(assets.moto);
+      } catch (e) {
+        console.warn('[vehicle] moto.glb could not be bound; using the procedural bike', e);
+      }
+    }
 
     // ---- state ------------------------------------------------------------------------------
     this.state = { engineOn: true, headlight: true };
@@ -319,6 +334,106 @@ export class Motorcycle {
     this.forward = new THREE.Vector3(0, 0, -1);
     this._off = engine.onUpdate((dt) => this.update(dt), 10);
     this._soundAttached = false;
+  }
+
+  /**
+   * Professional model (moto.glb). Node contract (all optional): wheel_front|wheel_f and
+   * wheel_rear|wheel_r (origin at the wheel centre), steering|handlebar|fork (origin on the
+   * steering head; the front wheel turns with it), light_head, light_tail, plate; empties
+   * named like the anchors (seat handleL handleR footL footR eye headlight) override them.
+   */
+  _bindGLB(gltf) {
+    const root = instantiate(gltf.scene || gltf);
+    root.updateMatrixWorld(true);
+    const N = indexNodes(root);
+    const pick = (...names) => names.map(N).find(Boolean) || null;
+    // stash the procedural model; keep its lights / anchors
+    const keep = [this.spot, this.spot.target, this.beam, ...Object.values(this.anchors)].filter(Boolean);
+    this.root.updateMatrixWorld(true);
+    const tmp = new THREE.Group();
+    this.leanGroup.add(tmp);
+    for (const k of keep) tmp.attach(k);
+    for (const p of this._proc) p.removeFromParent();
+    this.leanGroup.add(root);
+    this.leanGroup.updateMatrixWorld(true);
+    const wheel = (node) => {
+      if (!node) return null;
+      const pivot = new THREE.Group();
+      node.parent.add(pivot);
+      pivot.position.copy(node.parent.worldToLocal(worldPos(node)));
+      pivot.updateMatrixWorld(true);
+      const spin = new THREE.Group();
+      pivot.add(spin);
+      spin.updateMatrixWorld(true);
+      spin.attach(node);
+      return { pivot, spin };
+    };
+    const fw = wheel(pick('wheel_front', 'wheel_f'));
+    const rw = wheel(pick('wheel_rear', 'wheel_r'));
+    // steering about the head-tube axis (through the steering node and the front axle)
+    const st = pick('steering', 'handlebar', 'fork', 'front_assembly');
+    const head = st ? worldPos(st) : fw ? worldPos(fw.pivot).add(new THREE.Vector3(0, 0.62, 0.3)) : new THREE.Vector3(0, 0.92, -0.48);
+    const axis = fw ? head.clone().sub(worldPos(fw.pivot)).normalize() : new THREE.Vector3(0, Math.cos(0.45), Math.sin(0.45));
+    if (axis.y < 0) axis.negate();
+    const steerPivot = new THREE.Group();
+    this.leanGroup.add(steerPivot);
+    steerPivot.position.copy(this.leanGroup.worldToLocal(head.clone()));
+    steerPivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
+    const yaw = new THREE.Group();
+    steerPivot.add(yaw);
+    yaw.updateMatrixWorld(true);
+    if (st) yaw.attach(st);
+    if (fw) {
+      let inside = false;
+      fw.pivot.traverseAncestors((a) => (inside = inside || a === yaw));
+      if (!inside) yaw.attach(fw.pivot);
+    }
+    this.steerGroup = yaw;
+    this.frontWheel = fw ? fw.spin : new THREE.Group();
+    this.rearWheel = rw ? rw.spin : new THREE.Group();
+    if (rw) this._rearR = worldPos(rw.pivot).y;
+    // lenses: per-bike emissive copies of the model's materials
+    const lens = (node, emissive, current) => {
+      if (!node) return current;
+      let mat = null;
+      node.traverse((o) => {
+        if (!o.isMesh) return;
+        if (!mat) mat = paintedMaterial({ color: o.material.color?.clone() ?? 0xffffff, map: o.material.map || null, emissive, emissiveMap: o.material.emissiveMap || o.material.map || null, emissiveIntensity: 0, roughness: o.material.roughness ?? 0.2, brush: 0.1, name: 'bike_glb_lens' });
+        o.material = mat;
+      });
+      return mat || current;
+    };
+    const hl = pick('light_head', 'headlight_lens');
+    this._headMat = lens(hl, 0xfff0d0, this._headMat);
+    this._tailMat = lens(pick('light_tail', 'taillight'), 0xff2010, this._tailMat);
+    // headlight spot + beam ride the steering, aimed ahead and down
+    const hp = hl ? boxOf(hl).getCenter(new THREE.Vector3()) : worldPos(yaw).add(new THREE.Vector3(0, 0.04, -0.24));
+    yaw.updateMatrixWorld(true);
+    yaw.add(this.spot, this.spot.target);
+    this.spot.position.copy(yaw.worldToLocal(hp.clone()));
+    this.spot.target.position.copy(yaw.worldToLocal(hp.clone().add(new THREE.Vector3(0, -0.9, -10))));
+    if (this.beam) {
+      yaw.add(this.beam);
+      this.beam.position.copy(this.spot.position);
+      this.beam.lookAt(yaw.localToWorld(this.spot.target.position.clone()));
+      // createVolumetricBeam points along -Z: lookAt aims +Z, so flip
+      this.beam.rotateY(Math.PI);
+    }
+    // anchors: empties override; handles + headlight follow the steering
+    for (const [k, a] of Object.entries(this.anchors)) {
+      const e = N(k);
+      const parent = k === 'handleL' || k === 'handleR' || k === 'headlight' ? yaw : this.leanGroup;
+      parent.attach(a);
+      if (e) a.position.copy(parent.worldToLocal(worldPos(e)));
+    }
+    tmp.removeFromParent();
+    root.traverse((o) => {
+      if (o.isMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      }
+    });
+    this.model = 'glb';
   }
 
   setPose(pos, yaw) {

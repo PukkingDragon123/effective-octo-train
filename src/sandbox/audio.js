@@ -468,6 +468,29 @@ async function runSampleTests(onRow) {
   });
   await add('rec:mood:menu (ranat)', () => renderMusicSamples(bank, 'menu'), (r) => (r.ranat?.length ? null : 'no ranat samples'));
   await add('rec:mood:nostalgic (ching)', () => renderMusicSamples(bank, 'nostalgic'), (r) => (r.ching ? null : 'no ching samples'));
+  // 3) robustness: no manifest / a manifest whose file 404s -> the synth plays, nothing throws
+  // (a fake fetch answers 404 so the browser console stays clean)
+  const fetch404 = async () => ({ ok: false, status: 404 });
+  await add('robust:no manifest -> synth', async () => {
+    const nb = new SampleBank({ fetch: fetch404, quiet: true });
+    const okm = await nb.load();
+    const { ctx, core } = offlineCore(2.5, 2, nb);
+    const h = core.play('door_close', { delay: D0 });
+    const out = await ctx.startRendering();
+    out._info = { manifestOk: okm, usedSample: !!h.sample };
+    return out;
+  }, (r) => (r.manifestOk || r.usedSample ? 'expected synth fallback' : null));
+  await add('robust:missing file -> synth', async () => {
+    const nb = new SampleBank({ fetch: fetch404, quiet: true });
+    nb.setManifest({ door_close: { files: ['car/__missing__.mp3'], loop: false, category: 'car' } });
+    nb.attach(new OfflineAudioContext(1, 1, SR));
+    const { ctx, core } = offlineCore(2.5, 2, nb);
+    const h = core.play('door_close', { delay: D0, mustPlay: true });
+    await new Promise((res) => setTimeout(res, 400)); // the fetch fails, the voice switches to synthesis
+    const out = await ctx.startRendering();
+    out._info = { usedSample: !!h.sample, failed: nb.info().failed, covers: nb.covers('door_close') };
+    return out;
+  }, (r) => (r.usedSample || r.covers || !r.failed ? 'expected synth fallback' : null));
   report.bank = bank.info();
   report.coverage = {
     play: SOUND_IDS.filter((id) => bank.covers(id, 'play')).length,

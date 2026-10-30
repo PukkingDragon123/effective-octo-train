@@ -107,7 +107,8 @@ class Mirror {
       uTint: { value: new THREE.Color(opts.tint ?? 0xd8dcd8) },
     };
     this.material = new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: MIRROR_VERT, fragmentShader: MIRROR_FRAG, name: 'mirror_' + id });
-    const geo = roundRectPlane(w, h, Math.min(w, h) * (opts.round ?? 0.3), 6);
+    // GLB reflector quads arrive as mount.userData.geometry (mount space, 0..1 uv)
+    const geo = mount.userData.geometry || roundRectPlane(w, h, Math.min(w, h) * (opts.round ?? 0.3), 6);
     this.mesh = new THREE.Mesh(geo, this.material);
     this.mesh.name = 'mirror_' + id;
     mount.add(this.mesh);

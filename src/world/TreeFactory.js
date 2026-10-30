@@ -723,7 +723,7 @@ function bamboo(rng, opts) {
 function reachTree(rng, opts) {
   const skel = { branches: [], leaves: [], lod1MaxLevel: 3, lod1MinR: 0.035 };
   const sc = opts.scale ?? 1;
-  const tint = BARK_TINT(rng, [0.6, 0.57, 0.52]);
+  const tint = BARK_TINT(rng, [0.44, 0.42, 0.38]);
   const baseH = (0.45 + rng() * 0.75) * sc;
   const R0 = (0.19 + rng() * 0.07) * sc;
   const lobes = 3 + Math.floor(rng() * 3), ph = rng() * 6;
@@ -757,7 +757,7 @@ function reachTree(rng, opts) {
     const d = out.clone().multiplyScalar(Math.cos(elev)).add(new THREE.Vector3(0, Math.sin(elev), 0)).normalize();
     const len = (5 + rng() * 3.2) * sc;
     const rS = R0 * (0.62 + rng() * 0.15) * (nS > 2 ? 0.9 : 1);
-    const stem = growPath(rng, { x: top.x, y: top.y - 0.05, z: top.z }, d, len, rS, 0.045 * sc, 9, { gravity: 0.1, tropism: 0.02, outward: out.clone().multiplyScalar(0.35), wobble: 0.16, taperPow: 0.85 });
+    const stem = growPath(rng, { x: top.x, y: top.y - 0.05, z: top.z }, d, len, rS, 0.045 * sc, 13, { gravity: 0.16, tropism: 0.03, outward: out.clone().multiplyScalar(0.3), wobble: 0.3, taperPow: 0.85 });
     skel.branches.push({ pts: stem, level: 1, color: aoColor(tint, 0.6, 0, 3), uMeters: 0.7 });
     // long reaching, arching branches
     const nb = 3 + Math.floor(rng() * 3);
@@ -769,7 +769,7 @@ function reachTree(rng, opts) {
       const bo = out.clone().multiplyScalar(0.8).add(side).normalize();
       const bd = bo.clone().add(new THREE.Vector3(0, 0.55 + rng() * 0.45, 0)).normalize();
       const bl = (3.8 + rng() * 3.4) * sc * (1.1 - t * 0.35);
-      const br = growPath(rng, q, bd, bl, Math.min(q.r * 0.62, 0.11 * sc), 0.016, 8, { gravity: 0.42 + rng() * 0.2, tropism: 0.05, outward: bo.clone().multiplyScalar(0.45), wobble: 0.22, taperPow: 0.75 });
+      const br = growPath(rng, q, bd, bl, Math.min(q.r * 0.62, 0.11 * sc), 0.016, 10, { gravity: 0.42 + rng() * 0.2, tropism: 0.05, outward: bo.clone().multiplyScalar(0.45), wobble: 0.34, taperPow: 0.75 });
       skel.branches.push({ pts: br, level: 2, color: aoColor(tint, 0.8, 0, 6) });
       const nt = 3 + Math.floor(rng() * 3);
       for (let j = 0; j < nt; j++) {
@@ -777,9 +777,9 @@ function reachTree(rng, opts) {
         const td = q2.dir.clone().add(randPerp(rng, q2.dir).multiplyScalar(1.1)).add(new THREE.Vector3(0, 0.35, 0)).normalize();
         const tw = growPath(rng, q2, td, (0.9 + rng() * 1.1) * sc, 0.022, 0.008, 3, { gravity: 0.25, wobble: 0.35 });
         skel.branches.push({ pts: tw, level: 3, color: aoColor(tint, 0.85, 0, 6), radial: 3 });
-        addLeaves(tw, 2, 1.25 * sc, 0.45, 0.25);
+        addLeaves(tw, 3, 1.05 * sc, 0.3, 0.25);
       }
-      addLeaves(br, 3, 1.4 * sc, 0.55, 0.15);
+      addLeaves(br, 4, 1.2 * sc, 0.45, 0.15);
     }
     addLeaves(stem, 3, 1.5 * sc, 0.75, 0.4);
   }
@@ -1062,7 +1062,7 @@ function vineCurtain(rng, opts) {
 
 /**
  * Sculpted mossy boulder: fractured planes (crisp facet edges) + fBm displacement + pitting,
- * moss tint on the up-facing surfaces, darker crevices. detail 3 (LOD0) / 2 (LOD1) share the shape.
+ * moss tint on the up-facing surfaces, darker crevices. ~2000 tris (LOD0) / ~500 (LOD1), same shape.
  * Returns the LOD0 geometry; geometry.userData.lod1 = reduced version.
  */
 export function rockGeometry(rng, sc = 1) {
@@ -1074,8 +1074,8 @@ export function rockGeometry(rng, sc = 1) {
       return { n, d: 0.55 + rng() * 0.3 };
     }),
   };
-  const g0 = sculptRock(shape, 3);
-  g0.userData.lod1 = sculptRock(shape, 2);
+  const g0 = sculptRock(shape, 9);
+  g0.userData.lod1 = sculptRock(shape, 4);
   return g0;
 }
 

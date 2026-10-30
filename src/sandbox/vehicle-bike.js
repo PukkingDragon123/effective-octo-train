@@ -2,10 +2,11 @@
 // Params: cam=tq|side|front|rider|rear, hour, rain, fog, preset, lean (degrees, static pose),
 //         drive=1 (autopilot along the road for `warm` steps), speed (km/h), light=0 (headlight off)
 import * as THREE from 'three';
-import { Motorcycle } from '../vehicle/index.js';
+import { Motorcycle, loadVehicleAssets } from '../vehicle/index.js';
 import { buildTestSet, addStreetlight, applyEnv } from './vehicle-common.js';
 
 export default async function ({ engine, cameraRig, params }) {
+  if (params.get('procedural') !== '1') await loadVehicleAssets();
   applyEnv(params, { hour: 21.5, rain: 0.0, fog: 0.3, wet: 0.3 });
   const { world } = buildTestSet(engine.scene);
   addStreetlight(engine.scene, new THREE.Vector3(-5.2, 0, -10), 1, 26);

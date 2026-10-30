@@ -281,6 +281,7 @@ export class SampleBank {
     this.base = opts.base ?? 'assets/audio/';
     this.url = opts.url ?? this.base + 'manifest.json';
     this.enabled = opts.enabled ?? true;
+    this.quiet = !!opts.quiet; // no console warning when a file is unavailable (tests)
     this.maxBytes = opts.maxBytes ?? 96 * 1024 * 1024; // unpinned (one-shot) budget
     this.entries = {};
     this.variantMap = {}; // synth id -> [key per synth variant] (manifest "replaces": "handbrake:0")
@@ -626,7 +627,7 @@ export class SampleBank {
       rec.error = String(err?.message || err);
       if (idx >= 0) e.failed.add(idx);
       this.stats.failed++;
-      if (!this._warned) {
+      if (!this._warned && !this.quiet) {
         this._warned = true;
         console.warn(`[audio] sample "${file}" unavailable (${rec.error}); using synthesized sound`);
       }

@@ -22,8 +22,14 @@
 //     cabinBrightness · update(dt) (self-installed at order 10) · dispose()
 //   extras: onReach hook · onWipeGlass hook · wipeGlassAt · addBreathFog · speedKmh · fare · setCabinOverride
 //     setMeterGlitch · startEngine · isCameraInside · rayGlass · isAudioOwner · physics.frozen (freeze)
+//     addDashGarland(opts) · garlandWilt (0..1) · setInteriorBlood(seat, amount) · bleedRoof(amount) · clearBlood
+//     addGlassMark kinds also: blood_handprint blood_smear blood_drip blood_splatter clear_blood
+//   await loadVehicleAssets()  (before new Taxi / Motorcycle) builds them from public/assets/vehicle/
+//     taxi.glb / moto.glb when present (node contract: TaxiGLB.js); taxi.model = 'glb'|'procedural'
 //   new Motorcycle({ world })  .root .anchors{seat handleL handleR footL footR eye headlight} .state .physics
 //     setPose · setControlsEnabled · autopilot(spec) · setEngine(on) · setHeadlight(on) · speedKmh · dispose
 export { Taxi, TAXI_ANCHORS, STATIONS } from './Taxi.js';
 export { Motorcycle } from './Motorcycle.js';
 export { CAR, torqueAt } from './CarPhysics.js';
+export { loadVehicleAssets, getVehicleAssets, setVehicleAssets } from './VehicleAssets.js';
+export { GARLAND_UNIFORMS } from './Garland.js';

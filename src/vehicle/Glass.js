@@ -18,6 +18,8 @@ import { glassDirtTex, makeCanvas, toTexture } from './VehicleTextures.js';
 import { setupPortalCamera } from './Mirrors.js';
 import { FONTS } from '../ui/fonts.js';
 import { DIM, belt } from './TaxiBody.js';
+import { paintGlassBlood, smearGlassBlood } from './Blood.js';
+import { makeRng } from '../core/math.js';
 
 const _plane = new THREE.Plane();
 
@@ -59,6 +61,8 @@ uniform vec3 uFogCol;
 uniform float uFogDen;
 uniform vec4 uClip;
 uniform float uClipOn;
+uniform sampler2D tBlood;
+uniform float uBloodOn;
 varying vec2 vUv;
 varying vec2 vM;
 varying vec3 vWP;
@@ -190,6 +194,23 @@ void main() {
     alpha = clamp(fog * 0.7 + dropM * (0.25 + 0.35 * (1.0 - dome)) + dirt * 0.25 + fres * 0.18 + 0.05 + smearStreak * 0.1, 0.0, 1.0);
     col += vec3(0.25) * dropM * dome * dome;
   }
+  // blood on the glass: thick fresh blood is opaque and lit by the cabin (refracts nothing);
+  // thin films tint what is behind them a deep red; wet sheen on the thick parts
+  if (uBloodOn > 0.5) {
+    vec4 bl = texture2D(tBlood, vM);
+    float th = bl.a;
+    if (th > 0.004) {
+      vec3 behind = uHasScene > 0.5 ? col : vec3(0.02);
+      vec3 film = behind * vec3(0.55, 0.06, 0.05);
+      float lit = 0.22 + dot(uCabin, vec3(0.6)) + (uHasScene > 0.5 ? dot(texture2D(tSceneBlur, gl_FragCoord.xy / uResolution).rgb, vec3(0.2)) : 0.0);
+      vec3 body = bl.rgb * lit;
+      vec3 b = mix(film, body, smoothstep(0.3, 0.85, th));
+      b += vec3(0.5, 0.36, 0.33) * fres * smoothstep(0.35, 0.9, th) * 0.5;
+      float k = smoothstep(0.01, 0.3, th);
+      col = mix(col, b, k);
+      alpha = max(alpha, k);
+    }
+  }
   // interior reflection (gaze-gated portal render)
   if (uReflect > 0.001) {
     vec4 rp = uReflectMatrix * vec4(vWP, 1.0);
@@ -307,13 +328,21 @@ class Pane {
       uFogDen: GLOBAL_UNIFORMS.uFogDensity,
       uClip: { value: new THREE.Vector4() },
       uClipOn: { value: 0 },
+      tBlood: { value: BLACK },
+      uBloodOn: { value: 0 },
     };
+    this.blood = null;
     // body-space clip plane at the belt line for the winding door glass (normal up, slight slope)
     this.clip = null;
     if (spec.slide) {
-      const slope = (DIM.belt1 - DIM.belt0) / (DIM.zParcel - DIM.zCowl);
-      const n = new THREE.Vector3(0, 1, -slope).normalize();
-      this.clip = new THREE.Plane().setFromNormalAndCoplanarPoint(n, new THREE.Vector3(0, belt(0) + 0.002, 0));
+      if (spec.clipY !== undefined) {
+        // GLB glass: the visible pane ends at its own lowest point (the door top)
+        this.clip = new THREE.Plane(new THREE.Vector3(0, 1, 0), -spec.clipY);
+      } else {
+        const slope = (DIM.belt1 - DIM.belt0) / (DIM.zParcel - DIM.zCowl);
+        const n = new THREE.Vector3(0, 1, -slope).normalize();
+        this.clip = new THREE.Plane().setFromNormalAndCoplanarPoint(n, new THREE.Vector3(0, belt(0) + 0.002, 0));
+      }
       this.uniforms.uClipOn.value = 1;
     }
     this.material = new THREE.ShaderMaterial({
@@ -386,6 +415,27 @@ class Pane {
     this.marks = { canvas: c, g, tex };
     this.uniforms.tMarks.value = tex;
     return this.marks;
+  }
+  /** Blood canvas (RGBA, premultiplied-free; rgb colour, a thickness), created on first use. */
+  ensureBlood() {
+    if (this.blood) return this.blood;
+    const W = this.id === 'windshield' ? 640 : 384, H = this.id === 'windshield' ? 384 : 288;
+    const canvas = makeCanvas(W, H);
+    const g = canvas.getContext('2d');
+    const tex = toTexture(canvas, { srgb: true });
+    tex.flipY = true;
+    tex.premultiplyAlpha = false;
+    this.blood = { canvas, g, tex, drips: [], any: true, rng: makeRng(this.id.length * 31 + 7) };
+    this.uniforms.tBlood.value = tex;
+    this.uniforms.uBloodOn.value = 1;
+    return this.blood;
+  }
+  clearBlood() {
+    if (!this.blood) return;
+    this.blood.g.clearRect(0, 0, this.blood.canvas.width, this.blood.canvas.height);
+    this.blood.drips.length = 0;
+    this.blood.tex.needsUpdate = true;
+    this.uniforms.uBloodOn.value = 0;
   }
   update(dt, fogRate) {
     // relax condensation toward its target (edges fog first), decay smear
@@ -529,10 +579,26 @@ export class GlassSystem {
     });
     p._fogAny = true;
   }
-  /** Horror marks: kind 'handprint'|'face'|'scratch'|'text'|'clear'. uv in mask space (0..1). opts {size, angle, text, intensity} */
+  /**
+   * Horror marks: kind 'handprint'|'face'|'scratch'|'text'|'clear' (prints in the condensation) or
+   * 'blood_handprint'|'blood_smear'|'blood_drip'|'blood_splatter' (Blood.js). uv in mask space (0..1).
+   * opts {size, angle, text, intensity, drag, path, drips, count, speed, seed}
+   */
   addMark(id, kind, uv, opts = {}) {
+    if (id === 'all') {
+      for (const k of this.ids) this.addMark(k, kind, uv, opts);
+      return;
+    }
     const p = this.panes[id];
     if (!p) return;
+    if (kind.startsWith('blood_')) {
+      paintGlassBlood(p, kind, uv, opts);
+      return;
+    }
+    if (kind === 'clear_blood') {
+      p.clearBlood();
+      return;
+    }
     const mk = p.ensureMarks();
     const g = mk.g, W = mk.canvas.width, H = mk.canvas.height;
     const x = (uv.x ?? uv[0]) * W, y = (1 - (uv.y ?? uv[1])) * H;
@@ -656,6 +722,8 @@ export class GlassSystem {
           }
         }
         p.dirty = true;
+        // blood is dragged, not cleaned
+        if (p.blood) smearGlassBlood(p, w.pivot, a0, a1, w.r0, w.r1, asp, w.angle - w.prev);
       }
       w.prev = w.angle;
     }

@@ -13,6 +13,8 @@ import { audio, STATION_NAMES } from '../audio/index.js';
 import { cameraRig } from '../core/CameraRig.js';
 import { GLOBAL_UNIFORMS } from '../render/index.js';
 import { FONTS } from '../ui/fonts.js';
+import { drawSegments, segWidth } from './VehicleTextures.js';
+const drawSegmentsWidth = (txt, h) => String(txt).split('').reduce((a, c) => a + (c === '.' || c === ':' ? segWidth(h) * 0.32 : segWidth(h)), 0);
 
 export const AUTO_GEARS = ['P', 'R', 'N', 'D', '2', 'L'];
 export const MANUAL_GEARS = ['R', 'N', '1', '2', '3', '4', '5'];
@@ -803,35 +805,45 @@ export class TaxiControls {
       ctx.fillStyle = '#0a0202';
       ctx.fillRect(0, 0, W, H);
       if (!power) return;
-      const red = '#ff3a1c';
-      // ghost segments
-      ctx.font = `700 64px ${FONTS.lcd}`;
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'right';
-      ctx.fillStyle = 'rgba(255,60,30,0.07)';
-      ctx.fillText('888.88', W - 14, H * 0.52);
-      ctx.fillStyle = red;
-      if (g && (g.mode === 'glitch' || g.mode === 'date' || g.mode === 'text')) {
-        const txt = g.mode === 'date' ? g.date || '12-08-2539' : g.mode === 'text' ? g.text || 'ว่าง' : Math.random().toString().slice(2, 8);
-        ctx.font = `700 ${g.mode === 'date' ? 40 : 52}px ${FONTS.lcd}`;
+      const red = '#ff3a1c', ghost = 'rgba(255,60,30,0.07)';
+      const segH = H * 0.6, segY = H * 0.2;
+      // LED glow under the lit segments
+      ctx.shadowColor = 'rgba(255,40,10,0.55)';
+      ctx.shadowBlur = 6;
+      if (g && (g.mode === 'glitch' || g.mode === 'date')) {
+        const txt = g.mode === 'date' ? (g.date || '12-08-2539').replace(/[^0-9-]/g, '-') : String(Math.floor(Math.random() * 1e6)).padStart(6, '8');
+        drawSegments(ctx, '8'.repeat(txt.length).replace(/8/g, ' '), W - 10, segY, segH, { color: red, ghost, align: 'right' });
+        const hh = g.mode === 'date' ? H * 0.46 : segH;
+        drawSegments(ctx, txt, W / 2 + (drawSegmentsWidth(txt, hh) / 2) + (Math.random() - 0.5) * 4, (H - hh) / 2, hh, { color: red, ghost, align: 'right' });
+        return;
+      }
+      if (g && g.mode === 'text') {
+        ctx.fillStyle = red;
+        ctx.font = `700 ${H * 0.5}px ${FONTS.sign}`;
         ctx.textAlign = 'center';
-        ctx.fillText(txt, W / 2 + (Math.random() - 0.5) * 6, H * 0.52);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(g.text || 'ว่าง', W / 2 + (Math.random() - 0.5) * 4, H * 0.55);
         return;
       }
       if (s.meterOn) {
-        ctx.fillText(this.fare.toFixed(2), W - 14, H * 0.52);
-        ctx.font = `600 18px ${FONTS.lcd}`;
+        drawSegments(ctx, this.fare.toFixed(2).padStart(6, ' '), W - 10, segY, segH, { color: red, ghost, align: 'right' });
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = red;
         ctx.textAlign = 'left';
-        ctx.fillText('฿', 10, H * 0.25);
-        ctx.fillText('HIRED', 10, H * 0.78);
+        ctx.textBaseline = 'middle';
+        ctx.font = `700 ${H * 0.26}px ${FONTS.sign}`;
+        ctx.fillText('฿', 8, H * 0.3);
+        ctx.font = `700 ${H * 0.2}px ${FONTS.sign}`;
+        ctx.fillText('ไป', 8, H * 0.72);
       } else {
-        ctx.font = `700 52px ${FONTS.sign}`;
+        ctx.fillStyle = red;
+        ctx.font = `700 ${H * 0.52}px ${FONTS.sign}`;
         ctx.textAlign = 'left';
-        ctx.fillText('ว่าง', 12, H * 0.56);
-        ctx.font = `700 40px ${FONTS.lcd}`;
-        ctx.textAlign = 'right';
-        ctx.fillText(clock, W - 12, H * 0.54);
+        ctx.textBaseline = 'middle';
+        ctx.fillText('ว่าง', 10, H * 0.56);
+        drawSegments(ctx, clock, W - 10, H * 0.26, H * 0.48, { color: red, ghost, align: 'right' });
       }
+      ctx.shadowBlur = 0;
     });
   }
 
@@ -846,14 +858,20 @@ export class TaxiControls {
       ctx.fillStyle = '#020403';
       ctx.fillRect(0, 0, W, H);
       if (!on) return;
-      ctx.fillStyle = '#7dffa8';
-      ctx.font = `700 30px ${FONTS.lcd}`;
-      ctx.textBaseline = 'middle';
+      const vfd = '#7dffa8', ghost = 'rgba(125,255,168,0.06)';
+      ctx.shadowColor = 'rgba(90,255,150,0.5)';
+      ctx.shadowBlur = 5;
+      const [band, num] = st.freq.split(' ');
+      ctx.fillStyle = vfd;
+      ctx.font = `700 ${H * 0.36}px ${FONTS.lcd}`;
       ctx.textAlign = 'left';
-      ctx.fillText(st.freq, 8, H / 2 + 1);
-      ctx.font = `600 18px ${FONTS.sign}`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(band || '', 6, H * 0.52);
+      drawSegments(ctx, (num || '').padStart(6, ' '), W * 0.58, H * 0.16, H * 0.68, { color: vfd, ghost, align: 'right', skew: 0.08 });
+      ctx.shadowBlur = 0;
+      ctx.font = `700 ${H * 0.4}px ${FONTS.sign}`;
       ctx.textAlign = 'right';
-      ctx.fillText(st.name, W - 8, H / 2 + 2);
+      ctx.fillText(st.th || st.name, W - 6, H * 0.55);
     });
   }
 
@@ -868,20 +886,79 @@ export class TaxiControls {
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
       if (!power) return;
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'center';
-      ctx.font = `700 16px ${FONTS.lcd}`;
-      const lamp = (x, txt, col, on) => {
-        if (!on) return;
+      const cy = H / 2, r = H * 0.32;
+      const green = '#4dff7a', red = '#ff3b2a', blue = '#3a7bff', amber = '#ff9a2a';
+      ctx.lineWidth = 2;
+      // indicator arrows
+      const arrow = (x, dir, col, lit) => {
+        if (!lit) return;
         ctx.fillStyle = col;
-        ctx.fillText(txt, x, H / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + dir * r * 1.1, cy);
+        ctx.lineTo(x - dir * r * 0.1, cy - r);
+        ctx.lineTo(x - dir * r * 0.1, cy - r * 0.4);
+        ctx.lineTo(x - dir * r * 1.0, cy - r * 0.4);
+        ctx.lineTo(x - dir * r * 1.0, cy + r * 0.4);
+        ctx.lineTo(x - dir * r * 0.1, cy + r * 0.4);
+        ctx.lineTo(x - dir * r * 0.1, cy + r);
+        ctx.closePath();
+        ctx.fill();
       };
-      lamp(18, '◀', '#4dff7a', blink && (s.indicator === 'left' || s.indicator === 'hazard'));
-      lamp(W - 18, '▶', '#4dff7a', blink && (s.indicator === 'right' || s.indicator === 'hazard'));
-      lamp(64, '(P)', '#ff3b2a', s.handbrake);
-      lamp(108, '⚡', '#ff3b2a', !s.engineOn);
-      lamp(146, 'OIL', '#ff5a2a', !s.engineOn);
-      lamp(192, '≡D', '#3a7bff', s.headlights === 'high');
+      arrow(18, -1, green, blink && (s.indicator === 'left' || s.indicator === 'hazard'));
+      arrow(W - 18, 1, green, blink && (s.indicator === 'right' || s.indicator === 'hazard'));
+      // handbrake: (P) in a circle with brackets
+      if (s.handbrake) {
+        ctx.strokeStyle = red;
+        ctx.fillStyle = red;
+        ctx.beginPath();
+        ctx.arc(64, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        for (const sx of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(64, cy, r * 1.35, sx > 0 ? -0.7 : Math.PI - 0.7, sx > 0 ? 0.7 : Math.PI + 0.7);
+          ctx.stroke();
+        }
+        ctx.font = `700 ${H * 0.5}px ${FONTS.lcd}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('P', 64, cy + 1);
+      }
+      if (!s.engineOn) {
+        // battery
+        ctx.strokeStyle = red;
+        ctx.strokeRect(100, cy - r * 0.7, r * 2.2, r * 1.5);
+        ctx.fillStyle = red;
+        ctx.fillRect(100 + r * 0.3, cy - r * 0.95, r * 0.4, r * 0.25);
+        ctx.fillRect(100 + r * 1.5, cy - r * 0.95, r * 0.4, r * 0.25);
+        // oil can with a drop
+        ctx.fillStyle = amber;
+        ctx.beginPath();
+        ctx.moveTo(140, cy + r * 0.6);
+        ctx.lineTo(140, cy - r * 0.2);
+        ctx.lineTo(140 + r * 1.4, cy - r * 0.2);
+        ctx.lineTo(140 + r * 2.4, cy - r * 0.7);
+        ctx.lineTo(140 + r * 1.8, cy + r * 0.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(140 + r * 2.6, cy + r * 0.3, r * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (s.headlights === 'high') {
+        // high beam: the 'D' lamp with straight rays
+        ctx.strokeStyle = blue;
+        ctx.fillStyle = blue;
+        ctx.beginPath();
+        ctx.arc(196, cy, r * 0.85, -Math.PI / 2, Math.PI / 2);
+        ctx.closePath();
+        ctx.fill();
+        for (let k = -2; k <= 2; k++) {
+          ctx.beginPath();
+          ctx.moveTo(196 - r * 0.3, cy + k * r * 0.35);
+          ctx.lineTo(196 - r * 1.3, cy + k * r * 0.35);
+          ctx.stroke();
+        }
+      }
     });
   }
 

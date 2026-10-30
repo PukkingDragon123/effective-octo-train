@@ -103,6 +103,40 @@ function pegTools(k, x0, y0, z, rng) {
   }
 }
 
+/** Inline-four engine (~0.6 x 0.55 x 0.45 m), front pulley toward +X. Built into kit k at p, yaw r. */
+function engine(k, p, r) {
+  const oily = { grime: 0.35, grimeH: 0.2, streak: 0.6, streakColor: 0x1a1410, vary: 0.25 };
+  k.at(p, r, null, () => {
+    // oil pan (tapered), block with ribs, head, ribbed valve cover
+    k.add(mat('metal'), G('epan', () => cyl(0.2, 0.15, 0.12, 4, 0.01).rotateY(Math.PI / 4).scale(1.5, 1, 0.75)), { color: 0x3a3a38, w: oily });
+    k.add(mat('rust'), G('eblock', () => bevelBox(0.56, 0.26, 0.3, 0.02, 0.1, 2, { bottom: true })), { p: [0, 0.12, 0], color: 0x5e5a56, jitter: 0.004, jitterFreq: 22, w: oily });
+    for (let i = 0; i < 5; i++) k.add(mat('rust'), G('erib', () => bbox(0.02, 0.22, 0.32, 0.004, 0.1)), { p: [-0.24 + i * 0.12, 0.13, 0], color: 0x56524e, w: oily });
+    k.add(mat('metal'), G('ehead', () => bevelBox(0.54, 0.1, 0.27, 0.012, 0.1, 2, { bottom: true })), { p: [0, 0.38, 0], color: 0x8a8680, w: oily });
+    k.add(mat('metal'), G('evalve', () => {
+      const g = bevelBox(0.5, 0.07, 0.2, 0.03, 0.05, 3, { bottom: true });
+      const pa = g.attributes.position;
+      for (let i = 0; i < pa.count; i++) if (pa.getY(i) > 0.06) pa.setY(i, pa.getY(i) + Math.max(0, Math.cos(pa.getX(i) * 60)) * 0.006);
+      g.computeVertexNormals();
+      return g;
+    }), { p: [0, 0.48, 0], color: 0x2a3a5a, w: { grime: 0.3, dust: 0.4 } });
+    k.add(mat('metal'), G('eoilcap', () => cyl(0.025, 0.025, 0.02, 10, 0.004)), { p: [-0.12, 0.555, 0.03], color: 0xb8a030, w: false });
+    // plug leads looping to a distributor
+    k.add(mat('metal'), G('edist', () => cyl(0.035, 0.04, 0.08, 10, 0.01)), { p: [0.3, 0.42, -0.1], r: [0, 0, -0.5], color: 0x2a2a2a, w: false });
+    for (let i = 0; i < 4; i++) k.add(mat('dark'), tube(smoothPath([V(-0.18 + i * 0.12, 0.52, 0.11), V(-0.15 + i * 0.12, 0.6, 0.16), V(0.15, 0.58, 0.05), V(0.33, 0.5, -0.08)], 10), 0.005, 4), { color: [0x1a1a1a, 0x8a1a12][i % 2], w: false });
+    // exhaust manifold: four runners sweeping into one pipe (front side)
+    for (let i = 0; i < 4; i++) k.add(mat('rust'), tube(smoothPath([V(-0.21 + i * 0.14, 0.33, 0.15), V(-0.19 + i * 0.13, 0.28, 0.21), V(0.0, 0.2, 0.24), V(0.12, 0.08, 0.24)], 10), 0.016, 6), { color: 0x6a3a1e, w: { streak: 0.5 } });
+    // front: crank + water pump pulleys, belt, alternator
+    const pulley = G('epulley', () => lathe([[0, 0], [0.07, 0], [0.07, 0.008], [0.062, 0.014], [0.062, 0.022], [0.07, 0.028], [0.07, 0.036], [0, 0.036]], 20).rotateZ(-Math.PI / 2));
+    k.add(mat('metal'), pulley, { p: [0.28, 0.12, 0.0], color: 0x5a5a56, w: false });
+    k.add(mat('metal'), pulley, { p: [0.28, 0.36, 0.02], s: 0.8, color: 0x5a5a56, w: false });
+    k.add(mat('metal'), G('ealt', () => cyl(0.06, 0.06, 0.13, 14, 0.012).rotateZ(Math.PI / 2)), { p: [0.3, 0.3, 0.17], color: 0x8a8a84, w: { grime: 0.4 } });
+    k.add(mat('rubber'), tube(smoothPath([V(0.3, 0.05, 0), V(0.3, 0.12, 0.08), V(0.3, 0.33, 0.2), V(0.3, 0.42, 0.04), V(0.3, 0.2, -0.07), V(0.3, 0.05, 0)], 24), 0.006, 4), { color: 0x141414, w: false });
+    // intake runners on the back + carburettor
+    for (let i = 0; i < 4; i++) k.add(mat('metal'), tube(smoothPath([V(-0.21 + i * 0.14, 0.42, -0.13), V(-0.15 + i * 0.1, 0.42, -0.22), V(0.0, 0.4, -0.26)], 8), 0.018, 6), { color: 0x9a968c, w: { grime: 0.3 } });
+    k.add(mat('metal'), G('ecarb', () => cyl(0.06, 0.07, 0.1, 12, 0.01)), { p: [0, 0.4, -0.29], color: 0x8a8680, w: { grime: 0.4 } });
+  });
+}
+
 /**
  * อู่ กม.9 (intro garage).
  * -> { object, oldManSeat (sit facing the anchor's −Z), taxiSpot (taxi origin; yaw so the
@@ -263,6 +297,20 @@ export function createGarage(opts = {}) {
     k.add(mat('plastic'), G('clockRim', () => cyl(0.16, 0.16, 0.045, 20, 0.01).rotateX(Math.PI / 2)), { color: 0x2a2a2a, w: { dust: 0.5, grime: 0 } });
     k.add(texMat('clock', () => clockTex(), {}), G('clockFace', () => new THREE.CircleGeometry(0.14, 20)), { p: [0, 0, 0.024], color: 0xd8d0b8, uv: 'keep', w: false });
   });
+  // layered wall dressing (reference 5: every wall covered): old posters, notices, water stains
+  const posterAt = (v, x, y, z, ry, w = 0.42, rz = 0) => k.add(signMat('poster', { variant: v }), G('gposter2', () => quad(0.42, 0.594, 2, 3)), { p: [x, y, z], r: [0, ry, rz], s: w / 0.42, color: 0xc8c0b0, uv: 'keep', w: { vary: 0.35, grime: 0.15, grimeH: 0.2, ground: y - 0.3 }, deform: (p) => { p.z += Math.max(0, -p.y - 0.18) * 0.1 + Math.sin(p.x * 20) * 0.003; } });
+  posterAt(0, 1.0, 2.05, zB + 0.112, 0, 0.42, 0.03);
+  posterAt(3, -3.1, 2.75, zB + 0.112, 0, 0.36, -0.04);
+  posterAt(4, 2.75, 2.45, zB + 0.112, 0, 0.4, 0.02);
+  posterAt(5, xL + 0.112, 2.55, -0.35, Math.PI / 2, 0.38, -0.03);
+  posterAt(2, xL + 0.112, 2.6, 1.55, Math.PI / 2, 0.42, 0.04);
+  for (const [i, x, y, z, ry, rz] of [[4, 1.35, 1.55, zB + 0.113, 0, 0.08], [5, -3.4, 1.15, zB + 0.113, 0, -0.04], [6, 2.2, 1.0, zB + 0.113, 0, 0.03], [7, xL + 0.113, 1.25, -0.6, Math.PI / 2, 0.05]]) {
+    k.add(texMat('noticeG' + i, () => noticeTex(i), { decal: true }), G('noticeq', () => quad(0.21, 0.29)), { p: [x, y, z], r: [0, ry, rz], color: 0xffffff, uv: 'keep', w: { vary: 0.3, grime: 0 } });
+  }
+  const wstain = texMat('wallstain', () => stainTex(seed + 9, '40,46,30'), { transparent: true, decal: true });
+  for (const [x, y, z, ry, sw, sh] of [[-0.9, 2.7, zB + 0.105, 0, 1.6, 1.4], [2.9, 1.0, zB + 0.105, 0, 1.4, 1.8], [xL + 0.105, 2.4, -1.9, Math.PI / 2, 2.0, 1.5], [xL + 0.105, 0.5, 1.0, Math.PI / 2, 1.8, 1.0]]) {
+    k.add(wstain, G('wstainq', () => quad(1, 1)), { p: [x, y, z], r: [0, ry, 0], s: [sw, sh, 1], color: 0xffffff, uv: 'keep', w: false });
+  }
   // notices + a little graffiti/tally marks
   k.add(texMat('notice3', () => noticeTex(3), { decal: true }), G('noticeq', () => quad(0.21, 0.29)), { p: [1.5, 1.6, zB + 0.11], r: [0, 0, -0.05], color: 0xffffff, uv: 'keep', w: false });
   k.add(signMat('poster', { variant: 1 }), G('gposter', () => quad(0.45, 0.643)), { p: [xR - 0.11, 2.05, -1.6], r: [0, -Math.PI / 2, 0.03], color: 0xc8c0b0, uv: 'keep', w: { vary: 0.35, grime: 0 } });
@@ -380,10 +428,10 @@ export function createGarage(opts = {}) {
       k.add(mat('galv'), tube([V(0, 0.1, 0.3), V(0, 0.6, 1.0)], 0.015, 5), { color: 0x8a8a84, w: false });
       for (const sx of [-1, 1]) k.add(mat('rubber'), G('jackwheel', () => cyl(0.04, 0.04, 0.03, 10, 0.005).rotateZ(Math.PI / 2)), { p: [sx * 0.15, 0.04, -0.28], color: 0x1a1a1a, w: false });
     });
-    // engine block on pallet
-    k.add(mat('wood'), bbox(0.9, 0.12, 0.8, 0.01, 0.2), { p: [-0.2, 0, zB + 1.5], color: 0x8a6a48, w: { grime: 0.5 } });
-    k.add(mat('rust'), G('engine', () => bevelBox(0.55, 0.42, 0.45, 0.04, 0.12)), { p: [-0.2, 0.33, zB + 1.5], color: 0x5a5250, jitter: 0.01, jitterFreq: 18, w: { grime: 0.3, streak: 0.6, streakColor: 0x1a1410 } });
-    for (let i = 0; i < 4; i++) k.add(mat('metal'), G('plug', () => cyl(0.03, 0.03, 0.06, 6, 0.005)), { p: [-0.38 + i * 0.12, 0.6, zB + 1.5], color: 0x3a3a3a, w: false });
+    // pallet (slatted) + an inline-four engine pulled from a taxi, waiting to be rebuilt
+    for (let i = 0; i < 5; i++) k.add(mat('wood'), G('palslat', () => bbox(0.9, 0.022, 0.13, 0.004, 0.2)), { p: [-0.2, 0.098, zB + 1.15 + i * 0.175], r: [0, 0, (i % 2 ? 1 : -1) * 0.004], color: 0x8a6a48, w: { grime: 0.5 } });
+    for (const x of [-0.6, -0.2, 0.2]) k.add(mat('wood'), G('palrun', () => bbox(0.09, 0.098, 0.8, 0.006, 0.2)), { p: [x, 0, zB + 1.5], color: 0x7a5a3a, w: { grime: 0.6 } });
+    engine(k, [-0.2, 0.12, zB + 1.5], 0.25);
     // scattered small parts on the floor + rags
     for (let i = 0; i < 6; i++) k.add(mat('galv'), G('bolt', () => cyl(0.008, 0.008, 0.05, 6, 0.002).rotateZ(Math.PI / 2)), { p: [0.8 + rng() * 1.5, 0.01, -1 + rng() * 2], r: rng() * 6, color: 0x8a8a84, w: false });
   });

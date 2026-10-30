@@ -152,8 +152,18 @@ export function glowMat(kind = 'sodium', { shared = true, map = null } = {}) {
   return m;
 }
 
+const POSTER_VARIANTS = ['movie', 'balm', 'drink', 'temple_fair', 'concert', 'election'];
+const STICKER_VARIANTS = ['drive_slow', 'yantra', 'cartoon', 'lucky', 'no_smoking', 'merit'];
+/** signTex variants are names: map numeric variants (seed-driven) onto them. */
+function normSignOpts(kind, opts) {
+  if (typeof opts.variant !== 'number') return opts;
+  const list = kind === 'poster' ? POSTER_VARIANTS : kind === 'sticker' ? STICKER_VARIANTS : null;
+  return list ? { ...opts, variant: list[((opts.variant % list.length) + list.length) % list.length] } : opts;
+}
+
 /** Sign / printed-matter material (UVs kept 0..1 across the plate). */
 export function signMat(kind, opts = {}, extra = {}) {
+  opts = normSignOpts(kind, opts);
   const ck = 'sign:' + kind + ':' + JSON.stringify(opts) + JSON.stringify(extra);
   let m = cache.get(ck);
   if (m) return m;
@@ -182,6 +192,7 @@ export function signMat(kind, opts = {}, extra = {}) {
  * Shapes are drawn upright on the canvas: map them on an axis-aligned quad of this aspect.
  */
 export function signInfo(kind, opts = {}) {
+  opts = normSignOpts(kind, opts);
   try {
     const u = signTex(kind, opts).userData || {};
     const size = u.size || [1, 1 / (u.aspect || 1)];

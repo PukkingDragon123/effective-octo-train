@@ -546,7 +546,7 @@ export function paintBodyAtlas(lower, gh, opts = {}) {
     if (side === 'R') g.scale(-1.7, 1);
     else g.scale(1.7, -1);
     // compensate stretch: atlas px per metre
-    g.font = `600 ${size}px ${FONTS.sign}`;
+    g.font = `700 ${size}px ${FONTS.sign}`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillStyle = color;
@@ -700,7 +700,7 @@ export function roofSignTex() {
     g.fillStyle = grd;
     g.fillRect(0, 0, w, h);
     g.fillStyle = '#b0201a';
-    g.font = `800 66px ${FONTS.sign}`;
+    g.font = `700 66px ${FONTS.sign}`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText('TAXI-METER', w / 2, h / 2 + 3);
@@ -728,7 +728,7 @@ export function vacantTex() {
     g.fillStyle = grd;
     g.fillRect(6, 6, w - 12, h - 12);
     g.fillStyle = '#fff2d0';
-    g.font = `800 84px ${FONTS.sign}`;
+    g.font = `700 84px ${FONTS.sign}`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText('ว่าง', w / 2, h / 2 + 8);
@@ -773,18 +773,18 @@ export function gaugeTex(kind, lit = false) {
         const a = a0 + (v / max) * (a1 - a0);
         tick(a, R * 0.78, R * 0.95, v % 20 === 0 ? 4 : 2);
         if (v % 20 === 0) {
-          g.font = `600 ${S * 0.085}px ${FONTS.lcd}`;
+          g.font = `700 ${S * 0.085}px ${FONTS.lcd}`;
           g.fillText(String(v), cx + Math.cos(a) * R * 0.6, cy + Math.sin(a) * R * 0.6);
         }
       }
-      g.font = `500 ${S * 0.055}px ${FONTS.lcd}`;
+      g.font = `400 ${S * 0.055}px ${FONTS.lcd}`;
       g.fillStyle = ink2;
       g.fillText('km/h', cx, cy + R * 0.42);
       // odometer window
       g.fillStyle = lit ? '#000' : '#050505';
       g.fillRect(cx - S * 0.16, cy + R * 0.12, S * 0.32, S * 0.08);
       g.fillStyle = lit ? '#59c98a' : '#bfbfb0';
-      g.font = `600 ${S * 0.06}px ${FONTS.lcd}`;
+      g.font = `700 ${S * 0.06}px ${FONTS.lcd}`;
       g.fillText('387214', cx, cy + R * 0.12 + S * 0.04);
     } else if (kind === 'tacho') {
       const max = 8;
@@ -792,7 +792,7 @@ export function gaugeTex(kind, lit = false) {
         const a = a0 + (v / (max * 2)) * (a1 - a0);
         tick(a, R * 0.78, R * 0.95, v % 2 === 0 ? 4 : 2);
         if (v % 2 === 0) {
-          g.font = `600 ${S * 0.1}px ${FONTS.lcd}`;
+          g.font = `700 ${S * 0.1}px ${FONTS.lcd}`;
           g.fillText(String(v / 2), cx + Math.cos(a) * R * 0.6, cy + Math.sin(a) * R * 0.6);
         }
       }
@@ -803,7 +803,7 @@ export function gaugeTex(kind, lit = false) {
       g.arc(cx, cy, R * 0.9, a0 + (6.2 / 8) * (a1 - a0), a1);
       g.stroke();
       g.fillStyle = ink2;
-      g.font = `500 ${S * 0.05}px ${FONTS.lcd}`;
+      g.font = `400 ${S * 0.05}px ${FONTS.lcd}`;
       g.fillText('x1000 r/min', cx, cy + R * 0.42);
     } else {
       // small gauges: fuel / temp, sweep at top
@@ -823,7 +823,7 @@ export function gaugeTex(kind, lit = false) {
         g.stroke();
       }
       g.fillStyle = ink2;
-      g.font = `600 ${S * 0.08}px ${FONTS.lcd}`;
+      g.font = `700 ${S * 0.08}px ${FONTS.lcd}`;
       g.fillText(kind === 'fuel' ? 'FUEL' : 'TEMP', cx, cy + R * 0.25);
     }
     if (!lit) {
@@ -861,16 +861,16 @@ export function radioFaceTex() {
       g.fillStyle = '#2c2d30';
       g.fillRect(150 + i * 43, 126, 36, 12);
       g.fillStyle = '#9a9c96';
-      g.font = `600 10px ${FONTS.lcd}`;
+      g.font = `700 10px ${FONTS.lcd}`;
       g.textAlign = 'center';
       g.fillText(String(i + 1), 168 + i * 43, 135);
     }
     // labels
     g.fillStyle = '#a7a9a2';
-    g.font = `600 13px ${FONTS.lcd}`;
+    g.font = `700 13px ${FONTS.lcd}`;
     g.textAlign = 'left';
     g.fillText('STEREO CASSETTE', 368, 40);
-    g.font = `500 11px ${FONTS.lcd}`;
+    g.font = `400 11px ${FONTS.lcd}`;
     g.fillText('AM/FM  AUTO-REVERSE', 368, 58);
     g.fillText('VOL / PUSH', 30, 128);
     g.textAlign = 'right';
@@ -888,6 +888,74 @@ export function radioFaceTex() {
     for (let i = 0; i < 90; i++) blob(g, rng, rng() * w, rng() * h, rng.range(1, 5), 'rgba(160,150,130,1)', rng.range(0.03, 0.12), 5, 0.5);
     return toTexture(c);
   });
+}
+
+// ---------------------------------------------------------------------------
+// 7-segment LED / VFD digits (taxi meter, clock, radio frequency): drawn as shapes, so
+// they read crisply whatever the UI typeface is.
+// ---------------------------------------------------------------------------
+const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g', ' ': '', E: 'adefg', r: 'eg', o: 'cdeg', P: 'abefg', H: 'bcefg', L: 'def', A: 'abcefg' };
+/** Width of one digit cell for height h. */
+export function segWidth(h) {
+  return h * 0.62;
+}
+/**
+ * Draw `text` in 7-segment style. x = left edge (align 'left') or right edge ('right').
+ * opts { color, ghost (unlit segments rgba), skew=0.12, align='left' }. Returns the drawn width.
+ */
+export function drawSegments(g, text, x, y, h, opts = {}) {
+  const color = opts.color || '#ff3a1c';
+  const ghost = opts.ghost ?? null;
+  const skew = opts.skew ?? 0.12;
+  const cw = segWidth(h), t = h * 0.11, gap = h * 0.015;
+  const chars = String(text).split('');
+  // width: digits take cw, '.' and ':' take a narrow slot
+  const wOf = (c) => (c === '.' || c === ':' ? cw * 0.32 : cw);
+  const total = chars.reduce((a, c) => a + wOf(c), 0);
+  let cx = opts.align === 'right' ? x - total : x;
+  const bar = (x0, y0, x1, y1, lit) => {
+    // hexagonal bar between two points (horizontal or vertical), skewed for the italic LED look
+    const sk = (px, py) => [px + (y + h / 2 - py) * skew, py];
+    const horiz = Math.abs(y1 - y0) < Math.abs(x1 - x0);
+    const pts = horiz
+      ? [[x0 + gap, y0], [x0 + gap + t / 2, y0 - t / 2], [x1 - gap - t / 2, y1 - t / 2], [x1 - gap, y1], [x1 - gap - t / 2, y1 + t / 2], [x0 + gap + t / 2, y0 + t / 2]]
+      : [[x0, y0 + gap], [x0 + t / 2, y0 + gap + t / 2], [x1 + t / 2, y1 - gap - t / 2], [x1, y1 - gap], [x1 - t / 2, y1 - gap - t / 2], [x0 - t / 2, y0 + gap + t / 2]];
+    g.beginPath();
+    pts.forEach(([px, py], i) => {
+      const [qx, qy] = sk(px, py);
+      if (i) g.lineTo(qx, qy);
+      else g.moveTo(qx, qy);
+    });
+    g.closePath();
+    g.fillStyle = lit ? color : ghost;
+    if (lit || ghost) g.fill();
+  };
+  for (const c of chars) {
+    const w = wOf(c);
+    if (c === '.' || c === ':') {
+      const r = t * 0.6;
+      g.fillStyle = color;
+      const dots = c === '.' ? [y + h - r] : [y + h * 0.3, y + h * 0.7];
+      for (const dy of dots) {
+        g.beginPath();
+        g.arc(cx + w / 2 + (y + h / 2 - dy) * skew, dy, r, 0, Math.PI * 2);
+        g.fill();
+      }
+      cx += w;
+      continue;
+    }
+    const on = SEG[c] ?? '';
+    const l = cx + t * 0.6, r = cx + cw - t * 0.9, top = y + t / 2, mid = y + h / 2, bot = y + h - t / 2;
+    bar(l, top, r, top, on.includes('a'));
+    bar(r, top, r, mid, on.includes('b'));
+    bar(r, mid, r, bot, on.includes('c'));
+    bar(l, bot, r, bot, on.includes('d'));
+    bar(l, mid, l, bot, on.includes('e'));
+    bar(l, top, l, mid, on.includes('f'));
+    bar(l, mid, r, mid, on.includes('g'));
+    cx += w;
+  }
+  return total;
 }
 
 /** A dynamic canvas texture with a redraw(fn) helper. */
@@ -1084,7 +1152,7 @@ export function stickerTex(variant) {
       g.arc(S * 0.48, S * 0.45, 7, 0, Math.PI * 2);
       g.fill();
       g.fillStyle = '#c0483a';
-      g.font = `800 ${S * 0.1}px ${FONTS.sign}`;
+      g.font = `700 ${S * 0.1}px ${FONTS.sign}`;
       g.textAlign = 'center';
       g.fillText('ช้างน้อย', S * 0.5, S * 0.86);
     } else if (variant === 'yantra') {
@@ -1100,7 +1168,7 @@ export function stickerTex(variant) {
       g.closePath();
       g.stroke();
       g.fillStyle = '#7a1c14';
-      g.font = `600 ${S * 0.07}px ${FONTS.sign}`;
+      g.font = `700 ${S * 0.07}px ${FONTS.sign}`;
       g.textAlign = 'center';
       g.fillText('นะ  มะ  พะ  ทะ', S * 0.5, S * 0.62);
       g.fillText('อุ  อะ  มะ', S * 0.5, S * 0.72);
@@ -1111,7 +1179,7 @@ export function stickerTex(variant) {
       g.fillStyle = '#1e4f8a';
       g.fillRect(0, S * 0.3, S, S * 0.4);
       g.fillStyle = '#ffe9a8';
-      g.font = `600 ${S * 0.085}px ${FONTS.sign}`;
+      g.font = `700 ${S * 0.085}px ${FONTS.sign}`;
       g.textAlign = 'center';
       g.textBaseline = 'middle';
       g.fillText('ขอให้เดินทางปลอดภัย', S / 2, S * 0.5);
@@ -1232,7 +1300,7 @@ export function sidewallTex() {
     g.save();
     g.translate(S / 2, S / 2);
     g.fillStyle = 'rgba(120,118,112,0.45)';
-    g.font = `600 14px ${FONTS.lcd}`;
+    g.font = `700 14px ${FONTS.lcd}`;
     g.textAlign = 'center';
     const str = '175/70 R13  82S  TUBELESS  RADIAL  ';
     for (let k = 0; k < 2; k++) {
@@ -1266,7 +1334,7 @@ export function plateTexFallback(text = 'กท 1ท-4521', province = 'กร�
     g.textAlign = 'center';
     g.font = `700 50px ${FONTS.sign}`;
     g.fillText(text, w / 2, 64);
-    g.font = `600 22px ${FONTS.sign}`;
+    g.font = `700 22px ${FONTS.sign}`;
     g.fillText(province, w / 2, 104);
     return toTexture(c);
   });

@@ -182,7 +182,8 @@ export function createSala(opts = {}) {
     });
     if (variant === 1) {
       for (const s of [-1, 1]) {
-        k.add(mat('wood'), bevelBox(slope + 0.1, 0.18, 0.04, 0.01, 0.3), { p: [sx * (W / 2 + ovX + 0.02), roofY + RH / 2 + 0.06, (s * halfD) / 2], r: [s * ang, 0, 0], color: 0x5a3e28, w: { grime: 0, streak: 0.5, moss: 0.5 } });
+        // bargeboard (pan lom) running down the gable along the slope (length along local Z)
+        k.add(mat('wood'), bevelBox(0.04, 0.18, slope + 0.1, 0.01, 0.3), { p: [sx * (W / 2 + ovX + 0.02), roofY + RH / 2 + 0.06, (s * halfD) / 2], r: [s * ang, 0, 0], color: 0x5a3e28, w: { grime: 0, streak: 0.5, moss: 0.5 } });
       }
       chofa(k, [sx * (W / 2 + ovX + 0.02), roofY + RH + 0.14, 0], 2.4, 0x8a6a3a, sx > 0 ? Math.PI / 2 : -Math.PI / 2);
     }

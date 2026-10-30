@@ -674,13 +674,14 @@ export class Music {
     // nearest recorded pitch, repitched (a wooden bar tolerates about +-1.5 octaves)
     let best = null, bd = Infinity;
     for (const s of list) {
-      const d = Math.abs(Math.log(f / s.f0));
+      // prefer full-length takes (a clipped strike would truncate melody notes)
+      const d = Math.abs(Math.log(f / s.f0)) + (s.buf.duration < 0.8 ? 0.35 : 0);
       if (d < bd) {
         bd = d;
         best = s;
       }
     }
-    if (!best || bd > Math.log(3)) return null;
+    if (!best || Math.abs(Math.log(f / best.f0)) > Math.log(3)) return null;
     return { buf: best.buf, rate: f / best.f0, gain: best.gain, damp: false };
   }
 

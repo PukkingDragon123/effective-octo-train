@@ -30,7 +30,7 @@ const _box = new THREE.Box3();
 const Z = new THREE.Vector3(0, 0, 1);
 
 /** name -> node, also matching Blender duplicates ('door_fl.001' -> 'door_fl001'). */
-function indexNodes(root) {
+export function indexNodes(root) {
   const idx = new Map();
   root.traverse((o) => {
     if (!o.name) return;
@@ -41,8 +41,8 @@ function indexNodes(root) {
   return (name) => idx.get(name) || null;
 }
 
-const worldPos = (o, out = new THREE.Vector3()) => o.getWorldPosition(out);
-const boxOf = (o) => new THREE.Box3().setFromObject(o);
+export const worldPos = (o, out = new THREE.Vector3()) => o.getWorldPosition(out);
+export const boxOf = (o) => new THREE.Box3().setFromObject(o);
 
 /** Wrap a node in an identity-oriented pivot group at the node's origin (same world transform). */
 function insertPivot(node) {

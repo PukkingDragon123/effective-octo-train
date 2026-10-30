@@ -23,6 +23,7 @@ import { DIM } from './TaxiBody.js';
 import { getVehicleAssets } from './VehicleAssets.js';
 import { buildTaxiFromGLB } from './TaxiGLB.js';
 import { Garland, AmuletCluster, GARLAND_UNIFORMS } from './Garland.js';
+import { TaxiBlood } from './Blood.js';
 
 // Taxi-local frame: +X right, +Y up, -Z forward. Right-hand drive (Thailand): driver sits at +X.
 export const TAXI_ANCHORS = {
@@ -197,6 +198,7 @@ export class Taxi {
       this.parts.swings.push(this.amulets, this.garland);
       this.dashGarlands = [];
     }
+    this.blood = new TaxiBlood(this);
     this.physics = { speed: 0, rpm: 0, steer: 0, wheelAngle: 0, onRoad: true, roadRef: null, frozen: false, sim: this.physicsSim };
     Object.defineProperty(this.physics, 'frozen', {
       get: () => this.physicsSim.frozen,
@@ -424,6 +426,21 @@ export class Taxi {
     };
     return g;
   }
+  /**
+   * A blood stain seeping into a seat or the floor mat (ghost passengers leave it).
+   * seat 'driver'|'frontPassenger'|'rearLeft'|'rearRight'|'rearCenter'|'floorFront'|'floorRear'|'floorDriver'; amount 0..1.
+   */
+  setInteriorBlood(seat, amount = 1) {
+    this.blood.setInteriorBlood(seat, amount);
+  }
+  /** Blood drips falling from the headliner seam onto the dash; amount 0..1 (0 stops, stains remain). */
+  bleedRoof(amount = 1) {
+    this.blood.bleedRoof(amount);
+  }
+  /** Remove all blood (glass, seats, roof). */
+  clearBlood() {
+    this.blood.clear();
+  }
   /** Wilting of every garland 0..1 (ghost-heavy rides): GARLAND_UNIFORMS.uWilt. */
   get garlandWilt() {
     return GARLAND_UNIFORMS.uWilt.value;
@@ -543,6 +560,7 @@ export class Taxi {
     this.glass.uniforms.uCabin.value.setRGB(0.9, 0.72, 0.48).multiplyScalar(cab * 0.6 + this.lights.dashLevel * 0.02);
     this.glass.setFlow(sim.v);
     this.glass.update(dt);
+    this.blood.update(dt);
     // ---- audio (only the owning taxi drives the shared engine / radio voices) ----
     const owner = this.isAudioOwner();
     const es = audio.engineSound;
@@ -767,6 +785,7 @@ export class Taxi {
     this.autopilot(null);
     this.controls.dispose();
     this.garland?.dispose();
+    this.blood?.dispose();
     this.amulets?.dispose();
     for (const g of [...(this.dashGarlands || [])]) g.dispose();
     this.lights.dispose();

@@ -131,7 +131,7 @@ export class Forest {
         mesh.count = 0;
         mesh.frustumCulled = false;
         mesh.visible = false;
-        mesh.castShadow = li === 0 && (kind === 'big' || kind === 'mid' || kind === 'small');
+        mesh.castShadow = li === 0 && kind === 'big';
         mesh.receiveShadow = true;
         mesh.name = `${name}${v}_lod${li}_${part}`;
         mesh.matrixAutoUpdate = false;

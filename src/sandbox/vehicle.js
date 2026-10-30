@@ -3,10 +3,11 @@
 // Params: cam=tq|side|front|rear|reartq|low|interior|doors, hour, rain, fog, lights=off|low|high,
 //         other=1 (second car's headlights), open=0..1 (doors/trunk), dist (camera distance scale)
 import * as THREE from 'three';
-import { Taxi } from '../vehicle/index.js';
+import { Taxi, loadVehicleAssets } from '../vehicle/index.js';
 import { buildTestSet, addStreetlight, applyEnv } from './vehicle-common.js';
 
 export default async function ({ engine, cameraRig, params }) {
+  if (params.get('procedural') !== '1') await loadVehicleAssets();
   applyEnv(params, { hour: 22.5, rain: 0.3, fog: 0.3 });
   const { world } = buildTestSet(engine.scene);
   addStreetlight(engine.scene, new THREE.Vector3(-5.2, 0, -3), 1, Number(params.get('lamp') ?? 34));
