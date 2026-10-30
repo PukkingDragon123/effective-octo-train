@@ -293,7 +293,7 @@ export default async function ({ engine, cameraRig, params }) {
       const I = ww.t.index.Head;
       ww.boneFrame(I, hq);
       up.set(0, 1, 0).applyQuaternion(hq).normalize();
-      ww.bones.Head.getWorldPosition(top).addScaledVector(up, num('horn', 0.205) * (ww.scale || 1));
+      ww.bones.Head.getWorldPosition(top).addScaledVector(up, num('horn', 0.205));
       // keep the side of the plane the head is on: points beyond `top` along `up` are cut
       hornPlane.normal.copy(up).negate();
       hornPlane.constant = up.dot(top);
