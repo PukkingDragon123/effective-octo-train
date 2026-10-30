@@ -3,6 +3,7 @@
 //   hour=21..30  rain=0..1  painterly=0..1  sharpen=0..1  quality=low|medium|high|ultra  fog=0..1
 //   cam=road|lamp|side|up  headlights=0|1  t=seconds of simulated time before capture
 //   blood=0..1 (lens splatter)  splash=1 (one-shot)  gore=full|reduced  flats=0|1  gust=1
+//   boost=x (sky.setFogBoost)  storm=1 (lightning always)
 import * as THREE from 'three';
 import {
   paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, particles, postfx, GLOBAL_UNIFORMS,
@@ -346,7 +347,7 @@ export default async function ({ engine, cameraRig, params, settings }) {
   const carZ = 8;
   const hlPos = new THREE.Vector3(roadX(carZ) - 1.5, 0.68, carZ - 3.35);
   const look = new THREE.Vector3(roadX(carZ - 30) - 1.4, -1.3, carZ - 30);
-  const spot = new THREE.SpotLight(0xfff0d8, headlights ? 1100 : 0, 75, 0.72, 1.0, 2);
+  const spot = new THREE.SpotLight(0xdfe9ff, headlights ? 1100 : 0, 75, 0.72, 1.0, 2);
   spot.position.copy(hlPos);
   spot.target.position.copy(look);
   spot.castShadow = true;
@@ -418,7 +419,11 @@ export default async function ({ engine, cameraRig, params, settings }) {
   particles.emit('headlightBugs', { object: hood, offset: new THREE.Vector3(0, -0.4, -1.2) });
   particles.emit('incense', { position: new THREE.Vector3(roadX(-30) - 4.6, 0.6, -29.6) });
   particles.emit('embers', { position: new THREE.Vector3(roadX(-30) - 4.6, 0.6, -29.6), count: 12, radius: 0.1, height: 0.8 });
-  lightPool.add({ position: new THREE.Vector3(roadX(-30) - 4.6, 0.75, -29.6), color: 0xff8a3a, intensity: 12, distance: 5, flicker: 'candle', glow: { size: 0.12 } });
+  lightPool.add({ position: new THREE.Vector3(roadX(-30) - 4.6, 0.75, -29.6), kind: 'candle', intensity: 12, distance: 5, glow: { size: 0.12 } });
+  // crimson shrine lantern hanging further down the road
+  lightPool.add({ position: new THREE.Vector3(roadX(-70) + 4.4, 2.2, -70), kind: 'shrine', intensity: 18, distance: 8, glow: { size: 0.35 } });
+  if (P('boost', null)) sky.setFogBoost(parseFloat(P('boost', 1)), 0);
+  if (P('storm', '0') === '1') sky.setLightning('always', 1);
 
   // --- camera ----------------------------------------------------------------------------------------------
   const eye = new THREE.Object3D();

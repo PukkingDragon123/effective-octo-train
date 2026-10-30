@@ -18,7 +18,7 @@ import { installFogChunks, installMaterialInjection } from './Fog.js';
 import { paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug } from './Materials.js';
 import { postfx } from './PostFX.js';
 import { sky } from './Sky.js';
-import { lightPool } from './LightPool.js';
+import { lightPool, LIGHT_ACCENTS } from './LightPool.js';
 import { particles } from './Particles.js';
 import { createVolumetricBeam } from './Beams.js';
 import { silhouetteMaterial } from './Silhouette.js';
@@ -31,7 +31,7 @@ import { settings } from '../core/Settings.js';
 export {
   GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals,
   paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug,
-  postfx, sky, lightPool, particles, createVolumetricBeam, silhouetteMaterial, bloodDecalMaterial, GORE_UNIFORM,
+  postfx, sky, lightPool, particles, createVolumetricBeam, silhouetteMaterial, bloodDecalMaterial, GORE_UNIFORM, LIGHT_ACCENTS,
   brushTexture, canvasTexture, glowTexture,
   RENDER_CAPS, crispTexture, crispMaterialTextures,
 };

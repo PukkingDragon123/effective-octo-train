@@ -334,19 +334,21 @@ const TYPES = {
     `,
   },
   mist: {
-    count: 46, radius: 22, height: 1.2, blending: NORMAL, mode: BILLBOARD, minPx: 1.0, color: 0xffffff, cameraCentred: true, ground: true,
+    // rolling ground mist puffs around the camera: drift + slow roll, catch every light
+    count: 64, radius: 22, height: 1.2, blending: NORMAL, mode: BILLBOARD, minPx: 1.0, color: 0xffffff, cameraCentred: true, ground: true,
     body: /* glsl */ `
       vec2 box = vec2(uRadius * 2.0);
-      vec2 drift = uWindV * t * 0.6 + vec2(t * 0.05, t * 0.03);
+      vec2 drift = uWindV * t * 0.9 + vec2(t * 0.06, t * 0.035);
       vec2 rel = aSeed.xz * box + drift - uOrigin.xz;
       rel = mod(rel, box) - box * 0.5;
-      size = 3.5 + aSeed2.x * 4.5;
-      wp = vec3(uOrigin.x + rel.x, uGround + size * 0.12 + aSeed.y * uHeight, uOrigin.z + rel.y);
-      rot = aSeed2.z * 6.28 + t * 0.03 * (aSeed2.w - 0.5);
+      size = 3.5 + aSeed2.x * 5.0;
+      float roll = sin(t * (0.15 + aSeed2.w * 0.2) + aSeed.w * 30.0);
+      wp = vec3(uOrigin.x + rel.x, uGround + size * 0.1 + aSeed.y * uHeight + roll * 0.25, uOrigin.z + rel.y);
+      rot = aSeed2.z * 6.28 + t * 0.05 * (aSeed2.w - 0.5);
       float dc = length(wp - cameraPosition);
       float fade = smoothstep(1.5, 6.0, dc) * (1.0 - smoothstep(uRadius * 0.55, uRadius, length(rel)));
-      vec3 lit = dlbFogTint(normalize(wp - cameraPosition)) * 1.3 + dlbAmbient * 0.25 + pDirect(wp) * 0.6;
-      col = vec4(lit * uColor, (0.06 + aSeed2.y * 0.07) * fade * uIntensity);
+      vec3 lit = dlbFogTint(normalize(wp - cameraPosition)) * 1.35 + dlbAmbient * 0.25 + pDirect(wp) * 1.4 + dlbFlash * vec3(0.08);
+      col = vec4(lit * uColor, (0.07 + aSeed2.y * 0.09) * fade * uIntensity * (0.75 + 0.25 * roll));
       misc.x = aSeed2.y;
       shape = 7.0;
     `,
