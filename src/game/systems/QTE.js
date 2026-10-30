@@ -178,7 +178,7 @@ export class QTE {
         const key = want < 0 ? input.down('left') : input.down('right');
         const touch = this._touch.down && this._touch.side === want;
         const hit = key || touch || steer * want > STEER_DEAD;
-        st.progress = (st.step + clamp(st.stepT / Math.max(0.05, s.time), 0, 1) * 0) / s.dirs.length;
+        st.progress = st.step / s.dirs.length;
         ui?.set(1 - clamp(st.stepT / Math.max(0.05, s.time), 0, 1), { ring: true, dir: s.dirs[st.step] });
         if (hit) {
           st.step++;
@@ -193,6 +193,7 @@ export class QTE {
           break;
         }
         if (st.stepT > s.time) return this._finish(false, 'timeout');
+        this._prevTaps = this._touch.taps;
         s.onTick?.(st, dt);
         return;
       }

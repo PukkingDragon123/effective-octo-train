@@ -726,6 +726,11 @@ def _export_mat(name):
 def remap_export(objs):
     """Replace build materials with the merged export materials (same face assignment)."""
     used = set()
+    # free the export names ('chrome', 'glass', ...) held by build materials
+    for m in list(bpy.data.materials):
+        if not m.get('export') and m.name in EXPORT:
+            m['src'] = m.name
+            m.name = '_src_' + m.name
     for o in objs:
         if o.type != 'MESH':
             continue
@@ -733,7 +738,7 @@ def remap_export(objs):
         for i, m in enumerate(me.materials):
             if m is None or m.get('export'):
                 continue
-            ex = SRC_TO_EXPORT.get(m.name)
+            ex = SRC_TO_EXPORT.get(m.get('src', m.name))
             if ex is None:
                 raise RuntimeError(f'no export material for {m.name} on {o.name}')
             me.materials[i] = _export_mat(ex)
