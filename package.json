@@ -1,0 +1,24 @@
+{
+  "name": "dont-look-back-in-horror",
+  "private": true,
+  "version": "0.1.0",
+  "description": "DON'T LOOK BACK IN HORROR — a Thai supernatural night-shift taxi horror game by Pukking Dragon",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "shot": "node tools/shot.mjs"
+  },
+  "dependencies": {
+    "three": "0.170.0",
+    "@fontsource/sarabun": "^5.0.0",
+    "@fontsource/kanit": "^5.0.0",
+    "@fontsource/chakra-petch": "^5.0.0",
+    "@fontsource/mali": "^5.0.0",
+    "@fontsource/cormorant-garamond": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
