@@ -306,7 +306,7 @@ class Ext:
             cutters.append(arch_cutter('c_archR', tb.AXR, tb.AXLE_Z, 0.338, side))
         # door seams (side-view polylines, extruded along X)
         front_edge = [(0.836, 0.2445), (0.843, 0.32), (0.848, 0.50), (0.845, 0.66), (0.835, 0.78), (0.818, 0.85),
-                      (0.808, 0.878), (0.796, 0.902)]
+                      (0.806, 0.870), (0.800, 0.884), (0.799, 0.890)]
         b_edge = [(-0.192, 0.2445), (-0.196, 0.60), (-0.200, 0.96)]
         rear_edge = [(-0.79, 0.2445)]
         for k in range(0, 9):
