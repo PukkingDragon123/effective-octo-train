@@ -13,6 +13,7 @@ import { createServer } from 'vite';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 // Playwright is pre-installed globally (resolved through NODE_PATH via require).
@@ -41,11 +42,15 @@ const shots = Number(args.shots ?? 1);
 const interval = Number(args.interval ?? 1000);
 const timeout = Number(args.timeout ?? 180000);
 
+// Each harness run gets its own Vite cache dir and skips dependency pre-bundling, so
+// several harness runs (parallel agents) never race on node_modules/.vite.
+const cacheDir = path.join(os.tmpdir(), `dlbih-vite-${process.pid}-${Date.now()}`);
 const server = await createServer({
   root,
   logLevel: 'error',
-  server: { port: 0, host: '127.0.0.1', hmr: false },
-  optimizeDeps: { force: false },
+  cacheDir,
+  server: { port: 0, host: '127.0.0.1', hmr: false, watch: null },
+  optimizeDeps: { noDiscovery: true, include: [] },
 });
 await server.listen();
 const port = server.httpServer.address().port;
@@ -116,5 +121,10 @@ try {
   } else console.log('no console errors');
   await browser.close();
   await server.close();
+  try {
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+  } catch (e) {
+    /* ignore */
+  }
   process.exit(exitCode);
 }
