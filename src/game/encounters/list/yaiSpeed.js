@@ -1,7 +1,7 @@
 // ยายสปีด (23–01): Granny sprints alongside at any speed with an impossible gait, overtakes, and
 // turns her head 180° to grin at you. Slow down under 35 km/h and she passes and is gone. Stare at
-// her and speed up and she lands on the hood (scare); the amulet throws her off. Keep flooring it
-// with her on the glass and she comes through it.
+// her and speed up and she lands on the hood (scare): a QTE, swerve left / right / left to throw her
+// off (the amulet throws her off too). Miss the swerves and she comes through the glass.
 import { createYaiSpeed } from '../../../creatures/index.js';
 import { S, onBus, rand } from '../helpers.js';
 
@@ -65,6 +65,41 @@ export async function run(E) {
   }
   // raced: she lands on the hood
   await y.landOnHood(t);
+  if (!E.alive) return;
+  const qte = E.g.qte;
+  if (qte && !(amulet || E.g.director?.amuletHeld)) {
+    // QTE: SWERVE her off — hard left, hard right, left (A / D, the stick, or touch a side)
+    const first = Math.random() < 0.5 ? 'left' : 'right';
+    const other = first === 'left' ? 'right' : 'left';
+    const res = await qte.run({
+      kind: 'steer',
+      dirs: [first, other, first],
+      time: 1.15,
+      slowmo: 0.5,
+      dread: 1,
+      onPress: (st, dir) => {
+        // each swerve throws her weight across the glass
+        S.sfx('thump_roof', { object: t.root, volume: 0.8, rate: 0.8 + Math.random() * 0.3 });
+        E.g.cameraRig.shake(0.25);
+        if (E.g.camfx) E.g.camfx.flinch(0.3);
+        try {
+          t.physicsSim.yaw += dir * -0.05;
+        } catch (e) {
+          /* cosmetic */
+        }
+      },
+    });
+    if (!E.alive) return;
+    if (!res.ok && !(amulet || E.g.director?.amuletHeld)) {
+      E.deathCtx = { yai: y };
+      E.violate('yaiSpeed', 'raced');
+      await E.wait(12); // she stays on the glass through the death cinematic
+      return;
+    }
+    S.sfx('scream_far', { object: y.humanoid.root, volume: 0.6, rate: 1.3 });
+    await y.throwOff(t);
+    return;
+  }
   const kmhAtLand = t.speedKmh;
   let floor = 0;
   const res = await E.until((dt, el) => {

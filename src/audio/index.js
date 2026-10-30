@@ -35,8 +35,13 @@
 //   audio.ambience.set({hour, rain, wind, insideCar, windowsOpen, nearWater, nearLights, forestDensity, dread, enabled, autoMuffle})
 //   audio.music.setMood('silence'|'menu'|'dread'|'surreal'|'calm'|'nostalgic'|'dawn'|'ending'|'tension', {fade})
 //   audio.radio { setOn, next, setStation(1..4), setStatic(0..1), attach(obj), setVolume, setHour, on, station, song }
-//   audio.voice.speak({th, en, voice:{gender:'m'|'f'|'child', age, pitch, rate, ghost:0..1, whisper}, object|position}) -> Promise
-//   audio.voice.stop() · audio.voice.hasThaiVoice
+//   audio.voice.speak({th, en, voice:{gender:'m'|'f'|'child', age, pitch, rate, ghost:0..1, whisper}, object|position,
+//                      tone:'ghost'|'whisper'|'shout'|'sing'|'phone'|'radio', fx:'phone'|'radio', outside, volume}) -> Promise
+//                                      (resolves when the words end). OS Thai TTS when available, else formant-synthesised
+//                                      Thai; every line runs through the voice rack (./VoiceFX.js): reverb, proximity /
+//                                      phone / radio tone, and for ghosts the octave-down double, the delayed whisper
+//                                      behind your head, the reverse swell, flutter, mismatched breaths, sub hum.
+//   audio.voice.stop() · .hasThaiVoice · .prepare(line) (pre-render the next line) · .info() (OS voices, path used)
 //
 // SOUND IDS (keep in sync with ./Synth/registry.js — `SOUND_IDS` exports the live list):
 //  car/cabin   door_open door_close key_insert key_turn ignition engine_start engine_stall handbrake(variant 0 pull,
@@ -195,6 +200,7 @@ export class AudioSystem {
     this.ambience._attachCore(this.core);
     this.music._attachCore(this.core);
     this.radio._attachCore(this.core);
+    this.voice._attachCore(this.core);
     if (this._duck) this.core.duck(...this._duck);
     for (const p of this._pending) p._realize();
     this._pending = [];
@@ -277,6 +283,7 @@ export class AudioSystem {
   }
   stopAll(fade = 0.3) {
     this.core?.stopAll(fade);
+    this.voice.fx?.stopAll(fade);
   }
 
   update(dt) {
@@ -288,6 +295,7 @@ export class AudioSystem {
       this.ambience.update(dt);
       this.music.update(dt);
       this.radio.update(dt);
+      this.voice.update(dt);
     } catch (err) {
       if (!this._errOnce) {
         this._errOnce = true;

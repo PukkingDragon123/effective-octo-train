@@ -155,11 +155,16 @@ export const ShiftState = {
       }
       if (!ok || !alive()) return;
       bus.emit('ride:boarded', { index: i, id: data.id });
-      const side = await ride.ride();
-      if (!side || !alive()) return;
-      bus.emit('ride:fork', { index: i, id: data.id, side });
-      const res = await resolveFork(ride, side);
-      if (res !== 'next' || !alive()) return;
+      let res = 'retry';
+      for (let attempt = 0; res === 'retry' && attempt < 3; attempt++) {
+        // 'retry': the giant hand let them go once and the road folded back before the fork
+        const side = await ride.ride({ resume: attempt > 0 });
+        if (!side || !alive()) return;
+        bus.emit('ride:fork', { index: i, id: data.id, side });
+        res = await resolveFork(ride, side);
+        if (!alive()) return;
+      }
+      if (res !== 'next') return;
       bus.emit('ride:delivered', { index: i, id: data.id, side });
       this._retire(ride);
       // the next hour: chapter card, autosave

@@ -76,12 +76,14 @@ export default async function ({ engine, cameraRig, params }) {
 
   // ---------------------------------------------------------------- sky, fog, look
   sky.setHour(num('hour', 23.3));
-  sky.setWeather({ rain: 0, fog: num('fog', 0.12), wind: 0 }, 0);
+  sky.setWeather({ rain: 0, fog: num('fog', 0.06), wind: 0 }, 0);
   sky.setWetness?.(num('wet', 0.45));
   if (params.get('fogd') != null) sky.overrides.fogDensity = num('fogd', 0.03);
-  if (params.get('mist') != null) sky.overrides.groundMist = num('mist', 0.2);
   postfx.params.grain = 0; // no per-frame noise in a GIF
-  postfx.params.exposure = num('exp', 1);
+  postfx.params.exposure = num('exp', 0.65);
+  postfx.params.bloom = num('bloom', 0.35);
+  postfx.params.contrast = num('contrast', 1.12);
+  sky.overrides.groundMist = num('mist', 0.05);
   postfx.params.painterly = num('paint', 1);
 
   // ---------------------------------------------------------------- set: shrine forecourt + forest
@@ -93,7 +95,11 @@ export default async function ({ engine, cameraRig, params }) {
   const shrine = P.createShrineMaRuay({ noseZ: num('noseZ', 6) });
   scene.add(shrine.object);
   const handles = P.addPropLights(shrine, lightPool);
-  for (const hd of handles) hd.setFlicker?.('none'); // steady lamps: the loop must be seamless
+  // steady lamps (the loop must be seamless), turned down so the forecourt stays a night scene
+  handles.forEach((hd, i) => {
+    hd.setFlicker?.('none');
+    hd.setIntensity?.((shrine.lights[i]?.intensity ?? 3) * num('shrineLight', 0.4));
+  });
 
   const forest = new Forest({ road: null, drawDistance: 150, terrain: null, landmarks: {}, plan: { clearings: [] } }, {});
   forest._materials();
@@ -191,9 +197,9 @@ export default async function ({ engine, cameraRig, params }) {
     /* optional */
   }
   kr.drips = null;
-  kr.setGlow(num('krGlow', 1.6));
+  kr.setGlow(num('krGlow', 0.35));
   // steady entrail light (the creature's own one flickers like a candle)
-  lightPool.add({ object: kr.lightAnchor, color: 0xb8ff70, intensity: num('krLight', 3), distance: 5, decay: 1.8, flicker: 'none', glow: false, priority: 5 });
+  lightPool.add({ object: kr.lightAnchor, color: 0xb8ff70, intensity: num('krLight', 0.8), distance: 5, decay: 1.8, flicker: 'none', glow: false, priority: 5 });
 
   // ---------------------------------------------------------------- light: the taxi's low beams + moon rim
   const hlI = num('hl', 420);
@@ -212,7 +218,7 @@ export default async function ({ engine, cameraRig, params }) {
   mkBeam(1.05, 0.8, 0.9);
   GLOBAL_UNIFORMS.uHeadlightPos.value.set(0.3, 0.72, 2.6);
   GLOBAL_UNIFORMS.uHeadlightDir.value.set(0.0, 0.02, -1).normalize();
-  GLOBAL_UNIFORMS.uHeadlightOn.value = num('scatter', 0.2);
+  GLOBAL_UNIFORMS.uHeadlightOn.value = num('scatter', 0.06);
   const rim = new THREE.DirectionalLight(0x7f9cc8, num('moon', 0.4));
   rim.position.set(-6, 9, -20);
   scene.add(rim);

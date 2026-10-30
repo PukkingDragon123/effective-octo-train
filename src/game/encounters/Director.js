@@ -212,6 +212,7 @@ export class EncounterDirector {
     if (!this.enabled || !this.ambient) return;
     const inShift = this.forceAmbient || this.active || !!g.fsm?.is?.('shift');
     if (!inShift || !g.taxi || g.engine?.paused) return;
+    if (g.qte?.active || g.isDying?.()) return; // never pile a new scare onto a QTE or a death
     this._t -= dt;
     if (this._t > 0) return;
     this._t = 4.5 + Math.random() * 3;

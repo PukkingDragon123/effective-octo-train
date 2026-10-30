@@ -9,7 +9,8 @@
 //                            when ownsReply is true, skip the encounter's own choice
 //   beatOwnsReply(encIdOrEvent) -> bool
 //   async pickup() -> bool   hail, r1 (driving past folds the road back), stop, board
-//   async ride() -> 'left'|'right'|null   greet → beats/encounters/pacing → fork commit
+//   async ride({resume}) -> 'left'|'right'|null   greet → beats/encounters/pacing → fork commit
+//                            (resume: back on the road after the fork folded back; no greeting)
 //   halt() (death) · dispose()
 //
 // Progress = min(distance since pickup / route, seconds seated / pacing.minSeconds). When the taxi
@@ -492,11 +493,13 @@ export class Ride {
 
   // ------------------------------------------------------------------ the ride to the fork
   /** Riding until the fork is taken. Resolves 'left' | 'right' (or null if halted). */
-  async ride() {
+  async ride(opts = {}) {
     const t = g.taxi;
     this.phase = 'riding';
-    this.playBlock('greet');
-    this.playBlock('destination');
+    if (!opts.resume) {
+      this.playBlock('greet');
+      this.playBlock('destination');
+    }
     let folding = false;
     let approachFired = false;
     while (this.alive) {

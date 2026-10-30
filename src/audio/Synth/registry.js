@@ -6,7 +6,7 @@ import { ANIMAL_SFX } from './sfxAnimals.js';
 import { HORROR_SFX } from './sfxHorror.js';
 import { rngFrom, hashStr, sanitize, normalize, fadeOut, fadeIn } from './dsp.js';
 import { renderInstrument } from './instruments.js';
-import { renderMurmur, renderSung } from './speech.js';
+import { renderMurmur, renderSung, renderVoiceLine } from './speech.js';
 import { renderEngineLoop, CAR_CFG, BIKE_CFG } from './engineModel.js';
 import { renderBed } from './beds.js';
 import { programItem, renderRadioChunk, setSampled, RADIO_SR } from './songs.js';
@@ -96,6 +96,12 @@ export function runTask(type, a) {
       const g = Math.min(tgt / Math.max(shortTermMax([b], sr), 1e-9), 0.95 / Math.max(pk, 1e-9));
       for (let i = 0; i < b.length; i++) b[i] *= g;
       return { channels: [b], sr, meta: { duration: r.duration } };
+    }
+    case 'voiceLine': {
+      // a dialogue line as aligned layers for the voice rack (Voice.js / VoiceFX.js); levels set inside
+      const sr = a.sr || 24000;
+      const r = renderVoiceLine(sr, a);
+      return { channels: r.channels.map((c) => sanitize(c)), sr, meta: r.meta };
     }
     case 'sung': {
       const sr = a.sr || 24000;

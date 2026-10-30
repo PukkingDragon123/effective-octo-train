@@ -36,7 +36,8 @@ export async function run(E) {
     }
   })();
   if (E.managed) {
-    await E.until(() => !!E.outcomeKey, E.duration + 2);
+    // B's rule (a hold-your-breath QTE) decides; it can outlast the nominal duration
+    await E.until(() => !!E.outcomeKey, E.duration + 14);
     await E._outcomeP;
     return;
   }

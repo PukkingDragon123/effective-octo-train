@@ -6,6 +6,7 @@ import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
 import { kill, registerDeath, registerDefaultDeath, isDying, deathCardFor } from '../death/index.js';
 import '../death/cinematics.js';
+import '../death/lastChance.js';
 import { RuleMonitor } from '../rules/RuleMonitor.js';
 import { Knowledge } from '../systems/Knowledge.js';
 import { Exploration } from '../systems/Exploration.js';

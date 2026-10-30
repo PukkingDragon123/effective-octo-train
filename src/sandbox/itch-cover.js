@@ -58,8 +58,8 @@ export default async function ({ engine, cameraRig, params }) {
   if (params.get('fogd') != null) sky.overrides.fogDensity = num('fogd', 0.04);
   // the cabin has a roof: keep the sky's flat ambient low so the dome lamp does the lighting
   sky.overrides.ambI = num('ambI', 0.05);
-  sky.overrides.hemiI = num('hemiI', 0.2);
-  postfx.params.exposure = num('exp', 1);
+  sky.overrides.hemiI = num('hemiI', 0.1);
+  postfx.params.exposure = num('exp', 0.6);
   postfx.params.grain = 0;
 
   // ---------------------------------------------------------------- road + forest
@@ -220,7 +220,7 @@ export default async function ({ engine, cameraRig, params }) {
   }
 
   // views: list of "px,py,pz;lx,ly,lz;fov" in taxi body space
-  const views = (params.get('views') || '0.5,1.16,1.1;-0.12,1.12,0.45;56').split('|').map((v) => {
+  const views = (params.get('views') || '0.5,1.16,1.1;-0.06,1.1,0.45;56').split('|').map((v) => {
     if (v.startsWith('@')) return { head: v.slice(1) };
     const [p, l, f] = v.split(';');
     return { p: V(...p.split(',').map(Number)), l: V(...l.split(',').map(Number)), fov: Number(f || 50) };
@@ -253,7 +253,7 @@ export default async function ({ engine, cameraRig, params }) {
     return sp;
   };
   faceSpot(0xffc78c, num('tkey', 1.6), V(num('tkx', 0.24), num('tky', 1.0), num('tkz', 0.16)), num('tcone', 0.45));
-  faceSpot(0xfff1e4, num('key', 2.4), V(num('kx', -0.12), num('ky', 0.96), num('kz', 0.9)), num('cone', 0.42));
+  faceSpot(0xf2f4ff, num('key', 4), V(num('kx', -0.12), num('ky', 0.96), num('kz', 0.9)), num('cone', 0.42));
   // a faint warm bounce from the dress / seat onto her face (from below)
   const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.22), 1.0, 2);
   wkey.position.set(num('wkx', -0.05), num('wky', 0.85), num('wkz', 0.75));
@@ -277,7 +277,7 @@ export default async function ({ engine, cameraRig, params }) {
   });
 
   // her long hair has one card standing up off the crown like a horn: clip it a little above the scalp
-  if (num('horn', 0.205) > 0) {
+  if (num('horn', 0.13) > 0) {
     engine.renderer.localClippingEnabled = true;
     const hornPlane = new THREE.Plane();
     const hq = new THREE.Quaternion(), up = V(0, 0, 0), top = V(0, 0, 0);
@@ -293,7 +293,7 @@ export default async function ({ engine, cameraRig, params }) {
       const I = ww.t.index.Head;
       ww.boneFrame(I, hq);
       up.set(0, 1, 0).applyQuaternion(hq).normalize();
-      ww.bones.Head.getWorldPosition(top).addScaledVector(up, num('horn', 0.205));
+      ww.bones.Head.getWorldPosition(top).addScaledVector(up, num('horn', 0.13));
       // keep the side of the plane the head is on: points beyond `top` along `up` are cut
       hornPlane.normal.copy(up).negate();
       hornPlane.constant = up.dot(top);

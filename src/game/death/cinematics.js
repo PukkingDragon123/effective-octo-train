@@ -341,6 +341,25 @@ registerDefaultDeath('roofHanger', (ctx) =>
   }));
 registerDefaultDeath('crash', (ctx) => genericDeath(ctx, { sound: 'collision_thud', build: 0.4 }));
 registerDefaultDeath('yaiSpeed', (ctx) => genericDeath(ctx, { sound: 'thump_roof', look: () => _v.copy(ctx.eye(_v2)).addScaledVector(g.taxi.forward, 2.2) }));
+// QTE deaths: the face rat clamps onto the face; the door is torn open from outside
+registerDefaultDeath('faceRat', (ctx) =>
+  genericDeath(ctx, {
+    sound: 'scream_close',
+    look: () => _v.copy(ctx.eye(_v2)).addScaledVector(g.taxi.forward, 0.35).add(new THREE.Vector3(0, -0.12, 0)),
+    fov: 40,
+    marks: [['windshield', 'blood_splatter', 0.55, 0.35]],
+  }));
+registerDefaultDeath('doorRattle', (ctx) =>
+  genericDeath(ctx, {
+    sound: 'door_open',
+    look: anchor('windowCrankFR'),
+    after: async () => {
+      g.taxi.openDoor('fr', 1, 0.25);
+      play('scream_close', { volume: 0.8, rate: 0.75 });
+      await ctx.wait(0.6);
+    },
+    marks: [['fr', 'blood_handprint', 0.45, 0.5]],
+  }));
 
 export const DEFAULT_DEATHS = true;
 void clamp;

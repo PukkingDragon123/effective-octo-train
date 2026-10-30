@@ -730,7 +730,6 @@ export function renderVoiceLine(sr, a = {}) {
   const preset = voicePreset(v, tone);
   const ghost = preset.ghost;
   const seed = a.seed ?? hashStr(th + '|' + JSON.stringify(v) + '|' + tone);
-  const rng = rngFrom(seed);
   const rng2 = rngFrom(seed ^ 0x9e3779b9);
   const ghostly = (ghost > 0.25 || mode === 'shadow') && mode !== 'breath';
   if (ghost > 0) {
@@ -746,7 +745,16 @@ export function renderVoiceLine(sr, a = {}) {
   let phrases = parseThai(th);
   if (!phrases.length) phrases = [{ sylls: [{ onset: '', cluster: '', vowel: 'schwa', long: true, coda: 'm', glide: '', tone: 'M', ci: 0, stress: true, wordStart: true, wordEnd: true }], pause: 0.2, breakCi: -1 }];
   const lead = a.lead ?? (ghostly ? 0.55 + ghost * 0.9 : 0.36);
-  const score = buildSpeechScore(phrases, preset, rng, { lead, edits, ghost, rate: a.rate, rng2, leadBreath: a.breath !== false });
+  const sOpts = { lead, edits, ghost, rate: a.rate, rng2, leadBreath: a.breath !== false };
+  let score = buildSpeechScore(phrases, preset, rngFrom(seed), sOpts);
+  // never outrun the dialogue's own timing (Dialogue waits ~ its estimate + 6 s): speed a slow ghost up
+  const maxDur = a.maxDur ?? 4.5 + 1.1 + th.length * 0.065;
+  const spoken = score.speechEnd - score.speechStart;
+  if (spoken > maxDur) {
+    sOpts.rate = (a.rate ?? 1) * Math.min(1.8, spoken / maxDur);
+    sOpts.rng2 = rngFrom(seed ^ 0x9e3779b9);
+    score = buildSpeechScore(phrases, preset, rngFrom(seed), sOpts);
+  }
   const tailSec = ghostly ? 1.25 : 0.25;
   const n = Math.max(1, Math.ceil((score.duration + tailSec) * sr));
   const at = Math.floor(score.speechStart * sr);
@@ -814,8 +822,14 @@ export function renderVoiceLine(sr, a = {}) {
   if (ghostly && mode !== 'breath') {
     const gh = Math.max(ghost, 0.5);
     // octave-down double: the same score half the pitch, a longer throat
-    const subRng = rngFrom(seed + 2);
-    const sub = fit(renderVox(sr, score, voxOpts(preset, subRng, { tail: tailSec, pitchScale: 0.5, formantScale: preset.fs * 0.84, jitter: preset.jitter + 0.012, breath: preset.breath * 0.6, whisper: false, tremor: null })));
+    // (rendered at half rate: it is low-passed anyway)
+    const half = renderVox(sr / 2, score, voxOpts(preset, rngFrom(seed + 2), { tail: tailSec, pitchScale: 0.5, formantScale: preset.fs * 0.84, jitter: preset.jitter + 0.012, breath: preset.breath * 0.6, whisper: false, tremor: null }));
+    const sub = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = i * 0.5;
+      const k = x | 0;
+      sub[i] = k + 1 < half.length ? half[k] + (half[k + 1] - half[k]) * (x - k) : 0;
+    }
     const lp = new SVF(sr, 1400, 0.6);
     for (let i = 0; i < n; i++) sub[i] = lp.process(sub[i]);
     let g = (ref * dB(-15 + 7 * gh)) / Math.max(1e-9, loud50(sub, sr));

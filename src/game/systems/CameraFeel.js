@@ -9,7 +9,7 @@
 //   * startle flinch: flinch(k) — a jerk back, a blink of tunnel vision (auto on scares and QTEs)
 //   * dread: the FOV narrows slowly with g.rules.threat and during QTEs; relief() lets it go
 //
-//   g.camfx.flinch(k=1) · relief() · qte(on, dread) · enabled
+//   g.camfx.flinch(k=1) · relief() · qte(on, dread) · tug (Vector3) / tugYaw (set pieces) · enabled
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
@@ -26,6 +26,8 @@ export class CameraFeel {
     this.enabled = true;
     this.t = 0;
     this.offset = new THREE.Vector3(); // added to rig.extraOffset (base space)
+    this.tug = new THREE.Vector3(); // set by set pieces: something pulling at Ton (base space)
+    this.tugYaw = 0;
     this.yaw = 0; // added to rig.yaw for one frame
     this.pitch = 0;
     this.roll = 0;
@@ -175,6 +177,10 @@ export class CameraFeel {
     o.y += f * 0.012;
     pitch += f * 0.03;
     fov -= f * 2.2;
+
+    // ---- set pieces pulling at him (the arm at the window)
+    o.add(this.tug);
+    yaw += this.tugYaw;
 
     // ---- dread: a slow push in; relief lets it go
     fov -= this._dread * 5.5;

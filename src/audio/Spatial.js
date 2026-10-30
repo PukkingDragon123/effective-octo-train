@@ -13,6 +13,10 @@ export class Spatial {
     this.lx = 0;
     this.ly = 1.6;
     this.lz = 0;
+    // listener basis (forward / up / right), kept for effects placed relative to the head (voice rack)
+    this.lf = [0, 0, -1];
+    this.lu = [0, 1, 0];
+    this.lr = [1, 0, 0];
     this._t = 0;
   }
 
@@ -141,6 +145,9 @@ export class Spatial {
     this.lx = x;
     this.ly = y;
     this.lz = z;
+    this.lf[0] = fx; this.lf[1] = fy; this.lf[2] = fz;
+    this.lu[0] = ux; this.lu[1] = uy; this.lu[2] = uz;
+    this.lr[0] = e[0]; this.lr[1] = e[1]; this.lr[2] = e[2];
     if (L.positionX) {
       const t = this.ctx.currentTime;
       const k = 0.015;
@@ -164,6 +171,10 @@ export class Spatial {
     this.lx = x;
     this.ly = y;
     this.lz = z;
+    const fl = Math.hypot(fx, fz) || 1;
+    this.lf[0] = fx; this.lf[1] = fy; this.lf[2] = fz;
+    this.lu[0] = 0; this.lu[1] = 1; this.lu[2] = 0;
+    this.lr[0] = -fz / fl; this.lr[1] = 0; this.lr[2] = fx / fl;
     const L = this.ctx.listener;
     if (L.positionX) {
       L.positionX.value = x;

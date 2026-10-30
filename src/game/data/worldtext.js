@@ -74,6 +74,9 @@ export const DEATH_CARDS = {
   count444: { th: 'มันนับถึงสิบก่อนคุณ', en: 'It reached ten first.', rule: 'r11' },
   windowArm: { th: 'คุณเปิดกระจกให้มัน', en: 'You let it in.', rule: 'r14' },
   extraPassenger: { th: 'คุณทักมัน', en: 'You spoke to it.', rule: 'r16' },
+  // QTE deaths (no rule broken: you were just too slow)
+  faceRat: { th: 'มันกัดไม่ปล่อย', en: 'It would not let go.', rule: null },
+  doorRattle: { th: 'คุณปล่อยมือ', en: 'You let go.', rule: null },
 };
 /** Under every death card: the loop. */
 export const DEATH_FOOTER = { th: 'สามทุ่ม… อีกครั้ง', en: "Nine o'clock… again" };

@@ -22,6 +22,7 @@ import { DEATH_CARDS } from '../data/worldtext.js';
 
 const registry = new Map();
 const defaults = new Map();
+const lastChances = new Map();
 
 export const DEATH_ALIASES = { faceGaze: 'trueForm', knock: 'trunk', knocks: 'trunk', backSeat: 'lookBack', backSeatVoice: 'lookBack', fold: 'roadFold' };
 
@@ -30,6 +31,14 @@ let dying = false;
 /** Register (or replace) the cinematic for a death type. fn(ctx) -> Promise. */
 export function registerDeath(type, fn) {
   registry.set(type, fn);
+}
+/**
+ * A last chance before a death (a QTE stage): fn(ctx) -> Promise<bool survived>. It runs before
+ * anything irreversible (the ride is still alive, the rules are suspended meanwhile). Survived =
+ * the death is averted (kill() resolves false, bus 'death:averted'). Pass opts.noLastChance to skip.
+ */
+export function registerLastChance(type, fn) {
+  lastChances.set(type, fn);
 }
 /** B's built-in cinematics: used only when nobody registered that type. */
 export function registerDefaultDeath(type, fn) {
@@ -100,6 +109,29 @@ export async function kill(type = 'crash', opts = {}) {
   if (dying) return false;
   if (!g.fsm || g.fsm.is('death') || g.fsm.is('ending') || g.fsm.is('menu')) return false;
   dying = true;
+  const lc = !opts.noLastChance && !opts.fromQte && g.qte && lastChances.get(type);
+  if (lc) {
+    const state = g.fsm.currentName;
+    g.rules?.suspend?.(true);
+    let survived = false;
+    try {
+      survived = !!(await Promise.race([lc({ type, opts, g, taxi: g.taxi, ride: g.ride }), wait(20).then(() => false)]));
+    } catch (e) {
+      console.error(`[death] last chance ${type} failed`, e);
+    }
+    if (survived && g.fsm.is(state)) {
+      dying = false;
+      g.rules?.suspend?.(false);
+      bus.emit('death:averted', { type, opts });
+      return false;
+    }
+    opts = { ...opts, fromQte: true };
+    if (!g.fsm.is(state)) {
+      // something else ended the scene meanwhile (a menu, an ending)
+      dying = false;
+      return false;
+    }
+  }
   const ctx = makeCtx(type, opts);
   const from = g.fsm.currentName;
   bus.emit('death:start', { type, opts, from });

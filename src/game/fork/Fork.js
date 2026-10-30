@@ -1,7 +1,10 @@
 // The fork at ศาลเจ้ามารวย (rule r2: LEFT for the dead, RIGHT for the living). Engineer B.
-//   resolveFork(ride, side) -> Promise<'next'|'dead'|'ending'>
+//   resolveFork(ride, side) -> Promise<'next'|'dead'|'ending'|'retry'>
 //     correct: ghosts walk into the mist gate, humans get off at the village stop and pay.
 //     wrong:   arriveWrong, the wrong-aftermath encounter (ride 4), then g.kill(deathOnWrong).
+//              A living passenger down the LEFT road: the giant hand rises ahead, a QTE (hold the
+//              brake, HandBrake.js). Stop in time and the road folds back before the fork ('retry',
+//              once per ride); miss it and the hand takes the car.
 //     ride 9:  somchaiFork flag → wrong_home (a death and an ending) or the gate finale (Finale.js).
 import * as THREE from 'three';
 import { g } from '../context.js';
@@ -9,6 +12,7 @@ import { wait } from '../util.js';
 import { resolveEnding } from '../data/logic.js';
 import { driveToStop } from '../ride/fx.js';
 import { finale } from './Finale.js';
+import { giantHandBrake } from './HandBrake.js';
 
 const _v = new THREE.Vector3();
 
@@ -54,6 +58,23 @@ export async function resolveFork(ride, side) {
   // ---------------------------------------------------------------- wrong
   if (!correct) {
     g.audio?.music?.setMood?.('tension', { fade: 2 });
+    const death = data.deathOnWrong || 'giantHand';
+    if (death === 'giantHand' && side === 'left' && !ride._handWarned && g.qte) {
+      // the hand rises ahead while they are still realising where they are: hold the brake
+      ride._handWarned = true;
+      const talk = ride.playBlock('arriveWrong', { interrupt: true, clearQueue: true });
+      await Promise.race([talk, wait(2.4)]);
+      if (!alive()) return 'dead';
+      const r = await giantHandBrake(ride);
+      if (!alive()) return 'dead';
+      g.knowledge?.learnPassenger(data.id, data.identity);
+      if (r.survived) {
+        ride.phase = 'riding';
+        return 'retry';
+      }
+      g.kill?.('giantHand', { cause: 'wrongFork', hand: r.hand });
+      return 'dead';
+    }
     await Promise.race([ride.playBlock('arriveWrong', { interrupt: true, clearQueue: true }), wait(14)]);
     if (!alive()) return 'dead';
     if (data.wrongAftermath) {

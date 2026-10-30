@@ -744,6 +744,8 @@ const H = {
   },
 
   // ---- r8 breath on the neck: amulet + eyes front ----------------------------------------------
+  // A QTE (g.qte 'still'): hold the amulet (G / RMB / pad X / touch) = hold your breath, and do not
+  // move the view. The breath passes when the ring is full; let go or look round and it sees you.
   r8: {
     start(rec) {
       rec.st.fail = 0;
@@ -751,8 +753,42 @@ const H = {
       rec.st.snd = g.audio?.loop?.('breath_neck', { object: t.anchors.driverEye, volume: 0.7, offset3: [0.05, 0, 0.22] });
       t.addBreathFog('rr', t.anchors.rearRightSeat.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.6, 0)), 0.8);
       this.arm('r3', { until: rec.until, params: { mode: 'death', death: 'breath', seat: 'rearRight' }, force: true });
+      if (g.qte && !g.qte.active && this._inCab()) {
+        rec.st.hold = true; // the QTE decides when it is over
+        rec.st.qte = true;
+        const fwd = () => Math.abs(g.cameraRig.yaw) / DEG < RP.breathLookForwardConeDeg && Math.abs(g.cameraRig.pitch) / DEG < RP.breathLookForwardConeDeg;
+        const holdS = clamp(rec.until * 0.7, 3, 7);
+        g.qte
+          .run({
+            kind: 'still',
+            action: 'amulet',
+            hold: holdS,
+            time: holdS + 6,
+            grace: 1.6,
+            failTime: RP.breathFailSeconds,
+            tolerance: 0.5,
+            slowmo: 0.75,
+            dread: 0.8,
+            ok: () => fwd() && this._inCab(),
+          })
+          .then((r) => {
+            if (rec.done || this.armed.get('r8') !== rec) return;
+            if (r.ok) this._resolve(rec, 'held');
+            else if (r.reason !== 'cancelled') this._violate(rec, 'failed', 'breath');
+            else rec.st.qte = false; // cancelled (a cutscene): fall back to the plain rule
+          });
+      }
     },
     update(rec, dt) {
+      if (rec.st.qte) {
+        g.cameraRig.shake(0.008);
+        this._raise(0.35 + (g.qte?.state?.fail || 0) * 0.5);
+        return;
+      }
+      if (rec.st.hold && !rec.st.qte && rec.t >= rec.until) {
+        this._resolve(rec, 'held');
+        return;
+      }
       const holding = input.down('amulet') || this.amuletHeld || !!g.actions?.amulet?.held;
       const fwd = Math.abs(g.cameraRig.yaw) / DEG < RP.breathLookForwardConeDeg && Math.abs(g.cameraRig.pitch) / DEG < RP.breathLookForwardConeDeg;
       const ok = holding && fwd && this._inCab();
