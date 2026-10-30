@@ -369,7 +369,7 @@ export function voicePreset(v = {}, tone = '') {
     p.rate *= 1.06;
     p.breath *= 0.6;
   }
-  if (p.whisper) p.rate *= 0.92;
+  if (p.whisper) p.rate *= 0.95;
   return p;
 }
 
@@ -389,7 +389,7 @@ const toward = (L, V, k) => (L ? { F1: L.F1 + (V.F1 - L.F1) * k, F2: L.F2 + (V.F
 const BURST = { lab: [1100, 0.6, 0.55], alv: [4300, 1.0, 0.8], pal: [3300, 1.5, 0.75] };
 const ASPIRATED = { kh: 1, th: 1, ph: 1, ch: 1 };
 const PLOSIVES = { k: 1, t: 1, p: 1, c: 1, kh: 1, th: 1, ph: 1, ch: 1, b: 1, d: 1 };
-const FRIC = { s: [6000, 2.2, 0.75, 0.1], f: [3600, 0.55, 0.3, 0.085] };
+const FRIC = { s: [6000, 2.2, 0.75, 0.085], f: [3600, 0.55, 0.3, 0.07] };
 const SONOR = {
   m: { F1: 260, F2: 1000, F3: 2300, nas: 1 },
   n: { F1: 260, F2: 1500, F3: 2600, nas: 1 },
@@ -455,7 +455,7 @@ export function buildSpeechScore(phrases, preset, rng, opts = {}) {
       if (ph.question && isLast) semis += 1.6;
       let base = preset.f0 * Math.pow(2, semis / 12);
       // --- durations ---
-      let ds = (1 / rate) * (sy.stress || sy.particle ? 1 : 0.7) * (isLast ? 1.42 : 1) * (0.9 + rng() * 0.2);
+      let ds = (1 / rate) * (sy.stress || sy.particle ? 1 : 0.68) * (isLast ? 1.42 : 1) * (0.9 + rng() * 0.2);
       if (sy.particle && isLast) ds *= 1.1;
       let depth = toneDepth * (sy.stress ? 1 : sy.particle ? 0.9 : 0.6);
       let shape = TONE_SHAPES[sy.tone] || TONE_SHAPES.M;
@@ -525,22 +525,22 @@ function syllable(sc, sy, c) {
   sc.marks.push({ t: sc.duration, ci: sy.ci, stress: !!sy.stress, onset: true });
   // ---------------- onset ----------------
   if (PLOSIVES[on]) {
-    const clos = c.afterPause ? 0.02 : c.prevStop ? 0.025 : 0.05 * ds;
+    const clos = c.afterPause ? 0.02 : c.prevStop ? 0.022 : 0.04 * ds;
     const voicedBar = on === 'b' || on === 'd';
     sc.seg(clos, { av: voicedBar ? 0.16 * amp : 0, ah: 0, af: 0, nas: 0, oq: P.oq, sub: 0, f0: f(0, -1), ...(Lc || {}), F1: 220 });
     const [bf, bq, bg] = place === 'vel' ? [clamp(V.F2 * 1.2, 1500, 3000), 2.2, 0.8] : BURST[place] || BURST.alv;
     sc.seg(0.009, { av: 0, af: bg * amp * fr, ff: bf, fq: bq, ...toward(Lc, V, 0.15) }, { af: bg * 0.4 * amp * fr });
-    if (on === 'c' || on === 'ch') sc.seg((on === 'ch' ? 0.05 : 0.035) * ds, { af: 0.62 * amp * fr, ff: 3300, fq: 1.6 }, { af: 0.35 * amp * fr });
-    if (ASPIRATED[on]) sc.seg(0.062 * ds, { af: 0.05 * fr, ah: 0.5 * amp, ...toward(Lc, V, 0.5), F1: 300 }, { ah: 0.32 * amp, af: 0 });
+    if (on === 'c' || on === 'ch') sc.seg((on === 'ch' ? 0.045 : 0.03) * ds, { af: 0.62 * amp * fr, ff: 3300, fq: 1.6 }, { af: 0.35 * amp * fr });
+    if (ASPIRATED[on]) sc.seg(0.055 * ds, { af: 0.05 * fr, ah: 0.5 * amp, ...toward(Lc, V, 0.5), F1: 300 }, { ah: 0.32 * amp, af: 0 });
     else if (!voicedBar) sc.seg(0.012, { af: 0, ah: 0.18 * amp }, { ah: 0.05 });
   } else if (FRIC[on]) {
     const [ff, fq, fa, d] = FRIC[on];
     const scale = P.gender === 'f' || P.child ? 1.12 : 1;
     sc.seg(d * ds, { av: 0, ah: 0, af: fa * amp * fr, ff: ff * scale, fq, nas: 0, sub: 0, f0: f(0, 0.8), ...(Lc || {}) }, { af: fa * 0.75 * amp * fr });
   } else if (on === 'h') {
-    sc.seg(0.065 * ds, { av: 0, af: 0, ah: 0.55 * amp, nas: 0, sub: 0, f0: f(0, 0.6), F1: V.F1, F2: V.F2, F3: V.F3 }, { ah: 0.42 * amp });
+    sc.seg(0.055 * ds, { av: 0, af: 0, ah: 0.55 * amp, nas: 0, sub: 0, f0: f(0, 0.6), F1: V.F1, F2: V.F2, F3: V.F3 }, { ah: 0.42 * amp });
   } else if (SONOR[on]) {
-    sc.seg(0.058 * ds, { av: 0.55 * amp, ah: 0, af: 0, sub: 0, oq: P.oq, f0: f(0, -0.4), ...SONOR[on] }, { av: 0.62 * amp });
+    sc.seg(0.05 * ds, { av: 0.55 * amp, ah: 0, af: 0, sub: 0, oq: P.oq, f0: f(0, -0.4), ...SONOR[on] }, { av: 0.62 * amp });
   } else if (c.afterPause) {
     // glottal attack after silence
     sc.seg(0.018, { av: 0, ah: 0.06 * amp, af: 0, nas: 0, sub: 0.3, F1: V.F1, F2: V.F2, F3: V.F3, f0: f(0) });
@@ -548,10 +548,10 @@ function syllable(sc, sy, c) {
   if (sy.cluster && SONOR[sy.cluster] && rng() < 0.7) sc.seg(0.03 * ds, { av: 0.6 * amp, af: 0, ah: 0, ...SONOR[sy.cluster] });
   // ---------------- rhyme: vowel (+ sonorant coda) carries the tone ----------------
   const cut = c.cut ?? 1;
-  let vd = (sy.long ? 0.2 : 0.092) * ds * (c.drag ?? 1) * cut;
+  let vd = (sy.long ? 0.16 : 0.075) * ds * (c.drag ?? 1) * cut;
   const cd = sy.coda;
   const sonCoda = cd === 'm' || cd === 'n' || cd === 'ng' || cd === 'w' || cd === 'y';
-  const cdur = sonCoda && cut === 1 ? (sy.long ? 0.06 : 0.085) * ds * (c.isLast ? 1.25 : 1) : 0;
+  const cdur = sonCoda && cut === 1 ? (sy.long ? 0.05 : 0.07) * ds * (c.isLast ? 1.25 : 1) : 0;
   const R = vd + cdur;
   const u1 = (vd * 0.3) / R, u2 = (vd * 0.75) / R, u3 = vd / R;
   const Fon = CONTINUANT_ONSET[on] && on ? toward(SONOR[on], V, 0.55) : toward(Lc, V, 0.5);
@@ -630,7 +630,9 @@ function voxOpts(preset, rng, extra = {}) {
     tremor: preset.tremor,
     vibrato: preset.sing ? { rate: 5.3, depth: 0.3, delay: 0.35 } : null,
     tail: 0.25,
+    hpc: true,
     ...extra,
+    eq: (extra.whisper ?? preset.whisper) ? [['highshelf', 5000, 0.7, 6]] : [['highshelf', 2200, 0.7, 5], ['highshelf', 5000, 0.7, 10]],
   };
 }
 
@@ -705,7 +707,7 @@ export function renderVoiceLine(sr, a = {}) {
   const ghostly = (ghost > 0.25 || mode === 'shadow') && mode !== 'breath';
   if (ghost > 0) {
     preset.f0 *= 1 - ghost * 0.15;
-    preset.rate *= 1 - ghost * 0.18;
+    preset.rate *= 1 - ghost * 0.12;
     preset.fs *= 1 - ghost * 0.05;
     preset.breath += ghost * 0.22;
     preset.jitter += ghost * 0.02;

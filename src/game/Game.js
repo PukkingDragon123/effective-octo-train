@@ -33,6 +33,8 @@ import { TutorialState } from './states/TutorialState.js';
 import { ShiftState } from './states/ShiftState.js';
 import { DeathState } from './states/DeathState.js';
 import { EndingState } from './states/EndingState.js';
+import { ensureQTE } from './systems/QTE.js';
+import { ensureCameraFeel } from './systems/CameraFeel.js';
 
 /** Narrative data modules (src/game/data/*.js) merged into g.data by file name. */
 function loadData() {
@@ -122,6 +124,13 @@ export async function startGame(ctx) {
   engine.onUpdate((dt) => g.clock.update(dt), -5);
   g.dialogue = new Dialogue();
   g.cine = cine;
+  // quick-time events and the first-person camera's small physical life (both never block boot)
+  try {
+    ensureQTE();
+    ensureCameraFeel();
+  } catch (err) {
+    console.error('[boot] qte / camera feel failed', err);
+  }
   g.dialogue.setSpeaker('player', { nameTH: chars.player?.nameTH || 'ต้น', nameEN: chars.player?.nameEN || 'Ton', voice: chars.player?.voice || { gender: 'm', age: 27 }, humanoid: null, object: g.player.root });
   g.dialogue.setSpeaker('ahKong', { nameTH: chars.ahKong?.nameTH || 'อากง', nameEN: chars.ahKong?.nameEN || 'Ah Kong', voice: chars.ahKong?.voice || { gender: 'm', age: 78 }, humanoid: g.ahKong });
   g.dialogue.setSpeaker('voice', { nameTH: '', nameEN: '', voice: { gender: 'f', age: 30, ghost: 1, whisper: true } });

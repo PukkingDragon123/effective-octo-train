@@ -157,7 +157,7 @@ export class TaxiLights {
     body.add(dome);
     this.dome = dome;
     // instrument backlight spilling onto the wheel rim, the driver's hands and chest
-    const dash = new THREE.PointLight(0x9cf0c0, 0, 1.25, 2);
+    const dash = new THREE.PointLight(0xffb46a, 0, 1.25, 2);
     // under the binnacle hood, above the column shroud
     dash.position.copy(taxi.anchorLocal('steeringWheel')).add(new THREE.Vector3(0, 0.09, -0.38));
     body.add(dash);

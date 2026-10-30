@@ -19,6 +19,7 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 import vlib
+import weather
 from vlib import (log, new_mesh_obj, grid_faces, sweep, lathe, tube, box, extrude_outline, resample, rounded_rect_2d,
                   rrect_profile, circle_profile, assign_mat, mat, join, lerp, smoothstep, recalc_normals, add_bevel,
                   apply_modifiers, set_sharp_by_angle, add_solidify, delete, duplicate, set_origin, parent_keep, empty,
@@ -106,7 +107,8 @@ def main():
     a = vlib.args_after_dashes()
     bake = '--nobake' not in a
     size = int(a[a.index('--size') + 1]) if '--size' in a else 2048
-    samples = int(a[a.index('--samples') + 1]) if '--samples' in a else 8
+    samples = int(a[a.index('--samples') + 1]) if '--samples' in a else 4
+    ao = int(a[a.index('--ao') + 1]) if '--ao' in a else 8
     out = os.path.join(REPO, 'public', 'assets', 'vehicle')
     if '--out' in a:
         out = a[a.index('--out') + 1]
@@ -516,16 +518,26 @@ def main():
     if bake:
         tex_dir = os.path.join(REPO, '.shots', 'blender-bake')
         glass = [o for o in meshes if all((m is None) or (m.get('atlas', '') == '') for m in o.data.materials)]
-        imgs = vlib.bake_masks(meshes, ['moto'], size=size, samples=samples, out_dir=tex_dir)
-        p = os.path.join(tex_dir, 'mask_moto.jpg')
-        vlib.save_jpeg(imgs['moto'], p, quality=88)
-        files['moto'] = p
+        for o in glass:
+            o.hide_render = True
+        ctx = weather.Ctx(kind='moto', axles=[(AXF[1], AXF[2]), (AXR[1], AXR[2])], arch_r=0.29, length=1.86,
+                          colors={'moto': np.array([0.40, 0.09, 0.075], np.float32)})
+        files, _ = weather.bake_all([o for o in meshes if o not in glass], ['moto'], ctx, size=size, samples=samples,
+                                    ao_samples=ao, out_dir=tex_dir)
+        for o in glass:
+            o.hide_render = False
+    used = weather.remap_export(meshes)
+    log('export materials', len(used), used)
     glb = os.path.join(out, 'moto.glb')
     vlib.export_glb(glb, objs)
-    mat_atlas = {k: 'moto' for k, v in vlib.MAT_DEFS.items() if v['atlas']}
-    if files:
-        vlib.inject_masks(glb, files, mat_atlas, extras={'generator': 'tools/blender/build_moto.py', 'tris': int(tot)})
+    export_atlas = {k: 'moto' for k in ('paint_moto', 'chrome', 'rubber_black', 'lens', 'vinyl_seat', 'sign_lamp',
+                                        'plastic_dash', 'fabric_carpet', 'paint')}
+    weather.inject_textures(glb, files, export_atlas, extras={'generator': 'tools/blender/build_moto.py',
+                                                              'tris': int(tot)})
     vlib.rename_anchor_nodes(glb)
+    if '--nopack' not in a:
+        import build_taxi
+        build_taxi.pack_glb(glb)
     log('exported', glb, os.path.getsize(glb) // 1024, 'KB', round(time.time() - t0, 1), 's')
 
 

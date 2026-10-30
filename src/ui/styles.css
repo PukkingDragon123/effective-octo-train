@@ -1333,3 +1333,59 @@
 .dlb-loading { background: #000 !important; }
 .dlb-loading.has-3d::after { background: radial-gradient(70% 70% at 60% 50%, transparent 30%, rgba(0, 0, 0, 0.92) 100%) !important; }
 .dlb-loading .dlb-name { color: #b9b0a0; }
+
+/* ------------------------------------------------------------- QTE prompt --
+   One small mark at the centre (src/ui/QTE.js): a key glyph in a thin ring. Fills while held,
+   throbs while mashed, closes for a timed press, a chevron for a swerve. No words. */
+.dlb-qte {
+  position: absolute; left: 50%; top: 50%; z-index: 40; display: flex; align-items: center; gap: 10px;
+  transform: translate(-50%, -50%) scale(0.86); opacity: 0; pointer-events: none;
+  transition: opacity 0.16s linear, transform 0.22s var(--ease);
+  --k: 0; --warn: 0;
+}
+.dlb-qte.is-in { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.dlb-qte__core { position: relative; width: 74px; height: 74px; display: grid; place-items: center; }
+.dlb-qte__ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.dlb-qte__track { fill: rgba(6, 6, 7, 0.32); stroke: rgba(233, 225, 205, 0.2); stroke-width: 1.4; }
+.dlb-qte__arc {
+  fill: none; stroke: var(--bone); stroke-width: 2.6; stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.9));
+  transition: stroke-dashoffset 0.06s linear, stroke 0.2s linear;
+}
+.dlb-qte__closing {
+  fill: none; stroke: rgba(233, 225, 205, 0.55); stroke-width: 1.2; opacity: 0;
+  transform-origin: 40px 40px; transform-box: view-box;
+}
+.dlb-qte.is-press .dlb-qte__closing, .dlb-qte.is-steer .dlb-qte__closing { opacity: 1; }
+.dlb-qte.is-press .dlb-qte__arc, .dlb-qte.is-steer .dlb-qte__arc { stroke: rgba(233, 225, 205, 0.5); stroke-width: 1.6; }
+.dlb-qte__glyph { position: relative; display: grid; place-items: center; transition: transform 0.12s var(--ease); }
+.dlb-qte__glyph .dlb-cap, .dlb-qte__glyph .dlb-pad {
+  font-size: 17px; background: rgba(8, 8, 9, 0.55); color: var(--bone);
+  box-shadow: inset 0 0 0 1px rgba(233, 225, 205, 0.5), 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+.dlb-qte.is-held .dlb-qte__glyph { transform: scale(0.9); }
+.dlb-qte.is-held .dlb-qte__glyph .dlb-cap, .dlb-qte.is-held .dlb-qte__glyph .dlb-pad { background: rgba(233, 225, 205, 0.16); }
+.dlb-qte.is-mash .dlb-qte__glyph { animation: dlb-qte-throb 0.42s ease-in-out infinite; }
+.dlb-qte.is-pulse .dlb-qte__core { animation: dlb-qte-kick 0.16s ease-out; }
+.dlb-qte.is-shaky .dlb-qte__core { animation: dlb-qte-shiver 0.12s linear infinite; }
+.dlb-qte.is-still .dlb-qte__arc { stroke: color-mix(in srgb, var(--bone) calc((1 - var(--warn)) * 100%), #c2412c); }
+.dlb-qte__chev { width: 22px; height: 22px; opacity: 0; transition: opacity 0.12s linear, transform 0.16s var(--ease); }
+.dlb-qte__chev svg { width: 100%; height: 100%; fill: none; stroke: var(--bone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.9)); }
+.dlb-qte.is-dir-l .dlb-qte__chev.is-l { opacity: 1; animation: dlb-qte-nudge-l 0.5s ease-in-out infinite; }
+.dlb-qte.is-dir-r .dlb-qte__chev.is-r { opacity: 1; animation: dlb-qte-nudge-r 0.5s ease-in-out infinite; }
+.dlb-qte__tap { display: none; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: rgba(233, 225, 205, 0.85); box-shadow: 0 0 0 6px rgba(233, 225, 205, 0.16); }
+.dlb-ui[data-device='touch'] .dlb-qte__glyph { display: none; }
+.dlb-ui[data-device='touch'] .dlb-qte__tap { display: block; }
+.dlb-ui[data-device='touch'] .dlb-qte.is-mash .dlb-qte__tap { animation: dlb-qte-throb 0.42s ease-in-out infinite; }
+.dlb-qte.is-ok .dlb-qte__arc { stroke: #f4ead4; stroke-width: 3.4; }
+.dlb-qte.is-ok { transform: translate(-50%, -50%) scale(1.14); opacity: 0; transition: opacity 0.38s linear 0.06s, transform 0.4s var(--ease); }
+.dlb-qte.is-fail .dlb-qte__track { stroke: rgba(194, 65, 44, 0.8); }
+.dlb-qte.is-fail { transform: translate(-50%, -50%) scale(0.8); opacity: 0; transition: opacity 0.5s linear, transform 0.5s var(--ease); }
+@keyframes dlb-qte-throb { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes dlb-qte-kick { 0% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes dlb-qte-shiver { 0% { transform: translate(0, 0); } 25% { transform: translate(1.5px, -1px); } 50% { transform: translate(-1px, 1px); } 75% { transform: translate(1px, 1.5px); } 100% { transform: translate(0, 0); } }
+@keyframes dlb-qte-nudge-l { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-5px); } }
+@keyframes dlb-qte-nudge-r { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px); } }
+@media (prefers-reduced-motion: reduce) {
+  .dlb-qte.is-mash .dlb-qte__glyph, .dlb-qte.is-shaky .dlb-qte__core, .dlb-qte__chev { animation: none !important; }
+}

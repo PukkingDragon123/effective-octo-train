@@ -81,6 +81,7 @@ const easeF = {
  *  smooth (s, 0 = off): one-pole glide on formants / f0 / source shape so segment boundaries coarticulate
  *    instead of jumping (speech); smoothAmp (s): the same on av / ah / af (no clicks at voicing on/offsets)
  *  tremor {rate Hz, depth semitones, amp 0..1}: elderly / frightened shake on f0 and loudness
+ *  eq [[type, f, q, gainDb], ...]: post filters (Biquad types)
  *  hpc (bool): higher-pole correction: three fixed resonances above F5 (scaled with formantScale) so a
  *    24-32 kHz render keeps the 4-8 kHz air of a real voice instead of the 5-pole cascade's cliff
  */
@@ -211,6 +212,12 @@ export function renderVox(sr, score, opts = {}) {
     const hs = new Biquad(sr, 'highshelf', 1800, 0.7, pres);
     const pk = new Biquad(sr, 'peak', 3200, 1.2, pres * 0.35);
     for (let i = 0; i < n; i++) out[i] = pk.process(hs.process(out[i]));
+  }
+  // optional post EQ: [[type, f, q, gainDb], ...] (speech: restore the presence / air a 5-pole cascade lacks)
+  if (opts.eq) for (const [type, f, q, g] of opts.eq) {
+    if (f >= sr * 0.45) continue;
+    const bq = new Biquad(sr, type, f, q, g);
+    for (let i = 0; i < n; i++) out[i] = bq.process(out[i]);
   }
   if (!Number.isFinite(out[0])) out.fill(0);
   return out;

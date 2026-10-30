@@ -313,7 +313,6 @@ class Painter:
         self.t_vinyl = photo('vehicle/leather_seat.webp', s)
         self.t_head = photo('vehicle/headliner.webp', 512)
         self.t_carpet = photo('vehicle/carpet.webp', s)
-        self.t_metal = photo('built/metal_painted.webp', s)
         up = self.t_paint_y[int(512 * 0.3):]
         self.paint_mean = float(lum(up.reshape(-1, 3)).mean())
 
