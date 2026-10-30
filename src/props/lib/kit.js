@@ -643,4 +643,56 @@ export function smoothPath(ctrl, n = 16, tension = 0.5) {
   return c.getPoints(n);
 }
 
+/**
+ * Moulding run around a rectangle (post capital/base, plinth, cornice): profile [[r, y], ...]
+ * bottom -> top, r = outward offset from the rectangle's faces (half sizes hw x hd). Each side
+ * is its own strip with mitred corners, so the corners stay crisp. Origin at the axis, y as given.
+ * opts.top / opts.bottom: close the ring with a flat cap at the last / first profile point.
+ */
+export function squareMoulding(hw, hd, profile, opts = {}) {
+  const pos = [], idx = [];
+  const C = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
+  const OUT = [[1, 0], [0, -1], [-1, 0], [0, 1]];
+  const fn = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), a3 = new THREE.Vector3(), b3 = new THREE.Vector3(), c3 = new THREE.Vector3();
+  for (let s = 0; s < 4; s++) {
+    const [ax, az] = C[s], [bx, bz] = C[(s + 1) % 4];
+    const base = pos.length / 3;
+    for (const [r, y] of profile) pos.push(ax * (hw + r), y, az * (hd + r), bx * (hw + r), y, bz * (hd + r));
+    for (let i = 0; i < profile.length - 1; i++) {
+      const a = base + i * 2, b = a + 1, c = a + 2, d = a + 3;
+      // expected outward normal of this band (2D profile normal turned to the side)
+      const dr = profile[i + 1][0] - profile[i][0], dy = profile[i + 1][1] - profile[i][1];
+      const nx = dy, ny = -dr;
+      a3.fromArray(pos, a * 3);
+      b3.fromArray(pos, b * 3);
+      c3.fromArray(pos, c * 3);
+      fn.crossVectors(e1.subVectors(c3, a3), e2.subVectors(b3, a3));
+      const want = OUT[s][0] * nx * fn.x + OUT[s][1] * nx * fn.z + ny * fn.y;
+      if (want >= 0) idx.push(a, c, b, b, c, d);
+      else idx.push(a, b, c, b, d, c);
+    }
+  }
+  const cap = (pi, up) => {
+    const [r, y] = profile[pi];
+    const base = pos.length / 3;
+    pos.push(-(hw + r), y, -(hd + r), hw + r, y, -(hd + r), hw + r, y, hd + r, -(hw + r), y, hd + r);
+    if (up) idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    else idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  if (opts.top) cap(profile.length - 1, true);
+  if (opts.bottom) cap(0, false);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array((pos.length / 3) * 2).fill(0), 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Turned (lathed) baluster / finial of height h: vase profile, seg radial segments. */
+export function baluster(h, r, seg = 10) {
+  const P = [[0, 0], [r * 1.0, 0], [r * 1.0, 0.08], [r * 0.7, 0.12], [r * 0.75, 0.18], [r * 1.15, 0.38], [r * 1.1, 0.5], [r * 0.6, 0.66], [r * 0.5, 0.74], [r * 0.85, 0.8], [r * 0.85, 0.86], [r * 1.05, 0.9], [r * 1.05, 1.0], [0, 1.0]];
+  return lathe(P.map(([x, y]) => [x, y * h]), seg);
+}
+
 export { makeRng, noise, smoothstep, clamp };

@@ -20,7 +20,7 @@ import { EngineSound } from '../audio/EngineSound.js';
 import { Music } from '../audio/Music.js';
 import { Ambience } from '../audio/Ambience.js';
 import { Radio } from '../audio/Radio.js';
-import { SampleBank, sampleLoudness, detectPitch } from '../audio/Samples.js';
+import { SampleBank, sampleLoudness } from '../audio/Samples.js';
 import { SOUNDS } from '../audio/Synth/registry.js';
 
 let SR = 32000;
@@ -305,6 +305,31 @@ async function renderSample(bank, id, opts = {}) {
   return out;
 }
 
+/** Ignition through EngineSound.setOn: the recorded crank catches on the gameplay crank timer, then the model takes over. */
+async function renderEngineStart(bank, dur = 5) {
+  await bank.prefetch(['engine_start'], 0);
+  const { ctx, core } = offlineCore(dur, 2, bank);
+  const es = new EngineSound(fakeSys(core), 'car');
+  const obj = new THREE.Object3D();
+  obj.position.set(0, 0.8, -1.8);
+  obj.updateMatrixWorld();
+  es.attach(obj);
+  es._attachCore(core);
+  await es._loading;
+  es.setRPM(820);
+  es.setLoad(0.05);
+  es.setOn(true, { variant: 0 });
+  const info = { recordedStart: !!es._recStart, catchAt: es._recStart ? +(es._startAt - 0.3).toFixed(2) : null };
+  for (let t = 0.1; t < dur; t += 0.1) ctx.suspend(t).then(() => {
+    es.update(0.1);
+    core.update(0.1, null);
+    ctx.resume();
+  });
+  const out = await ctx.startRendering();
+  out._info = info;
+  return out;
+}
+
 async function renderRadioSamples(bank, what, dur = 6) {
   const { ctx, core } = offlineCore(dur, 2, bank);
   const r = new Radio(fakeSys(core));
@@ -424,6 +449,7 @@ async function runSampleTests(onRow) {
   await add('rec:engine@820 (recorded idle)', () => renderEngine(820, 0.05, 'car', 0, 2.5, bank), eng);
   await add('rec:engine@2500 gravel 60', () => renderEngine(2500, 0.6, 'car', 60, 2.5, bank, 'gravel'), eng);
   await add('rec:engine@3000 asphalt 80', () => renderEngine(3000, 0.5, 'car', 80, 2.5, bank, 'asphalt'), eng);
+  await add('rec:engine start (recorded crank)', () => renderEngineStart(bank), (r) => (r.recordedStart ? null : 'synth start'));
   await add('rec:bike@1450 (recorded idle)', () => renderEngine(1450, 0.05, 'bike', 0, 2.5, bank), eng);
   await add('rec:radio static', () => renderRadioSamples(bank, 'static'), (r) => (r.staticRecorded ? null : 'synth static'));
   await add('rec:radio luk thung (ching)', async () => {

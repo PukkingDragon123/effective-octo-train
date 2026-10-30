@@ -24,6 +24,11 @@ function bd(h, bone, x, y, z, out = new THREE.Vector3()) {
   h.boneFrame(h.t.index[bone], _q);
   return out.set(x, y, z).normalize().applyQuaternion(_q);
 }
+/** offset vector in a bone's rest frame (NOT normalised), scaled to the character */
+function bo(h, bone, x, y, z, out = new THREE.Vector3()) {
+  h.boneFrame(h.t.index[bone], _q);
+  return out.set(x, y, z).multiplyScalar(h.scale).applyQuaternion(_q);
+}
 function target(h, t, out) { return t ? h._target(t, out) : null; }
 function req(h, side, w, pos, along, palm, extra = {}) {
   const cur = h.req[side];
@@ -45,8 +50,8 @@ export const ACTIONS = {
       const ph = c.t * Math.PI * 2 * 1.7;
       const flap = Math.max(0, Math.sin(ph));
       // arm extended low toward the road side, palm down
-      const pos = bp(h, 'spine_03', sx * 0.36, -0.06 - flap * 0.02, 0.48);
-      const along = bd(h, 'spine_03', sx * 0.4, -0.25 - flap * 0.45, 0.85);
+      const pos = bp(h, 'spine_03', sx * 0.3, -0.24 - flap * 0.03, 0.4);
+      const along = bd(h, 'spine_03', sx * 0.35, -0.45 - flap * 0.5, 0.8);
       const palm = bd(h, 'spine_03', sx * 0.05, -1, 0.25 + flap * 0.4);
       req(h, s, c.w, pos, along, palm, { fingers: 'beckon', phase: ph, grip: 0 });
       if (c.opts.lookAt) h.lookAt(c.opts.lookAt, { speed: 3 });
@@ -68,7 +73,7 @@ export const ACTIONS = {
       const up = bd(h, 'spine_03', 0, 1, 0.18);
       for (const s of ['L', 'R']) {
         const sx = S(s);
-        const p = base.clone().add(bd(h, 'spine_03', sx * 0.014, 0, 0).multiplyScalar(h.scale));
+        const p = base.clone().add(bo(h, 'spine_03', sx * 0.014, 0, 0));
         const palm = bd(h, 'spine_03', -sx, 0, 0.05);
         req(h, s, c.w, p, up, palm, { fingers: 'wai', pole: bp(h, 'spine_03', sx * 0.3, -0.35, 0.05) });
       }
@@ -121,7 +126,7 @@ export const ACTIONS = {
       if (c.opts.support !== false) {
         const fa = h.rig.worldPos(h.t.index[s === 'R' ? 'lowerarm_r' : 'lowerarm_l'], new THREE.Vector3());
         const wr = h.rig.worldPos(h.t.index[s === 'R' ? 'hand_r' : 'hand_l'], new THREE.Vector3());
-        const sup = fa.lerp(wr, 0.45).add(bd(h, 'spine_03', 0, -0.035, 0).multiplyScalar(h.scale));
+        const sup = fa.lerp(wr, 0.45).add(bo(h, 'spine_03', 0, -0.035, 0));
         req(h, o, c.w * 0.95, sup, bd(h, 'spine_03', sx, 0.05, 0.4), bd(h, 'spine_03', 0, 1, 0), { fingers: 'flat' });
       }
       if (reach > 0.95 && !c.st.gave) { c.st.gave = true; c.opts.onGive?.(); }
@@ -281,7 +286,7 @@ export const ACTIONS = {
         const ph = clamp(k * 2.2 - (s === 'L' ? 0 : 0.35), 0, 1);
         const lift = Math.sin(ph * Math.PI) * 0.12;
         const to = target(h, c.opts.target, _v2);
-        const base = to ? to.clone().add(bd(h, 'pelvis', sx * 0.2, 0, 0).multiplyScalar(h.scale)) : bp(h, 'spine_03', sx * 0.24, -0.1 + lift, 0.45 + ph * 0.25);
+        const base = to ? to.clone().add(bo(h, 'pelvis', sx * 0.2, 0, 0)) : bp(h, 'spine_03', sx * 0.24, -0.1 + lift, 0.45 + ph * 0.25);
         req(h, s, c.w, base, bd(h, 'spine_03', sx * 0.2, -0.5, 1), bd(h, 'spine_03', 0, -1, 0.2), { fingers: 'claw' });
       }
     },

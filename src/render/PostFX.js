@@ -22,6 +22,7 @@ import { clamp } from '../core/math.js';
 import { FS_VERT, TENSOR_FRAG, GAUSS_FRAG, KUWAHARA8_FRAG, KUWAHARA4_FRAG } from './Painterly.js';
 import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG } from './PostShaders.js';
 import { canvasTexture } from './noiseTex.js';
+import { GORE_UNIFORM } from './Blood.js';
 
 const GLASS_BIT = 1 << LAYERS.GLASS;
 const BLOOM_LEVELS = 6;
@@ -62,12 +63,13 @@ class PostFX {
      * Animatable by gameplay. Multipliers (1 = the player's settings / the hour's grade):
      *   exposure, painterly, bloom, grain, vignette, chroma, sharpen, saturation, contrast, tint (Color multiply).
      * Absolute: temperature (added), letterbox 0..1, fade 0..1 + fadeColor, horror 0..1, amulet 0..1,
-     *   blur 0..1, distortion 0..1.
+     *   blur 0..1, distortion 0..1, blood 0..1 (blood splatter + runs on the lens; see bloodSplash()).
      */
     this.params = {
       exposure: 1, painterly: 1, bloom: 1, grain: 1, vignette: 1, chroma: 1, sharpen: 1,
       saturation: 1, contrast: 1, temperature: 0, tint: new THREE.Color(1, 1, 1),
       letterbox: 0, fade: 0, fadeColor: new THREE.Color(0, 0, 0), horror: 0, amulet: 0, blur: 0, distortion: 0,
+      blood: 0,
     };
     /** Glass materials sample these (screen-space refraction of the opaque scene). */
     this.glassUniforms = {
@@ -84,6 +86,7 @@ class PostFX {
     this._hasGlass = false;
     this._frame = 0;
     this._flash = { color: new THREE.Color(), t: 0, dur: 1 };
+    this._blood = { splash: 0, age: 99, seed: Math.random(), runT: 0, last: 0 };
     this._w = 0;
     this._h = 0;
     this._quality = null;
@@ -100,6 +103,19 @@ class PostFX {
     this._flash.color.set(color);
     this._flash.t = duration;
     this._flash.dur = Math.max(0.01, duration);
+  }
+
+  /**
+   * One-shot blood splatter on the lens (attack / death): jumps to `amount` (0..1) with a
+   * new pattern, holds ~1.5 s, then fades over ~5 s while the runs keep sliding down.
+   * Combined with params.blood (max of both). Reduced by settings.gore = 'reduced'.
+   */
+  bloodSplash(amount = 0.7) {
+    const b = this._blood;
+    b.splash = clamp(amount, 0, 1);
+    b.age = 0;
+    b.seed = Math.random();
+    b.runT = 0;
   }
 
   _build() {
@@ -144,6 +160,7 @@ class PostFX {
       tSrc: { value: null }, tPaint: { value: null }, tCanvas: { value: canvasTexture() },
       uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uSharp: { value: 0.5 }, uCanvas: { value: 0 }, uPaintDir: { value: 0 },
       uGrain: { value: 0.35 }, uFade: { value: 0 }, uFadeColor: { value: new THREE.Color() }, uLetterbox: { value: 0 },
+      uBlood: { value: 0 }, uBloodSeed: { value: 0 }, uBloodRun: { value: 0 }, uGore: GORE_UNIFORM,
     };
     this.outputUniforms = ou;
     this.matOutput = passMaterial(OUTPUT_FRAG, ou);
@@ -473,6 +490,19 @@ class PostFX {
     ou.uFade.value = P.fade;
     ou.uFadeColor.value.copy(P.fadeColor).convertLinearToSRGB();
     ou.uLetterbox.value = P.letterbox;
+    {
+      const b = this._blood;
+      b.age += dt;
+      const env = b.age < 1.5 ? 1 : Math.max(0, 1 - (b.age - 1.5) / 5);
+      let amt = Math.max(clamp(P.blood ?? 0, 0, 1), b.splash * env);
+      if (amt <= 0.001) b.splash = 0;
+      // runs keep sliding while blood is on screen; a fresh splatter restarts them
+      b.runT = amt > 0.001 ? b.runT + dt : 0;
+      amt *= GORE_UNIFORM.value > 0.5 ? 0.7 : 1;
+      ou.uBlood.value = amt;
+      ou.uBloodSeed.value = b.seed * 97.0;
+      ou.uBloodRun.value = 1 - Math.exp(-b.runT * 0.35);
+    }
     this._pass(renderer, this._msaa > 0 ? this.matOutput : this.matOutputFxaa, null);
     if (this.debugView) {
       const tex = { shafts: this.shaftA.texture, paint: this.paintRT.texture, bloom: this.bloomUp[0]?.texture, tensor: this.tensorRT?.texture, scene: this.sceneRT.texture, grade: this.gradeRT.texture }[this.debugView];

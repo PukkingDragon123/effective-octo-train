@@ -4,7 +4,7 @@
 // with yaw = road travel yaw (local −Z along the road). The lamp bracket (if any) points
 // toward +X * lampSide (default +1). For a pole on the LEFT road edge +X faces the road.
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, smoothPath, sagCurve, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, smoothPath, sagCurve, sweep, fixWinding, indexed, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, texMat, bugDiffuserTex, noticeAtlasTex } from './lib/materials.js';
 import { lightSpec, attachFlicker } from './lib/lights.js';
 import { G, coil } from './lib/small.js';
@@ -18,6 +18,37 @@ function anchor(parent, name, x, y, z, yaw = 0) {
   a.rotation.y = yaw;
   parent.add(a);
   return a;
+}
+
+// ---------------------------------------------------------------------------
+// Pole shaft: prestressed concrete, chamfered rectangle with a long recessed channel on the
+// two road-facing (+/-Z) faces (the typical Thai distribution pole), swept up a slightly
+// bent centreline and tapered. Hard corners are duplicated so the edges stay crisp.
+// ---------------------------------------------------------------------------
+function shaftProfile(a, b, c, g, d) {
+  // closed loop (x, z) counter-clockwise seen from above, starting at +X face centre
+  const P = [
+    [a, 0], [a, b - c], [a - c, b], [g + d * 0.4, b], [g, b - d], [-g, b - d], [-g - d * 0.4, b], [-a + c, b], [-a, b - c],
+    [-a, -b + c], [-a + c, -b], [-g - d * 0.4, -b], [-g, -b + d], [g, -b + d], [g + d * 0.4, -b], [a - c, -b], [a, -b + c],
+  ];
+  const out = [];
+  P.forEach((p, i) => {
+    out.push(p);
+    if (i > 0) out.push(p); // hard edge: duplicate (except the flat-face midpoint)
+  });
+  out.push(P[0]);
+  // sweep() faces = profileDir x pathDir: walk the loop clockwise (seen from above) so they face out
+  return out.reverse();
+}
+export function poleShaftGeo(H, base, top, bend, segs = 14) {
+  const pts = [];
+  for (let i = 0; i <= segs; i++) {
+    const y = (i / segs) * H, t = y / H;
+    pts.push(V(bend * t * t, y, 0));
+  }
+  const prof = shaftProfile(base / 2, base * 0.425, 0.022, base * 0.16, 0.028).map(([x, z]) => [x, z]);
+  const g = sweep(pts, prof, { up: V(0, 0, 1), closed: true, scaleFn: (t) => 1 + (top / base - 1) * t });
+  return g;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,15 +186,10 @@ export function createElectricPole(opts = {}) {
   const poleTop = (y) => V(Math.sin(lean) * y + bend * (y / H) ** 2, Math.cos(lean) * y, Math.sin(leanZ) * y);
   const base = 0.3, top = 0.17;
   const stripes = opts.stripes ?? rng() < 0.4;
-  const shaft = bevelBox(base, H, base * 0.85, 0.035, 0.45, 1, { bottom: true });
+  const shaft = G(`poleShaft:${H.toFixed(2)}:${bend.toFixed(3)}`, () => poleShaftGeo(H, base, top, bend));
   k.add(mat('concrete'), shaft, {
     r: [leanZ, 0, -lean],
-    deform: (p) => {
-      const t = p.y / H;
-      const s = 1 + (top / base - 1) * t;
-      p.x = p.x * s + bend * t * t;
-      p.z *= s;
-    },
+    jitter: 0.003, jitterFreq: 7,
     color: 0xb8b2a4,
     colorFn: (p, n, c, lp) => {
       // reflective road stripes near the base on roadside poles
@@ -174,12 +200,14 @@ export function createElectricPole(opts = {}) {
       }
     },
   });
-  // bolt holes up the top third (dark plugs flush on two faces)
+  // bolt holes along the recessed channel (dark sockets in the groove floor) + chamfered top cap
   k.push(null, [leanZ, 0, -lean]);
-  for (let y = H * 0.55; y < H - 0.3; y += 0.32 + rng() * 0.08) {
-    const t = y / H, w = (base + (top - base) * t) * 0.5;
-    for (const s of [-1, 1]) k.add(mat('dark'), G('hole', () => bbox(0.035, 0.035, 0.01, 0.004, 0.1)), { p: [bend * t * t, y, s * (w * 0.85 + 0.001)], color: 0x0e0d0c, w: false });
+  for (let y = H * 0.35; y < H - 0.3; y += 0.3 + rng() * 0.06) {
+    const t = y / H, sc = 1 + (top / base - 1) * t;
+    const zf = (base * 0.425 - 0.028) * sc;
+    for (const s of [-1, 1]) k.add(mat('dark'), G('hole2', () => cyl(0.014, 0.014, 0.012, 8, 0.002).rotateX(Math.PI / 2)), { p: [bend * t * t, y, s * (zf + 0.002)], color: 0x0e0d0c, w: false });
   }
+  k.add(mat('concrete'), G('poleCap:' + top, () => bevelBox(top * 1.02, 0.05, top * 0.87, 0.012, 0.2, 2, { bottom: true })), { p: [bend, H - 0.01, 0], color: 0xa8a294, w: { moss: 0.8, streak: 0.3 } });
   k.pop();
   const P = (x, y, z) => poleTop(y).add(V(x, 0, z));
   const wireAnchors = [];
@@ -278,12 +306,30 @@ export function createElectricPole(opts = {}) {
       for (let i = 0; i < n; i++) {
         const x = (i - (n - 1) / 2) * 0.55;
         const tz = -0.55;
-        // tank with cooling fins, lid, bushings
-        k.add(mat('metal'), G('tank', () => cyl(0.23, 0.23, 0.82, 16, 0.02, 4)), {
+        // tank: corrugated radiator fins (real geometry), rolled bottom, domed bolted lid,
+        // two hanger straps to the platform, lifting lugs and a rating plate
+        k.add(mat('metal'), G('tankFins', () => {
+          const g = cyl(0.23, 0.23, 0.8, 72, 0.015, 6);
+          const pa = g.attributes.position;
+          for (let i = 0; i < pa.count; i++) {
+            const px = pa.getX(i), pz = pa.getZ(i), py = pa.getY(i), r = Math.hypot(px, pz);
+            if (r < 0.2 || py < 0.06 || py > 0.74) continue;
+            const a = Math.atan2(pz, px);
+            const fin = 1 + 0.085 * Math.pow(Math.max(0, Math.cos(a * 18)), 3);
+            pa.setX(i, px * fin);
+            pa.setZ(i, pz * fin);
+          }
+          g.computeVertexNormals();
+          return g;
+        }), {
           p: [x, 0, tz], color: 0x8a908a, w: { ground: 0, grime: 0.2, grimeH: 0.3, streak: 0.9, streakColor: 0x6a3a1a, vary: 0.2 },
-          colorFn: (p, nn, cc, lp) => { if (Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 14)) > 0.8) cc.multiplyScalar(0.72); },
         });
-        k.add(mat('metal'), G('tlid', () => cyl(0.25, 0.25, 0.05, 16, 0.012)), { p: [x, 0.82, tz], color: 0x7a7e78, w: { streak: 0.5 } });
+        k.add(mat('metal'), G('tlid2', () => lathe([[0, 0.075], [0.08, 0.07], [0.17, 0.05], [0.235, 0.025], [0.252, 0.012], [0.255, 0], [0.24, -0.01], [0, -0.01]], 28)), { p: [x, 0.81, tz], color: 0x7a7e78, w: { streak: 0.5, moss: 0.3 } });
+        k.add(mat('metal'), G('tlidRing', () => torus(0.245, 0.012, 5, 28)), { p: [x, 0.805, tz], r: [Math.PI / 2, 0, 0], color: 0x6a6e68, w: { streak: 0.4 } });
+        for (let b = 0; b < 12; b++) { const a = (b / 12) * Math.PI * 2; k.add(mat('galv'), G('tlidBolt', () => cyl(0.008, 0.008, 0.016, 6, 0.002)), { p: [x + Math.cos(a) * 0.247, 0.81, tz + Math.sin(a) * 0.247], color: 0x5a5a54, w: false }); }
+        for (const s of [-1, 1]) k.add(mat('metal'), G('tlug', () => torus(0.03, 0.008, 4, 10, Math.PI)), { p: [x + s * 0.2, 0.83, tz], r: [0, Math.PI / 2, 0], color: 0x6a6e68, w: false });
+        for (const hy of [0.18, 0.62]) k.add(mat('rust'), G('tstrap', () => bevelBox(0.07, 0.05, 0.5, 0.006, 0.2)), { p: [x, hy, tz + 0.28], color: 0x5a5046, w: { streak: 0.6 } });
+        k.add(mat('galv'), G('tplate', () => bevelBox(0.11, 0.07, 0.006, 0.002, 0.1)), { p: [x, 0.45, tz + 0.255], color: 0xb8b4a8, w: { streak: 0.3 }, colorFn: (p, nn, cc, lp) => { if (nn.z > 0.5 && Math.abs(Math.sin(lp.y * 220)) > 0.8) cc.multiplyScalar(0.35); } });
         for (let b = 0; b < 2; b++) {
           k.add(mat('ceramic'), G('bushing', () => lathe([[0, 0], [0.04, 0], [0.04, 0.02], [0.055, 0.03], [0.03, 0.05], [0.05, 0.07], [0.03, 0.09], [0.045, 0.11], [0.02, 0.15], [0, 0.15]], 10)), { p: [x + (b ? 0.09 : -0.09), 0.86, tz + 0.02], color: 0x6a4030, w: false });
         }

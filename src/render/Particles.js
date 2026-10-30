@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { GLOBAL_UNIFORMS, injectGlobals } from './uniforms.js';
 import { settings } from '../core/Settings.js';
 import { makeRng } from '../core/math.js';
+import { GORE_UNIFORM } from './Blood.js';
 
 const BILLBOARD = 0, STREAK = 1, WORLD = 2;
 const ADD = THREE.AdditiveBlending, NORMAL = THREE.NormalBlending;
@@ -289,6 +290,49 @@ const TYPES = {
       shape = 2.0;
     `,
   },
+  blood: {
+    // burst (opts.burst / handle.burst()): droplets + spray thrown along opts.direction with gravity,
+    // splatting on groundY. Continuous: thick drips falling from the point (radius = spread).
+    count: 70, radius: 0.06, height: 2.0, blending: NORMAL, mode: STREAK, minPx: 1.1, color: 0x8a0a12, streak: 0.03, burstLife: 2.2, gore: true,
+    body: /* glsl */ `
+      if (uBurst > 0.5) {
+        float life = 0.45 + aSeed2.x * 1.0;
+        float age = (t - uStart) - aSeed.w * 0.06;
+        if (age < 0.0 || age > life + 0.6) alive = 0.0;
+        vec3 rnd = normalize(vec3(aSeed.x * 2.0 - 1.0, aSeed.y * 2.0 - 1.0, aSeed.z * 2.0 - 1.0) + 1e-4);
+        vec3 dir = normalize(uDir * 1.4 + rnd * 0.85);
+        vec3 v0 = dir * (1.0 + aSeed2.y * aSeed2.y * 5.0);
+        vec3 g = vec3(0.0, -9.8, 0.0);
+        wp = uOrigin + rnd * uRadius + v0 * age + 0.5 * g * age * age;
+        vel = v0 + g * age;
+        size = 0.004 + aSeed2.z * aSeed2.z * 0.014;
+        if (wp.y < uGround) {
+          // landed: a flat drop on the ground that fades
+          wp.y = uGround + 0.004;
+          vel = vec3(0.001, 0.0, 0.0);
+          size *= 1.6;
+        }
+        misc.x = clamp((life + 0.6 - age) / 0.6, 0.0, 1.0);
+      } else {
+        float period = 0.9 + aSeed2.x * 1.8;
+        float tt = mod(t + aSeed.w * period, period);
+        float hang = 0.4 + aSeed2.y * 0.5;
+        float ft = max(tt - hang, 0.0);
+        float y = -0.5 * 9.8 * ft * ft;
+        if (-y > uHeight) alive = 0.0;
+        wp = uOrigin + vec3((aSeed.x * 2.0 - 1.0) * uRadius, y, (aSeed.z * 2.0 - 1.0) * uRadius);
+        vel = vec3(0.0, -9.8 * ft - 0.25, 0.0);
+        size = 0.006 + (tt < hang ? tt / hang * 0.006 : 0.004);
+        misc.x = 1.0;
+      }
+      vec3 lit = pAmbient(wp) * 1.3 + pDirect(wp) * 1.8;
+      vec3 bc = uColor * (1.0 - uGore * 0.4);
+      bc = mix(bc, vec3(dot(bc, vec3(0.3, 0.59, 0.11))) * vec3(1.3, 0.8, 0.8), uGore * 0.5);
+      // wet glint in the beam
+      col = vec4(bc * lit + vec3(0.9, 0.5, 0.45) * dlbHeadlightColor * dlbHeadlightAt(wp) * 0.8, 0.95 * misc.x);
+      shape = 2.0;
+    `,
+  },
   mist: {
     count: 46, radius: 22, height: 1.2, blending: NORMAL, mode: BILLBOARD, minPx: 1.0, color: 0xffffff, cameraCentred: true, ground: true,
     body: /* glsl */ `
@@ -333,6 +377,8 @@ uniform float uStreak;
 uniform float uViewportH;
 uniform vec2 uWindV;
 uniform vec2 uGust;   // accumulated gust push (m, xz)
+uniform vec3 uDir;    // emitter direction (blood spray)
+uniform float uGore;  // 0 full, 1 reduced
 uniform float uSpin;  // accumulated spin phase (time that runs faster in gusts)
 varying vec2 vUv;
 varying vec4 vCol;
@@ -514,6 +560,8 @@ class Emitter {
       uViewportH: { value: 1080 },
       uWindV: { value: new THREE.Vector2() },
       uGust: { value: new THREE.Vector2() },
+      uDir: { value: (opts.direction ? opts.direction.clone() : new THREE.Vector3(0, 1, 0)).normalize() },
+      uGore: GORE_UNIFORM,
       uSpin: { value: GLOBAL_UNIFORMS.uTime.value },
     });
     const mat = new THREE.ShaderMaterial({
@@ -552,6 +600,7 @@ class Emitter {
     u.uOrigin.value.copy(this.position);
     if (!this.follow) u.uFrame.value.makeTranslation(this.position.x, this.position.y, this.position.z);
     if (this.groundFromCamera) u.uGround.value = camera.position.y - 1.6;
+    else if (this.type === 'blood' && this.opts.groundY === undefined) u.uGround.value = this.position.y - 1.1;
     const W = GLOBAL_UNIFORMS;
     u.uWindV.value.copy(W.uWindDir.value).multiplyScalar(W.uWindStrength.value);
     // gusts (intensity > 1): integrate a downwind push + faster spin so nothing pops
@@ -568,6 +617,7 @@ class Emitter {
     let frac = 1;
     if (this.def.intensityUniform) frac = Math.min(1, W[this.def.intensityUniform].value * this.intensity);
     else if (this.def.countByIntensity) frac = Math.min(1, Math.max(0, this.intensity));
+    if (this.def.gore && GORE_UNIFORM.value > 0.5) frac *= 0.45;
     u.uCountFrac.value = frac;
     u.uIntensity.value = this.intensity;
     // distance cull
@@ -596,9 +646,12 @@ class Particles {
   }
   /**
    * Spawn an emitter. type: 'fireflies'|'moths'|'mosquitoes'|'rain'|'dust'|'pollen'|'leaves'|'incense'|'smoke'|
-   *   'sparks'|'mist'|'headlightBugs'|'ash'|'drips'|'splash'|'embers'|'spores'
+   *   'sparks'|'mist'|'headlightBugs'|'ash'|'drips'|'splash'|'embers'|'spores'|'blood'
    * opts: { position?: Vector3, object?: Object3D, offset?: Vector3, radius?, count?, color?, follow?: Object3D, burst?: bool, intensity? }
-   * Extra opts: height, groundY (splash / mist plane), seed, active, autoDispose (burst emitters).
+   * Extra opts: height, groundY (splash / mist / blood plane), seed, active, autoDispose (burst emitters),
+   *   direction (Vector3, blood spray direction; default up).
+   *   blood: burst:true = spray + droplets with gravity (re-trigger with handle.burst(pos)); otherwise drips
+   *   from the point. settings.gore = 'reduced' -> darker, greyer, sparser.
    *   Camera-centred types (rain, splash, dust, pollen, spores, mist) follow the camera when no position/object is given.
    *   dust / pollen / spores are only visible where light hits them (headlight cone, lamps, dawn sun).
    *   leaves: setIntensity(v) — v < 1 thins the fall, v > 1 is a gust (push downwind + faster tumble).
@@ -633,7 +686,11 @@ class Particles {
           e.cameraCentred = false;
         }
       },
-      /** Re-trigger a burst (sparks) now. */
+      /** Spray direction (blood). */
+      setDirection(v) {
+        e.uniforms.uDir.value.copy(v).normalize();
+      },
+      /** Re-trigger a burst (sparks, blood) now. */
       burst(pos) {
         if (pos) e.position.copy(pos);
         e.uniforms.uStart.value = GLOBAL_UNIFORMS.uTime.value;

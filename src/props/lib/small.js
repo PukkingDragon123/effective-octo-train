@@ -400,15 +400,34 @@ export function lantern(k, o = {}) {
   const R = o.rad ?? 0.17, H = o.h ?? 0.3;
   const glow = o.glow ?? glowMat(o.white ? 'lantern_white' : 'lantern');
   k.at(o.p, o.r, o.s, () => {
+    // pumpkin-ribbed silk lantern: lathe profile with 10 lobes pushed in at the bamboo ribs
     const prof = [];
-    for (let i = 0; i <= 12; i++) {
-      const t = i / 12;
-      prof.push([R * (0.28 + 0.72 * Math.pow(Math.sin(t * Math.PI), 0.7)), -H * 0.08 - t * H * 0.84]);
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      prof.push([R * (0.3 + 0.7 * Math.pow(Math.sin(t * Math.PI), 0.62)), -H * 0.08 - t * H * 0.84]);
     }
-    k.add(glow, G(`lantern:${R}:${H}`, () => {
-      const g = lathe(prof.slice().reverse(), 16);
+    k.add(glow, G(`lantern2:${R}:${H}`, () => {
+      const g = lathe(prof.slice().reverse(), 40);
+      const pa = g.attributes.position;
+      for (let i = 0; i < pa.count; i++) {
+        const x = pa.getX(i), z = pa.getZ(i), a = Math.atan2(z, x), r = Math.hypot(x, z);
+        const lobe = 1 - 0.07 * Math.pow(Math.abs(Math.cos(a * 5)), 6);
+        pa.setXYZ(i, Math.cos(a) * r * lobe, pa.getY(i), Math.sin(a) * r * lobe);
+      }
+      g.computeVertexNormals();
       return g;
-    }), { color: 0xffffff, w: false, colorFn: (p, n, c, lp) => { const rib = Math.abs(Math.sin(Math.atan2(lp.z, lp.x) * 8)); c.multiplyScalar(0.75 + 0.25 * (1 - rib * rib * rib)); } });
+    }), {
+      color: 0xffffff, w: false,
+      colorFn: (p, n, c, lp) => {
+        const a = Math.atan2(lp.z, lp.x);
+        const rib = Math.pow(Math.abs(Math.cos(a * 5)), 10); // dark bamboo ribs at the lobe seams
+        const t = (-lp.y - H * 0.08) / (H * 0.84); // 0 top .. 1 bottom
+        const core = 0.55 + 0.45 * Math.pow(Math.sin(Math.min(1, Math.max(0, t)) * Math.PI), 1.5); // hot middle band
+        c.multiplyScalar(core * (1 - 0.55 * rib));
+      },
+    });
+    // gold trim bands near the caps
+    if (!o.white) for (const ty of [0.16, 0.84]) k.add(mat('gold'), G(`ltrim:${R}:${ty}`, () => torus(R * (0.3 + 0.7 * Math.pow(Math.sin(ty * Math.PI), 0.62)) * 1.01, 0.006, 4, 32)), { p: [0, -H * 0.08 - ty * H * 0.84, 0], r: [Math.PI / 2, 0, 0], color: 0xc89a3a, w: false });
     const capc = o.white ? 0x2a2a2a : 0xc89a3a;
     k.add(mat(o.white ? 'dark' : 'gold'), G(`lcap:${R}`, () => cyl(R * 0.3, R * 0.3, H * 0.07, 12, 0.004)), { p: [0, -H * 0.1, 0], color: capc });
     k.add(mat(o.white ? 'dark' : 'gold'), G(`lcap:${R}`, () => cyl(R * 0.3, R * 0.3, H * 0.07, 12, 0.004)), { p: [0, -H * 0.97, 0], color: capc });

@@ -2,10 +2,11 @@
 // trees, grass, particles. URL params:
 //   hour=21..30  rain=0..1  painterly=0..1  sharpen=0..1  quality=low|medium|high|ultra  fog=0..1
 //   cam=road|lamp|side|up  headlights=0|1  t=seconds of simulated time before capture
+//   blood=0..1 (lens splatter)  splash=1 (one-shot)  gore=full|reduced  flats=0|1  gust=1
 import * as THREE from 'three';
 import {
   paintedMaterial, foliageMaterial, skinMaterial, sky, lightPool, particles, postfx, GLOBAL_UNIFORMS,
-  createVolumetricBeam, applyWindShadows, silhouetteMaterial,
+  createVolumetricBeam, applyWindShadows, silhouetteMaterial, bloodDecalMaterial,
 } from '../render/index.js';
 import { makeRng, noise } from '../core/math.js';
 import { LAYERS } from '../core/layers.js';
@@ -164,6 +165,7 @@ export default async function ({ engine, cameraRig, params, settings }) {
   const quality = P('quality', null);
   if (quality) settings.set('graphicsPreset', quality);
   if (paint !== null) settings.set('painterly', parseFloat(paint));
+  if (P('gore', null)) settings.set('gore', P('gore', 'full'));
   const sharpen = P('sharpen', null);
   if (sharpen !== null) settings.set('sharpen', parseFloat(sharpen));
   const camMode = P('cam', 'road');
@@ -371,6 +373,21 @@ export default async function ({ engine, cameraRig, params, settings }) {
   hood.position.set(roadX(carZ) - 1.5, 0.66, carZ - 2.0);
   scene.add(hood);
   hood.visible = P('hood', '0') === '1';
+
+  // --- blood on the road in the headlights (pool + smear) + drips -----------------------------------------
+  {
+    const geo = new THREE.PlaneGeometry(2.4, 1.3).rotateX(-Math.PI / 2);
+    const pool = new THREE.Mesh(geo, bloodDecalMaterial({ seed: 0.31, smear: 0.7 }));
+    pool.position.set(roadX(-6) - 1.0, 0.035, -6);
+    pool.rotation.y = 0.5;
+    scene.add(pool);
+    const drop = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7).rotateX(-Math.PI / 2), bloodDecalMaterial({ seed: 0.77, coverage: 0.6 }));
+    drop.position.set(roadX(-9) + 0.4, 0.034, -9);
+    scene.add(drop);
+    particles.emit('blood', { position: new THREE.Vector3(roadX(-30) - 4.05, 1.25, -29.9), count: 6, radius: 0.03, height: 1.3, groundY: 0.02 });
+    if (P('splash', '0') === '1') postfx.bloodSplash(0.85);
+    postfx.params.blood = parseFloat(P('blood', 0));
+  }
 
   // --- painted silhouette flats in the fog (stage-set tree lines) ------------------------------------------------
   if (P('flats', '1') !== '0') {
