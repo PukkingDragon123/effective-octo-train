@@ -9,8 +9,8 @@
 import { PAPER } from './rules.js';
 
 export const GAME_TITLE = {
-  en: "DON'T LOOK BACK IN HORROR",
-  th: 'กะดึก ห้ามหันหลัง',
+  en: 'HAUNTED TO THE LAST STOP',
+  th: 'หลอนยันปลายทาง',
   taglineTH: 'ซ้ายสำหรับคนตาย ขวาสำหรับคนเป็น',
   taglineEN: 'Left for the dead. Right for the living.',
   studio: 'Pukking Dragon',

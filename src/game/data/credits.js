@@ -77,4 +77,4 @@ export const CREDITS = [
   },
 ];
 
-export const CREDITS_CLOSING = { th: 'Pukking Dragon · อย่าหันหลังกลับไปมอง', en: "Pukking Dragon · Don't look back" };
+export const CREDITS_CLOSING = { th: 'Pukking Dragon · หลอนยันปลายทาง', en: 'Pukking Dragon · Haunted to the Last Stop' };

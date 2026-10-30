@@ -1,5 +1,5 @@
 // Package the web build for itch.io (HTML5 "play in browser").
-//   npm run itch            -> builds, then writes release/dont-look-back-in-horror-itch.zip
+//   npm run itch            -> builds, then writes release/lon-yan-plaithang-itch.zip
 // itch wants index.html at the root of the zip, relative paths only (vite base './'),
 // at most 1000 files and 500 MB unpacked. This script checks those limits and skips the
 // .woff fallbacks and unused font subsets that every browser itch supports never fetches.
@@ -10,7 +10,7 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 const dist = path.join(root, 'dist');
 const outDir = path.join(root, 'release');
-const zipPath = path.join(outDir, 'dont-look-back-in-horror-itch.zip');
+const zipPath = path.join(outDir, 'lon-yan-plaithang-itch.zip');
 
 if (!process.argv.includes('--no-build')) execSync('npx vite build', { cwd: root, stdio: 'inherit' });
 

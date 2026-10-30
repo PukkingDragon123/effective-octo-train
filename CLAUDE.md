@@ -1,4 +1,6 @@
-# DON'T LOOK BACK IN HORROR (Pukking Dragon)
+# หลอนยันปลายทาง — Haunted to the Last Stop (Pukking Dragon)
+
+Game title (owner's choice): **หลอนยันปลายทาง**. The working title was DON'T LOOK BACK IN HORROR.
 
 A Thai supernatural first-person taxi horror game for the browser (Three.js 0.170 + Vite,
 WebGL2). Most content (textures, world, props, animation layers, music, fallback sounds)

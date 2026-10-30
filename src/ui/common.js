@@ -4,13 +4,13 @@ import { navItem } from './nav.js';
 import * as NARRATIVE from '../game/data/index.js';
 
 /** Title lockup text. The Thai title follows the narrative data (GAME_TITLE.th) when present. */
-export const TITLE = { l1: 'DON\u2019T LOOK BACK', l2: 'in horror', th: NARRATIVE.GAME_TITLE?.th || 'อย่าหันหลังกลับไป' };
+export const TITLE = { l1: 'HAUNTED', l2: 'to the last stop', th: NARRATIVE.GAME_TITLE?.th || 'หลอนยันปลายทาง' };
 
 /** The game title lockup. opts { presents=false, align:'left'|'center' } */
 export function titleLockup({ presents = false, align = 'left' } = {}) {
   return h('div', { class: `dlb-title is-${align}` },
     presents ? h('div', { class: 'dlb-title__presents' }, h('b', null, 'Pukking Dragon'), 'presents') : null,
-    h('h1', { attrs: { 'aria-label': "DON'T LOOK BACK IN HORROR" } },
+    h('h1', { attrs: { 'aria-label': TITLE.th } },
       h('span', { class: 'dlb-title__l1' }, TITLE.l1, h('span', { class: 'dlb-title__l1 dlb-title__echo', attrs: { 'aria-hidden': 'true' } }, TITLE.l1)),
       h('span', { class: 'dlb-title__l2' }, TITLE.l2)),
     h('div', { class: 'dlb-title__th', attrs: { lang: 'th' } }, TITLE.th));

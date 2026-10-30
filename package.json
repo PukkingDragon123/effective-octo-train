@@ -2,7 +2,7 @@
   "name": "dont-look-back-in-horror",
   "private": true,
   "version": "0.1.0",
-  "description": "DON'T LOOK BACK IN HORROR — a Thai supernatural night-shift taxi horror game by Pukking Dragon",
+  "description": "หลอนยันปลายทาง (Haunted to the Last Stop) — a Thai supernatural night-shift taxi horror game by Pukking Dragon",
   "type": "module",
   "scripts": {
     "dev": "vite",
