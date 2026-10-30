@@ -123,6 +123,7 @@ export default async function ({ engine, cameraRig, params }) {
   // cones below carry its light instead
   engine.onUpdate(() => {
     if (taxi.lights?.dome) taxi.lights.dome.intensity = num('domeLight', 0);
+    if (taxi.lights?.fill) taxi.lights.fill.intensity = num('fill', 0); // the cool night-vision fill too
   }, 95);
   try {
     taxi.glass?.fillFog?.('all', num('condense', 0.1));
@@ -252,9 +253,9 @@ export default async function ({ engine, cameraRig, params }) {
     return sp;
   };
   faceSpot(0xffc78c, num('tkey', 1.6), V(num('tkx', 0.24), num('tky', 1.02), num('tkz', 0.16)), num('tcone', 0.5));
-  faceSpot(0xffe0bc, num('key', 1.3), V(num('kx', -0.12), num('ky', 0.98), num('kz', 0.9)), num('cone', 0.5));
+  faceSpot(0xffead2, num('key', 1.8), V(num('kx', -0.12), num('ky', 0.98), num('kz', 0.9)), num('cone', 0.5));
   // a faint warm bounce from the dress / seat onto her face (from below)
-  const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.1), 1.0, 2);
+  const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.22), 1.0, 2);
   wkey.position.set(num('wkx', -0.05), num('wky', 0.85), num('wkz', 0.75));
   body.add(wkey);
   // cold moon spill through the rear glass (separates her wet hair from the dark)

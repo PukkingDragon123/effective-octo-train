@@ -594,16 +594,16 @@ export class IncenseScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 0.72;
     renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.setClearColor(0x040405, 1);
+    renderer.setClearColor(0x000000, 1);
     this.renderer = renderer;
     renderer.domElement.className = 'dlb-loading__canvas';
     host.appendChild(renderer.domElement);
 
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.FogExp2(0x0a0c0f, 1.1);
+    scene.fog = new THREE.FogExp2(0x020203, 2.4);
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.005, 5);
     const rng = makeRng(1331);
 
@@ -617,11 +617,11 @@ export class IncenseScene {
     scene.add(this.emberLight);
     this.candleLight = new THREE.PointLight(0xff9a48, 0.22, 1.6, 2);
     scene.add(this.candleLight);
-    const moon = new THREE.DirectionalLight(0x8aa0c8, 2.6);
+    const moon = new THREE.DirectionalLight(0x8a96a8, 0.55);
     moon.position.set(0.9, 0.5, -0.7);
     scene.add(moon);
-    scene.add(new THREE.HemisphereLight(0x2a3444, 0x140c08, 1.1));
-    const fill = new THREE.DirectionalLight(0xffb070, 0.5);
+    scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.25));
+    const fill = new THREE.DirectionalLight(0xffb070, 0.0);
     fill.position.set(-0.8, 0.3, 0.6);
     scene.add(fill);
 
@@ -636,6 +636,7 @@ export class IncenseScene {
     const c2 = candle(rng);
     c2.position.set(0.24, 0, -0.42);
     c2.scale.setScalar(1.1);
+    c2.visible = false;
     scene.add(c2);
     this.candle2 = c2;
     const stubMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
@@ -657,7 +658,7 @@ export class IncenseScene {
       m.rotation.order = 'ZXY';
       scene.add(m);
     }
-    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.12), haze(-0.42, 1.6, 0.9, 7.1, 0.16));
+    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.05), haze(-0.42, 1.6, 0.9, 7.1, 0.06));
 
     // ---- the stick
     this.u = {
@@ -818,7 +819,7 @@ export class IncenseScene {
     this.halo.position.copy(ember);
     this.halo.material.opacity = 0.55 + 0.35 * heat;
     const fl = 0.85 + 0.1 * Math.sin(t * 13.1) + 0.05 * Math.sin(t * 29.3);
-    this.candleLight.intensity = 0.22 * fl;
+    this.candleLight.intensity = 0.05 * fl;
     this.candle.userData.flameMat.uniforms.uTime.value = t;
     this.candle2.userData.flameMat.uniforms.uTime.value = t + 3.3;
     for (const c of [this.candle, this.candle2]) c.userData.flame.quaternion.copy(this.camera.quaternion);

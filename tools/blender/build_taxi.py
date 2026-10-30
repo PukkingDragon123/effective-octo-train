@@ -110,6 +110,9 @@ def main():
     X = dict(E.objs)
     X.update(P.objs)
     IN = I.objs
+    parts_tris = sorted(((n, vlib.tri_count(o)) for n, o in list(X.items()) + list(IN.items())
+                         if o.type == 'MESH'), key=lambda x: -x[1])
+    log('PARTS', ' '.join(f'{n}:{c}' for n, c in parts_tris[:60]))
 
     # ---------------- weathering ---------------------------------------------------------
     dent(X['door_rl'], (-0.84, -0.62, 0.40), 0.06, 0.006)

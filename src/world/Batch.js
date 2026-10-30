@@ -64,6 +64,7 @@ export class ChunkBatcher {
   /** Merge static meshes of every chunk. Returns {meshesBefore, meshesAfter}. */
   finalize() {
     let before = 0, after = 0;
+    this._rootReady = false;
     for (const c of this.list) {
       const r = this.finalizeChunk(c);
       before += r.before;
@@ -80,7 +81,10 @@ export class ChunkBatcher {
   finalizeChunk(c) {
     c.dirty = false;
     let before = 0, after = 0;
-    this.parent.updateMatrixWorld(true);
+    if (!this._rootReady) {
+      this.parent.updateMatrixWorld(true);
+      this._rootReady = true;
+    } else c.group.updateMatrixWorld(true);
     const rootInv = _inv.copy(this.parent.matrixWorld).invert();
     const buckets = new Map();
     const victims = [];

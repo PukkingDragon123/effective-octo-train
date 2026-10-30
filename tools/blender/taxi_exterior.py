@@ -598,6 +598,11 @@ class Ext:
         cut(self.objs['body'], cr)
         delete(cr)
         self.rw_loop = (P, Nn)
+        # the exact boolean on the open greenhouse sheet can leave islands inside the openings
+        # (seen as a painted 'wave' behind the windshield): drop every shell face whose centre
+        # lies inside a window loop (projected on the loop's best-fit plane) and on the sheet.
+        for P_, nm in ((self.ws_loop[0], 'ws'), (self.rw_loop[0], 'rw')):
+            self._clear_inside(self.objs['body'], P_, nm)
         # re-roll new hole edges on the body (only new boundary loops near the glass)
         o = self.objs['body']
         # remove skin group weights etc.: roll only verts near the window loops
@@ -628,6 +633,46 @@ class Ext:
             # orient profile b axis outward of the hole: flip if needed
             assign_mat(s, 'rubber')
             self.objs[nm] = s
+
+    def _clear_inside(self, ob, P, tag, inset=0.004, sheet_d=0.012):
+        c = P.mean(axis=0)
+        _, _, vt = np.linalg.svd(P - c)
+        a, b = vt[0], vt[1]
+        poly = np.stack([(P - c) @ a, (P - c) @ b], 1)
+
+        def inside(q):
+            x, y = q
+            n = len(poly)
+            ins = False
+            j = n - 1
+            for i in range(n):
+                xi, yi = poly[i]
+                xj, yj = poly[j]
+                if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi:
+                    ins = not ins
+                j = i
+            if not ins:
+                return False
+            # at least `inset` away from the loop (keeps the faces that border the cut)
+            d = np.min(np.linalg.norm(poly - np.array(q), axis=1))
+            return d > inset
+
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        dead = []
+        for f in bm.faces:
+            q = np.array(f.calc_center_median())
+            loc, nrm, idx, dist = self.bvh.find_nearest(Vector(q))
+            if dist is None or dist > sheet_d:
+                continue
+            if inside(((q - c) @ a, (q - c) @ b)):
+                dead.append(f)
+        if dead:
+            bmesh.ops.delete(bm, geom=dead, context='FACES')
+            bm.to_mesh(ob.data)
+            ob.data.update()
+        bm.free()
+        log('window clear', tag, len(dead), 'faces')
 
     def _rw_col(self, c):
         NG = self.g.G.shape[0]

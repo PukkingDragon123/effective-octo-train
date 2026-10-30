@@ -1329,3 +1329,7 @@
 .dlb-xhair__dot { opacity: 0; }
 .dlb-xhair.is-target .dlb-xhair__dot { opacity: 0.8; }
 .dlb-xhair__ring, .dlb-xhair__icon, .dlb-xhair__label { display: none !important; }
+/* loading: near-total darkness around the ember */
+.dlb-loading { background: #000 !important; }
+.dlb-loading.has-3d::after { background: radial-gradient(70% 70% at 60% 50%, transparent 30%, rgba(0, 0, 0, 0.92) 100%) !important; }
+.dlb-loading .dlb-name { color: #b9b0a0; }

@@ -427,7 +427,6 @@ export class Placement {
       B.finalizeChunk(c);
       n++;
     }
-    if (n) this.group.updateMatrixWorld(true);
     return n;
   }
 
