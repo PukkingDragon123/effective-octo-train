@@ -192,8 +192,37 @@ function fftMag(x) {
   return m;
 }
 
+/** Copy of a buffer through a 4th-order high-pass (removes handling rumble / mains hum from instrument takes). */
+export function highpassCopy(ctx, buf, fc = 200) {
+  const out = ctx.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+  const w = (2 * Math.PI * fc) / buf.sampleRate, q = Math.SQRT1_2;
+  const al = Math.sin(w) / (2 * q), cw = Math.cos(w), a0 = 1 + al;
+  const b0 = (1 + cw) / 2 / a0, b1 = -(1 + cw) / a0, b2 = b0, a1 = (-2 * cw) / a0, a2 = (1 - al) / a0;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const x = buf.getChannelData(c);
+    const y = out.getChannelData(c);
+    y.set(x);
+    for (let pass = 0; pass < 2; pass++) {
+      let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+      for (let i = 0; i < y.length; i++) {
+        const xi = y[i];
+        const yi = b0 * xi + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1;
+        x1 = xi;
+        y2 = y1;
+        y1 = yi;
+        y[i] = yi;
+      }
+    }
+  }
+  out._stats = analyseBuffer(out);
+  out._file = buf._file;
+  out._key = buf._key;
+  return out;
+}
+
 /** Pitched one-shots (a ranat bar): strongest spectral peak (Hz) just after the onset. */
-export function detectPitch(buf, fmin = 110, fmax = 2600) {
+export function detectPitch(buf, fmin = 220, fmax = 2600) {
   if (buf._f0 != null) return buf._f0;
   const d = buf.getChannelData(0);
   const sr = buf.sampleRate;

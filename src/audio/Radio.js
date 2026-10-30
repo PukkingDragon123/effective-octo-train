@@ -10,7 +10,7 @@
 // luk thung rhythm and khaen / khim phrases as station idents (registered into the song renderer).
 import { bus } from '../core/Events.js';
 import { programItem, RADIO_SR } from './Synth/songs.js';
-import { toMono } from './Samples.js';
+import { toMono, highpassCopy } from './Samples.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 export const STATION_NAMES = {
@@ -203,7 +203,11 @@ export class Radio {
         const e = bank.entry(key);
         if (!e) return [];
         const bufs = await Promise.all(e.files.map((f, idx) => Promise.resolve(bank.get({ e, idx }, 2))));
-        return bufs.filter(Boolean).map((b) => toMono(b, RADIO_SR, maxDur, 0.9 / Math.max(1e-4, b._stats?.peak || 1)));
+        // high-pass first (handling rumble would eat the headroom), then peak-match the synth notes (0.9)
+        return bufs.filter(Boolean).map((raw) => {
+          const b = highpassCopy(core.ctx, raw, 220);
+          return toMono(b, RADIO_SR, maxDur, 0.9 / Math.max(1e-4, b._stats?.peak || 1));
+        });
       };
       const [ching, khaen, khim] = await Promise.all([take('ching', 1.6), take('khaen_phrase', 3.2), take('khim_phrase', 3.2)]);
       const reg = {};

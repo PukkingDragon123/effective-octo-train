@@ -358,6 +358,7 @@ async function renderMusicSamples(bank, mood = 'menu', dur = 14) {
   await bank.ready;
   await bank.prefetch(['ranat_note', 'ching'], 0);
   await new Promise((res) => setTimeout(res, 50));
+  await Promise.all(m._sampledJobs || []);
   m.setMood(mood, { fade: 1, delay: 0 });
   m.scheduleUntil(dur);
   const out = await ctx.startRendering();

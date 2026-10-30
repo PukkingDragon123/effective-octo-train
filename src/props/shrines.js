@@ -1,7 +1,12 @@
 // Spirit houses (ศาลพระภูมิ Thai style, small Chinese red shrine, twin ศาลตายาย),
 // incense pots and tri-colour cloth wraps for sacred trees.
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, squareMoulding, baluster, makeRng, noise } from './lib/kit.js';
+
+// moulding profiles [[outward offset, y]] (metres at size 1)
+const M_BASE = [[0.03, 0], [0.03, 0.02], [0.018, 0.03], [0.022, 0.045], [0.008, 0.06], [0.004, 0.075], [0, 0.08]];
+const M_CAP = [[0, 0], [0.006, 0.006], [0.02, 0.018], [0.016, 0.03], [0.03, 0.042], [0.036, 0.06], [0.036, 0.072], [0.02, 0.076]];
+const M_CORNICE = [[0, 0], [0.008, 0.008], [0.008, 0.016], [0.022, 0.026], [0.03, 0.04], [0.03, 0.05], [0.0, 0.05]];
 import { mat, glowMat, signMat } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { G, PAL, bottle, candle, incensePot, garland, flowerString, fruitPlate, zebras, dancers, plate, glassWater, teacup, offeringTray, lantern } from './lib/small.js';
@@ -166,7 +171,10 @@ function buildThaiHouse(k, rng, age, opts) {
   k.add(mat('concrete'), bbox(0.52, 0.14, 0.52, 0.02, 0.15), { color: 0xc8c0b0, w: { mossLow: 0.9 * age, grime: 0.6 } });
   k.add(mat('ceramic'), bbox(0.46, 0.06, 0.46, 0.008, 0.1), { p: [0, 0.14, 0], color: 0x8a3a2a, w: { grime: 0.5, grimeH: 0.3 } });
   k.add(mat('plaster'), bbox(0.17, postH, 0.17, 0.015, 0.25), { p: [0, 0.2, 0], color: white, w: { mossLow: 0.6 * age, mossH: 0.7, streak: 0.5 * age } });
-  for (const y of [0.25, postH + 0.05]) k.add(mat('gold'), bbox(0.2, 0.05, 0.2, 0.008, 0.1), { p: [0, y, 0], color: gold });
+  // moulded post base + lotus-band capital (mitred mouldings, not stacked slabs)
+  k.add(mat('gold'), G('shBase', () => squareMoulding(0.085, 0.085, M_BASE, { top: false })), { p: [0, 0.2, 0], color: gold, w: { grime: 0.5, grimeH: 0.3, ground: 0 } });
+  k.add(mat('gold'), G('shCap', () => squareMoulding(0.085, 0.085, M_CAP, { top: true })), { p: [0, postH + 0.03, 0], color: gold });
+  k.add(mat('gold'), G('shCollar', () => squareMoulding(0.085, 0.085, [[0, 0], [0.012, 0.006], [0.012, 0.022], [0, 0.028]])), { p: [0, 0.62, 0], color: gold });
   // bracket flare under the deck
   k.add(mat('plaster'), G('flare2', () => cyl(0.44, 0.1, 0.2, 4, 0.01).rotateY(Math.PI / 4)), { p: [0, postH + 0.06, 0], color: white, w: { streak: 0.6 * age } });
   const deck = postH + 0.3;
@@ -175,15 +183,15 @@ function buildThaiHouse(k, rng, age, opts) {
   k.push([0, -deck, 0]);
   // deck with balustrade
   k.add(mat('plaster'), bbox(0.78, 0.05, 0.78, 0.012, 0.15), { p: [0, deck - 0.05, 0], color: white, w: { moss: 0.5 * age, dust: 0.2 } });
-  k.add(mat('gold'), bbox(0.8, 0.02, 0.8, 0.005, 0.15), { p: [0, deck - 0.065, 0], color: gold });
+  k.add(mat('gold'), G('deckCornice', () => squareMoulding(0.39, 0.39, [[0.0, 0], [0.012, 0.004], [0.012, 0.012], [0.006, 0.018], [0.018, 0.03], [0.02, 0.04], [0.006, 0.045], [0, 0.05]])), { p: [0, deck - 0.075, 0], color: gold });
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.add(mat('gold'), G('bpost', () => bbox(0.03, 0.11, 0.03, 0.006, 0.1)), { p: [sx * 0.37, deck, sz * 0.37], color: gold });
   for (const s of [-1, 1]) {
     k.add(mat('lacquer'), G('brail', () => bbox(0.74, 0.02, 0.02, 0.005, 0.15)), { p: [0, deck + 0.09, s * 0.37], color: red });
     k.add(mat('lacquer'), G('brail', () => bbox(0.74, 0.02, 0.02, 0.005, 0.15)), { p: [s * 0.37, deck + 0.09, 0], r: Math.PI / 2, color: red });
     for (let i = -2; i <= 2; i++) {
       if (s > 0 && Math.abs(i) < 1) continue; // front opening
-      k.add(mat('gold'), G('baluster', () => cyl(0.008, 0.008, 0.09, 5, 0)), { p: [i * 0.13, deck, s * 0.37], color: gold });
-      k.add(mat('gold'), G('baluster', () => cyl(0.008, 0.008, 0.09, 5, 0)), { p: [s * 0.37, deck, i * 0.13], color: gold });
+      k.add(mat('gold'), G('baluster2', () => baluster(0.09, 0.011, 8)), { p: [i * 0.13, deck, s * 0.37], color: gold });
+      k.add(mat('gold'), G('baluster2', () => baluster(0.09, 0.011, 8)), { p: [s * 0.37, deck, i * 0.13], color: gold });
     }
   }
   // house body (set back so the porch in front holds offerings)
@@ -191,7 +199,8 @@ function buildThaiHouse(k, rng, age, opts) {
   k.add(mat('plaster'), bbox(0.42, 0.36, 0.4, 0.01, 0.12), { p: [0, deck, bz], color: 0xece4d0, w: { streak: 0.45 * age, grime: 0.2, grimeH: 0.1, ground: deck } });
   // corner pilasters + gold mouldings
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) k.add(mat('gold'), G('pilaster', () => bbox(0.04, 0.37, 0.04, 0.006, 0.12)), { p: [sx * 0.21, deck, bz + sz * 0.2], color: gold });
-  k.add(mat('gold'), bbox(0.46, 0.035, 0.44, 0.006, 0.12), { p: [0, deck + 0.35, bz], color: gold });
+  k.add(mat('gold'), G('bodyCornice', () => squareMoulding(0.21, 0.2, M_CORNICE, { top: true })), { p: [0, deck + 0.33, bz], color: gold });
+  k.add(mat('gold'), G('bodyBase', () => squareMoulding(0.21, 0.2, [[0.02, 0], [0.02, 0.012], [0.01, 0.02], [0.004, 0.03], [0, 0.034]])), { p: [0, deck, bz], color: gold });
   // door: dark niche + gold frame + tiny Phra Phum figure inside
   k.add(mat('dark'), bbox(0.15, 0.24, 0.02, 0.004, 0.1), { p: [0, deck + 0.03, bz + 0.195], color: 0x1a0c08, w: false });
   k.add(mat('gold'), G('doorframe', () => {

@@ -30,6 +30,10 @@ export function makeCharUniforms(t) {
     uLmJaw: { value: new THREE.Vector4(e[0].y - 0.035, t.Gp[t.index.Head].z + 0.005, f.chinY, 0) }, // pivot y, pivot z, chin y
     uTwistO: { value: new THREE.Vector4(0, 0, 0, 0) }, // neck base (mesh space) xyz, angle
     uTwistD: { value: new THREE.Vector4(0, 1, 0, 0.12) }, // axis dir xyz, neck length
+    uGore: { value: new THREE.Vector4() }, // bleedEyes, bleedMouth, wound amount, reduced (0/1)
+    uGoreW: { value: new THREE.Vector4() }, // wound centre (bind) xyz, type 1 neck | 2 head | 3 chest
+    uLmNeck: { value: new THREE.Vector4(0, t.Gp[t.index.neck_01].y + 0.04, t.Gp[t.index.neck_01].z + 0.012, 0.058) }, // -, y, z, radius
+    uCrush: { value: 0 },
     uFaceMap: { value: null },
     uMaskMap: { value: null },
     uTime: { value: 0 },
@@ -85,6 +89,17 @@ vec3 glbFace(vec3 p) {
   d.z += uFaceB.y * 0.0012 * inner;
   return d * headFront;
 }
+uniform float uCrush;
+vec3 glbCrushD(vec3 p) {
+  // a caved-in right temple / cheek and a flattened nose (ผีตายโหง)
+  vec3 c = vec3(-0.055, uLmEyeL.y + 0.02, uLmEyeL.z - 0.045);
+  float w = exp(-dot(p - c, p - c) / (2.0 * 0.03 * 0.03));
+  vec3 n = normalize(p - vec3(0.0, uLmEyeL.y, uLmEyeL.z - 0.07));
+  vec3 d = -n * 0.016 * w;
+  d.z -= 0.006 * exp(-pow(p.x / 0.012, 2.0) - pow((p.y - uLmMouth.y - 0.035) / 0.012, 2.0));
+  d.x += 0.003 * exp(-pow(p.x / 0.012, 2.0) - pow((p.y - uLmMouth.y - 0.035) / 0.014, 2.0));
+  return d * uCrush;
+}
 vec3 glbTwist(vec3 p) {
   if (abs(uTwistO.w) < 1e-4) return p;
   vec3 a = uTwistD.xyz;
@@ -119,6 +134,71 @@ varying float vPart;
 float glbSkin = 1.0;
 float glbSeq = 0.0;
 float glbHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+uniform vec4 uGore, uGoreW, uLmNeck;
+float glbBloodWet = 0.0;
+// one blood run: from a source line downward (bind space: -y is down), wobbling, thinning, with a drop at the end
+float glbRun(vec3 p, float x0, float y0, float halfW, float len, float seed) {
+  float dy = y0 - p.y;
+  if (dy < -0.003 || dy > len + 0.012 || len <= 0.0005) return 0.0;
+  float wob = sin(p.y * 83.0 + seed * 7.0) * 0.0012 + sin(p.y * 29.0 + seed * 3.0) * 0.0022;
+  float dx = p.x - x0 - wob;
+  float k = clamp(dy / len, 0.0, 1.0);
+  float w = halfW * (1.0 - 0.55 * k) * (0.8 + 0.4 * sin(p.y * 160.0 + seed));
+  float core = (1.0 - smoothstep(w * 0.55, w, abs(dx))) * (1.0 - smoothstep(len - 0.003, len + 0.002, dy));
+  float drop = 1.0 - smoothstep(w * 1.0, w * 1.5, length(vec2(dx, dy - len)));
+  return max(core, drop) * smoothstep(-0.003, 0.001, dy);
+}
+// returns blood coverage; glbBloodWet set for fresh blood
+float glbGoreAmt(vec3 p) {
+  float b = 0.0;
+  float red = uGore.w > 0.5 ? 0.55 : 1.0;
+  float eyes = uGore.x * red, mouth = uGore.y * red, wound = uGore.z * red;
+  if (eyes > 0.001 && p.z > uLmEyeL.z - 0.03) {
+    for (int s = 0; s < 2; s++) {
+      float sx = s == 0 ? 1.0 : -1.0;
+      vec3 e = s == 0 ? uLmEyeL : uLmEyeR;
+      b = max(b, glbRun(p, e.x - sx * 0.002, e.y - 0.004, 0.0021, 0.075 * eyes, 1.0 + sx));
+      b = max(b, glbRun(p, e.x + sx * 0.004, e.y - 0.005, 0.0014, 0.05 * eyes * eyes, 3.0 + sx));
+    }
+  }
+  if (mouth > 0.001 && p.z > uLmMouth.z - 0.06) {
+    b = max(b, glbRun(p, 0.005, uLmMouth.y + 0.013, 0.0016, 0.03 * mouth, 5.0));
+    b = max(b, glbRun(p, -0.006, uLmMouth.y + 0.013, 0.0013, 0.022 * mouth, 6.0));
+    b = max(b, glbRun(p, 0.011, uLmMouth.y - 0.001, 0.0028, 0.11 * mouth, 7.0));
+    b = max(b, glbRun(p, -0.004, uLmMouth.y - 0.001, 0.0022, 0.08 * mouth, 8.0));
+    b = max(b, glbRun(p, -0.015, uLmMouth.y - 0.001, 0.0018, 0.13 * mouth * mouth, 9.0));
+  }
+  if (wound > 0.001) {
+    int type = int(uGoreW.w + 0.5);
+    if (type == 1) {
+      // neck split: a gash around the front and sides, runs down the chest and the clothes
+      vec2 q = vec2(p.x, p.z - uLmNeck.z);
+      float ang = atan(q.x, q.y);
+      float front = 1.0 - smoothstep(1.7, 2.3, abs(ang));
+      float gy = uLmNeck.y + 0.006 * sin(ang * 2.0);
+      float gash = (1.0 - smoothstep(0.0012, 0.0012 + 0.004 * wound, abs(p.y - gy))) * front * step(length(q), uLmNeck.w + 0.05);
+      b = max(b, gash);
+      float col = floor(ang * 9.0);
+      float h1 = glbHash(vec2(col, 3.1)), h2 = glbHash(vec2(col, 7.7));
+      float cx = (col + 0.3 + h2 * 0.4) / 9.0;
+      float da = (ang - cx) * max(0.05, length(q));
+      float len = wound * (0.06 + h1 * h1 * 0.55) * front;
+      vec3 pp = vec3(da, p.y, 0.0);
+      b = max(b, glbRun(pp, 0.0, gy - 0.002, 0.0035 + h2 * 0.004, len, col));
+      // soaked collar under the wound
+      b = max(b, (1.0 - smoothstep(0.0, 0.03 + 0.05 * wound, gy - p.y)) * step(p.y, gy) * front * wound * 0.85 * smoothstep(0.02, 0.0, abs(da) - 0.02 - 0.05 * wound));
+    } else {
+      vec3 c = uGoreW.xyz;
+      float r0 = (type == 2 ? 0.012 : 0.03) * (0.4 + wound);
+      b = max(b, 1.0 - smoothstep(r0 * 0.6, r0, length((p - c).xy)) * 1.0);
+      for (int i = 0; i < 5; i++) {
+        float fi = float(i);
+        b = max(b, glbRun(p, c.x + (fi - 2.0) * r0 * 0.45, c.y - r0 * 0.5, 0.0025, wound * (0.05 + glbHash(vec2(fi, 2.0)) * 0.18), fi + 11.0));
+      }
+    }
+  }
+  return clamp(b, 0.0, 1.0);
+}
 // eye aperture: returns (inside 0..1, signed distance to the upper lid edge (m), lower edge, lid shading)
 vec4 glbEye(vec3 p, vec3 e, float side, float open) {
   vec2 q = p.xy - e.xy;
@@ -211,6 +291,18 @@ const FRAG_MAP = /* glsl */ `
       c = mix(c, c * vec3(0.32, 0.28, 0.34), sock * uGhost.y * step(uLmEyeL.z - 0.02, vBind.z));
     }
   }
+  // ---- gore (animated by uniforms): fresh wet blood, darker dried rims
+  if (uGore.x + uGore.y + uGore.z > 0.0 && vPart < 1.5) {
+    float bl = glbGoreAmt(vBind);
+    if (bl > 0.0) {
+      float rim = smoothstep(0.15, 0.6, bl) * (1.0 - smoothstep(0.6, 0.95, bl));
+      vec3 fresh = uGore.w > 0.5 ? vec3(0.07, 0.008, 0.008) : vec3(0.2, 0.012, 0.01);
+      vec3 dried = vec3(0.1, 0.035, 0.02);
+      vec3 bc = mix(fresh, dried, rim * 0.7);
+      c = mix(c, bc, smoothstep(0.05, 0.5, bl));
+      glbBloodWet = smoothstep(0.5, 0.95, bl);
+    }
+  }
   diffuseColor.rgb *= c;
   diffuseColor.a *= tex.a;
 }
@@ -221,6 +313,7 @@ const FRAG_ROUGH = /* glsl */ `
 #ifdef USE_MAP
   roughnessFactor = max(0.06, texture2D(uMaskMap, vMapUv).g);
   roughnessFactor = mix(roughnessFactor, 0.28, glbSeq);
+  roughnessFactor = mix(roughnessFactor, 0.16, glbBloodWet);
 #endif
 `;
 const FRAG_EMISSIVE = /* glsl */ `
@@ -251,7 +344,7 @@ export function bodyMaterial(U, opts = {}) {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT_PARS)
       .replace('#include <skinnormal_vertex>', '#include <skinnormal_vertex>\n#ifdef USE_SKINNING\n  objectNormal = glbTwistN(objectNormal, (skinMatrix * vec4(position, 1.0)).xyz);\n#endif')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBind = position; vPart = apart;\n  transformed += normal * (afat * uFat - (apart > 0.5 && apart < 1.5 ? 0.0045 : 0.0));\n  if (apart < 0.5) transformed += glbFace(position);')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBind = position; vPart = apart;\n  transformed += normal * (afat * uFat - (apart > 0.5 && apart < 1.5 ? 0.0045 : 0.0));\n  if (apart < 0.5) transformed += glbFace(position);\n  if (uCrush > 0.0 && apart > 1.5 == false) transformed += glbCrushD(position);')
       .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  transformed = glbTwist(transformed);');
     let f = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + FRAG_PARS)

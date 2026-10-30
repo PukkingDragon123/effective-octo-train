@@ -8,7 +8,7 @@
 // Recorded instruments (manifest ranat_note, ching) replace the synthesized ranat
 // strikes (repitched from their detected pitch) and ching/chap hits once decoded.
 import { FATHER_SONG } from './Synth/songs.js';
-import { detectPitch } from './Samples.js';
+import { detectPitch, highpassCopy } from './Samples.js';
 
 const clamp = (v, a = 0, b = 1) => (v < a ? a : v > b ? b : v);
 const T7 = (step) => Math.pow(2, step / 7);
@@ -692,14 +692,17 @@ export class Music {
         const e = bank.entry(key);
         if (!e) continue;
         e.files.forEach((f, idx) => {
-          Promise.resolve(bank.get({ e, idx }, 2)).then((buf) => {
-            if (!buf) return;
-            bank.pin(buf._file);
+          const p = Promise.resolve(bank.get({ e, idx }, 2)).then((raw) => {
+            if (!raw || !this.core) return;
+            // the takes carry handling rumble / hum below the bars: high-pass a private copy
+            const buf = highpassCopy(this.core.ctx, raw, inst === 'ranat' ? 180 : 300);
+            bank.drop(raw._file);
             const f0 = inst === 'ranat' ? detectPitch(buf) : 1;
-            if (!(f0 > 60 && f0 < 4000)) return;
+            if (inst === 'ranat' && !(f0 > 150 && f0 < 3000)) return;
             // synthesized instrument notes peak at 0.9: match that
             (this.sampled[inst] ||= []).push({ buf, f0, gain: 0.9 / Math.max(1e-4, buf._stats?.peak || 1) });
           });
+          (this._sampledJobs ||= []).push(p);
         });
       }
     });
