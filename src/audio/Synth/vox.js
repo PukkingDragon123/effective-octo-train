@@ -78,6 +78,9 @@ const easeF = {
  *  rng, jitter (0.01), shimmer (0.05), breath (aspiration mixed with voicing 0..1),
  *  formantScale (1 male, 1.17 female, 1.3 child), pitchScale, gain,
  *  whisper (bool: all voicing becomes aspiration), vibrato {rate, depth (semitones)}, drift (slow f0 wander semitones)
+ *  smooth (s, 0 = off): one-pole glide on formants / f0 / source shape so segment boundaries coarticulate
+ *    instead of jumping (speech); smoothAmp (s): the same on av / ah / af (no clicks at voicing on/offsets)
+ *  tremor {rate Hz, depth semitones, amp 0..1}: elderly / frightened shake on f0 and loudness
  */
 export function renderVox(sr, score, opts = {}) {
   const rng = opts.rng || rngFrom(1);
@@ -91,6 +94,13 @@ export function renderVox(sr, score, opts = {}) {
   const whisper = !!opts.whisper;
   const vib = opts.vibrato || null;
   const drift = opts.drift ?? 0.15;
+  const trem = opts.tremor || null;
+  const upd = 24; // control-rate (samples)
+  const kF = opts.smooth > 0 ? 1 - Math.exp(-upd / (sr * opts.smooth)) : 1;
+  const kA = opts.smoothAmp > 0 ? 1 - Math.exp(-upd / (sr * opts.smoothAmp)) : 1;
+  const kP = opts.smooth > 0 ? 1 - Math.exp(-upd / (sr * opts.smooth * 1.6)) : 1;
+  const S = { ...DEFAULTS };
+  let sInit = false;
   const res = [new KRes(sr), new KRes(sr), new KRes(sr), new KRes(sr), new KRes(sr)];
   const nasRes = new KRes(sr); // nasal murmur pole (~270 Hz)
   nasRes.set(270, 100);
@@ -108,7 +118,8 @@ export function renderVox(sr, score, opts = {}) {
   let lastFlow = 0;
   let curJ = 0;
   const segs = score.segs;
-  const upd = 24; // control-rate (samples)
+  const wTrem = trem ? new Wander(rng, trem.rate * 0.7) : null;
+  let tremAmp = 1;
   let av = 0, ah = 0, af = 0, f0 = 120, oq = 0.55, sub = 0, nas = 0;
   for (let i = 0; i < n; i++) {
     if (i % upd === 0) {
@@ -124,17 +135,33 @@ export function renderVox(sr, score, opts = {}) {
         }
         if (t > score.duration) P.av = P.ah = P.af = 0;
       }
+      if (!sInit || (kF === 1 && kA === 1)) {
+        for (let k = 0; k < KEYS.length; k++) S[KEYS[k]] = P[KEYS[k]];
+        sInit = true;
+      } else {
+        // coarticulation glide: formants + source shape (kF), f0 (kP, slower), amplitudes (kA)
+        for (let k = 0; k < KEYS.length; k++) {
+          const key = KEYS[k];
+          const c = key === 'av' || key === 'ah' || key === 'af' ? kA : key === 'f0' ? kP : kF;
+          S[key] += c * (P[key] - S[key]);
+        }
+      }
       for (let k = 0; k < 5; k++) {
-        const F = P['F' + (k + 1)] * fs;
-        const B = P['B' + (k + 1)] * (whisper ? 1.6 : 1) * (1 + P.nas * (k === 0 ? 1.5 : 0.4));
+        const F = S['F' + (k + 1)] * fs;
+        const B = S['B' + (k + 1)] * (whisper ? 1.6 : 1) * (1 + S.nas * (k === 0 ? 1.5 : 0.4));
         res[k].set(F, B);
       }
-      fric.set(P.ff, P.fq);
-      tiltLP.set(clamp(5200 - P.tilt * 4600, 300, 8000), 0.5);
-      av = P.av; ah = P.ah; af = P.af; oq = clamp(P.oq, 0.2, 0.9); sub = P.sub; nas = P.nas;
+      fric.set(S.ff, S.fq);
+      tiltLP.set(clamp(5200 - S.tilt * 4600, 300, 8000), 0.5);
+      av = S.av; ah = S.ah; af = S.af; oq = clamp(S.oq, 0.2, 0.9); sub = S.sub; nas = S.nas;
       let semis = w.next(upd / sr) * drift * 0.5 + wSlow.next(upd / sr) * drift;
       if (vib) semis += Math.sin(TAU * vib.rate * t + (vib.phase || 0)) * vib.depth * clamp(t / (vib.delay || 0.001));
-      f0 = P.f0 * ps * Math.pow(2, semis / 12);
+      if (trem) {
+        const tw = Math.sin(TAU * trem.rate * t) * 0.75 + wTrem.next(upd / sr) * 0.5;
+        semis += tw * trem.depth;
+        tremAmp = 1 + tw * (trem.amp ?? 0.1);
+      }
+      f0 = S.f0 * ps * Math.pow(2, semis / 12);
     }
     // --- glottal source (Rosenberg pulse, differentiated = lip radiation) ---
     const f = Math.max(20, f0 * (1 + curJ));
@@ -153,7 +180,7 @@ export function renderVox(sr, score, opts = {}) {
     else flow = 0;
     const dflow = (flow - lastFlow) * (sr / Math.max(f, 50)) * 0.12;
     lastFlow = flow;
-    let src = whisper ? 0 : dflow * av * periodAmp;
+    let src = whisper ? 0 : dflow * av * periodAmp * tremAmp;
     // aspiration noise (modulated by glottal flow when voicing, breathy voice)
     const nz = rng() * 2 - 1;
     const asp = aspHP.process(nz) * (whisper ? (av * 0.9 + ah) * 2.2 : ah * 2.2 + av * breath * (0.4 + flow) * 0.6);

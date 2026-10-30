@@ -24,44 +24,64 @@ export const MenuState = {
   name: 'menu',
 
   async enter(params = {}) {
-    ensurePlayerActions();
-    g.actions?.setEnabled(false);
-    g.input.setWantPointerLock(false);
-    quietDirector();
-    g.ui.setCrosshair?.(false);
+    this.diving = false;
+    this.diveStop = false;
+    this.cycle = 0;
+    // Every step below is guarded: the menu UI must come up even if a part of the live scene
+    // (a model, an anchor, the audio) fails on this machine. The buttons are shown first.
+    const step = (label, fn) => {
+      try {
+        fn();
+      } catch (e) {
+        console.error(`[menu] setup: ${label}`, e);
+      }
+    };
+    step('ui', () => {
+      g.input.setWantPointerLock(false);
+      g.ui.setCrosshair?.(false);
+      g.cine.fade(1, 0);
+      g.postfx.params.letterbox = 0;
+    });
+    step('menu ui', () => this._showMenu());
+    step('actions', () => {
+      ensurePlayerActions();
+      g.actions?.setEnabled(false);
+    });
+    step('director', () => quietDirector());
     this.stage = new Stage();
     this.loopStage = new Stage();
     this.cam = new CineCam();
-    this.diving = false;
-    this.cycle = 0;
-    releaseSky();
-    g.clock.set(22.6);
-    g.clock.frozen = true;
-    g.clock.autoWeather = false;
-    g.sky?.setWeather({ rain: 0.32, fog: 0.85, wind: 0.45 }, 0);
-    g.sky?.setFogBoost?.(1.25, 0.1);
-    g.sky?.setGroundMist?.(1.4, 0.1);
-    g.cine.fade(1, 0);
-    g.postfx.params.letterbox = 0;
-    music('menu', 4);
-    try {
+    step('sky', () => {
+      releaseSky();
+      g.clock.set(22.6);
+      g.clock.frozen = true;
+      g.clock.autoWeather = false;
+      g.sky?.setWeather({ rain: 0.32, fog: 0.85, wind: 0.45 }, 0);
+      g.sky?.setFogBoost?.(1.25, 0.1);
+      g.sky?.setGroundMist?.(1.4, 0.1);
+    });
+    step('audio', () => {
+      music('menu', 4);
       g.audio?.ambience?.set({ hour: 22.6, rain: 0.32, insideCar: false, windowsOpen: true, dread: 0.4 });
-    } catch (e) {
-      /* audio optional */
-    }
+    });
     // nobody drives: the player body leaves the cab, the garage dressing goes away
-    LoopStaging.clearGarage();
-    if (g.player.mode !== 'foot') g.player.exitVehicle();
-    g.player.setWalkEnabled(false);
-    hidePlayer(true);
-    g.ahKong.root.visible = false;
-    g.bike.setEngine(false);
-    g.bike.setHeadlight(false);
-    g.taxi.setControlsEnabled(false);
-    g.taxi.setInteractionsEnabled(false);
-    g.taxi.physics.frozen = false;
-
-    this._showMenu();
+    step('garage', () => LoopStaging.clearGarage());
+    step('player', () => {
+      g.qte?.cancel?.();
+      if (g.player.mode !== 'foot') g.player.exitVehicle();
+      g.player.setWalkEnabled(false);
+      hidePlayer(true);
+    });
+    step('actors', () => {
+      g.ahKong.root.visible = false;
+      g.bike.setEngine(false);
+      g.bike.setHeadlight(false);
+    });
+    step('taxi', () => {
+      g.taxi.setControlsEnabled(false);
+      g.taxi.setInteractionsEnabled(false);
+      g.taxi.physics.frozen = false;
+    });
     // the live scene runs until the state is left
     this.run(params).catch((e) => {
       if (!isAbort(e)) console.error('[menu] scene', e);
@@ -177,6 +197,7 @@ export const MenuState = {
     }
     this.pax = pax;
     const only = g.params?.get?.('menuShot') || null;
+    let fails = 0;
     while (this.active) {
       try {
         await this._driveCycle(only);
@@ -184,10 +205,17 @@ export const MenuState = {
         if (this.diveStop) return;
         await this._incident();
         chk();
+        fails = 0;
       } catch (e) {
         if (isAbort(e)) throw e;
         // a broken take: cut to black and roll the next one
         console.error('[menu] take', e);
+        if (++fails >= 3) {
+          // the scene keeps failing on this machine: hold one quiet shot behind the buttons
+          console.warn('[menu] live scene disabled after repeated failures');
+          this._stillShot();
+          return;
+        }
         await wait(1.5);
         chk();
         if (this.hand) {
@@ -203,6 +231,27 @@ export const MenuState = {
       }
       if (this.diveStop) return;
       this.cycle++;
+    }
+  },
+
+  /** Fallback backdrop: a slow push along the foggy road, no actors. */
+  _stillShot() {
+    try {
+      const L = roadLen('main');
+      const s0 = Math.max(10, L - 300);
+      const p = roadPoint('main', s0, -1.2);
+      p.y += 1.4;
+      const look = roadPoint('main', s0 + 30, -1.2);
+      look.y += 1.1;
+      this.cam.play((tt, k) => {
+        this.cam.pos.copy(p).lerp(look, k * 0.15);
+        this.cam.look.copy(look);
+        this.cam.shot.fov = 50;
+      }, 1e6, { shake: 0.002 });
+      if (!this.diveStop) g.cine.fade(0, 1.5);
+    } catch (e) {
+      console.error('[menu] still shot', e);
+      g.cine.fade(0, 1.5);
     }
   },
 
@@ -464,7 +513,7 @@ export const MenuState = {
       cam.look.copy(looking).lerp(_a, 0.72);
       cam.shot.fov = 46 + k * 6;
     }, 4.6, { shake: 0.006 });
-    await risen;
+    await capped(risen, 3);
     chk();
     // 4. it closes around her: a wide from the shrine side, the taxi small in the fog
     const wide = roadPoint('main', roadLen('main') - 2, -6.5);
@@ -483,7 +532,7 @@ export const MenuState = {
       cam.look.lerp(_a, tt < 0.05 ? 1 : 0.05);
       cam.shot.fov = 40 - k * 4;
     }, 5.2, { shake: 0.004 });
-    await grabbing;
+    await capped(grabbing, 4);
     chk();
     const sinking = hand.sink(3.8);
     // 5. the empty taxi drives on, RIGHT, its tail-lights fading into the fog
@@ -497,7 +546,7 @@ export const MenuState = {
       cam.look.lerp(_a, tt < 0.05 ? 1 : 0.04);
       cam.shot.fov = 40;
     }, 4.5, { shake: 0.002 });
-    await sinking;
+    await capped(sinking, 4);
     rumble?.stop?.(2.5);
     g.cine.fade(1, 1.6);
     await wait(1.8);
@@ -522,35 +571,55 @@ export const MenuState = {
   },
 
   exit(_g, next) {
-    this.cam?.stop();
-    if (g.cameraRig.inCinematic && next !== 'intro') g.cameraRig.release(0.01);
-    if (this.hand) {
+    const step = (fn) => {
+      try {
+        fn();
+      } catch (e) {
+        console.error('[menu] exit', e);
+      }
+    };
+    step(() => this.cam?.stop());
+    step(() => g.cameraRig.inCinematic && next !== 'intro' && g.cameraRig.release(0.01));
+    step(() => {
+      if (!this.hand) return;
       try {
         if (this.pax) g.engine.scene.attach(this.pax.root);
       } catch (e) {
         /* ignore */
       }
-      this.hand.dispose();
+      const hand = this.hand;
       this.hand = null;
-    }
-    this.loopStage?.clear();
-    this.stage?.clear();
+      hand.dispose();
+    });
+    step(() => this.loopStage?.clear());
+    step(() => this.stage?.clear());
     this.pax = null;
-    g.dialogue.removeSpeaker?.('menuPax');
-    g.taxi.autopilot(null);
-    g.taxi.setSeatWeight?.('rearLeft', 0);
-    g.ui.hideMainMenu();
-    hidePlayer(false);
-    g.ahKong.root.visible = true;
+    step(() => g.dialogue.removeSpeaker?.('menuPax'));
+    step(() => {
+      g.taxi.autopilot(null);
+      g.taxi.setSeatWeight?.('rearLeft', 0);
+    });
+    step(() => g.ui.hideMainMenu());
+    step(() => {
+      hidePlayer(false);
+      g.ahKong.root.visible = true;
+    });
     g.clock.frozen = false;
     g.clock.autoWeather = true;
     if (next !== 'intro') {
-      g.sky?.setFogBoost?.(1, 0.5);
-      g.sky?.setGroundMist?.(1, 0.5);
+      step(() => {
+        g.sky?.setFogBoost?.(1, 0.5);
+        g.sky?.setGroundMist?.(1, 0.5);
+      });
     }
-    g.ui.setCrosshair?.(true);
+    step(() => g.ui.setCrosshair?.(true));
   },
 };
+
+/** Await a creature / actor promise, but never longer than `secs` (game time). */
+function capped(p, secs) {
+  return Promise.race([Promise.resolve(p).catch((e) => console.warn('[menu]', e)), wait(secs)]);
+}
 
 function followV(cur, target, lambda, dt) {
   cur.x = damp(cur.x, target.x, lambda, dt);

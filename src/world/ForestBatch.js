@@ -156,8 +156,7 @@ export class BatchPool {
     const info = m._geometryInfo, gids = this.gids, geomOf = this.geomOf, w = this.wsph;
     const shadow = scene === null;
     const castOf = this.castOf, altOf = this.altOf, nearOf = this.nearOf;
-    // screen-size tests (perspective passes): skip sub-pixel instances; in small targets draw
-    // the next LOD under ~120 px
+    // screen-size test (perspective passes): skip instances under ~1.5 px across (3 px in mirrors)
     let small = false, persp = false, subk = 0, ex = 0, ey = 0, ez = 0;
     if (!shadow && camera.isPerspectiveCamera) {
       const rt = renderer.getRenderTarget();

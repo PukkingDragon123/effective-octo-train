@@ -1138,7 +1138,7 @@ ATLAS_IMAGES = {}
 
 
 def bake_masks(objs, atlases, size=2048, samples=48, out_dir=None, ao_dist=0.45, cav_dist=0.035, edge_r=0.006,
-               threads=3):
+               threads=4, ao_samples=16, bevel_samples=8):
     """Bake R=AO, G=edge/curvature (convex+concave sharp edges), B=cavity into one RGB
     image per atlas. Faces bake into the atlas of their material (one pass per channel)."""
     sc = bpy.context.scene
@@ -1185,13 +1185,13 @@ def bake_masks(objs, atlases, size=2048, samples=48, out_dir=None, ao_dist=0.45,
                 ao = nt.nodes.new('ShaderNodeAmbientOcclusion')
                 ao.name = '_bk_ao'
                 ao.inputs['Distance'].default_value = param
-                ao.samples = 16
+                ao.samples = ao_samples
                 ao.only_local = (pname == 'cav')
                 nt.links.new(ao.outputs['AO'], em.inputs['Color'])
             else:
                 bev = nt.nodes.new('ShaderNodeBevel')
                 bev.name = '_bk_bev'
-                bev.samples = 8
+                bev.samples = bevel_samples
                 bev.inputs['Radius'].default_value = param
                 geo = nt.nodes.new('ShaderNodeNewGeometry')
                 geo.name = '_bk_geo'

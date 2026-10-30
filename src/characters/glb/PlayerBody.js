@@ -80,6 +80,7 @@ export class PlayerBodyGLB {
     this.headMesh.castShadow = true;
     h.inner.add(this.headMesh);
     h._setLod = () => {}; // the player is always full detail
+    h.noThrottle = true; // the first-person camera rides on his head bone: always posed at full rate
     this.headMesh.layers.set(LAYERS.PLAYER_HEAD);
     h.eyes.layers.set(LAYERS.PLAYER_HEAD);
     if (h.worn) h.worn.layers.set(LAYERS.PLAYER_HEAD);

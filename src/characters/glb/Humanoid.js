@@ -181,6 +181,8 @@ export class HumanoidGLB {
     this.bones.jaw = this.jaw;
     // ---- uniforms / textures / shader look
     const U = (this.U = makeMHUniforms(t, person));
+    // gentler expression shapes on children's small faces and on elders (see driveMHFace)
+    this._exprAmp = (1 - 0.35 * (look.child || 0)) * (1 - 0.25 * (look.old || 0));
     const tex = MH.tex;
     const skinKey = mhSkinKey(look);
     U.uSkinMap.value = tex.skins[skinKey] || Object.values(tex.skins).find(Boolean) || null;
@@ -658,7 +660,7 @@ export class HumanoidGLB {
     // nobody saw it last frame (hidden, culled by every camera incl. the mirrors): pose at ~8 Hz,
     // walking / timers keep their full accumulated time; it snaps back to full rate when it shows
     const shown = this._shownInTree();
-    if (!shown || engine.frame - this._drawnFrame > 2) every = Math.max(every, shown ? 6 : 12);
+    if (!this.noThrottle && (!shown || engine.frame - this._drawnFrame > 2)) every = Math.max(every, shown ? 6 : 12);
     if (shown && !this._wasShown) every = 1; // just revealed: never show a stale pose
     this._wasShown = shown;
     if (dt > 0 && this._frame % every !== 0) return;
@@ -1195,6 +1197,7 @@ export class HumanoidGLB {
       blinkL: bL, blinkR: bR, lidDown: clamp(lidDown / 0.35, 0, 1) * 0.8, squint, wide,
       jaw: A.x, smile: A.y, frown: A.z, stretch: A.w, browRaise: B.x, browFurrow: B.y, browSad: B.z, creepy: B.w,
       fear: ex.fear, anger: ex.anger, talk: F.talk, syl: F.syl || 0, uncanny: gv.uncanny,
+      amp: this._exprAmp ?? 1,
     });
     const b = this._mhBase || { veins: 0, pupils: 0, veil: 0 };
     U.uGhost2.value.x = b.veins + gv.veins;

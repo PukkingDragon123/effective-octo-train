@@ -17,7 +17,7 @@ const ADD = THREE.AdditiveBlending, NORMAL = THREE.NormalBlending;
 // Outputs: wp, size, vel, rot, col (rgb, a), alive, shape (float id for frag).
 const TYPES = {
   fireflies: {
-    count: 70, radius: 14, height: 3, blending: ADD, mode: BILLBOARD, minPx: 2.2, color: 0xc8ff6a, cameraCentred: false,
+    count: 70, radius: 14, height: 3, blending: ADD, mode: BILLBOARD, minPx: 2.2, color: 0xf0e27a, cameraCentred: false,
     body: /* glsl */ `
       vec3 base = vec3((aSeed.x * 2.0 - 1.0) * uRadius, 0.25 + aSeed.y * uHeight, (aSeed.z * 2.0 - 1.0) * uRadius);
       float f1 = 0.15 + aSeed2.x * 0.25, f2 = 0.2 + aSeed2.y * 0.3;
@@ -155,7 +155,7 @@ const TYPES = {
   },
   spores: {
     // fine pale spores / seed fluff hanging in the air, slow lazy drift; visible only in beams
-    count: 340, radius: 8, height: 3.2, blending: ADD, mode: BILLBOARD, minPx: 1.1, color: 0xe4f2cc, cameraCentred: true, lead: 0.55,
+    count: 340, radius: 8, height: 3.2, blending: ADD, mode: BILLBOARD, minPx: 1.1, color: 0xeceae0, cameraCentred: true, lead: 0.55,
     body: /* glsl */ `
       vec3 box = vec3(uRadius * 2.0, uHeight, uRadius * 2.0);
       vec3 drift = vec3(uWindV.x, 0.02, uWindV.y) * t * 0.3 + vec3(sin(t * 0.21 + aSeed2.x * 20.0), sin(t * 0.17 + aSeed2.y * 20.0) * 0.6, cos(t * 0.19 + aSeed2.z * 20.0)) * 0.45;

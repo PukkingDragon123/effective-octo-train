@@ -161,7 +161,7 @@ export function createSpiritHouse(opts = {}) {
     for (let i = 0; i < (style === 'chinese' ? 1 : 2); i++) useAsset(k, 'carved_wooden_elephant', { p: [0.42 - i * 0.16, 0, gz + 0.1 + i * 0.05], r: -0.3 + i * 0.5 }, { fit: { h: 0.11 + i * 0.03 }, w: { moss: 0.3 * age, grime: 0.3 } });
     const lot = findPrint([['lottery']], rng);
     if (lot) for (let i = 0; i < 2; i++) card(k, lot.kind, lot.opts, { p: [0.18 + i * 0.05, 0.004 + i * 0.001, gz + 0.38 + i * 0.03], r: [-Math.PI / 2, 0, rng() * 6, 'XYZ'], curl: 0.008, seed: seed + 50 + i, wt: { grime: 0.4, ground: -0.4, vary: 0.3 } });
-    const bc = findPrint([['buddha_card'], ['amulet_card']], rng);
+    const bc = findPrint([['amulet_card']], rng);
     if (bc && style === 'thai') card(k, bc.kind, bc.opts, { p: [0.02, 0.215, 0.087], r: [-0.25, 0, 0.05], scale: 1.2, seed: seed + 60, wt: false });
   });
   k.pop();

@@ -246,7 +246,7 @@ const FRAG_ALBEDO = /* glsl */ `
   #ifdef DLB_PALE
   {
     float l = dlbLuma(diffuseColor.rgb);
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(l) * vec3(0.86, 0.95, 1.0) * 1.35 + vec3(0.02, 0.025, 0.03), dlbPaint2.w);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(l) * vec3(0.9, 0.94, 1.0) * 1.35 + vec3(0.022, 0.024, 0.03), dlbPaint2.w);
   }
   #endif
 `;
@@ -276,17 +276,17 @@ const FRAG_EMISSIVE = /* glsl */ `
   #ifdef DLB_PALE
   {
     float rim = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.0);
-    totalEmissiveRadiance += dlbPaint2.w * (rim * 0.06 + 0.008) * vec3(0.55, 0.7, 0.75) * (1.0 + dlbRim);
+    totalEmissiveRadiance += dlbPaint2.w * (rim * 0.06 + 0.008) * vec3(0.6, 0.66, 0.78) * (1.0 + dlbRim);
   }
   #endif
   #ifdef DLB_HLBOOST
   {
-    // headlight fill: foliage inside the beam reads as bright pale green masses against
-    // the near-black forest, whatever way the individual cards face
+    // headlight fill: foliage inside the beam reads as bright, slightly desaturated masses
+    // against the near-black forest (its own albedo under white light, no green cast)
     float hl = dlbHeadlightAt(vDlbWP);
     if (hl > 0.0) {
       vec3 dc = diffuseColor.rgb;
-      vec3 pale = mix(dc, vec3(dlbLuma(dc)) * vec3(0.9, 1.14, 0.74), 0.45);
+      vec3 pale = mix(dc, vec3(dlbLuma(dc)), 0.4);
       totalEmissiveRadiance += pale * dlbHeadlightColor * (hl * 21.0 * dlbHlBoost);
     }
   }
@@ -328,9 +328,10 @@ const FRAG_ENV = /* glsl */ `
 const FRAG_TRANSLUCENT_END = /* glsl */ `
   #ifdef DLB_TRANSLUCENT
   {
-    // light through the leaves: pale yellow-green, a little desaturated (thin leaf tissue)
+    // light through the leaves: the leaf's own colour, warmer and a little desaturated
+    // (thin tissue; no extra green push)
     vec3 dc = diffuseColor.rgb;
-    vec3 tc = mix(dc * vec3(1.05, 1.2, 0.5), vec3(dlbLuma(dc)) * vec3(0.95, 1.3, 0.62), 0.4) + vec3(0.004, 0.007, 0.002);
+    vec3 tc = mix(dc * vec3(1.06, 1.0, 0.72), vec3(dlbLuma(dc)) * vec3(1.04, 1.0, 0.86), 0.45) + vec3(0.004, 0.004, 0.002);
     reflectedLight.directDiffuse += dlbTransAcc * tc * dlbPaint2.y * 0.65;
   }
   #endif
@@ -502,7 +503,7 @@ export function paintedMaterial(opts = {}) {
     dlbHlBoost: { value: opts.headlightBoost ?? 0 },
     dlbAtmoRim: { value: opts.atmoRim ?? 1 },
     dlbWindParams: { value: new THREE.Vector4(opts.windHeightScale ?? 1, opts.flutter ?? 1, opts.windPhase ?? 0, 0) },
-    dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x445424) },
+    dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x46473a) },
     dlbDirtColor: { value: new THREE.Color(opts.dirtColor ?? 0x3a2f24) },
   };
   if (triKey) {
@@ -549,7 +550,7 @@ export function paintedMaterial(opts = {}) {
 /**
  * Alpha-tested, double-sided, translucent, wind-swayed foliage (leaf cards, grass, ferns).
  * Crisp cut-outs: alpha-to-coverage in the MSAA scene target (a plain sharp alpha test
- * otherwise). Extra opts: headlightBoost=0.35 (pale-green fill inside the headlight beam),
+ * otherwise). Extra opts: headlightBoost=0.35 (neutral pale fill inside the headlight beam),
  * leafPivot=false (geometry has `aLeafPivot` vec4 = card pivot xyz in object space + phase
  * 0..1 -> rigid per-card flutter about the pivot, layered on the branch / tree sway).
  */

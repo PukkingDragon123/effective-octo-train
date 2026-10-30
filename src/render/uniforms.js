@@ -45,15 +45,15 @@ export const GLOBAL_UNIFORMS = {
   /** rgb = linear colour * intensity for fog in-scatter, a = unused. */
   uLampCol: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] },
   /** Ambient light level (0..1-ish), used by particles / custom unlit shaders to sit in the scene. */
-  uAmbient: { value: new THREE.Color(0.02, 0.03, 0.035) },
+  uAmbient: { value: new THREE.Color(0.025, 0.027, 0.033) },
   /** Moon / sun light colour * intensity, for custom shaders. */
   uMoonLight: { value: new THREE.Color(0.05, 0.07, 0.1) },
   uSunLight: { value: new THREE.Color(0, 0, 0) },
   /** Brief global lightning / flash term (sky + fog), 0..1. */
   uFlash: { value: 0 },
   /** Sky colours (linear) for cheap environment reflections on wet / glossy surfaces. */
-  uSkyZenith: { value: new THREE.Color(0.002, 0.004, 0.005) },
-  uSkyHorizon: { value: new THREE.Color(0.01, 0.02, 0.02) },
+  uSkyZenith: { value: new THREE.Color(0.003, 0.0035, 0.005) },
+  uSkyHorizon: { value: new THREE.Color(0.014, 0.016, 0.02) },
   /** 32³ value-noise lattice for the drifting fog / mist (see noiseTex.fogNoiseTexture3D). */
   uFogNoiseTex: { value: fogNoiseTexture3D() },
 };

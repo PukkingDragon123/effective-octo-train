@@ -153,14 +153,14 @@ export async function startGame(ctx) {
         /* audio optional */
       }
     };
-    await ui.loading.waitForStart((n) => {
+    await waitForStartSafe((n) => {
       if (n === 'start') play('ching', { volume: 0.55 });
       else if (n === 'reach') play('breath', { volume: 0.5 });
       else if (n === 'grab') play('sting_low', { volume: 0.7 });
       else if (n === 'pull') play('paper_rustle', { volume: 0.35, rate: 0.7 });
     });
   }
-  ui.hideLoading();
+  hideLoadingSafe();
   g.ready = true;
   window.__game.g = g;
 
@@ -180,6 +180,92 @@ export async function startGame(ctx) {
     debug: true,
   };
   g.fsm.go(start, start === 'menu' ? {} : startParams);
+  if (start === 'menu') menuWatchdog();
+}
+
+/**
+ * The start gate + the hand taking the incense. The grab is animated by the loading screen's own
+ * render loop; if that loop stalls (lost GL context, a shader that fails on this GPU, a hidden tab)
+ * the promise would never settle and the menu would never come. So: once the player has pressed
+ * something, the game moves on after a few seconds whatever the animation does.
+ */
+function waitForStartSafe(cue) {
+  return new Promise((resolve) => {
+    let done = false;
+    let timer = 0;
+    const finish = (why) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      window.removeEventListener('pointerdown', armed, true);
+      window.removeEventListener('keydown', armed, true);
+      if (why !== 'ok') console.warn(`[boot] start gate: ${why}, continuing to the menu`);
+      resolve();
+    };
+    // the first gesture arms a hard limit on the grab animation (it lasts ~3.4 s)
+    const armed = () => {
+      if (timer) return;
+      timer = setTimeout(() => finish('the hand animation stalled'), 9000);
+    };
+    window.addEventListener('pointerdown', armed, true);
+    window.addEventListener('keydown', armed, true);
+    let p;
+    try {
+      p = ui.loading?.waitForStart?.(cue);
+    } catch (e) {
+      console.error('[boot] waitForStart failed', e);
+    }
+    if (!p || typeof p.then !== 'function') return finish('no start gate');
+    p.then(
+      () => finish('ok'),
+      (e) => {
+        console.error('[boot] start gate failed', e);
+        finish('start gate error');
+      },
+    );
+  });
+}
+
+/** Hide the loading screen; it must never stay over the game, even if its own teardown throws. */
+function hideLoadingSafe() {
+  const force = () => {
+    const el = ui.loading?.el;
+    if (!el || el.hidden) return;
+    try {
+      ui.loading.scene3d?.dispose?.();
+    } catch (e) {
+      /* ignore */
+    }
+    el.classList.remove('is-in', 'is-leaving');
+    el.hidden = true;
+    console.warn('[boot] loading screen force-hidden');
+  };
+  try {
+    const p = ui.hideLoading();
+    p?.catch?.((e) => {
+      console.error('[boot] hideLoading failed', e);
+      force();
+    });
+  } catch (e) {
+    console.error('[boot] hideLoading failed', e);
+    force();
+  }
+  // its leave transition is 1.7 s; anything still showing after 4 s is stuck
+  setTimeout(force, 4000);
+}
+
+/** The main menu UI must appear even when the live scene behind it breaks. */
+function menuWatchdog() {
+  setTimeout(() => {
+    try {
+      if (!g.fsm.is('menu') || g.ui.menu?.el || MenuState.diving) return;
+      console.warn('[boot] menu UI missing after 6 s: showing it over whatever the scene is');
+      g.cine.fade(0, 1.2);
+      MenuState._showMenu();
+    } catch (e) {
+      console.error('[boot] menu watchdog', e);
+    }
+  }, 6000);
 }
 
 /** Esc / Start pauses gameplay (not during the main menu). */

@@ -22,7 +22,7 @@ import { TaxiControls, STATIONS } from './TaxiControls.js';
 import { DIM } from './TaxiBody.js';
 import { getVehicleAssets } from './VehicleAssets.js';
 import { buildTaxiFromGLB } from './TaxiGLB.js';
-import { collectRefs, mergeStaticMeshes, DetailCuller } from './optimize.js';
+import { collectRefs, mergeStaticMeshes, DetailCuller, measureRimRadius } from './optimize.js';
 import { Garland, AmuletCluster, GARLAND_UNIFORMS } from './Garland.js';
 import { TaxiBlood } from './Blood.js';
 
@@ -131,6 +131,9 @@ export class Taxi {
       } catch (e) {
         console.warn('[vehicle] static merge skipped', e);
       }
+      // the driver's hands grip the modelled rim (PlayerBody reads taxi.steeringRadius)
+      const rim = measureRimRadius(int.parts.steering?.spin);
+      if (rim) this.steeringRadius = rim;
     }
     this.bodyInner.add(ext.shell);
     for (const w of ext.wheels) this.chassis.add(w.pivot);

@@ -175,7 +175,7 @@ export class World {
         lap('assets');
       }
       const { Forest } = await import('./Forest.js');
-      await atlasReady(25000);
+      await atlasReady(12000);
       lap('atlasWait');
       this.forest = new Forest(this, { density: this.density });
       await this.forest.build((f, th, en) => prog(0.4 + f * 0.4, th || 'กำลังปลูกป่า…', en || 'Growing the forest…'));
@@ -234,7 +234,8 @@ export class World {
     const t0 = performance.now();
     this.buildTimes.backgroundJobs = jobs.length;
     this.ready = this.propsReady = runInBackground(jobs, {
-      sliceMs: 8,
+      // small slices while the rest of the game boots, bigger ones once the frame loop runs
+      sliceMs: () => (this._focusSeen ? 8 : 3),
       // whatever the camera is near (a resumed save, a teleport) is built first
       focus: () => (this._focusSeen ? this._focus : null),
       onSlice: () => this.placement?.settleChunks(),

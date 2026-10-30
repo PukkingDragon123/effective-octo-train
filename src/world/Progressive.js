@@ -5,9 +5,9 @@
 import { W } from './constants.js';
 
 /** Radius around the menu route whose terrain + forest is built before World.build() resolves (m). */
-export const SYNC_RADIUS = 150;
+export const SYNC_RADIUS = 120;
 /** ... and whose props (set pieces, dressing) are built then: what the menu's fog lets you see. */
-export const SYNC_PROPS_RADIUS = 105;
+export const SYNC_PROPS_RADIUS = 85;
 
 /** Should the build be progressive? (A direct start into gameplay builds everything at once.) */
 export function autoProgressive() {
@@ -34,7 +34,7 @@ export function menuRoute(road) {
     }
   };
   const L = road.length('main');
-  add('main', L - 560, L);
+  add('main', L - 500, L); // the live drive starts 410-470 m before the fork
   add('ghost', 0, 200); // the passenger walks down the left road
   add('human', 0, 10);
   return Float64Array.from(pts);
@@ -104,6 +104,7 @@ export function runInBackground(jobs, { sliceMs = 8, onSlice = null, onDone = nu
   return new Promise((resolve) => {
     const step = () => {
       const t0 = performance.now();
+      const budget = typeof sliceMs === 'function' ? sliceMs() : sliceMs;
       refreshUrgent();
       while (count < queue.length) {
         const i = take();
@@ -115,7 +116,7 @@ export function runInBackground(jobs, { sliceMs = 8, onSlice = null, onDone = nu
         } catch (e) {
           console.error('[world] background build job failed', e);
         }
-        if (performance.now() - t0 > sliceMs) break;
+        if (performance.now() - t0 > budget) break;
       }
       try {
         onSlice?.(count, queue.length);

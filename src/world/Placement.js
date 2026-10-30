@@ -295,7 +295,7 @@ export class Placement {
     };
     this._prepareJobs();
     // the shrine's statues are meshed in a worker while the game boots: take them from there
-    if (opts.sync && P.sculptsReady) await P.sculptsReady(20000, ['deityHead', 'deityBody', 'lion:false', 'lion:true']);
+    if (opts.sync && P.sculptsReady) await P.sculptsReady(12000, ['deityHead', 'deityBody', 'lion:false', 'lion:true']);
     lap('sculpts');
     const keys = Object.keys(world.landmarks);
     let nowL, laterL;

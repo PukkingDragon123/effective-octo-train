@@ -503,6 +503,9 @@ export function nightEnvTex() {
 }
 
 /** 2x2 atlas of four faded notices (one material for every pole). */
+// notices on walls / poles are real printed posters (photo catalogue), not canvas mock-ups
+export const NOTICE_VARIANTS = ['missing', 'lottery', 'election', 'temple_fair'];
+/** @deprecated canvas notices: kept for old callers; props use noticeTex / signMat('poster'). */
 export function noticeAtlasTex() {
   return canvasTexture(256, 360, (g, W, H) => {
     for (let v = 0; v < 4; v++) {
@@ -513,8 +516,14 @@ export function noticeAtlasTex() {
     }
   }, CLAMP);
 }
-/** Faded A4 notice / poster (fallback when signTex is a stub). */
+/** A4 notice on a wall: a real printed poster from the photo catalogue. */
 export function noticeTex(seed = 1) {
+  try {
+    const t = signTex('poster', { variant: NOTICE_VARIANTS[((seed % NOTICE_VARIANTS.length) + NOTICE_VARIANTS.length) % NOTICE_VARIANTS.length] });
+    if (t) return t;
+  } catch (e) {
+    /* library unavailable: fall through */
+  }
   return canvasTexture(128, 180, (g, w, h) => drawNotice(g, w, h, seed), CLAMP);
 }
 function drawNotice(g, w, h, seed) {

@@ -5,7 +5,7 @@
 // toward +X * lampSide (default +1). For a pole on the LEFT road edge +X faces the road.
 import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, smoothPath, sagCurve, sweep, fixWinding, indexed, makeRng, noise } from './lib/kit.js';
-import { mat, glowMat, texMat, bugDiffuserTex, noticeAtlasTex } from './lib/materials.js';
+import { mat, glowMat, signMat, bugDiffuserTex, NOTICE_VARIANTS } from './lib/materials.js';
 import { lightSpec, attachFlicker } from './lib/lights.js';
 import { G, coil } from './lib/small.js';
 
@@ -369,12 +369,12 @@ export function createElectricPole(opts = {}) {
   // --- stapled paper notices (tattered) ---------------------------------------
   const nNotice = opts.notices ?? (rng() < 0.5 ? 1 + Math.floor(rng() * 2) : 0);
   for (let i = 0; i < nNotice; i++) {
-    const nm = texMat('noticeAtlas', () => noticeAtlasTex(), { decal: true });
-    const vi = (seed + i) % 4;
+    const vi = (seed + i) % NOTICE_VARIANTS.length;
+    const nm = signMat('poster', { variant: NOTICE_VARIANTS[vi] });
     const c = poleTop(1.6 + i * 0.45 + rng() * 0.3);
     const face = rng() < 0.5 ? 1 : -1;
     k.add(nm, G('notice', () => quad(0.21, 0.29, 2, 3)), {
-      p: [c.x + face * 0.142 * (1 - 0.45 * (c.y / H)), c.y, c.z + (rng() - 0.5) * 0.04], r: [0, face * Math.PI / 2, (rng() - 0.5) * 0.15], color: 0xffffff, uv: 'keep', uvScale: 0.5, uvOffset: [(vi % 2) * 0.5, Math.floor(vi / 2) * 0.5],
+      p: [c.x + face * 0.142 * (1 - 0.45 * (c.y / H)), c.y, c.z + (rng() - 0.5) * 0.04], r: [0, face * Math.PI / 2, (rng() - 0.5) * 0.15], color: 0xffffff, uv: 'keep',
       w: { grime: 0.4, grimeH: 0.3, ground: c.y - 0.15, vary: 0.3, moss: 0 },
       deform: (p) => { p.z += Math.sin(p.x * 30) * 0.004 + (p.y < -0.08 ? (p.x + 0.1) * 0.05 : 0); },
     });

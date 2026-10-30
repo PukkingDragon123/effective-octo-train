@@ -269,7 +269,7 @@ export function createSala(opts = {}) {
       posterStack(k, { p: [x, FH + 1.3 + rng() * 0.25, pz + 0.123], w: 0.2, n: 2 + Math.floor(rng() * 3), seed: seed * 7 + Math.round(x * 10), spread: 0.04 });
     }
     posterStack(k, { p: [pillarXs[0] + 0.123, FH + 1.9, -pz + 0.02], r: Math.PI / 2, w: 0.2, n: 3, seed: seed * 11 + 3, spread: 0.04, top: missingPoster() });
-    const news = findPrint([['newspaper'], ['newspaper_local']], rng);
+    const news = findPrint([['newspaper']], rng);
     if (news) card(k, news.kind, news.opts, { p: [-bw / 2 + 0.9, benchY + 0.006, -pz + 0.32], r: [-Math.PI / 2, 0, 0.4, 'XYZ'], scale: 0.85, fold: 0.1, seed: seed + 5, wt: { vary: 0.3, dust: 0.3 } });
     litter(k, 0, 0.2, Math.min(W, D) * 0.45, { n: variant === 2 ? 14 : 9, y: FH, seed: seed + 13 });
     litter(k, W / 2 + 0.3, pz + 0.7, 0.7, { n: 5, y: 0, seed: seed + 17 });

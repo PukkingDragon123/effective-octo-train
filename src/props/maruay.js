@@ -508,7 +508,7 @@ export function createShrineMaRuay(opts = {}) {
   out.incenseAnchors.push(anchor(group, 'noseIncense', 0, 0.15, noseZ + 0.45));
 
   // ---- puddles, stains, fallen leaves --------------------------------------------------
-  const stm = texMat('stain_shrine', () => stainTex(seed + 4, '20,24,18'), { transparent: true, decal: true });
+  const stm = texMat('stain_shrine', () => stainTex(seed + 4, '24,21,18'), { transparent: true, decal: true });
   for (let i = 0; i < 4; i++) k.add(stm, G('stainq', () => quad(2.2, 2.2)), { p: [(rng() - 0.5) * 8, 0.005, pz0 + 1 + rng() * 5], r: [-Math.PI / 2, 0, rng() * 6], color: 0xffffff, uv: 'keep', w: false });
 
   group.add(k.build({ name: 'shrineMaRuay', detailDistance: 45 }));

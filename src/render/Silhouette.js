@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 /**
  * silhouetteMaterial(opts) -> MeshBasicMaterial (fog-aware, alpha-tested with alpha-to-coverage).
- * opts: { color=0x3a4a38 (painted albedo x map; lit only by ambient / moon / beams), map, alphaMap, alphaTest=0.5,
+ * opts: { color=0x363a3e (painted albedo x map; lit only by ambient / moon / beams), map, alphaMap, alphaTest=0.5,
  *   fogScale=1 (>1 = fogged as if further away; 1.5–3 for far layers), light=1 (how much
  *   ambient / moon / headlight / lamp light it catches), headlight=1, sway=0 (top edge sways in
  *   the wind; uv.y = 1 at the top), side=DoubleSide, opacity=1, transparent=false, name }
@@ -14,7 +14,7 @@ import * as THREE from 'three';
  */
 export function silhouetteMaterial(opts = {}) {
   const m = new THREE.MeshBasicMaterial({
-    color: opts.color ?? 0x3a4a38,
+    color: opts.color ?? 0x363a3e,
     map: opts.map ?? null,
     alphaMap: opts.alphaMap ?? null,
     alphaTest: opts.alphaTest ?? 0.5,

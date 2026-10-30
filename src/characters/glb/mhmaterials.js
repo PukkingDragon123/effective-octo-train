@@ -12,6 +12,7 @@
 //   * the post-skin neck twist shared with the eyes and accessories
 import * as THREE from 'three';
 import { skinMaterial, paintedMaterial } from '../../render/index.js';
+import { settings } from '../../core/Settings.js';
 
 export const MORPH_CHANNELS = [
   'blinkL', 'blinkR', 'wideL', 'wideR', 'squintL', 'squintR', 'lidsDown', 'lidsUp', 'browInnerUp', 'browDown',
@@ -236,13 +237,23 @@ float mhMoustache(vec3 p) {
 const FRAG_MAP = /* glsl */ `
 {
   vec2 uv = vMhUv;
+  // uv derivatives in uniform control flow (the cut-out mip estimate below needs them)
+  vec2 mhUvDx = dFdx(vMhUv), mhUvDy = dFdy(vMhUv);
   int part = int(vPart + 0.5);
   vec3 c = vec3(1.0);
   float alpha = 1.0;
   vec3 p = vBind;
   if (part == 0) {
     // ---------------- skin: MakeHuman photo skin, tinted to the character's tone
-    c = texture2D(uSkinMap, uv).rgb * uSkinTint;
+    // luminance detail of the photo + half of its local hue variation, carried onto the character's
+    // tone; skin albedo keeps the natural R >= G >= B order (no green / blue casts from the tint)
+    vec3 sk = texture2D(uSkinMap, uv).rgb;
+    vec3 avgS = uSkinCol / max(uSkinTint, vec3(1e-3));
+    const vec3 LW = vec3(0.2126, 0.7152, 0.0722);
+    float lumS = dot(sk, LW) / max(dot(avgS, LW), 1e-4);
+    c = uSkinCol * mix(vec3(lumS), sk / max(avgS, vec3(1e-4)), 0.5);
+    c.g = min(c.g, c.r * 0.97);
+    c.b = min(c.b, c.g * 1.02);
     glbSkin = 1.0;
     float headF = vMaskV.w;
     // scalp of shaved / balding heads: skin with a blue-grey stubble shadow instead of the painted hair
@@ -304,15 +315,28 @@ const FRAG_MAP = /* glsl */ `
     // ---------------- hair cards / brows / lashes: grey + alpha, tinted
     vec4 t = part == 2 ? texture2D(uHairMap, uv) : texture2D(uPartsMap, uv);
     alpha = t.a;
+    // mip-aware coverage: mipmapped alpha averages strands away with distance (thin, flickering hair
+    // and brows); scaling by the mip level keeps the cut-out area constant at every distance
+    vec2 ts = vec2(part == 2 ? textureSize(uHairMap, 0) : textureSize(uPartsMap, 0));
+    vec2 dxs = mhUvDx * ts, dys = mhUvDy * ts;
+    float mipL = max(0.0, 0.5 * log2(max(dot(dxs, dxs), dot(dys, dys))));
+    alpha *= 1.0 + mipL * 0.25;
     if (part == 2) {
-      // thinning (old age) and balding crown / receding temples
+      // thinning (old age): organic, bind-space strand gaps (no uv-grid rectangles), stable in motion
       float th = uLook.y;
-      if (th > 0.0 && mhHash(floor(uv * vec2(900.0, 60.0))) < th * 0.85) discard;
+      if (th > 0.0) {
+        float n = mhNoise(p * 900.0) * 0.55 + mhNoise(p * 240.0) * 0.45;
+        alpha *= 1.0 - th * 0.8 * smoothstep(0.38, 0.72, n);
+      }
+      // balding crown / receding temples: soft-edged, so the hairline thins out instead of a hard cut
       float bald = uLook.z;
       if (bald > 0.0) {
         float dc = length((p - uLmTop).xz);
-        if (p.y > uLmTop.y - 0.075 && dc < 0.07 * bald + 0.02 * (bald - 0.5)) discard;
-        if (p.z > uLmTop.z + 0.035 + 0.05 * (1.0 - bald) && p.y > uLmTop.y - 0.06) discard;
+        float r0 = 0.07 * bald + 0.02 * (bald - 0.5);
+        float crown = (1.0 - smoothstep(r0 - 0.012, r0 + 0.012, dc)) * smoothstep(uLmTop.y - 0.088, uLmTop.y - 0.066, p.y);
+        float z0 = uLmTop.z + 0.035 + 0.05 * (1.0 - bald);
+        float temple = smoothstep(z0 - 0.008, z0 + 0.01, p.z) * smoothstep(uLmTop.y - 0.07, uLmTop.y - 0.052, p.y);
+        alpha *= 1.0 - max(crown, temple);
       }
       float lum = t.r / 0.31;
       c = uHairCol * clamp(lum, 0.0, 2.2);
@@ -369,7 +393,7 @@ const FRAG_MAP = /* glsl */ `
     float pale = uGhost.x;
     if (pale > 0.0) {
       float l = dot(c, vec3(0.299, 0.587, 0.114));
-      vec3 pc = vec3(l) * vec3(0.84, 0.92, 0.98) * 1.45 + vec3(0.02, 0.024, 0.03);
+      vec3 pc = vec3(l) * vec3(0.9, 0.91, 0.97) * 1.4 + vec3(0.024, 0.024, 0.03); // bloodless, cool, never green
       c = mix(c, pc, pale);
       // lips lose their blood: grey-violet
       c = mix(c, vec3(l) * vec3(0.78, 0.74, 0.86) * 1.2, vMaskV.x * pale * 0.85);
@@ -395,7 +419,7 @@ const FRAG_MAP = /* glsl */ `
     if (decay > 0.0) {
       float n = mhNoise(p * 18.0) * 0.6 + mhNoise(p * 55.0) * 0.4;
       float m = smoothstep(0.45, 0.75, n) * decay;
-      c = mix(c, c * vec3(0.62, 0.66, 0.5), clamp(m, 0.0, 0.85));
+      c = mix(c, c * vec3(0.6, 0.55, 0.5), clamp(m, 0.0, 0.85)); // grey-brown rot (never green)
       c = mix(c, vec3(0.08, 0.06, 0.05), smoothstep(0.78, 0.9, n) * decay * 0.7);
     }
     if (uStain.x > 0.0) {
@@ -418,10 +442,18 @@ const FRAG_MAP = /* glsl */ `
       glbBloodWet = smoothstep(0.5, 0.95, bl);
     }
   }
-  // cut-out cards (hair, brows, lashes, veil, bun): dithered threshold for soft, strand-like edges
+  // cut-out cards (hair, brows, lashes, veil, bun): a STABLE threshold (no screen-space dither: it
+  // crawled in motion). With MSAA the edge is sharpened to ~1 px and resolved by alpha-to-coverage
+  // (clean, antialiased strands); without MSAA it is a plain 0.5 cut.
+  float mhAw = fwidth(alpha);
   if (part >= 2 && part != 5 && part != 6) {
-    float th = 0.3 + 0.2 * mhHash(gl_FragCoord.xy * 0.37 + vec2(uTime * 0.0, 1.7));
-    if (alpha < th) discard;
+#ifdef MH_A2C
+    float cov = clamp((alpha - 0.5) / max(mhAw, 1e-4) + 0.5, 0.0, 1.0);
+    if (cov < 0.02) discard;
+    diffuseColor.a *= cov;
+#else
+    if (alpha < 0.5) discard;
+#endif
   }
   diffuseColor.rgb *= c;
 }
@@ -470,12 +502,16 @@ const VERT_SKIN_NORMAL = '#include <skinnormal_vertex>\n#ifdef USE_SKINNING\n  o
 
 /** Body material: skin + clothes + hair + brows + lashes + teeth + tongue + veil, one draw call. */
 export function mhBodyMaterial(U, opts = {}) {
-  // double sided; hair / brow / lash cards are cut out in the shader (a dithered threshold, so opacity
-  // fades of the whole character keep working: no material alphaTest / alpha-to-coverage)
+  // double sided; hair / brow / lash cards are cut out in the shader at a stable threshold (no
+  // material alphaTest, so opacity fades of the whole character keep working). With MSAA (every preset
+  // but low) the cut edge goes through alpha-to-coverage: antialiased strands that hold still in motion.
   const m = skinMaterial({ map: opts.map, roughness: 0.6, wet: opts.wet ?? 0.1, sss: 0.85, brush: 0.08, name: 'mh-character', side: THREE.DoubleSide });
   m.side = THREE.DoubleSide;
   m.userData.charUniforms = U;
-  return patch(m, 'mhBody3', (sh) => {
+  const a2c = (settings.get('graphicsPreset') || 'medium') !== 'low';
+  m.alphaToCoverage = a2c;
+  if (a2c) m.defines = { ...(m.defines || {}), MH_A2C: '' };
+  return patch(m, 'mhBody4' + (a2c ? 'a' : ''), (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT)
@@ -491,7 +527,10 @@ export function mhBodyMaterial(U, opts = {}) {
   transformed += mhMorph();
   if (uCrush > 0.0 && apart < 0.5) transformed += glbCrushD(position);`,
       )
-      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  transformed = glbTwist(transformed);');
+      .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  transformed = glbTwist(transformed);')
+      // brows / lashes sit a hair's breadth above the skin: a tiny depth bias keeps them from
+      // z-fighting it (≈0.1 mm at 1 m, ≈1 cm at 10 m)
+      .replace('#include <project_vertex>', '#include <project_vertex>\n  if (apart > 2.5 && apart < 4.5) gl_Position.z -= 6e-6 * gl_Position.w;');
     let f = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + FRAG)
       .replace('#include <map_fragment>', FRAG_MAP)
@@ -575,6 +614,9 @@ const _hash = (x) => { const s = Math.sin(x * 12.9898) * 43758.5453; return s - 
 export function driveMHFace(U, f) {
   const W = U.uMorphW.value;
   const c = (v) => (v < 0 ? 0 : v > 1.4 ? 1.4 : v);
+  // expression amplitude (brows / mouth / cheeks): the ARKit deltas are sized for an adult face, so
+  // children's smaller faces and elders' slack skin get gentler shapes (blinks always close fully)
+  const k = f.amp ?? 1;
   W[0] = c(f.blinkL);
   W[1] = c(f.blinkR);
   const wide = c(f.wide) * (1 - Math.max(f.blinkL, f.blinkR));
@@ -584,18 +626,18 @@ export function driveMHFace(U, f) {
   W[5] = c(f.squint + f.smile * 0.25 + f.creepy * 0.25);
   W[6] = c(f.lidDown);
   W[7] = c(f.lidUp || 0);
-  W[8] = c(f.browRaise * 0.7 + f.browSad * 0.9 + f.fear * 0.4);
-  W[9] = c(f.browFurrow);
-  W[10] = c(f.browRaise * 0.8 + f.creepy * 0.2);
-  W[11] = c(f.jaw * 0.72 + f.stretch * 0.55);
-  W[12] = c(f.smile + f.creepy * 0.95);
-  W[13] = c(f.smile + f.creepy * 0.6);
-  W[14] = c(f.frown);
-  W[15] = c(f.stretch * 0.9 + f.creepy * 0.45 + f.fear * 0.25);
+  W[8] = c((f.browRaise * 0.7 + f.browSad * 0.9 + f.fear * 0.4) * k);
+  W[9] = c((f.browFurrow) * k);
+  W[10] = c((f.browRaise * 0.8 + f.creepy * 0.2) * k);
+  W[11] = c((f.jaw * 0.72 + f.stretch * 0.55) * k);
+  W[12] = c((f.smile + f.creepy * 0.95) * k);
+  W[13] = c((f.smile + f.creepy * 0.6) * k);
+  W[14] = c((f.frown) * k);
+  W[15] = c((f.stretch * 0.9 + f.creepy * 0.45 + f.fear * 0.25) * k);
   // talking: vary the mouth shape per syllable (rounded / spread / open)
   const h = f.talk ? _hash(f.syl) : 0;
-  W[16] = f.talk ? (h < 0.3 ? f.jaw * 0.7 : 0) : 0;
-  W[17] = c(f.anger * 0.45);
-  W[18] = f.talk ? (h > 0.6 ? f.jaw * 0.5 : f.jaw * 0.15) : 0;
+  W[16] = f.talk ? (h < 0.3 ? f.jaw * 0.7 * k : 0) : 0;
+  W[17] = c((f.anger * 0.45) * k);
+  W[18] = f.talk ? (h > 0.6 ? f.jaw * 0.5 * k : f.jaw * 0.15 * k) : 0;
   W[19] = c(f.uncanny);
 }

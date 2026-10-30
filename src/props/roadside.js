@@ -98,7 +98,7 @@ export function createNoodleStall(opts = {}) {
     if (!useAsset(k, 'small_lpg_tank', { p: [-1.08, 0, 0.15], r: 2.4 }, { fit: { h: 0.58 }, w: { grime: 0.5, streak: 0.4 } })) k.add(mat('metal'), G('lpg', () => cyl(0.16, 0.16, 0.55, 14, 0.06, 2)), { p: [-1.05, 0, 0.15], color: 0xb02a1a, w: { grime: 0.6, streak: 0.5 } });
     k.add(mat('dark'), tube(smoothPath([V(-1.05, 0.58, 0.15), V(-0.95, 0.75, 0.25), V(-0.75, 0.8, 0.2), V(-0.62, 0.9, 0.1)], 8), 0.008, 4), { color: 0x1a1a1a, w: false });
     // menu board hanging off the case
-    k.add(signMat('noodle_menu', {}), G('menu', () => quad(0.55, 0.75)), { p: [0.95, 1.2, 0.18], r: [0, -0.5, 0.03], color: 0xd8d0b8, uv: 'keep', w: { vary: 0.3 } });
+    k.add(signMat('noodle_menu', { variant: 'board' }), G('menu', () => quad(0.55, 0.75)), { p: [0.95, 1.2, 0.18], r: [0, -0.5, 0.03], color: 0xd8d0b8, uv: 'keep', w: { vary: 0.3 } });
     k.add(mat('wood'), G('menuframe', () => bbox(0.6, 0.8, 0.02, 0.006, 0.2)), { p: [0.955, 0.8, 0.17], r: [0, -0.5, 0.03], color: 0x5a3a20, w: false });
     // dish rack + cooler + water bucket at the side
     k.add(mat('plastic'), G('cooler', () => bbox(0.6, 0.42, 0.4, 0.03, 0.1)), { p: [1.25, 0, -0.1], r: 0.2, color: 0x2a5a9a, w: { grime: 0.5 } });
@@ -458,8 +458,13 @@ export function createSignPost(kind, opts = {}) {
   group.name = 'sign_' + kind;
   const age = opts.age ?? 0.7;
   const k = new Kit(seed, { grime: 0.5 * age, grimeH: 0.5, mossLow: 0.8 * age, mossH: 0.45, streak: 0.5 * age, vary: 0.2 });
-  const texOpts = { ...opts };
+  let texOpts = { ...opts };
   for (const key of ['seed', 'bent', 'age', 'scale', 'height', 'lights']) delete texOpts[key];
+  // printed road signs come from the photo catalogue (road_sign / km_marker variants)
+  if (kind === 'elephant_crossing' && !Object.keys(texOpts).length) {
+    kind = 'road_sign';
+    texOpts = { variant: 'elephant' };
+  }
   const sm = signMat(kind, texOpts);
   const info = signInfo(kind, texOpts);
   const sc = opts.scale ?? 1;
@@ -684,9 +689,9 @@ export function createAccidentMemorial(opts = {}) {
     shoes(k, { p: [0.75, 0, 0.1], r: 0.6, color: 0x2a2a3a, messy: true });
     // printed things people leave: a yellowed newspaper clipping pinned inside the shelter,
     // amulet cards and lottery tickets on the stand, joss paper, a wet crumpled page
-    const news = findPrint([['newspaper'], ['newspaper_local']], rng);
+    const news = findPrint([['newspaper']], rng);
     if (news) card(k, news.kind, news.opts, { p: [0.334, 1.0, -0.64], r: [0, Math.PI / 2, 0.06], w: 0.2, curl: 0.012, seed: seed + 3, wt: { vary: 0.35, grime: 0.3, ground: 0.8 } });
-    const bc = findPrint([['buddha_card'], ['amulet_card']], rng);
+    const bc = findPrint([['amulet_card']], rng);
     if (bc) for (const s of [-1, 1]) card(k, bc.kind, bc.opts, { p: [s * 0.07, 0.752, -0.41], r: [-Math.PI / 2 + 0.25, 0, s * 0.2, 'XYZ'], scale: 1.3, seed: seed + 4 + s, wt: false });
     const lot = findPrint([['lottery']], rng);
     if (lot) for (let i = 0; i < 3; i++) card(k, lot.kind, lot.opts, { p: [-0.3 + i * 0.04, 0.0045, 0.05 + i * 0.05], r: [-Math.PI / 2, 0, rng() * 6, 'XYZ'], curl: 0.006, crumple: 0.002, seed: seed + 8 + i, wt: { grime: 0.5, ground: -0.4 } });

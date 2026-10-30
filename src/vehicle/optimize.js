@@ -124,3 +124,31 @@ export class DetailCuller {
     }
   }
 }
+
+/**
+ * Grip radius of a steering wheel: vertices of the meshes under `spin`, in spin space (rim in the XY
+ * plane), outer rim edge (99th percentile of the radial distance) minus half a typical rim tube.
+ * Returns 0 when there is nothing to measure.
+ */
+export function measureRimRadius(spin, tube = 0.013) {
+  if (!spin) return 0;
+  spin.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(spin.matrixWorld).invert();
+  const m = new THREE.Matrix4(), v = new THREE.Vector3();
+  const rs = [];
+  spin.traverse((o) => {
+    if (!o.isMesh || !o.geometry?.attributes?.position) return;
+    m.multiplyMatrices(inv, o.matrixWorld);
+    const p = o.geometry.attributes.position;
+    const step = Math.max(1, Math.floor(p.count / 4000));
+    for (let i = 0; i < p.count; i += step) {
+      v.fromBufferAttribute(p, i).applyMatrix4(m);
+      if (Math.abs(v.z) < 0.08) rs.push(Math.hypot(v.x, v.y));
+    }
+  });
+  if (rs.length < 32) return 0;
+  rs.sort((a, b) => a - b);
+  const outer = rs[Math.floor(rs.length * 0.99)];
+  const r = outer - tube;
+  return r > 0.12 && r < 0.3 ? r : 0;
+}

@@ -306,7 +306,7 @@ const TER_ALBEDO = /* glsl */ `
   // rock on cuttings / steep banks
   float rockM = smoothstep(0.42, 0.62, slope + (nz2.g - 0.5) * 0.3);
   wTerRock = rockM;
-  col = mix(col, rock * mix(vec3(1.0), vec3(0.78, 0.9, 0.7), smoothstep(0.5, 0.8, nz.b)), rockM);
+  col = mix(col, rock * mix(vec3(1.0), vec3(0.82, 0.82, 0.78), smoothstep(0.5, 0.8, nz.b)), rockM);
   // pads under set pieces
   col = mix(col, mix(gravel, soil * 0.8, 0.3), clamp(pad * 1.5, 0.0, 1.0));
   // wet ground near water and in ditches
@@ -353,7 +353,7 @@ export function createTerrainMaterial() {
 // ---------------------------------------------------------------------------
 export function createWaterMaterial() {
   const nrm = texOr('water_ripple', null, { repeat: [0.35, 0.18] });
-  const m = paintedMaterial({ name: 'water', color: 0x0a110f, roughness: 0.06, metalness: 0.0, normalMap: nrm, brush: 0.15, wet: 1, puddles: 0 });
+  const m = paintedMaterial({ name: 'water', color: 0x0b0e10, roughness: 0.06, metalness: 0.0, normalMap: nrm, brush: 0.15, wet: 1, puddles: 0 });
   if (m.normalScale) m.normalScale.set(0.35, 0.35);
   chainPatch(m, 'worldWater', (shader) => {
     shader.uniforms.wFogColor = U.uFogColor;

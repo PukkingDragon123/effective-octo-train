@@ -1095,7 +1095,7 @@ export class Forest {
     if (!T || !road) return;
     const tex = silhouetteTexture();
     const mat = crispAlpha(
-      unflipNormals(foliageMaterial({ name: 'flats', map: tex, alphaTest: 0.5, color: 0x56604a, vertexColors: false, wind: 'trunk', windHeightScale: 0.35, translucency: 0.15, roughness: 1, brush: 0.4 }), 'unflip'),
+      unflipNormals(foliageMaterial({ name: 'flats', map: tex, alphaTest: 0.5, color: 0x5a5a56, vertexColors: false, wind: 'trunk', windHeightScale: 0.35, translucency: 0.15, roughness: 1, brush: 0.4 }), 'unflip'),
       'crisp',
     );
     this.mats.flats = mat;

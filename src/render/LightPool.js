@@ -23,11 +23,11 @@ const realCount = () => Math.min(MAX_REAL, REAL_BY_PRESET[settings.get('graphics
  * colour + flicker; the fog halo of each lamp is a slightly richer version of its colour.
  */
 export const LIGHT_ACCENTS = {
-  sodium: { color: 0xff9a3c, flicker: 'sodium' },
-  fluorescent: { color: 0xd4ffe2, flicker: 'fluorescent' }, // sick green-white
-  dying: { color: 0xcaf5da, flicker: 'dying' },
-  shrine: { color: 0xff2a30, flicker: 'candle' }, // crimson lanterns
-  candle: { color: 0xffa040, flicker: 'candle' }, // amber
+  sodium: { color: 0xffa040, flicker: 'sodium' }, // orange-yellow street lamps
+  fluorescent: { color: 0xe8eeff, flicker: 'fluorescent' }, // cool white tube (no green cast)
+  dying: { color: 0xdfe6f2, flicker: 'dying' },
+  shrine: { color: 0xff5228, flicker: 'candle' }, // red-gold lanterns
+  candle: { color: 0xffa648, flicker: 'candle' }, // tungsten / flame amber
   neon: { color: 0xff3a5a, flicker: 'neon' },
   headlight: { color: 0xdfe9ff, flicker: 'none' }, // cold blue-white
   moon: { color: 0xb8c8ff, flicker: 'none' },

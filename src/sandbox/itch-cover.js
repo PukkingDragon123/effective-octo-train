@@ -252,8 +252,8 @@ export default async function ({ engine, cameraRig, params }) {
     body.add(sp, sp.target);
     return sp;
   };
-  faceSpot(0xffc78c, num('tkey', 1.6), V(num('tkx', 0.24), num('tky', 1.02), num('tkz', 0.16)), num('tcone', 0.5));
-  faceSpot(0xffead2, num('key', 1.8), V(num('kx', -0.12), num('ky', 0.98), num('kz', 0.9)), num('cone', 0.5));
+  faceSpot(0xffc78c, num('tkey', 1.6), V(num('tkx', 0.24), num('tky', 1.0), num('tkz', 0.16)), num('tcone', 0.45));
+  faceSpot(0xfff1e4, num('key', 2.4), V(num('kx', -0.12), num('ky', 0.96), num('kz', 0.9)), num('cone', 0.42));
   // a faint warm bounce from the dress / seat onto her face (from below)
   const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.22), 1.0, 2);
   wkey.position.set(num('wkx', -0.05), num('wky', 0.85), num('wkz', 0.75));
@@ -262,16 +262,43 @@ export default async function ({ engine, cameraRig, params }) {
   const rim = new THREE.PointLight(0x8aa4c8, num('rim', 0.5), 2.4, 2);
   rim.position.set(num('rx', -0.45), num('ry', 1.25), num('rz', 1.45));
   body.add(rim);
-  // an old, nicotine-dark headliner (set dressing: the cream one glows under the lamp)
+  // night in the cabin: the taxi's own materials a step darker (the sky's ambient reaches in unoccluded),
+  // the cream headliner much darker (old, nicotine-stained), so only the two lit faces carry the frame
+  const skipChars = new Set();
+  for (const h of [ton, ww]) h.root.traverse((o) => skipChars.add(o));
+  const seenM = new Set();
   body.traverse((o) => {
-    if (!o.isMesh) return;
+    if (!o.isMesh || skipChars.has(o)) return;
     for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-      if (m?.name === 'taxi_headliner' && !m.userData.itchDark) {
-        m.color.multiplyScalar(num('liner', 0.42));
-        m.userData.itchDark = true;
-      }
+      if (!m?.color || seenM.has(m)) continue;
+      seenM.add(m);
+      m.color.multiplyScalar(num('cabinDark', 0.55) * (/headliner/i.test(m.name || '') ? num('liner', 0.45) : 1));
     }
   });
+
+  // her long hair has one card standing up off the crown like a horn: clip it a little above the scalp
+  if (num('horn', 0.205) > 0) {
+    engine.renderer.localClippingEnabled = true;
+    const hornPlane = new THREE.Plane();
+    const hq = new THREE.Quaternion(), up = V(0, 0, 0), top = V(0, 0, 0);
+    const wwMats = new Set();
+    ww.root.traverse((o) => {
+      if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) wwMats.add(m);
+    });
+    for (const m of wwMats) {
+      m.clippingPlanes = [hornPlane];
+      m.needsUpdate = true;
+    }
+    engine.onUpdate(() => {
+      const I = ww.t.index.Head;
+      ww.boneFrame(I, hq);
+      up.set(0, 1, 0).applyQuaternion(hq).normalize();
+      ww.bones.Head.getWorldPosition(top).addScaledVector(up, num('horn', 0.205) * (ww.scale || 1));
+      // keep the side of the plane the head is on: points beyond `top` along `up` are cut
+      hornPlane.normal.copy(up).negate();
+      hornPlane.constant = up.dot(top);
+    }, 85);
+  }
 
   const setView = (v) => {
     if (v.head) {

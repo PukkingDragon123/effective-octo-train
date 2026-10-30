@@ -477,24 +477,56 @@ const PHOTO_OK_OPTS = new Set(['variant', 'weather', 'photo', 'km', 'kmh', 'dir'
 const PHOTO_DEFAULT = { calendar: 'buddha', noodle_menu: 'board', lottery: 'temple', receipt: 'taxi' };
 const PHOTO_ALIAS = { 'drink_label:red_soda': 'soda_red', 'drink_label:energy': 'energy' };
 
+// procedural kinds that have a photographed equivalent: packaging, devotional cards, road signs.
+// value(opts) -> 'printedKind' or 'printedKind:variant' (no variant: the nearest one by opts.variant)
+const PHOTO_KIND = {
+  snack_wrapper: (o) => (o.variant === 'noodles' ? 'noodle_cup' : 'snack_bag'),
+  buddha_card: () => 'amulet_card',
+  elephant_crossing: () => 'road_sign:elephant',
+};
+// printed products: the photo always wins (custom labels / text options are ignored, unknown variants
+// get the nearest photographed one), so no flat-colour canvas label ever shows on a product
+const PRODUCT_KINDS = new Set(['snack_bag', 'noodle_cup', 'drink_label', 'cigarette_pack', 'betel_pack', 'incense_box', 'candle_pack',
+  'joss_paper', 'offering_label', 'amulet_card', 'sticker', 'poster', 'calendar', 'newspaper', 'lottery', 'receipt', 'fare_chart', 'noodle_menu']);
+/** a stable pick among the catalogue variants for an unknown variant name */
+function nearestVariant(cat, v) {
+  const sv = v == null ? '' : String(v);
+  if (cat.variants.includes(sv)) return sv;
+  const near = cat.variants.find((x) => x.startsWith(sv) || (sv && sv.startsWith(x)));
+  if (near) return near;
+  let h = 7;
+  for (let i = 0; i < sv.length; i++) h = (h * 31 + sv.charCodeAt(i)) >>> 0;
+  return cat.variants[h % cat.variants.length];
+}
+
 /** 'kind:variant' of the photobashed version that can honour these opts, or null (-> procedural). */
 function photoSignKey(kind, opts) {
   if (opts.photo === false || !photoTexturesEnabled()) return null;
-  for (const k of Object.keys(opts)) if (!PHOTO_OK_OPTS.has(k)) return null; // custom text etc.
   let pkind = kind;
   let variant = opts.variant;
-  if (kind === 'km_marker') variant = String(opts.km ?? 9);
+  const mapped = PHOTO_KIND[kind];
+  if (mapped) {
+    const [k, v] = mapped(opts).split(':');
+    pkind = k;
+    if (v) variant = v;
+  } else if (kind === 'km_marker') variant = String(opts.km ?? 9);
   else if (kind === 'curve_warning') (pkind = 'road_sign'), (variant = opts.dir === 'left' ? 'curve_left' : 'curve_right');
   else if (kind === 'speed_sign') (pkind = 'road_sign'), (variant = 'speed_' + (opts.kmh ?? 60));
   const cat = PRINTED_CATALOGUE[pkind];
   if (!cat) return null;
+  const product = PRODUCT_KINDS.has(pkind);
+  if (!product && !mapped) for (const k of Object.keys(opts)) if (!PHOTO_OK_OPTS.has(k)) return null; // custom sign text
   if (variant == null) {
     if (PHOTO_DEFAULT[kind]) variant = PHOTO_DEFAULT[kind];
-    else if (PROC_SIGN_KINDS[kind]) return null; // plain procedural call: keep the canvas design
+    else if (PROC_SIGN_KINDS[kind] && !product && !mapped) return null; // plain procedural sign
     else variant = cat.variants[0];
   }
   variant = PHOTO_ALIAS[pkind + ':' + variant] ?? variant;
-  return cat.variants.includes(String(variant)) ? pkind + ':' + variant : null;
+  if (!cat.variants.includes(String(variant))) {
+    if (!product && !mapped) return null;
+    variant = nearestVariant(cat, variant);
+  }
+  return pkind + ':' + variant;
 }
 
 /** Paint the procedural stand-in into a placeholder texture (photo missing / photos disabled), once. */

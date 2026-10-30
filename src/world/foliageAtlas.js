@@ -592,7 +592,8 @@ export function silhouettePixels() {
     g.rect(0, strip * SH, Wd, SH);
     g.clip();
     g.translate(0, strip * SH);
-    const col = (l, a = 1) => hsl(100 + rng() * 30, 0.18, l, a);
+    // neutral warm-grey tree line (no green cast in the fog layers); same rng draws as before
+    const col = (l, a = 1) => hsl(28 + rng() * 10, 0.04, l, a);
     // undergrowth band
     for (let i = 0; i < 900; i++) {
       const x = rng() * Wd, y = SH - rng() * SH * 0.22;
