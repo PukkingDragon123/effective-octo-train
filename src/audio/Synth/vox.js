@@ -81,6 +81,8 @@ const easeF = {
  *  smooth (s, 0 = off): one-pole glide on formants / f0 / source shape so segment boundaries coarticulate
  *    instead of jumping (speech); smoothAmp (s): the same on av / ah / af (no clicks at voicing on/offsets)
  *  tremor {rate Hz, depth semitones, amp 0..1}: elderly / frightened shake on f0 and loudness
+ *  hpc (bool): higher-pole correction: three fixed resonances above F5 (scaled with formantScale) so a
+ *    24-32 kHz render keeps the 4-8 kHz air of a real voice instead of the 5-pole cascade's cliff
  */
 export function renderVox(sr, score, opts = {}) {
   const rng = opts.rng || rngFrom(1);
@@ -102,6 +104,11 @@ export function renderVox(sr, score, opts = {}) {
   const S = { ...DEFAULTS };
   let sInit = false;
   const res = [new KRes(sr), new KRes(sr), new KRes(sr), new KRes(sr), new KRes(sr)];
+  const hpc = opts.hpc ? [4950, 5900, 7000].filter((F) => F * fs < sr * 0.42).map((F, k) => {
+    const r = new KRes(sr);
+    r.set(F * fs, 380 + k * 160);
+    return r;
+  }) : [];
   const nasRes = new KRes(sr); // nasal murmur pole (~270 Hz)
   nasRes.set(270, 100);
   const fric = new SVF(sr, 4000, 1.5);
@@ -189,6 +196,7 @@ export function renderVox(sr, score, opts = {}) {
     // cascade formants
     let y = src;
     for (let k = 0; k < 5; k++) y = res[k].process(y);
+    for (let k = 0; k < hpc.length; k++) y = hpc[k].process(y);
     // parallel frication
     fric.process(rng() * 2 - 1);
     y += (fric.bp + fric.hp * 0.25) * af * 0.6;
