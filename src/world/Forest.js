@@ -344,6 +344,11 @@ export class Forest {
     const y = (o.y ?? T.sample(x, z)) + (o.dy ?? 0);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler((o.tiltX ?? 0), yaw, (o.tiltZ ?? 0), 'YXZ'));
+    if (o.lean) {
+      // lean toward (lx, lz) by angle: rotate about the horizontal axis perpendicular to it
+      const ax = new THREE.Vector3(o.lean.z, 0, -o.lean.x).normalize();
+      q.premultiply(new THREE.Quaternion().setFromAxisAngle(ax, o.lean.a));
+    }
     m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(scale, scale * (o.sy ?? 1), scale));
     const I = rec.inst;
     I.x.push(x);
@@ -406,7 +411,14 @@ export class Forest {
           const name = pickW(rng, w);
           const v = Math.floor(rng() * 8);
           const sc = name === 'understory' ? 1.3 + rng() * 0.4 : 0.85 + rng() * 0.32;
-          this._place(name, v, x, z, rng() * Math.PI * 2, sc, rng, { dy: -0.05 });
+          // trees at the road edge lean into the light gap over the asphalt
+          let lean = null;
+          if (nr.exact && nr.e < 16) {
+            const tg = nr.sp.tangents[nr.i];
+            const a = (name === 'dipterocarp' ? 0.05 : 0.1) + rng() * (name === 'dipterocarp' ? 0.07 : 0.16);
+            lean = { x: -nr.side * -tg.z, z: -nr.side * tg.x, a: a * (1 - nr.e / 18) };
+          }
+          this._place(name, v, x, z, rng() * Math.PI * 2, sc, rng, { dy: -0.05, lean });
           if (nr.e < 16) this.colliders.push({ x, z, r: name === 'dipterocarp' ? 1.2 : name === 'banyan' ? 1.6 : 0.9 });
         }
       }
@@ -458,7 +470,12 @@ export class Forest {
             continue;
           }
           if (r < 0.5 && nr.e > 2.8) {
-            this._place('understory', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.75 + rng() * 0.5, rng);
+            let lean = null;
+            if (nr.exact && nr.e < 9) {
+              const tg = nr.sp.tangents[nr.i];
+              lean = { x: nr.side * tg.z, z: -nr.side * tg.x, a: 0.12 + rng() * 0.2 };
+            }
+            this._place('understory', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.75 + rng() * 0.5, rng, { lean });
             continue;
           }
         }

@@ -324,7 +324,7 @@ function rainTree(rng, opts) {
   const H0 = (3.2 + rng() * 2) * sc, R0 = (0.62 + rng() * 0.3) * sc;
   const lean = new THREE.Vector3((rng() - 0.5) * 0.25, 1, (rng() - 0.5) * 0.25).normalize();
   const trunk = growPath(rng, { x: 0, y: -0.4, z: 0 }, lean, H0 + 0.4, R0 * 1.05, R0 * 0.82, 6, { wobble: 0.06 });
-  const tint = BARK_TINT(rng, [0.5, 0.46, 0.41]);
+  const tint = BARK_TINT(rng, [0.72, 0.66, 0.6]);
   skel.branches.push({
     pts: trunk, level: 0, color: aoColor(tint, 0.5, 0, 2.5),
     rFn: (i, ang, r, p) => r * (1 + Math.max(0, 0.9 - p.y) * 0.35 * (1 + 0.6 * Math.pow(Math.max(0, Math.cos(ang * 3 + 1)), 6))),
@@ -386,7 +386,7 @@ function dipterocarp(rng, opts) {
   const fins = [];
   const nf = 3 + Math.floor(rng() * 3);
   for (let i = 0; i < nf; i++) fins.push({ a: (i / nf) * TAU + rng() * 0.8, s: 1.6 + rng() * 1.6 });
-  const tint = BARK_TINT(rng, [0.66, 0.63, 0.57]);
+  const tint = BARK_TINT(rng, [0.85, 0.82, 0.75]);
   skel.branches.push({
     pts: trunk, level: 0, radial: 16, color: aoColor(tint, 0.42, 0, 4),
     rFn: (i, ang, r, p) => {
@@ -446,7 +446,7 @@ function banyan(rng, opts) {
   const skel = { branches: [], leaves: [], lod1MaxLevel: 2, lod1MinR: 0.05 };
   const sc = opts.scale ?? 1;
   const Ht = (5 + rng() * 2.5) * sc;
-  const tint = BARK_TINT(rng, [0.62, 0.6, 0.55]);
+  const tint = BARK_TINT(rng, [0.8, 0.78, 0.72]);
   const nT = 6 + Math.floor(rng() * 4);
   const twist = (rng() - 0.5) * 1.6;
   for (let i = 0; i < nT; i++) {
@@ -514,7 +514,7 @@ function understory(rng, opts) {
   const R0 = (0.08 + rng() * 0.08) * sc * (look === 2 ? 1.4 : 1);
   const lean = new THREE.Vector3((rng() - 0.5) * (look === 2 ? 0.8 : 0.3), 1, (rng() - 0.5) * (look === 2 ? 0.8 : 0.3)).normalize();
   const trunk = growPath(rng, { x: 0, y: -0.2, z: 0 }, lean, H, R0, R0 * 0.35, 8, { wobble: 0.12, tropism: 0.05 });
-  const tint = BARK_TINT(rng, look === 0 ? [0.6, 0.58, 0.52] : [0.48, 0.42, 0.36]);
+  const tint = BARK_TINT(rng, look === 0 ? [0.78, 0.75, 0.68] : [0.66, 0.6, 0.52]);
   skel.branches.push({ pts: trunk, level: 0, color: aoColor(tint, 0.6, 0, 2) });
   const slot = look === 0 ? SLOT.broadB : look === 1 ? SLOT.shrub : SLOT.broadA;
   const size = look === 0 ? 1.9 : look === 1 ? 1.4 : 1.7;
@@ -539,7 +539,7 @@ function deadTree(rng, opts) {
   const sc = opts.scale ?? 1;
   const H = (8 + rng() * 8) * sc, R0 = (0.22 + rng() * 0.18) * sc;
   const trunk = growPath(rng, { x: 0, y: -0.3, z: 0 }, new THREE.Vector3((rng() - 0.5) * 0.3, 1, (rng() - 0.5) * 0.3), H, R0, R0 * 0.55, 9, { wobble: 0.1 });
-  const tint = [0.55, 0.52, 0.48];
+  const tint = [0.75, 0.72, 0.66];
   skel.branches.push({ pts: trunk, level: 0, cap: true, color: aoColor(tint, 0.6, 0, 3) });
   const nb = 4 + Math.floor(rng() * 5);
   for (let b = 0; b < nb; b++) {
@@ -746,7 +746,7 @@ function grassClump(rng, opts) {
       spine.push(new THREE.Vector3(out.x * t * t * h, -0.05 + t * h, out.z * t * t * h));
       sides.push(side);
     }
-    skel.leaves.push({ type: 'strip', spine, sides, widthFn: () => h * 0.5, slot: tall ? SLOT.tallGrass : SLOT.grass, tint: jitterTint(rng, tall ? [0.62, 0.66, 0.42] : [0.55, 0.64, 0.36], 0.04, 0.3), fold: 0, keepNormal: false, shadeFn: (t) => 0.55 + t * 0.55 });
+    skel.leaves.push({ type: 'strip', spine, sides, widthFn: () => h * 0.5, slot: tall ? SLOT.tallGrass : SLOT.grass, tint: jitterTint(rng, tall ? [0.5, 0.54, 0.34] : [0.42, 0.5, 0.28], 0.04, 0.3), fold: 0, keepNormal: false, shadeFn: (t) => 0.45 + t * 0.5 });
   }
   return { skel, height: tall ? 1.8 : 1, radius: 0.8, crownY: 0.5, trunkR: 0, kind: 'ground' };
 }
