@@ -13,6 +13,22 @@ import { settings } from '../core/Settings.js';
 import { createVolumetricBeam } from './Beams.js';
 
 const REAL_BY_PRESET = { low: 2, medium: 3, high: 4, ultra: 6 };
+
+/**
+ * Colour accents per light type (sRGB hex). `lightPool.add({kind})` uses them as the default
+ * colour + flicker; the fog halo of each lamp is a slightly richer version of its colour.
+ */
+export const LIGHT_ACCENTS = {
+  sodium: { color: 0xff9a3c, flicker: 'sodium' },
+  fluorescent: { color: 0xd4ffe2, flicker: 'fluorescent' }, // sick green-white
+  dying: { color: 0xcaf5da, flicker: 'dying' },
+  shrine: { color: 0xff2a30, flicker: 'candle' }, // crimson lanterns
+  candle: { color: 0xffa040, flicker: 'candle' }, // amber
+  neon: { color: 0xff3a5a, flicker: 'neon' },
+  headlight: { color: 0xdfe9ff, flicker: 'none' }, // cold blue-white
+  moon: { color: 0xb8c8ff, flicker: 'none' },
+};
+const _hsl = { h: 0, s: 0, l: 0 };
 const byDist = (a, b) => a.dist2 - b.dist2;
 const _v = new THREE.Vector3();
 const _c = new THREE.Color();
@@ -34,7 +50,7 @@ void main() {
   float dist = max(-mv.z, 0.01);
   // fog: glows swell and soften in thick fog
   float T = dlbFogTransmittance(wp);
-  float size = aPosSize.w * (1.0 + (1.0 - T) * 0.8);
+  float size = aPosSize.w * (1.0 + (1.0 - T) * 1.2 + dlbGroundMist * 2.0);
   // keep a minimum on-screen size so distant lamps read as points of light
   float pxPerM = projectionMatrix[1][1] * 0.5 * 1080.0 / dist;
   float minS = 5.0 / pxPerM;
@@ -57,7 +73,7 @@ void main() {
   if (r2 > 1.0) discard;
   float core = exp(-r2 * 28.0) * 2.4;
   float mid = exp(-r2 * 7.0) * 0.55;
-  float halo = pow(1.0 - sqrt(r2), 2.0) * 0.18;
+  float halo = pow(1.0 - sqrt(r2), 2.0) * 0.26;
   gl_FragColor = vec4(vCol * (core + mid + halo), 1.0);
 }
 `;
@@ -286,7 +302,8 @@ class LightPool {
    * Register a light source. spec = { position?: Vector3 (world), object?: Object3D (follow, local `offset`),
    *   offset?: Vector3, color, intensity, distance, decay=2, flicker='none'|'fluorescent'|'sodium'|'dying'|'candle'|'neon',
    *   glow?: { size, color, opacity } | false, pool?: boolean (fake light pool on ground), castShadow?: false, priority?: 0 }
-   * Extra spec: groundY (pool height; default lamp y - 5 or object world y), poolRadius, poolIntensity,
+   * Extra spec: kind ('sodium'|'fluorescent'|'dying'|'shrine'|'candle'|'neon'|'headlight'|'moon' -> default
+   *   colour + flicker from LIGHT_ACCENTS), groundY (pool height; default lamp y - 5 or object world y), poolRadius, poolIntensity,
    *   beam?: true | { length, angle, intensity, color, direction: Vector3 (world, default down) },
    *   onFlicker?: ({type:'on'|'off'|'stutter'|'restrike'|'spark', handle, position}) => void,
    *   scatter?: fog in-scatter strength (default 1), name.
@@ -299,11 +316,11 @@ class LightPool {
       object: spec.object || null,
       offset: spec.offset ? spec.offset.clone() : new THREE.Vector3(),
       pos: new THREE.Vector3(),
-      color: new THREE.Color(spec.color ?? 0xffaa66),
+      color: new THREE.Color(spec.color ?? LIGHT_ACCENTS[spec.kind]?.color ?? 0xffaa66),
       intensity: spec.intensity ?? 3,
       distance: spec.distance ?? 18,
       decay: spec.decay ?? 2,
-      flicker: spec.flicker || 'none',
+      flicker: spec.flicker || LIGHT_ACCENTS[spec.kind]?.flicker || 'none',
       glow: spec.glow === false ? null : { size: 0.35, opacity: 1, ...(spec.glow || {}) },
       glowColor: new THREE.Color(),
       pool: !!spec.pool,
@@ -537,7 +554,12 @@ class LightPool {
       const l = near[i];
       if (l.level <= 0.003 || l.scatter <= 0) continue;
       LP[k].set(l.pos.x, l.pos.y, l.pos.z, l.distance);
-      _c.copy(l.color).multiplyScalar(l.intensity * l.level * l.scatter * this.scatter);
+      // fog halo: a richer version of the lamp colour; brightness ~ sqrt(intensity) so dim
+      // prop lamps still glow in the mist and very bright ones do not blow it out
+      _c.copy(l.color).getHSL(_hsl);
+      _c.setHSL(_hsl.h, Math.min(1, _hsl.s * 1.25), _hsl.l);
+      const fogI = 100 * Math.sqrt(Math.max(l.intensity, 0) / 100) * 1.9;
+      _c.multiplyScalar(fogI * l.level * l.scatter * this.scatter);
       LC[k].set(_c.r, _c.g, _c.b, 0);
       k++;
     }

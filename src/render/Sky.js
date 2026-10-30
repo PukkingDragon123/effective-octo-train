@@ -12,6 +12,7 @@ import { GLOBAL_UNIFORMS, injectGlobals } from './uniforms.js';
 import { LAYERS } from '../core/layers.js';
 import { settings } from '../core/Settings.js';
 import { clamp, lerp, smoothstep, damp } from '../core/math.js';
+import { bus } from '../core/Events.js';
 
 const DEG = Math.PI / 180;
 const C = (hex) => new THREE.Color(hex); // sRGB hex -> linear (ColorManagement)
@@ -24,93 +25,93 @@ function K(h, o) {
   return { h, ...o };
 }
 const KEYS = [
-  // 21-23 DREAD: near-black teal, desaturated, cold, green-tinted fog
+  // 21-23 DREAD: near-black teal, cold, green-tinted fog, thick ground mist, sodium accents
   K(21.0, {
-    zenith: 0x0a1113, mid: 0x131f1d, horizon: 0x1f302f, fog: 0x16241f, fogDensity: 0.022, fogH: 0.05, fogK: 0.12, fogNoise: 0.7,
-    amb: 0x6f9a92, ambI: 0.144, hemiSky: 0x527672, hemiGround: 0x0b0f0a, hemiI: 0.484, moonC: 0x9fbcc0, moonI: 0.324,
-    stars: 0.15, clouds: 0.82, cloudC: 0x1f2e2c, skyVis: 0.55, surreal: 0, dawn: 0, moonScatter: 0.6, glow: 0x000000, glowI: 0,
-    exposure: 3.5, sat: 0.66, contrast: 1.1, temp: -0.16, tint: 0.05, lift: [0.003, 0.008, 0.008], gain: [0.96, 1.0, 0.98],
-    shadowTint: 0x163432, highTint: 0xcfa36a, split: 0.32,
+    zenith: 0x081012, mid: 0x0f1b1a, horizon: 0x1b2c2a, fog: 0x15241f, fogDensity: 0.024, fogH: 0.055, fogK: 0.12, fogNoise: 0.8, mist: 0.15, mistK: 1.3,
+    amb: 0x6f9a92, ambI: 0.14, hemiSky: 0x527672, hemiGround: 0x0b0f0a, hemiI: 0.48, moonC: 0x9fbcc0, moonI: 0.32,
+    stars: 0.15, clouds: 0.82, cloudC: 0x1c2b29, skyVis: 0.5, surreal: 0, dawn: 0, moonScatter: 0.7, glow: 0x000000, glowI: 0,
+    exposure: 3.5, sat: 0.8, contrast: 1.14, temp: -0.12, tint: 0.05, lift: [0.0, 0.009, 0.009], gain: [0.98, 1.0, 0.97],
+    shadowTint: 0x0d3a35, highTint: 0xe0a060, split: 0.42,
   }),
   K(22.5, {
-    zenith: 0x080d0f, mid: 0x111a1a, horizon: 0x1b2a28, fog: 0x13201c, fogDensity: 0.025, fogH: 0.055, fogK: 0.12, fogNoise: 0.75,
-    amb: 0x6f9a92, ambI: 0.128, hemiSky: 0x4a6e6a, hemiGround: 0x0a0d09, hemiI: 0.44, moonC: 0x9fbcc0, moonI: 0.288,
-    stars: 0.1, clouds: 0.85, cloudC: 0x1c2928, skyVis: 0.5, surreal: 0.05, dawn: 0, moonScatter: 0.55, glow: 0x000000, glowI: 0,
-    exposure: 3.5, sat: 0.62, contrast: 1.12, temp: -0.18, tint: 0.06, lift: [0.003, 0.008, 0.008], gain: [0.96, 1.0, 0.98],
-    shadowTint: 0x153330, highTint: 0xcfa36a, split: 0.34,
+    zenith: 0x070c0e, mid: 0x0e1818, horizon: 0x192826, fog: 0x13201c, fogDensity: 0.027, fogH: 0.06, fogK: 0.12, fogNoise: 0.85, mist: 0.17, mistK: 1.25,
+    amb: 0x6f9a92, ambI: 0.125, hemiSky: 0x4a6e6a, hemiGround: 0x0a0d09, hemiI: 0.44, moonC: 0x9fbcc0, moonI: 0.29,
+    stars: 0.1, clouds: 0.85, cloudC: 0x1a2726, skyVis: 0.45, surreal: 0.05, dawn: 0, moonScatter: 0.65, glow: 0x000000, glowI: 0,
+    exposure: 3.5, sat: 0.78, contrast: 1.15, temp: -0.13, tint: 0.06, lift: [0.0, 0.009, 0.009], gain: [0.98, 1.0, 0.97],
+    shadowTint: 0x0c3632, highTint: 0xe0a060, split: 0.44,
   }),
   // 23-02 SURREAL: sickly green + crimson, reddish moon, purple haze
   K(23.5, {
-    zenith: 0x0f0b17, mid: 0x1a1425, horizon: 0x2e253a, fog: 0x211a2e, fogDensity: 0.02, fogH: 0.045, fogK: 0.12, fogNoise: 0.7,
-    amb: 0x86a052, ambI: 0.128, hemiSky: 0x6c8a46, hemiGround: 0x140a12, hemiI: 0.484, moonC: 0xd07a5a, moonI: 0.306,
-    stars: 0.25, clouds: 0.62, cloudC: 0x2b1f36, skyVis: 0.62, surreal: 1, dawn: 0, moonScatter: 0.9, glow: 0x3a0c14, glowI: 0.25,
-    exposure: 3.4, sat: 0.84, contrast: 1.1, temp: -0.04, tint: 0.12, lift: [0.006, 0.006, 0.008], gain: [1.02, 0.97, 0.98],
-    shadowTint: 0x2a4a1c, highTint: 0xd0303c, split: 0.4,
+    zenith: 0x0e0a16, mid: 0x181222, horizon: 0x2c2238, fog: 0x21192e, fogDensity: 0.025, fogH: 0.055, fogK: 0.12, fogNoise: 0.85, mist: 0.18, mistK: 1.2,
+    amb: 0x86a052, ambI: 0.13, hemiSky: 0x6c8a46, hemiGround: 0x140a12, hemiI: 0.48, moonC: 0xd8705a, moonI: 0.32,
+    stars: 0.25, clouds: 0.62, cloudC: 0x291d33, skyVis: 0.55, surreal: 1, dawn: 0, moonScatter: 1.0, glow: 0x3a0c14, glowI: 0.3,
+    exposure: 3.4, sat: 0.9, contrast: 1.14, temp: -0.04, tint: 0.12, lift: [0.006, 0.004, 0.009], gain: [1.02, 0.97, 0.98],
+    shadowTint: 0x2c4a18, highTint: 0xd02838, split: 0.46,
   }),
   K(25.0, {
-    zenith: 0x0d0915, mid: 0x181324, horizon: 0x2a223e, fog: 0x1c182a, fogDensity: 0.016, fogH: 0.035, fogK: 0.13, fogNoise: 0.6,
-    amb: 0x86a052, ambI: 0.128, hemiSky: 0x627f48, hemiGround: 0x120a10, hemiI: 0.484, moonC: 0xd8705a, moonI: 0.36,
-    stars: 0.45, clouds: 0.42, cloudC: 0x271e37, skyVis: 0.72, surreal: 1, dawn: 0, moonScatter: 0.85, glow: 0x30101a, glowI: 0.2,
-    exposure: 3.3, sat: 0.86, contrast: 1.08, temp: -0.02, tint: 0.1, lift: [0.006, 0.006, 0.009], gain: [1.02, 0.97, 0.99],
-    shadowTint: 0x2a481e, highTint: 0xc82c40, split: 0.38,
+    zenith: 0x0c0814, mid: 0x161121, horizon: 0x281f3a, fog: 0x1d1729, fogDensity: 0.021, fogH: 0.045, fogK: 0.13, fogNoise: 0.8, mist: 0.16, mistK: 1.2,
+    amb: 0x86a052, ambI: 0.13, hemiSky: 0x627f48, hemiGround: 0x120a10, hemiI: 0.48, moonC: 0xd8705a, moonI: 0.36,
+    stars: 0.45, clouds: 0.42, cloudC: 0x251b33, skyVis: 0.68, surreal: 1, dawn: 0, moonScatter: 0.95, glow: 0x30101a, glowI: 0.25,
+    exposure: 3.3, sat: 0.9, contrast: 1.12, temp: -0.02, tint: 0.1, lift: [0.006, 0.004, 0.01], gain: [1.02, 0.97, 0.99],
+    shadowTint: 0x2a481e, highTint: 0xc82c40, split: 0.44,
   }),
-  // 02-04 CALM: warmer amber, stars, fireflies, soft blue moonlight
+  // 02-04 CALM: warmer amber, stars, fireflies, soft blue moonlight; mist lies low on the road
   K(26.3, {
-    zenith: 0x070b14, mid: 0x0f1725, horizon: 0x1c2636, fog: 0x141c28, fogDensity: 0.009, fogH: 0.022, fogK: 0.14, fogNoise: 0.5,
-    amb: 0x6a7a98, ambI: 0.16, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.6, moonC: 0xc4d2ea, moonI: 0.6,
-    stars: 1.0, clouds: 0.2, cloudC: 0x141c2a, skyVis: 0.9, surreal: 0, dawn: 0, moonScatter: 0.8, glow: 0x000000, glowI: 0,
-    exposure: 3.3, sat: 0.88, contrast: 1.05, temp: 0.07, tint: 0.0, lift: [0.003, 0.005, 0.01], gain: [1.03, 1.0, 0.96],
-    shadowTint: 0x2a3858, highTint: 0xe8b070, split: 0.3,
+    zenith: 0x060b15, mid: 0x0e1726, horizon: 0x1b2638, fog: 0x141c29, fogDensity: 0.011, fogH: 0.026, fogK: 0.14, fogNoise: 0.65, mist: 0.12, mistK: 1.5,
+    amb: 0x6a7a98, ambI: 0.16, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.6, moonC: 0xc4d2ea, moonI: 0.62,
+    stars: 1.0, clouds: 0.2, cloudC: 0x141c2a, skyVis: 0.9, surreal: 0, dawn: 0, moonScatter: 0.9, glow: 0x000000, glowI: 0,
+    exposure: 3.3, sat: 0.92, contrast: 1.08, temp: 0.06, tint: 0.0, lift: [0.002, 0.005, 0.012], gain: [1.03, 1.0, 0.96],
+    shadowTint: 0x24365a, highTint: 0xf0b070, split: 0.38,
   }),
   K(27.6, {
-    zenith: 0x080d18, mid: 0x111a2a, horizon: 0x202b3e, fog: 0x17202e, fogDensity: 0.01, fogH: 0.028, fogK: 0.15, fogNoise: 0.5,
+    zenith: 0x080d19, mid: 0x111a2b, horizon: 0x1f2a3e, fog: 0x17202e, fogDensity: 0.012, fogH: 0.032, fogK: 0.15, fogNoise: 0.65, mist: 0.13, mistK: 1.4,
     amb: 0x6a7a98, ambI: 0.17, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.62, moonC: 0xc4d2ea, moonI: 0.55,
-    stars: 0.9, clouds: 0.22, cloudC: 0x172031, skyVis: 0.9, surreal: 0, dawn: 0.0, moonScatter: 0.7, glow: 0x000000, glowI: 0,
-    exposure: 3.2, sat: 0.9, contrast: 1.04, temp: 0.06, tint: 0.0, lift: [0.003, 0.005, 0.01], gain: [1.03, 1.0, 0.97],
-    shadowTint: 0x2a3858, highTint: 0xe8b070, split: 0.28,
+    stars: 0.9, clouds: 0.22, cloudC: 0x172031, skyVis: 0.88, surreal: 0, dawn: 0.0, moonScatter: 0.8, glow: 0x000000, glowI: 0,
+    exposure: 3.2, sat: 0.92, contrast: 1.07, temp: 0.05, tint: 0.0, lift: [0.002, 0.005, 0.012], gain: [1.03, 1.0, 0.97],
+    shadowTint: 0x24365a, highTint: 0xf0b070, split: 0.36,
   }),
   // 04-06 DAWN: indigo -> cyan -> peach, glowing mist, golden sunrise ~05:45
   K(28.5, {
-    zenith: 0x0e1226, mid: 0x1c2240, horizon: 0x363d5c, fog: 0x2a3048, fogDensity: 0.01, fogH: 0.035, fogK: 0.18, fogNoise: 0.55,
+    zenith: 0x0e1226, mid: 0x1c2240, horizon: 0x363d5c, fog: 0x2a3048, fogDensity: 0.012, fogH: 0.04, fogK: 0.18, fogNoise: 0.65, mist: 0.16, mistK: 1.1,
     amb: 0x70769a, ambI: 0.3, hemiSky: 0x5a6090, hemiGround: 0x1a1a22, hemiI: 0.85, moonC: 0xb0c0f0, moonI: 0.2,
-    stars: 0.35, clouds: 0.3, cloudC: 0x2a3050, skyVis: 0.85, surreal: 0, dawn: 0.25, moonScatter: 0.4, glow: 0x3a3070, glowI: 0.3,
-    exposure: 2.6, sat: 0.78, contrast: 1.04, temp: -0.06, tint: -0.02, lift: [0.008, 0.008, 0.02], gain: [1.0, 1.0, 1.02],
-    shadowTint: 0x34345a, highTint: 0xb0b4e0, split: 0.26,
+    stars: 0.35, clouds: 0.3, cloudC: 0x2a3050, skyVis: 0.82, surreal: 0, dawn: 0.25, moonScatter: 0.5, glow: 0x3a3070, glowI: 0.35,
+    exposure: 2.6, sat: 0.86, contrast: 1.06, temp: -0.05, tint: -0.02, lift: [0.006, 0.006, 0.02], gain: [1.0, 1.0, 1.02],
+    shadowTint: 0x2c2c5a, highTint: 0xc0b4e0, split: 0.3,
   }),
   K(29.1, {
-    zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x78a2b0, fog: 0x587c88, fogDensity: 0.008, fogH: 0.024, fogK: 0.22, fogNoise: 0.55,
+    zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x78a2b0, fog: 0x5a7a86, fogDensity: 0.01, fogH: 0.032, fogK: 0.22, fogNoise: 0.65, mist: 0.17, mistK: 1.0,
     amb: 0x9ab8cc, ambI: 0.28, hemiSky: 0x86aac8, hemiGround: 0x2a2a26, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.05,
-    stars: 0.05, clouds: 0.32, cloudC: 0x6a7e98, skyVis: 0.85, surreal: 0, dawn: 0.5, moonScatter: 0.15, glow: 0xd09080, glowI: 0.5,
-    exposure: 1.4, sat: 1.0, contrast: 1.05, temp: -0.02, tint: 0.0, lift: [0.006, 0.01, 0.014], gain: [1.0, 1.0, 1.0],
-    shadowTint: 0x2a4a6a, highTint: 0xf0c0a0, split: 0.24,
+    stars: 0.05, clouds: 0.32, cloudC: 0x6a7e98, skyVis: 0.82, surreal: 0, dawn: 0.5, moonScatter: 0.15, glow: 0xd09080, glowI: 0.55,
+    exposure: 1.4, sat: 1.04, contrast: 1.07, temp: -0.01, tint: 0.0, lift: [0.004, 0.01, 0.016], gain: [1.0, 1.0, 1.0],
+    shadowTint: 0x26466a, highTint: 0xf8c098, split: 0.3,
   }),
   K(29.55, {
-    zenith: 0x34507e, mid: 0x7c98ae, horizon: 0xe0a487, fog: 0x9a8a8a, fogDensity: 0.005, fogH: 0.02, fogK: 0.25, fogNoise: 0.55,
+    zenith: 0x34507e, mid: 0x7c98ae, horizon: 0xe8a682, fog: 0xa88c7c, fogDensity: 0.0075, fogH: 0.028, fogK: 0.25, fogNoise: 0.65, mist: 0.15, mistK: 1.0,
     amb: 0xd0b0a8, ambI: 0.3, hemiSky: 0xa0b8d0, hemiGround: 0x3a3028, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
-    stars: 0.0, clouds: 0.3, cloudC: 0xc09890, skyVis: 0.85, surreal: 0, dawn: 0.75, moonScatter: 0.0, glow: 0xffa070, glowI: 0.9,
-    exposure: 1.05, sat: 1.04, contrast: 1.06, temp: 0.08, tint: 0.02, lift: [0.008, 0.006, 0.01], gain: [1.02, 1.0, 0.98],
-    shadowTint: 0x3a4a7a, highTint: 0xffc890, split: 0.26,
+    stars: 0.0, clouds: 0.3, cloudC: 0xc09890, skyVis: 0.82, surreal: 0, dawn: 0.75, moonScatter: 0.0, glow: 0xffa070, glowI: 1.0,
+    exposure: 1.05, sat: 1.1, contrast: 1.08, temp: 0.1, tint: 0.02, lift: [0.008, 0.005, 0.01], gain: [1.03, 1.0, 0.97],
+    shadowTint: 0x34447a, highTint: 0xffc488, split: 0.32,
   }),
   K(29.75, {
-    zenith: 0x3d64a0, mid: 0x9cb0c0, horizon: 0xf0b078, fog: 0xc09a78, fogDensity: 0.0045, fogH: 0.018, fogK: 0.25, fogNoise: 0.55,
+    zenith: 0x3d64a0, mid: 0x9cb0c0, horizon: 0xf4b276, fog: 0xc8a078, fogDensity: 0.0065, fogH: 0.026, fogK: 0.25, fogNoise: 0.65, mist: 0.14, mistK: 1.0,
     amb: 0xe0c0a0, ambI: 0.3, hemiSky: 0xb0c4d8, hemiGround: 0x483626, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
-    stars: 0.0, clouds: 0.28, cloudC: 0xe0a880, skyVis: 0.85, surreal: 0, dawn: 0.9, moonScatter: 0.0, glow: 0xffb060, glowI: 1.2,
-    exposure: 0.95, sat: 1.08, contrast: 1.07, temp: 0.14, tint: 0.02, lift: [0.01, 0.006, 0.008], gain: [1.04, 1.0, 0.95],
-    shadowTint: 0x3a4a7a, highTint: 0xffc070, split: 0.28,
+    stars: 0.0, clouds: 0.28, cloudC: 0xe0a880, skyVis: 0.82, surreal: 0, dawn: 0.9, moonScatter: 0.0, glow: 0xffb060, glowI: 1.3,
+    exposure: 0.95, sat: 1.12, contrast: 1.08, temp: 0.16, tint: 0.02, lift: [0.01, 0.006, 0.006], gain: [1.05, 1.0, 0.94],
+    shadowTint: 0x34447a, highTint: 0xffbc68, split: 0.34,
   }),
   K(30.0, {
-    zenith: 0x5480b2, mid: 0xb0c4d0, horizon: 0xf0c490, fog: 0xc8ac8c, fogDensity: 0.0035, fogH: 0.012, fogK: 0.25, fogNoise: 0.5,
+    zenith: 0x5480b2, mid: 0xb0c4d0, horizon: 0xf2c690, fog: 0xd0b08a, fogDensity: 0.0055, fogH: 0.02, fogK: 0.25, fogNoise: 0.6, mist: 0.12, mistK: 1.1,
     amb: 0xe8d0b0, ambI: 0.35, hemiSky: 0xc0d4e8, hemiGround: 0x4a3a28, hemiI: 0.7, moonC: 0xc0d0f0, moonI: 0.0,
-    stars: 0.0, clouds: 0.25, cloudC: 0xf0c8a0, skyVis: 0.9, surreal: 0, dawn: 1.0, moonScatter: 0.0, glow: 0xffc070, glowI: 1.0,
-    exposure: 0.95, sat: 1.06, contrast: 1.05, temp: 0.12, tint: 0.01, lift: [0.01, 0.008, 0.008], gain: [1.03, 1.0, 0.96],
-    shadowTint: 0x40507a, highTint: 0xffd090, split: 0.24,
+    stars: 0.0, clouds: 0.25, cloudC: 0xf0c8a0, skyVis: 0.86, surreal: 0, dawn: 1.0, moonScatter: 0.0, glow: 0xffc070, glowI: 1.1,
+    exposure: 0.95, sat: 1.1, contrast: 1.07, temp: 0.14, tint: 0.01, lift: [0.01, 0.008, 0.006], gain: [1.04, 1.0, 0.95],
+    shadowTint: 0x3c4c7a, highTint: 0xffcc88, split: 0.3,
   }),
 ];
 // pre-convert colours
 const COLOR_KEYS = ['zenith', 'mid', 'horizon', 'fog', 'amb', 'hemiSky', 'hemiGround', 'moonC', 'cloudC', 'glow', 'shadowTint', 'highTint'];
 for (const k of KEYS) for (const c of COLOR_KEYS) k[c] = C(k[c]);
 
-const NUM_KEYS = ['fogDensity', 'fogH', 'fogK', 'fogNoise', 'ambI', 'hemiI', 'moonI', 'stars', 'clouds', 'skyVis', 'surreal', 'dawn', 'moonScatter', 'glowI', 'exposure', 'sat', 'contrast', 'temp', 'tint', 'split'];
+const NUM_KEYS = ['fogDensity', 'fogH', 'fogK', 'fogNoise', 'mist', 'mistK', 'ambI', 'hemiI', 'moonI', 'stars', 'clouds', 'skyVis', 'surreal', 'dawn', 'moonScatter', 'glowI', 'exposure', 'sat', 'contrast', 'temp', 'tint', 'split'];
 
 // ---------------------------------------------------------------------------
 // Sky dome shader
@@ -264,6 +265,9 @@ class Sky {
     this.fogFollow = 0.65;
     this.fogBaseY = 0;
     this.overrides = {}; // e.g. { fogDensity: 0.05 } forces values (cinematics)
+    // fog boost (gameplay: shrine, scares): multiplies every fog layer, blended over time
+    this._fogBoost = { v: 1, from: 1, to: 1, t: 1, dur: 0 };
+    this._mistBoost = { v: 1, from: 1, to: 1, t: 1, dur: 0 };
     this.group = new THREE.Group();
     this.group.name = 'sky';
 
@@ -326,7 +330,13 @@ class Sky {
     this._windAngle = Math.atan2(GLOBAL_UNIFORMS.uWindDir.value.y, GLOBAL_UNIFORMS.uWindDir.value.x);
     this._lightningT = 12 + Math.random() * 20;
     this._lightning = 0;
-    this.lightning = true; // random distant lightning during heavy rain
+    this._lightningQueue = [];
+    /** true / 'auto' = random distant lightning in rain (> 0.45, not at dawn); 'always'; false = off */
+    this.lightning = true;
+    /** 0..1 how strong the lightning flashes are (subtle by default; reduceFlashes scales it down) */
+    this.lightningStrength = 0.7;
+    this.moonVisibility = 0;
+    this.moonColor = new THREE.Color();
     settings.onChange(({ key }) => {
       if (key === 'shadowMapSize' || key === 'graphicsPreset' || key === '*') {
         const s = settings.get('shadowMapSize') || 2048;
@@ -377,9 +387,55 @@ class Sky {
     this._hasFocus = true;
   }
 
-  /** Lightning flash (thunder is up to audio). */
-  flash(strength = 1) {
-    this._lightning = Math.max(this._lightning, strength);
+  /**
+   * Multiply every fog layer (distance, height and ground mist) by `mult`, blended over
+   * `seconds` (e.g. sky.setFogBoost(2.2, 3) at the shrine or during a scare, back with 1).
+   */
+  setFogBoost(mult = 1, seconds = 3) {
+    const b = this._fogBoost;
+    b.from = b.v;
+    b.to = Math.max(0, mult);
+    b.dur = Math.max(0, seconds);
+    b.t = b.dur > 0 ? 0 : 1;
+    if (b.dur === 0) b.v = b.to;
+  }
+
+  /** Extra multiplier for the ground mist only (rolling mist over the road / creek). */
+  setGroundMist(mult = 1, seconds = 3) {
+    const b = this._mistBoost;
+    b.from = b.v;
+    b.to = Math.max(0, mult);
+    b.dur = Math.max(0, seconds);
+    b.t = b.dur > 0 ? 0 : 1;
+    if (b.dur === 0) b.v = b.to;
+  }
+
+  get fogBoost() {
+    return this._fogBoost.v;
+  }
+
+  /** Lightning on / off / always (see `lightning`), optional strength 0..1. */
+  setLightning(mode = true, strength) {
+    this.lightning = mode;
+    if (strength !== undefined) this.lightningStrength = clamp(strength, 0, 1);
+  }
+
+  /**
+   * Lightning flash (thunder is up to audio: listen to bus 'sky:lightning' {strength, delay}).
+   * A real strike flickers 2-3 times; pass multi=false for a single pulse.
+   */
+  flash(strength = 1, multi = true) {
+    const k = strength * (settings.get('reduceFlashes') ? 0.35 : 1);
+    this._lightning = Math.max(this._lightning, k);
+    if (multi) {
+      const n = 1 + Math.floor(Math.random() * 2.5);
+      let t = 0;
+      for (let i = 0; i < n; i++) {
+        t += 0.07 + Math.random() * 0.18;
+        this._lightningQueue.push({ t, k: k * (0.45 + Math.random() * 0.6) });
+      }
+    }
+    bus.emit('sky:lightning', { strength, delay: 1.5 + Math.random() * 4 });
   }
 
   _evaluate() {
@@ -430,18 +486,22 @@ class Sky {
     U.uDawn.value = cur.dawn;
 
     // --- fog -----------------------------------------------------------------
-    const fogMul = (1 + rain * 0.35) * (1 + (w.fog || 0) * 1.6);
+    const boost = this._fogBoost.v;
+    const fogMul = (1 + rain * 0.35) * (1 + (w.fog || 0) * 1.6) * boost;
     U.uFogColor.value.copy(cur.fog);
     if (rain > 0) U.uFogColor.value.lerp(_c.copy(cur.fog).multiplyScalar(0.8), rain * 0.5);
     U.uFogDensity.value = (this.overrides.fogDensity ?? cur.fogDensity) * fogMul;
-    U.uFogHeightDensity.value = cur.fogH * (1 + (w.fog || 0) * 1.2);
+    U.uFogHeightDensity.value = cur.fogH * (1 + (w.fog || 0) * 1.2) * boost;
+    U.uGroundMist.value = (this.overrides.groundMist ?? cur.mist) * (1 + (w.fog || 0) * 0.8 + rain * 0.2) * boost * this._mistBoost.v;
+    U.uGroundMistFalloff.value = cur.mistK;
     U.uFogNoise.value = cur.fogNoise;
     U.uFogHeightFalloff.value = cur.fogK;
     U.uMoonDir.value.copy(this.moonDir);
-    U.uMoonScatter.value.copy(cur.moonC).multiplyScalar(cur.moonI * cur.moonScatter * 0.09 * (1 - rain * 0.5));
+    U.uMoonScatter.value.copy(cur.moonC).multiplyScalar(cur.moonI * cur.moonScatter * 0.12 * (1 - rain * 0.5));
     U.uSunDir.value.copy(this.sunDir);
     this.sunColor.setRGB(1.0, 0.62, 0.3).lerp(_c.setRGB(1.0, 0.78, 0.52), smoothstep(29.6, 30.0, h));
-    U.uSunScatter.value.copy(this.sunColor).multiplyScalar(smoothstep(-6 * DEG, 3 * DEG, sunElev) * 0.22 * (1 - rain * 0.6));
+    // dawn: the whole mist turns golden and luminous toward the sun
+    U.uSunScatter.value.copy(this.sunColor).multiplyScalar(smoothstep(-6 * DEG, 3 * DEG, sunElev) * 0.34 * (1 - rain * 0.6));
 
     // --- lights ---------------------------------------------------------------
     const lightning = this._lightning;
@@ -453,6 +513,9 @@ class Sky {
     this.moon.color.copy(cur.moonC);
     const phaseLight = 0.35 + 0.65 * Math.cos((this.moonPhase - 0.5) * Math.PI * 2) * 0.5 + 0.325;
     this.moon.intensity = cur.moonI * (1 - rain * 0.6) * smoothstep(-3 * DEG, 8 * DEG, moonElev) * phaseLight;
+    // moonlight shafts through the canopy (PostFX): only with a visible moon in clear-ish sky
+    this.moonVisibility = smoothstep(2 * DEG, 12 * DEG, moonElev) * (1 - rain * 0.8) * (1 - smoothstep(29.0, 29.6, h)) * (1 - clamp(cur.clouds - 0.3, 0, 1) * 0.9) * phaseLight;
+    this.moonColor.copy(cur.moonC);
     this.sun.color.copy(this.sunColor);
     this.sun.intensity = 4.2 * sunUp * (1 - rain * 0.7);
     const sunCasting = this.sun.intensity > 0.02 && settings.get('shadows');
@@ -480,7 +543,7 @@ class Sky {
     su.uStars.value = cur.stars * (1 - rain);
     su.uClouds.value = clamp(cur.clouds + rain * 0.5, 0, 0.97);
     su.uCloudCol.value.copy(cur.cloudC);
-    su.uSkyVis.value = cur.skyVis * (1 - rain * 0.35) * (1 - (w.fog || 0) * 0.5);
+    su.uSkyVis.value = cur.skyVis * (1 - rain * 0.35) * (1 - (w.fog || 0) * 0.5) / Math.max(1, 1 + (boost - 1) * 0.4);
     su.uGlowCol.value.copy(cur.glow);
     su.uGlowI.value = cur.glowI * (1 - rain * 0.5);
 
@@ -506,6 +569,12 @@ class Sky {
       const t = smoothstep(0, 1, this._wT);
       for (const k of ['rain', 'fog', 'wind']) this.weather[k] = lerp(this._wFrom[k] ?? 0, this._wTo[k] ?? 0, t);
     }
+    for (const b of [this._fogBoost, this._mistBoost]) {
+      if (b.t < 1) {
+        b.t = b.dur > 0 ? Math.min(1, b.t + dt / b.dur) : 1;
+        b.v = lerp(b.from, b.to, smoothstep(0, 1, b.t));
+      }
+    }
     const w = this.weather;
     U.uRain.value = w.rain;
     // wetness lags rain: soaks in ~30 s, dries over several minutes
@@ -521,12 +590,21 @@ class Sky {
     this._cloudOffset.y += U.uWindDir.value.y * dt * (0.004 + w.wind * 0.01);
     this.uniforms.uCloudOffset.value.copy(this._cloudOffset);
     // lightning during heavy rain in the dread phase
-    this._lightning = Math.max(0, this._lightning - dt * 3.5);
-    if (this.lightning && w.rain > 0.6 && this.hour < 24.5) {
+    this._lightning = Math.max(0, this._lightning - dt * 4.5);
+    const q = this._lightningQueue;
+    for (let i = q.length - 1; i >= 0; i--) {
+      q[i].t -= dt;
+      if (q[i].t <= 0) {
+        this._lightning = Math.max(this._lightning, q[i].k);
+        q.splice(i, 1);
+      }
+    }
+    const lMode = this.lightning;
+    if (lMode && (lMode === 'always' || (w.rain > 0.45 && this.hour < 28.6))) {
       this._lightningT -= dt;
       if (this._lightningT <= 0) {
-        this._lightningT = 9 + Math.random() * 25;
-        if (Math.random() < 0.6) this.flash(0.35 + Math.random() * 0.5);
+        this._lightningT = 8 + Math.random() * 24;
+        if (lMode === 'always' || Math.random() < 0.65) this.flash((0.35 + Math.random() * 0.65) * this.lightningStrength);
       }
     }
     this._evaluate();

@@ -61,8 +61,14 @@ just drive"). His voice calls your name from the back seat. Rule 3 says never lo
 back.
 
 ### Endings
-| id | name | condition |
-|---|---|---|
+Seven endings, decided by Ton's replies, the memories and the loop. The exact conditions and
+priority order live in `src/game/data/endings.js` and `src/game/data/SCHEMA.md` (source of truth):
+`wrong_home` บ้าน (sad), `endless` กะดึกนิรันดร์ (bad), `join_father` ตามพ่อไป (dark),
+`forgive` ขอโทษครับพ่อ (true), `successor` รับกะ (hopeful), `dawn` รุ่งสาง (good), `ride_away`
+ทางออก (bittersweet). After the mist gate the empty taxi reaches the shrine fork one last time,
+and Ah Kong on the radio asks "ลื้อจะกลับบ้านทางไหน" (which road home?).
+
+---|---|---|
 | `dawn` | **รุ่งสาง — Dawn** (good) | Deliver Somchai LEFT and do **not** look back when he calls. You drive right into the sunrise. Monks are collecting alms; you stop, offer rice, and pour water for merit (กรวดน้ำ) for your father. The radio plays his favourite old song. Credits. |
 | `endless` | **กะดึกนิรันดร์ — The Endless Shift** (bad) | You look back at the final moment. He smiles sadly and fades. Cut to: you, older, smoking at the garage as a young stranger rides up on a motorbike. You are the new Ah Kong. |
 | `forgive` | **ขอโทษครับพ่อ — Forgiveness** (true) | Collect all 7 memories across loops, then deliver Somchai correctly. A choice appears at the mist gate: say *"ขอโทษครับพ่อ"* ("I'm sorry, Dad"). Somchai answers, the mist turns gold, and he says goodbye properly. Then the Dawn ending plays, with a final scene of Ah Kong's statue smiling. |

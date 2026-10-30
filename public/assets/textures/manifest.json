@@ -336,6 +336,48 @@
    ],
    "srgb": false
   },
+  "foliage_world": {
+   "alpha": true,
+   "bytes": 419252,
+   "file": "foliage/foliage_world.webp",
+   "grid": 5,
+   "size": [
+    2048,
+    2048
+   ],
+   "slots": [
+    "broadA",
+    "broadB",
+    "rain",
+    "fig",
+    "bamboo",
+    "banana",
+    "bananaDead",
+    "palm",
+    "fern",
+    "grass",
+    "elephant",
+    "vines",
+    "shrub",
+    "deadTwigs",
+    "epiphyte",
+    "tallGrass",
+    "small",
+    "smallDark"
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "foliage_world_normal": {
+   "bytes": 100628,
+   "file": "foliage/foliage_world_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false,
+   "wrap": "clamp"
+  },
   "gold_leaf": {
    "bytes": 195052,
    "file": "built/gold_leaf.webp",
@@ -362,6 +404,27 @@
     512
    ],
    "srgb": false
+  },
+  "grass_card": {
+   "alpha": true,
+   "bytes": 237580,
+   "file": "foliage/grass_card.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "grass_card_normal": {
+   "bytes": 37700,
+   "file": "foliage/grass_card_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
   },
   "gravel": {
    "bytes": 531568,
@@ -417,6 +480,69 @@
    ],
    "srgb": true
   },
+  "leaf_bamboo": {
+   "alpha": true,
+   "bytes": 52526,
+   "file": "foliage/leaf_bamboo.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "leaf_bamboo_normal": {
+   "bytes": 16546,
+   "file": "foliage/leaf_bamboo_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
+  },
+  "leaf_banana": {
+   "alpha": true,
+   "bytes": 84628,
+   "file": "foliage/leaf_banana.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "leaf_banana_normal": {
+   "bytes": 32050,
+   "file": "foliage/leaf_banana_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
+  },
+  "leaf_fern": {
+   "alpha": true,
+   "bytes": 30698,
+   "file": "foliage/leaf_fern.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "leaf_fern_normal": {
+   "bytes": 10134,
+   "file": "foliage/leaf_fern_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
+  },
   "leaf_litter": {
    "bytes": 271048,
    "file": "ground/leaf_litter.webp",
@@ -443,6 +569,48 @@
     512
    ],
    "srgb": false
+  },
+  "leaf_palm": {
+   "alpha": true,
+   "bytes": 42044,
+   "file": "foliage/leaf_palm.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "leaf_palm_normal": {
+   "bytes": 20532,
+   "file": "foliage/leaf_palm_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
+  },
+  "leaf_tropical": {
+   "alpha": true,
+   "bytes": 89636,
+   "file": "foliage/leaf_tropical.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "leaf_tropical_normal": {
+   "bytes": 19616,
+   "file": "foliage/leaf_tropical_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
   },
   "leather_seat": {
    "bytes": 251952,
@@ -804,6 +972,27 @@
    ],
    "srgb": true
   },
+  "vine": {
+   "alpha": true,
+   "bytes": 76556,
+   "file": "foliage/vine.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true,
+   "wrap": "clamp"
+  },
+  "vine_normal": {
+   "bytes": 20696,
+   "file": "foliage/vine_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false,
+   "wrap": "clamp"
+  },
   "wood_old": {
    "bytes": 367528,
    "file": "built/wood_old.webp",
@@ -859,6 +1048,6 @@
    "srgb": false
   }
  },
- "totalBytes": 27040240,
+ "totalBytes": 28331062,
  "version": 1
 }

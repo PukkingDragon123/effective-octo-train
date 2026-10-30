@@ -144,6 +144,7 @@ const FRAG_COMMON = /* glsl */ `
 #include <dlb_fog_common>
 #include <dlb_headlight>
 uniform float dlbHlBoost;
+uniform float dlbAtmoRim;
 varying vec3 vDlbWP;
 varying vec3 vDlbWN;
 varying float vDlbH;
@@ -300,6 +301,28 @@ const FRAG_ENV = /* glsl */ `
     radiance += dlbEnvRadiance(dlbRw, vDlbWP, material.roughness) * dlbPaint3.w * (1.0 - 0.5 * material.roughness) * (1.0 + dlbPuddle * 2.5 + dlbWet * 0.6);
   }
   #endif
+  {
+    vec3 dlbVw = normalize(cameraPosition - vDlbWP);
+    // atmospheric rim: silhouettes pick up the glowing mist / lamps / beam behind them, so the
+    // forest separates into planes in the fog (stronger on wet surfaces: soft wet sheen)
+    float dlbNdv = saturate(dot(dlbN, dlbVw));
+    float dlbRimK = pow(1.0 - dlbNdv, 4.0) * (0.45 + 0.55 * dlbWet) * dlbAtmoRim * (1.0 - dlbUp * 0.85);
+    if (dlbRimK > 0.001) {
+      vec3 rimC = dlbFogTint(-dlbVw) * 0.9 + dlbLampLightAt(vDlbWP) * 0.25 + dlbHeadlightColor * (dlbHeadlightAt(vDlbWP) * 3.0);
+      reflectedLight.indirectSpecular += rimC * dlbRimK;
+    }
+    // glints: tiny twinkling sparkles on wet / puddled surfaces where a lamp or the beam hits
+    if (dlbWet > 0.05 && dlbUp > 0.5) {
+      vec3 gp = vDlbWP * 34.0;
+      vec3 gcell = floor(gp);
+      float gh = dlbHash13(gcell + floor(dot(dlbVw, vec3(3.1, 1.7, 2.3)) * 7.0));
+      float gl = smoothstep(0.986, 1.0, gh) * smoothstep(0.32, 0.0, length(fract(gp) - 0.5));
+      if (gl > 0.0) {
+        vec3 lightHere = dlbHeadlightColor * (dlbHeadlightAt(vDlbWP) * 70.0) + dlbLampLightAt(vDlbWP) * 5.0 + dlbMoonScatter * 2.0;
+        reflectedLight.directSpecular += gl * lightHere * dlbWet * (0.35 + dlbPuddle) * dlbPaint3.w;
+      }
+    }
+  }
 `;
 
 const FRAG_TRANSLUCENT_END = /* glsl */ `
@@ -456,7 +479,8 @@ function baseMaterial(opts) {
  * Extra opts: roughnessMap, aoMap, normalScale, envMapIntensity, puddles=1 (0 disables puddles),
  *   dirtHeight=0.5 (m), mossColor, dirtColor, windHeightScale=1 (1/m multiplier for wind
  *   height response, e.g. 0.5 for 2x taller trees), flutter=1, skin=false, sss=0.6, pale=0,
- *   alphaToCoverage (default: on when alphaTest > 0 and not transparent).
+ *   alphaToCoverage (default: on when alphaTest > 0 and not transparent), atmoRim=1 (fog / lamp rim
+ *   light at grazing angles; 0 disables), headlightBoost=0.
  * Every texture a painted material samples gets max anisotropic filtering at compile time.
  */
 export function paintedMaterial(opts = {}) {
@@ -476,6 +500,7 @@ export function paintedMaterial(opts = {}) {
     dlbPaint3: { value: new THREE.Vector4(opts.sss ?? 0.6, opts.dirtHeight ?? 0.5, opts.puddles ?? 1, opts.envReflect ?? 1) },
     dlbRim: { value: opts.rim ?? 0 },
     dlbHlBoost: { value: opts.headlightBoost ?? 0 },
+    dlbAtmoRim: { value: opts.atmoRim ?? 1 },
     dlbWindParams: { value: new THREE.Vector4(opts.windHeightScale ?? 1, opts.flutter ?? 1, opts.windPhase ?? 0, 0) },
     dlbMossColor: { value: new THREE.Color(opts.mossColor ?? 0x445424) },
     dlbDirtColor: { value: new THREE.Color(opts.dirtColor ?? 0x3a2f24) },
@@ -559,6 +584,7 @@ export function setPaintedParams(material, p = {}) {
   if (p.rim !== undefined) u.dlbRim.value = p.rim;
   if (p.envReflect !== undefined) u.dlbPaint3.value.w = p.envReflect;
   if (p.headlightBoost !== undefined) u.dlbHlBoost.value = p.headlightBoost; // needs headlightBoost > 0 at creation
+  if (p.atmoRim !== undefined) u.dlbAtmoRim.value = p.atmoRim;
 }
 
 // ---------------------------------------------------------------------------

@@ -539,7 +539,7 @@ export class Forest {
             if (rng() < 0.5) this._place('banana', Math.floor(rng() * 4), x + 0.7, z - 0.4, rng() * 6.28, 0.55 + rng() * 0.3, rng, { lean: { x: 1, z: -0.5, a: 0.12 } });
             continue;
           }
-          if ((wat < 14 || zb < -0.55) && r < 0.2) {
+          if ((wat < 14 || zb < -0.55) && r < 0.2 && nr.e > 3.6) { // fronds must not hang into the lane
             this._place('treeFern', Math.floor(rng() * 2), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng);
             continue;
           }

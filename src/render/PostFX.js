@@ -23,6 +23,7 @@ import { FS_VERT, TENSOR_FRAG, GAUSS_FRAG, KUWAHARA8_FRAG, KUWAHARA4_FRAG } from
 import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG } from './PostShaders.js';
 import { canvasTexture } from './noiseTex.js';
 import { GORE_UNIFORM } from './Blood.js';
+import { GLOBAL_UNIFORMS } from './uniforms.js';
 
 const GLASS_BIT = 1 << LAYERS.GLASS;
 const BLOOM_LEVELS = 6;
@@ -83,6 +84,10 @@ class PostFX {
     /** 'auto' (scan the scene for GLASS-layer meshes every 30 frames) | true | false */
     this.glass = 'auto';
     this.sky = null; // set by installRendering (grade targets, sun for shafts)
+    /** 0..1 moonlight shafts through the canopy at night (screen-space, when the moon is in view). */
+    this.moonShafts = 1;
+    /** multiplier on sun / moon shafts */
+    this.shaftStrength = 1;
     this._hasGlass = false;
     this._frame = 0;
     this._flash = { color: new THREE.Color(), t: 0, dur: 1 };
@@ -408,21 +413,26 @@ class PostFX {
       }
     }
 
-    // ---- 5. light shafts (sun at dawn) ----------------------------------------------------
+    // ---- 5. light shafts: god rays from the sun at dawn, moonlight shafts at night --------------
+    //      (screen-space, occluded by everything that is not sky -> rays through the canopy)
     let shafts = 0;
-    if (sky && sky.sunVisibility > 0.01) {
-      _v3.copy(sky.sunDir).multiplyScalar(1000).add(camera.position).project(camera);
-      const facing = camera.getWorldDirection(_dir).dot(sky.sunDir);
+    const useSun = sky && sky.sunVisibility > 0.01;
+    const useMoon = sky && !useSun && this.moonShafts > 0 && sky.moonVisibility > 0.02;
+    if (useSun || useMoon) {
+      const ldir = useSun ? sky.sunDir : sky.moonDir;
+      _v3.copy(ldir).multiplyScalar(1000).add(camera.position).project(camera);
+      const facing = camera.getWorldDirection(_dir).dot(ldir);
       if (facing > 0.05) {
         const sx = _v3.x * 0.5 + 0.5, sy = _v3.y * 0.5 + 0.5;
         const onScreen = 1 - clamp((Math.max(Math.abs(sx - 0.5), Math.abs(sy - 0.5)) - 0.5) / 0.6, 0, 1);
-        shafts = sky.sunVisibility * onScreen * clamp(facing * 2, 0, 1);
+        const fogK = 0.65 + clamp(GLOBAL_UNIFORMS.uFogDensity.value * 16, 0, 0.8);
+        shafts = (useSun ? sky.sunVisibility : sky.moonVisibility * 0.4 * this.moonShafts) * onScreen * clamp(facing * 2, 0, 1) * fogK * this.shaftStrength;
         if (shafts > 0.01) {
           const m = this.matShaftMask.uniforms;
           m.tSrc.value = this.sceneRT.texture;
           m.uSun.value.set(sx, sy);
           m.uAspect.value = w / h;
-          m.uThreshold.value = 0.35 / Math.max(exposure, 0.2);
+          m.uThreshold.value = (useSun ? 0.35 : 0.08) / Math.max(exposure, 0.2);
           this._pass(renderer, this.matShaftMask, this.shaftA);
           const b = this.matShaftBlur.uniforms;
           b.uSun.value.set(sx, sy);
@@ -463,9 +473,9 @@ class PostFX {
     const lb = Math.max(0, cfg.brightness - 1) * 0.02;
     fu.uLift.value.addScalar(lb);
     fu.uColorMul.value.copy(P.tint);
-    fu.uBloom.value = clamp(bloomAmt * 0.075, 0, 0.5);
+    fu.uBloom.value = clamp(bloomAmt * 0.09, 0, 0.5);
     fu.uShafts.value = shafts * 1.6;
-    if (sky) fu.uShaftCol.value.copy(sky.sunColor);
+    if (sky) fu.uShaftCol.value.copy(useSun ? sky.sunColor : sky.moonColor);
     fu.uVignette.value = cfg.vignette * P.vignette;
     fu.uChroma.value = cfg.chroma * P.chroma;
     fu.uHorror.value = P.horror;
