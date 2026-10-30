@@ -25,90 +25,90 @@ function K(h, o) {
   return { h, ...o };
 }
 const KEYS = [
-  // 21-23 DREAD: near-black teal, cold, green-tinted fog, thick ground mist, sodium accents
+  // 21-23 DREAD: near-black, neutral blue-grey moonlight, cold fog, thick ground mist, sodium accents
   K(21.0, {
-    zenith: 0x081012, mid: 0x0f1b1a, horizon: 0x1b2c2a, fog: 0x15241f, fogDensity: 0.024, fogH: 0.055, fogK: 0.12, fogNoise: 0.8, mist: 0.15, mistK: 1.3,
-    amb: 0x6f9a92, ambI: 0.14, hemiSky: 0x527672, hemiGround: 0x0b0f0a, hemiI: 0.48, moonC: 0x9fbcc0, moonI: 0.32,
-    stars: 0.15, clouds: 0.82, cloudC: 0x1c2b29, skyVis: 0.5, surreal: 0, dawn: 0, moonScatter: 0.7, glow: 0x000000, glowI: 0,
-    exposure: 3.5, sat: 0.8, contrast: 1.17, temp: -0.12, tint: 0.05, lift: [0.0, 0.006, 0.006], gain: [0.98, 1.0, 0.97],
-    shadowTint: 0x0d3a35, highTint: 0xe0a060, split: 0.42,
+    zenith: 0x070910, mid: 0x0c1018, horizon: 0x181c25, fog: 0x14181f, fogDensity: 0.024, fogH: 0.055, fogK: 0.12, fogNoise: 0.8, mist: 0.15, mistK: 1.3,
+    amb: 0x7a879c, ambI: 0.14, hemiSky: 0x56627a, hemiGround: 0x0e0d0b, hemiI: 0.48, moonDisc: 0xc8d2e2, moonC: 0xaebdd4, moonI: 0.32,
+    stars: 0.15, clouds: 0.82, cloudC: 0x181c24, skyVis: 0.5, surreal: 0, dawn: 0, moonScatter: 0.7, glow: 0x000000, glowI: 0,
+    exposure: 3.5, sat: 0.82, contrast: 1.17, temp: -0.06, tint: 0.0, lift: [0.0015, 0.002, 0.004], gain: [1.0, 1.0, 1.0],
+    shadowTint: 0x1e2a3e, highTint: 0xe8a058, split: 0.42,
   }),
   K(22.5, {
-    zenith: 0x070c0e, mid: 0x0e1818, horizon: 0x192826, fog: 0x13201c, fogDensity: 0.027, fogH: 0.06, fogK: 0.12, fogNoise: 0.85, mist: 0.17, mistK: 1.25,
-    amb: 0x6f9a92, ambI: 0.125, hemiSky: 0x4a6e6a, hemiGround: 0x0a0d09, hemiI: 0.44, moonC: 0x9fbcc0, moonI: 0.29,
-    stars: 0.1, clouds: 0.85, cloudC: 0x1a2726, skyVis: 0.45, surreal: 0.05, dawn: 0, moonScatter: 0.65, glow: 0x000000, glowI: 0,
-    exposure: 3.5, sat: 0.78, contrast: 1.18, temp: -0.13, tint: 0.06, lift: [0.0, 0.006, 0.006], gain: [0.98, 1.0, 0.97],
-    shadowTint: 0x0c3632, highTint: 0xe0a060, split: 0.44,
+    zenith: 0x06080e, mid: 0x0b0f16, horizon: 0x161a22, fog: 0x12161c, fogDensity: 0.027, fogH: 0.06, fogK: 0.12, fogNoise: 0.85, mist: 0.17, mistK: 1.25,
+    amb: 0x7a879c, ambI: 0.125, hemiSky: 0x525e74, hemiGround: 0x0d0c0a, hemiI: 0.44, moonDisc: 0xc8d2e2, moonC: 0xaebdd4, moonI: 0.29,
+    stars: 0.1, clouds: 0.85, cloudC: 0x161a21, skyVis: 0.45, surreal: 0.05, dawn: 0, moonScatter: 0.65, glow: 0x000000, glowI: 0,
+    exposure: 3.5, sat: 0.8, contrast: 1.18, temp: -0.07, tint: 0.0, lift: [0.0015, 0.002, 0.004], gain: [1.0, 1.0, 1.0],
+    shadowTint: 0x1c283c, highTint: 0xe8a058, split: 0.44,
   }),
-  // 23-02 SURREAL: sickly green + crimson, reddish moon, purple haze
+  // 23-02 SURREAL: red moon over a dusky slate night, red-gold highlights (no green cast)
   K(23.5, {
-    zenith: 0x0e0a16, mid: 0x181222, horizon: 0x2c2238, fog: 0x21192e, fogDensity: 0.025, fogH: 0.055, fogK: 0.12, fogNoise: 0.85, mist: 0.18, mistK: 1.2,
-    amb: 0x86a052, ambI: 0.13, hemiSky: 0x6c8a46, hemiGround: 0x140a12, hemiI: 0.48, moonC: 0xd8705a, moonI: 0.32,
-    stars: 0.25, clouds: 0.62, cloudC: 0x291d33, skyVis: 0.55, surreal: 1, dawn: 0, moonScatter: 1.0, glow: 0x3a0c14, glowI: 0.3,
-    exposure: 3.4, sat: 0.9, contrast: 1.17, temp: -0.04, tint: 0.12, lift: [0.004, 0.0027, 0.006], gain: [1.02, 0.97, 0.98],
-    shadowTint: 0x2c4a18, highTint: 0xd02838, split: 0.46,
+    zenith: 0x0b0a11, mid: 0x13121b, horizon: 0x24212e, fog: 0x1b1924, fogDensity: 0.025, fogH: 0.055, fogK: 0.12, fogNoise: 0.85, mist: 0.18, mistK: 1.2,
+    amb: 0x84849a, ambI: 0.13, hemiSky: 0x626278, hemiGround: 0x110d0e, hemiI: 0.48, moonDisc: 0xd8705a, moonC: 0xb8b4c4, moonI: 0.32,
+    stars: 0.25, clouds: 0.62, cloudC: 0x221f2b, skyVis: 0.55, surreal: 1, dawn: 0, moonScatter: 1.0, glow: 0x3a0c14, glowI: 0.3,
+    exposure: 3.4, sat: 0.9, contrast: 1.17, temp: -0.03, tint: 0.0, lift: [0.003, 0.002, 0.004], gain: [1.0, 0.99, 0.99],
+    shadowTint: 0x262840, highTint: 0xd8603c, split: 0.46,
   }),
   K(25.0, {
-    zenith: 0x0c0814, mid: 0x161121, horizon: 0x281f3a, fog: 0x1d1729, fogDensity: 0.021, fogH: 0.045, fogK: 0.13, fogNoise: 0.8, mist: 0.16, mistK: 1.2,
-    amb: 0x86a052, ambI: 0.13, hemiSky: 0x627f48, hemiGround: 0x120a10, hemiI: 0.48, moonC: 0xd8705a, moonI: 0.36,
-    stars: 0.45, clouds: 0.42, cloudC: 0x251b33, skyVis: 0.68, surreal: 1, dawn: 0, moonScatter: 0.95, glow: 0x30101a, glowI: 0.25,
-    exposure: 3.3, sat: 0.9, contrast: 1.15, temp: -0.02, tint: 0.1, lift: [0.004, 0.0027, 0.0067], gain: [1.02, 0.97, 0.99],
-    shadowTint: 0x2a481e, highTint: 0xc82c40, split: 0.44,
+    zenith: 0x0a0910, mid: 0x12101a, horizon: 0x221f2c, fog: 0x191722, fogDensity: 0.021, fogH: 0.045, fogK: 0.13, fogNoise: 0.8, mist: 0.16, mistK: 1.2,
+    amb: 0x84849a, ambI: 0.13, hemiSky: 0x5e5e74, hemiGround: 0x100c0d, hemiI: 0.48, moonDisc: 0xd8705a, moonC: 0xb8b4c4, moonI: 0.36,
+    stars: 0.45, clouds: 0.42, cloudC: 0x201d29, skyVis: 0.68, surreal: 1, dawn: 0, moonScatter: 0.95, glow: 0x30101a, glowI: 0.25,
+    exposure: 3.3, sat: 0.9, contrast: 1.15, temp: -0.02, tint: 0.0, lift: [0.003, 0.002, 0.0042], gain: [1.0, 0.99, 0.99],
+    shadowTint: 0x262840, highTint: 0xd06040, split: 0.44,
   }),
   // 02-04 CALM: warmer amber, stars, fireflies, soft blue moonlight; mist lies low on the road
   K(26.3, {
     zenith: 0x060b15, mid: 0x0e1726, horizon: 0x1b2638, fog: 0x141c29, fogDensity: 0.011, fogH: 0.026, fogK: 0.14, fogNoise: 0.65, mist: 0.12, mistK: 1.5,
-    amb: 0x6a7a98, ambI: 0.16, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.6, moonC: 0xc4d2ea, moonI: 0.62,
+    amb: 0x6a7a98, ambI: 0.16, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.6, moonDisc: 0xdde6f4, moonC: 0xc4d2ea, moonI: 0.62,
     stars: 1.0, clouds: 0.2, cloudC: 0x141c2a, skyVis: 0.9, surreal: 0, dawn: 0, moonScatter: 0.9, glow: 0x000000, glowI: 0,
-    exposure: 3.3, sat: 0.92, contrast: 1.11, temp: 0.06, tint: 0.0, lift: [0.0014, 0.0034, 0.008], gain: [1.03, 1.0, 0.96],
+    exposure: 3.3, sat: 0.92, contrast: 1.11, temp: 0.06, tint: 0.0, lift: [0.0015, 0.0022, 0.0045], gain: [1.03, 1.0, 0.96],
     shadowTint: 0x24365a, highTint: 0xf0b070, split: 0.38,
   }),
   K(27.6, {
     zenith: 0x080d19, mid: 0x111a2b, horizon: 0x1f2a3e, fog: 0x17202e, fogDensity: 0.012, fogH: 0.032, fogK: 0.15, fogNoise: 0.65, mist: 0.13, mistK: 1.4,
-    amb: 0x6a7a98, ambI: 0.17, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.62, moonC: 0xc4d2ea, moonI: 0.55,
+    amb: 0x6a7a98, ambI: 0.17, hemiSky: 0x56688a, hemiGround: 0x17140e, hemiI: 0.62, moonDisc: 0xdde6f4, moonC: 0xc4d2ea, moonI: 0.55,
     stars: 0.9, clouds: 0.22, cloudC: 0x172031, skyVis: 0.88, surreal: 0, dawn: 0.0, moonScatter: 0.8, glow: 0x000000, glowI: 0,
-    exposure: 3.2, sat: 0.92, contrast: 1.1, temp: 0.05, tint: 0.0, lift: [0.0014, 0.0034, 0.008], gain: [1.03, 1.0, 0.97],
+    exposure: 3.2, sat: 0.92, contrast: 1.1, temp: 0.05, tint: 0.0, lift: [0.0015, 0.0022, 0.0045], gain: [1.03, 1.0, 0.97],
     shadowTint: 0x24365a, highTint: 0xf0b070, split: 0.36,
   }),
   // 04-06 DAWN: indigo -> cyan -> peach, glowing mist, golden sunrise ~05:45
   K(28.5, {
     zenith: 0x0e1226, mid: 0x1c2240, horizon: 0x363d5c, fog: 0x2a3048, fogDensity: 0.012, fogH: 0.04, fogK: 0.18, fogNoise: 0.65, mist: 0.16, mistK: 1.1,
-    amb: 0x70769a, ambI: 0.3, hemiSky: 0x5a6090, hemiGround: 0x1a1a22, hemiI: 0.85, moonC: 0xb0c0f0, moonI: 0.2,
+    amb: 0x70769a, ambI: 0.3, hemiSky: 0x5a6090, hemiGround: 0x1a1a22, hemiI: 0.85, moonDisc: 0xc8d4f0, moonC: 0xb0c0f0, moonI: 0.2,
     stars: 0.35, clouds: 0.3, cloudC: 0x2a3050, skyVis: 0.82, surreal: 0, dawn: 0.25, moonScatter: 0.5, glow: 0x3a3070, glowI: 0.35,
     exposure: 2.6, sat: 0.86, contrast: 1.06, temp: -0.05, tint: -0.02, lift: [0.006, 0.006, 0.02], gain: [1.0, 1.0, 1.02],
     shadowTint: 0x2c2c5a, highTint: 0xc0b4e0, split: 0.3,
   }),
   K(29.1, {
-    zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x78a2b0, fog: 0x5a7a86, fogDensity: 0.01, fogH: 0.032, fogK: 0.22, fogNoise: 0.65, mist: 0.17, mistK: 1.0,
-    amb: 0x9ab8cc, ambI: 0.28, hemiSky: 0x86aac8, hemiGround: 0x2a2a26, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.05,
+    zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x8aa0b4, fog: 0x667686, fogDensity: 0.01, fogH: 0.032, fogK: 0.22, fogNoise: 0.65, mist: 0.17, mistK: 1.0,
+    amb: 0x9ab8cc, ambI: 0.28, hemiSky: 0x86aac8, hemiGround: 0x2a2a26, hemiI: 0.6, moonDisc: 0xd0dcf0, moonC: 0xc0d0f0, moonI: 0.05,
     stars: 0.05, clouds: 0.32, cloudC: 0x6a7e98, skyVis: 0.82, surreal: 0, dawn: 0.5, moonScatter: 0.15, glow: 0xd09080, glowI: 0.55,
-    exposure: 1.4, sat: 1.04, contrast: 1.07, temp: -0.01, tint: 0.0, lift: [0.004, 0.01, 0.016], gain: [1.0, 1.0, 1.0],
+    exposure: 1.4, sat: 1.04, contrast: 1.07, temp: -0.01, tint: 0.0, lift: [0.005, 0.007, 0.014], gain: [1.0, 1.0, 1.0],
     shadowTint: 0x26466a, highTint: 0xf8c098, split: 0.3,
   }),
   K(29.55, {
     zenith: 0x34507e, mid: 0x7c98ae, horizon: 0xe8a682, fog: 0xa88c7c, fogDensity: 0.0075, fogH: 0.028, fogK: 0.25, fogNoise: 0.65, mist: 0.15, mistK: 1.0,
-    amb: 0xd0b0a8, ambI: 0.3, hemiSky: 0xa0b8d0, hemiGround: 0x3a3028, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
+    amb: 0xd0b0a8, ambI: 0.3, hemiSky: 0xa0b8d0, hemiGround: 0x3a3028, hemiI: 0.6, moonDisc: 0xd0dcf0, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.3, cloudC: 0xc09890, skyVis: 0.82, surreal: 0, dawn: 0.75, moonScatter: 0.0, glow: 0xffa070, glowI: 1.0,
     exposure: 1.05, sat: 1.1, contrast: 1.08, temp: 0.1, tint: 0.02, lift: [0.008, 0.005, 0.01], gain: [1.03, 1.0, 0.97],
     shadowTint: 0x34447a, highTint: 0xffc488, split: 0.32,
   }),
   K(29.75, {
     zenith: 0x3d64a0, mid: 0x9cb0c0, horizon: 0xf4b276, fog: 0xc8a078, fogDensity: 0.0065, fogH: 0.026, fogK: 0.25, fogNoise: 0.65, mist: 0.14, mistK: 1.0,
-    amb: 0xe0c0a0, ambI: 0.3, hemiSky: 0xb0c4d8, hemiGround: 0x483626, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
+    amb: 0xe0c0a0, ambI: 0.3, hemiSky: 0xb0c4d8, hemiGround: 0x483626, hemiI: 0.6, moonDisc: 0xd0dcf0, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.28, cloudC: 0xe0a880, skyVis: 0.82, surreal: 0, dawn: 0.9, moonScatter: 0.0, glow: 0xffb060, glowI: 1.3,
     exposure: 0.95, sat: 1.12, contrast: 1.08, temp: 0.16, tint: 0.02, lift: [0.01, 0.006, 0.006], gain: [1.05, 1.0, 0.94],
     shadowTint: 0x34447a, highTint: 0xffbc68, split: 0.34,
   }),
   K(30.0, {
     zenith: 0x5480b2, mid: 0xb0c4d0, horizon: 0xf2c690, fog: 0xd0b08a, fogDensity: 0.0055, fogH: 0.02, fogK: 0.25, fogNoise: 0.6, mist: 0.12, mistK: 1.1,
-    amb: 0xe8d0b0, ambI: 0.35, hemiSky: 0xc0d4e8, hemiGround: 0x4a3a28, hemiI: 0.7, moonC: 0xc0d0f0, moonI: 0.0,
+    amb: 0xe8d0b0, ambI: 0.35, hemiSky: 0xc0d4e8, hemiGround: 0x4a3a28, hemiI: 0.7, moonDisc: 0xd0dcf0, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.25, cloudC: 0xf0c8a0, skyVis: 0.86, surreal: 0, dawn: 1.0, moonScatter: 0.0, glow: 0xffc070, glowI: 1.1,
     exposure: 0.95, sat: 1.1, contrast: 1.07, temp: 0.14, tint: 0.01, lift: [0.01, 0.008, 0.006], gain: [1.04, 1.0, 0.95],
     shadowTint: 0x3c4c7a, highTint: 0xffcc88, split: 0.3,
   }),
 ];
 // pre-convert colours
-const COLOR_KEYS = ['zenith', 'mid', 'horizon', 'fog', 'amb', 'hemiSky', 'hemiGround', 'moonC', 'cloudC', 'glow', 'shadowTint', 'highTint'];
+const COLOR_KEYS = ['zenith', 'mid', 'horizon', 'fog', 'amb', 'hemiSky', 'hemiGround', 'moonC', 'moonDisc', 'cloudC', 'glow', 'shadowTint', 'highTint'];
 for (const k of KEYS) for (const c of COLOR_KEYS) k[c] = C(k[c]);
 
 const NUM_KEYS = ['fogDensity', 'fogH', 'fogK', 'fogNoise', 'mist', 'mistK', 'ambI', 'hemiI', 'moonI', 'stars', 'clouds', 'skyVis', 'surreal', 'dawn', 'moonScatter', 'glowI', 'exposure', 'sat', 'contrast', 'temp', 'tint', 'split'];
@@ -540,7 +540,7 @@ class Sky {
     su.uMid.value.copy(cur.mid);
     su.uHorizon.value.copy(cur.horizon);
     su.uMoonDirS.value.copy(this.moonDir);
-    su.uMoonCol.value.copy(cur.moonC);
+    su.uMoonCol.value.copy(cur.moonDisc); // disc + halo (red in the surreal hours); the light stays neutral
     su.uMoonI.value = (1 - rain * 0.7) * (1 - smoothstep(29.2, 29.8, h));
     su.uMoonPhase.value = (this.moonPhase - 0.5) * Math.PI * 2;
     su.uMoonHalo.value = 1 + cur.surreal * 1.5 + cur.fogDensity * 10;
