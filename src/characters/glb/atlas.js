@@ -34,7 +34,7 @@ export function releaseAtlas(e) {
   if (--e.refs <= 0) { e.map.dispose(); e.mask.dispose(); cache.delete(e.key); }
 }
 
-const ROUGH = { skin: 0.55, jersey: 0.92, plain: 0.85, twill: 0.88, linen: 0.9, rib: 0.92, sateen: 0.5, knitL: 0.95, leather: 0.42, rubber: 0.6, hair: 0.5 };
+const ROUGH = { skin: 0.55, jersey: 0.92, plain: 0.85, twill: 0.88, linen: 0.9, rib: 0.92, sateen: 0.5, knitL: 0.95, leather: 0.42, rubber: 0.6, hair: 0.78 };
 
 export function paintAtlas(look, S = 1024) {
   const cv = document.createElement('canvas');

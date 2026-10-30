@@ -254,6 +254,17 @@ trigger **only when you aren't looking**, then reveal when you are.
 **Painterly semi-realistic 3D:** a handcrafted horror painting brought to life.
 NOT photoreal, NOT cartoon, NOT low-poly or plastic.
 
+**SUPER SHARP, detailed, handmade, polished** (owner's directive). The handmade feel
+comes from hand-painted texture brushwork, fine modelled detail and colour grading,
+**never from blur**:
+* The painterly post filter is subtle and edge-preserving. It must never smear textures,
+  foliage edges, signage text or faces. A contrast-adaptive sharpening pass runs after it.
+* Full-resolution rendering on High/Ultra, crisp anti-aliasing, max anisotropic
+  filtering, high-resolution textures where the eye lands (taxi interior, faces,
+  signs, road surface).
+* Lots of small crafted detail: bevels, chipped edges, cable ties, stitching, cracks,
+  leaves and debris, readable decals. Check every screenshot at 100% zoom.
+
 * Hand-painted procedural textures with visible but subtle brushwork. Rough, worn
   materials: cracked wet asphalt, moss-eaten concrete, rust, peeling paint, tropical
   bark.

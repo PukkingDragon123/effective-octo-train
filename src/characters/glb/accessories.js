@@ -89,9 +89,6 @@ export function wornAccessoryGeometry(t, look) {
         const ring = new THREE.TorusGeometry(0.0175, 0.0014, 5, 20);
         ring.scale(1, 0.72, 1);
         mb.add(ring, 0x1c1714, iHead, M4(s * Math.abs(e[0].x) * 1.02, e[0].y - 0.001, z));
-        const lens = new THREE.CircleGeometry(0.0172, 18);
-        lens.scale(1, 0.72, 1);
-        mb.add(lens, 0x3a4048, iHead, M4(s * Math.abs(e[0].x) * 1.02, e[0].y - 0.001, z - 0.001));
         const arm = new THREE.BoxGeometry(0.0022, 0.003, 0.1);
         mb.add(arm, 0x1c1714, iHead, M4(s * 0.072, e[0].y + 0.004, z - 0.052, 0, s * -0.12, 0));
       }

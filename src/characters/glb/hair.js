@@ -84,13 +84,13 @@ const lineStd = (front = 0.064, temple = 0.047, side = 0.02, behind = -0.012, ba
   a < 45 ? lerp(front, temple, a / 45) : a < 90 ? lerp(temple, side, (a - 45) / 45) : a < 125 ? lerp(side, behind, (a - 90) / 35) : lerp(behind, back, (a - 125) / 55);
 
 const STYLES = {
-  short: { line: lineStd(), thick: (a, k) => lerp(0.004, 0.013, k) + (a < 40 ? 0.003 : 0), noise: [0.002, 14] },
-  'gray-short': { line: lineStd(0.068, 0.05, 0.018, -0.014, -0.068), thick: (a, k) => lerp(0.003, 0.009, k), noise: [0.0012, 16] },
-  messy: { line: lineStd(0.052, 0.04, 0.012, -0.02, -0.075), thick: (a, k) => lerp(0.007, 0.02, k), noise: [0.006, 9, 0.003, 22], spikes: 0.008 },
+  short: { line: lineStd(), thick: (a, k) => lerp(0.005, 0.02, k * k) + (a < 40 ? 0.004 * k : 0) + (a > 120 ? 0.004 * k : 0), noise: [0.003, 12, 0.0015, 30] },
+  'gray-short': { line: lineStd(0.068, 0.05, 0.018, -0.014, -0.068), thick: (a, k) => lerp(0.004, 0.013, k * k), noise: [0.002, 14, 0.001, 30] },
+  messy: { line: lineStd(0.052, 0.04, 0.012, -0.02, -0.075), thick: (a, k) => lerp(0.008, 0.026, k), noise: [0.007, 8, 0.004, 22], spikes: 0.012 },
   pompadour: { line: lineStd(0.066, 0.05, 0.02, -0.012, -0.068), thick: (a, k) => lerp(0.004, 0.012, k) + (a < 50 ? 0.03 * smoothstep(0.3, 0.9, k) * (1 - a / 50) : 0), noise: [0.001, 18], slick: true },
-  long: { line: lineStd(0.064, 0.047, 0.018, -0.014, -0.06), thick: (a, k) => lerp(0.008, 0.011, k), curtain: (a) => (a < 60 ? null : a < 110 ? lerp(-0.2, -0.26, (a - 60) / 50) : lerp(-0.26, -0.4, (a - 110) / 70)), gap: 52, flare: 0.012, noise: [0.002, 10] },
+  long: { line: lineStd(0.064, 0.047, 0.018, -0.014, -0.06), thick: (a, k) => lerp(0.009, 0.016, k), curtain: (a) => (a < 60 ? null : a < 110 ? lerp(-0.2, -0.26, (a - 60) / 50) : lerp(-0.26, -0.4, (a - 110) / 70)), gap: 52, flare: 0.012, noise: [0.002, 10] },
   bob: { line: lineStd(0.064, 0.047, 0.02, -0.012, -0.05), thick: (a, k) => lerp(0.011, 0.015, k), curtain: (a) => (a < 62 ? null : lerp(-0.075, -0.085, (a - 62) / 118)), gap: 58, flare: 0.008, noise: [0.0015, 14] },
-  bun: { line: lineStd(0.066, 0.05, 0.022, -0.01, -0.055), thick: () => 0.0055, extra: 'bun', slick: true },
+  bun: { line: lineStd(0.066, 0.05, 0.022, -0.01, -0.055), thick: (a, k) => 0.006 + 0.004 * k, extra: 'bun', slick: true },
   ponytail: { line: lineStd(0.066, 0.05, 0.022, -0.01, -0.055), thick: () => 0.006, extra: 'ponytail', slick: true },
   bald: { line: lineStd(0.02, 0.015, 0.005, -0.02, -0.07), thick: () => 0.004, minA: 75, top: 0.045, noise: [0.001, 20] },
   shaved: null,

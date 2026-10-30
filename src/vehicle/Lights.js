@@ -133,6 +133,21 @@ export class TaxiLights {
     hp.position.set(0, 0.035, -4.6);
     taxi.chassis.add(hp);
     this.headPool = hp;
+    // --- contact shadow: soft ground occlusion under the body and each tyre (night scenes
+    // have few shadow-casting lights, without it the car floats) ---------------------------
+    const aoMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color: 0x000000, transparent: true, opacity: 0.62, depthWrite: false, fog: false });
+    const ao = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 5.0).rotateX(-Math.PI / 2), aoMat);
+    ao.position.set(0, 0.018, -0.1);
+    ao.renderOrder = 1;
+    taxi.chassis.add(ao);
+    const tyreAo = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.85).rotateX(-Math.PI / 2), aoMat);
+    for (const w of taxi.ext?.wheels || []) {
+      const m = tyreAo.clone();
+      m.position.set(w.pivot.position.x, 0.02, w.pivot.position.z);
+      m.renderOrder = 1;
+      taxi.chassis.add(m);
+    }
+    this.contactShadow = ao;
     // --- dome + dash glow ----------------------------------------------------------------------
     const dome = new THREE.PointLight(0xffd59a, 0, 3.2, 2);
     dome.position.set(0, 1.3, 0.25);

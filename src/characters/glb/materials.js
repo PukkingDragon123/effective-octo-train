@@ -251,7 +251,7 @@ export function bodyMaterial(U, opts = {}) {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT_PARS)
       .replace('#include <skinnormal_vertex>', '#include <skinnormal_vertex>\n#ifdef USE_SKINNING\n  objectNormal = glbTwistN(objectNormal, (skinMatrix * vec4(position, 1.0)).xyz);\n#endif')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBind = position; vPart = apart;\n  transformed += normal * afat * uFat;\n  if (apart < 0.5) transformed += glbFace(position);')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBind = position; vPart = apart;\n  transformed += normal * (afat * uFat - (apart > 0.5 && apart < 1.5 ? 0.0045 : 0.0));\n  if (apart < 0.5) transformed += glbFace(position);')
       .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  transformed = glbTwist(transformed);');
     let f = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + FRAG_PARS)

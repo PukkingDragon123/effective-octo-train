@@ -13,6 +13,17 @@
 //   TaxiControls.js   setControl, interactables, hotkeys, control animation, displays
 //   Taxi.js           the Taxi class (assembly + update + pre-render)
 //   Motorcycle.js     intro step-through motorbike
+//
+// Contract (unchanged from the original stub; full JSDoc in Taxi.js / Motorcycle.js):
+//   new Taxi({ world })  .root .interior .anchors(TAXI_ANCHORS) .seats .state .physics .mirrors .glass
+//     setPose(pos, yaw) · setControlsEnabled(b) · setInteractionsEnabled(b) · autopilot(spec|null) -> Promise
+//     setControl(control, value, opts) -> Promise · openDoor(door, amount, dur) -> Promise · getGazeTarget()
+//     setSeatWeight(seat, kg) · setFog(glass|'all', amount) · addGlassMark(glass, kind, uv, opts)
+//     cabinBrightness · update(dt) (self-installed at order 10) · dispose()
+//   extras: onReach hook · onWipeGlass hook · wipeGlassAt · addBreathFog · speedKmh · fare · setCabinOverride
+//     setMeterGlitch · startEngine · isCameraInside · rayGlass · isAudioOwner · physics.frozen (freeze)
+//   new Motorcycle({ world })  .root .anchors{seat handleL handleR footL footR eye headlight} .state .physics
+//     setPose · setControlsEnabled · autopilot(spec) · setEngine(on) · setHeadlight(on) · speedKmh · dispose
 export { Taxi, TAXI_ANCHORS, STATIONS } from './Taxi.js';
 export { Motorcycle } from './Motorcycle.js';
 export { CAR, torqueAt } from './CarPhysics.js';

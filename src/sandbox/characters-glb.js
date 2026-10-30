@@ -44,8 +44,8 @@ export default async function ({ engine, cameraRig, params }) {
   scene.add(moon);
   scene.add(new THREE.HemisphereLight(0x34465a, 0x0c0c0c, 0.5));
   // soft face fill from the camera side (like light spilling from a shop front)
-  const fill = new THREE.PointLight(0xffd8b0, params.get('fill') ? +params.get('fill') : 2.2, 6, 1.6);
-  fill.position.set(0.6, 1.7, 2.6);
+  const fill = new THREE.PointLight(0xffd8b0, params.get('fill') ? +params.get('fill') : 0.45, 6, 1.6);
+  fill.position.set(1.4, 1.9, 2.2);
   scene.add(fill);
   if (studio) {
     scene.background = new THREE.Color(0x3a3d40);
@@ -178,7 +178,7 @@ export default async function ({ engine, cameraRig, params }) {
     torso: [[0, H * 0.72, 1.3], [0, H * 0.68, 0], -20],
     hands: [[0.25, H * 0.55, 0.75], [0.15, H * 0.5, 0], -20],
     lineup: [[0, 1.2, n * 0.55 + 1.0], [0, 0.92, 0], -14],
-    faces: [[0, 1.5, 1.6], [0, 1.49, 0], -40],
+    faces: [[0, 1.5, +(params.get('camz') || 1.6)], [0, 1.49, 0], -40],
     ghost: [[0.3, 1.25, n * 0.6 + 1.9], [0, 0.95, 0], -12],
     lineupClose: [[0, 1.45, 2.6], [0, 1.38, 0], -12],
     actions: [[0.2, 1.3, 4.6], [0.05, 0.9, 0], -10],

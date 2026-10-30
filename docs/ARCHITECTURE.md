@@ -287,6 +287,23 @@ header of `src/props/index.js`. Integration rules for the world / gameplay:
   rpm; handbrake; road-corridor constraint (vegetation walls slow you and scrape);
   suspension pitch/roll; bumps on cracks. Feeds `audio.engineSound`.
 * `Motorcycle`: old rusty step-through motorbike for the intro, with headlight.
+* Additions (vehicle module):
+  * Taxi extras: `speedKmh`, `forward`, `fare`, `wipeGlassAt(worldPoint, r, strength)`,
+    `addBreathFog(paneId, worldPoint, strength)`, `setCabinOverride(level|null, flicker)`,
+    `setMeterGlitch({mode:'glitch'|'backward'|'date'|'text', text?, date?}|null)`, `startEngine()`,
+    `isCameraInside()`, `rayGlass()`, `isAudioOwner()`. Hooks: `taxi.onReach = async (target, {control, value, source})`,
+    `taxi.onWipeGlass = (paneId, point)`. Glass ids `windshield rear fl fr rl rr ql qr`; `getGazeTarget()` maps
+    the quarter lights to `rl`/`rr`. Glass marks: `handprint face scratch text clear` (opts `{size, angle, text, intensity, drag, mirror}`).
+  * `state.radioStation` uses the audio radio numbering (1..4, 0 = static; 3 = the 03:00 station);
+    `setControl('radioTune', 'next'|'prev'|n)`. `STATIONS[n]` = `{freq, th, en}`.
+  * Interactables (when `setInteractionsEnabled(true)`): `taxi.key handbrake gear headlights indicator wipers
+    cabinLight radio radioTune meter horn glovebox sunVisor sticker window.<id> door.<id> door.<id>.out trunk glass.<id>`.
+    `taxi.sticker` (the faded blue elephant, anchor `dashSticker`) leans the view in and emits `taxi:inspect {what}`.
+  * Only one taxi (the player's, else the nearest) drives `audio.engineSound` / `audio.radio`; one vehicle
+    (player's, else nearest with lights on) owns `GLOBAL_UNIFORMS.uHeadlight*` (`submitHeadlight` in `Lights.js`).
+  * `Motorcycle`: `setEngine(on)`, `setHeadlight(on)` (switch a parked bike off), `speedKmh`, `physics.frozen`.
+  * Sandboxes: `vehicle` (exterior), `vehicle-interior` (driver POV), `vehicle-bike`, `vehicle-shape`
+    (bare body; `studio=1`), `vehicle-common` (helpers). Common params: `hour rain fog preset`.
 
 ### characters (`src/characters/index.js`)
 * Procedural **skinned** humans: SDF-sculpted bodies (smooth-union capsules and

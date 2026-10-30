@@ -218,7 +218,7 @@ export class TaxiControls {
         if (t.isAudioOwner()) {
           if (s.radioOn && audio.radio && !audio.radio.station) audio.radio.setStation?.(s.radioStation, { sweep: false });
           audio.radio?.setOn?.(s.radioOn && this.hasPower());
-          t._radioWas = s.radioOn;
+          t._radioWas = s.radioOn && this.hasPower();
         }
         break;
       }
