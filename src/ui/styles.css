@@ -1212,3 +1212,21 @@
 .dlb-death__en,
 .dlb-sub__th,
 .dlb-sub__en { text-wrap: balance; }
+
+/* ---------------------------------------------------------------------------------------
+   Srisakdi everywhere (owner's choice). Its ornate script capitals are unreadable in
+   tracked-out ALL CAPS, so Latin keeps its natural case with near-zero tracking, and
+   small text gets the bold cut and a little more size and contrast.
+   --------------------------------------------------------------------------------------- */
+.dlb-ui, .dlb-ui * { text-transform: none !important; letter-spacing: 0.01em !important; }
+.dlb-item .en { font-weight: 700; font-size: clamp(18px, 1.7vw, 27px); }
+.dlb-item .th { font-size: clamp(13px, 1.1vw, 16px); }
+.dlb-item { color: var(--bone-2); }
+.dlb-ui .dlb-cap, .dlb-ui .dlb-pad, .dlb-foot__brand, .dlb-slot__label, .dlb-slot__date { font-weight: 700; }
+/* Srisakdi subtitles: no small-caps (its script capitals blur when tiny), bigger lines. */
+.dlb-sub__who { font-size: calc(15px * var(--sub-scale)); font-weight: 700; }
+.dlb-sub__who .en { font-variant: normal; font-size: 1em; font-weight: 700; }
+.dlb-sub__th { font-size: calc(clamp(22px, 2vw, 31px) * var(--sub-scale)); }
+.dlb-sub__en { font-size: calc(clamp(17px, 1.5vw, 22px) * var(--sub-scale)); font-weight: 700; }
+.dlb-death__sub .th { font-size: 16px; }
+.dlb-death__sub .en { font-size: 14px; font-weight: 700; }

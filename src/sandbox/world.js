@@ -99,7 +99,8 @@ export default async function (ctx) {
     GLOBAL_UNIFORMS.uHeadlightOn.value = 1;
   }
 
-  engine.onUpdate((dt) => world.update(dt, engine.camera.position), 40);
+  // stream around the eye (the rig moves the camera only at order 50, after the world update)
+  engine.onUpdate((dt) => world.update(dt, eye.position), 40);
   // warm-up so streaming/LOD reflect the camera position
   world.update(0.016, eye.position);
   window.__worldInfo = () => ({

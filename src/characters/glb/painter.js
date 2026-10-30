@@ -3,6 +3,7 @@
 // fill overpaints the INSET margin at region edges (mip bleeding guard).
 import { makeRng } from '../../core/math.js';
 import { ATLAS, INSET } from './layout.js';
+import { FONTS } from '../../ui/fonts.js';
 
 export const hexToRgb = (h) => {
   if (Array.isArray(h)) return h;
@@ -222,7 +223,7 @@ export class Painter {
     const g = this.g;
     const [x, y] = this.pt(reg, s, t);
     g.save(); g.translate(x, y); if (rot) g.rotate(rot);
-    g.font = `${size}px ${font}, "Sarabun", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `${size}px ${font || FONTS.body}, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = color; g.fillText(str, 0, 0);
     g.restore();
   }

@@ -291,8 +291,21 @@ export function paintFace(look, t, S = 1024) {
       stroke([[x, y], [x + r.range(-3, 3), y + M(r.range(0.01, 0.04))]], css(255, 255, 255, 0.05 * gh.wet), M(0.0015));
     }
     if (gh.bloodStains > 0) {
-      blob(X(0.02), Y(ey + 0.05), M(0.012), M(0.018), css(90, 18, 14, 1), 0.7 * Math.min(1, gh.bloodStains * 4));
-      stroke([[X(0.022), Y(ey + 0.04)], [X(0.026), Y(ey + 0.0)], [X(0.03), Y(ey - 0.03)]], css(90, 18, 14, 0.55 * Math.min(1, gh.bloodStains * 4)), M(0.002));
+      const bs = Math.min(1, gh.bloodStains * 1.8);
+      const drip = (x0, y0, len, w) => {
+        const pts = []; let x = x0;
+        for (let i = 0; i <= 12; i++) { x += r.range(-0.0005, 0.0005); pts.push([X(x), Y(y0 - (len * i) / 12)]); }
+        stroke(pts, css(36, 14, 10, 0.75), M(w * 1.35)); // dried rim
+        stroke(pts, css(78, 10, 8, 0.9), M(w));
+        stroke(pts.map(([a, b]) => [a - M(w * 0.2), b]), css(140, 40, 34, 0.25), M(w * 0.3)); // wet sheen
+        const [ex2, ey2] = pts[pts.length - 1];
+        g.fillStyle = css(70, 8, 6, 0.95); g.beginPath(); g.arc(ex2, ey2, M(w * 0.8), 0, Math.PI * 2); g.fill();
+      };
+      // forehead wound + runs, tears of blood, nose and mouth
+      blob(X(0.02), Y(ey + 0.05), M(0.012 * bs), M(0.016 * bs), css(80, 14, 10, 1), 0.85);
+      drip(0.022, ey + 0.045, 0.07 * bs, 0.0018); drip(0.03, ey + 0.04, 0.05 * bs, 0.0012);
+      if (bs > 0.3) { for (const sd of [-1, 1]) drip(sd * (ex - 0.002), ey - 0.005, 0.045 * bs, 0.0013); drip(0.005, noseY - 0.008, 0.02 * bs, 0.0012); drip(-0.008, mouthY - 0.002, 0.05 * bs, 0.0016); }
+      for (let i = 0; i < 30 * bs; i++) blob(X(r.range(-0.06, 0.06)), Y(ey + r.range(-0.08, 0.06)), M(0.0008), M(0.0008), css(60, 10, 8, 1), 0.8);
     }
   }
   // inside the eye apertures (only seen at the very edges while blinking): moist pink

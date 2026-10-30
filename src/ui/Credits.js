@@ -44,11 +44,7 @@ const SECTIONS = [
   {
     th: 'แบบอักษร', en: 'Typefaces',
     lines: [
-      { role: { th: 'ข้อความและคำบรรยาย', en: 'Text & subtitles' }, name: 'Sarabun', small: 'Cadson Demak · SIL Open Font License 1.1' },
-      { role: { th: 'ป้ายและหัวเรื่อง', en: 'Signs & display' }, name: 'Kanit', small: 'Cadson Demak · SIL Open Font License 1.1' },
-      { role: { th: 'มิเตอร์และนาฬิกา', en: 'Meter & clocks' }, name: 'Chakra Petch', small: 'Cadson Demak · SIL Open Font License 1.1' },
-      { role: { th: 'ลายมือ', en: 'Handwriting' }, name: 'Mali', small: 'Cadson Demak · SIL Open Font License 1.1' },
-      { role: { th: 'ชื่อเกม', en: 'Title' }, name: 'Cormorant Garamond', small: 'Christian Thalmann · SIL Open Font License 1.1' },
+      { role: { th: 'ตัวอักษรทั้งหมด', en: 'Typeface' }, name: 'Srisakdi', small: 'Cadson Demak · SIL Open Font License 1.1' },
     ],
   },
 ];

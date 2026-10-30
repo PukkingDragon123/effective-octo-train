@@ -48,7 +48,7 @@ export const CREDITS = [
     entries: [
       { roleTH: 'เอนจินสามมิติ', roleEN: '3D engine', name: 'three.js — MIT License' },
       { roleTH: 'เครื่องมือพัฒนา', roleEN: 'Build tooling', name: 'Vite — MIT License' },
-      { roleTH: 'ฟอนต์', roleEN: 'Fonts', name: 'Sarabun, Kanit, Chakra Petch, Mali, Cormorant Garamond — SIL Open Font License 1.1' },
+      { roleTH: 'ฟอนต์', roleEN: 'Fonts', name: 'Srisakdi (Cadson Demak) — SIL Open Font License 1.1' },
       { th: 'ภาพ โมเดล พื้นผิว แอนิเมชัน เสียง และดนตรีทั้งหมด สร้างขึ้นด้วยโค้ดแบบโพรซีเดอรัล', en: 'All visuals, models, textures, animation, sound and music are procedurally generated in code.' },
       { th: 'เสียงพูดภาษาไทยใช้เสียงสังเคราะห์ของระบบปฏิบัติการ (ถ้ามี)', en: 'Thai speech uses your operating system\'s speech synthesis voice, when available.' },
     ],

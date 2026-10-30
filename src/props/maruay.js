@@ -5,7 +5,7 @@
 // the HUMAN road RIGHT (+X). The shrine faces the oncoming traffic (+Z) and stands
 // opts.setback metres ahead (−Z) in the wedge. Pass setback:0 if you position it yourself.
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, sagCurve, blob, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, sagCurve, blob, squareMoulding, baluster, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import { G, PAL, candle, incensePot, incenseSticks, fruitPlate, teacup, plate, lantern, garland, flowerString, bottle, cup, mossCap, forkPlank } from './lib/small.js';
@@ -207,13 +207,37 @@ export function createShrineMaRuay(opts = {}) {
     w: { grime: 0.6, grimeH: PH, mossLow: 0.9, mossH: 0.35, moss: 0.25 },
     colorFn: (p, n, c) => { if (n.y > 0.5) { const gx = Math.abs(Math.sin(p.x * Math.PI / 0.5)), gz = Math.abs(Math.sin(p.z * Math.PI / 0.5)); if (gx < 0.06 || gz < 0.06) c.multiplyScalar(0.6); } },
   });
-  // steps
-  for (let i = 0; i < 3; i++) k.add(mat('stone'), bbox(3.2 - i * 0.1, PH * (i + 1) / 3, 0.36, 0.02, 0.4), { p: [0, 0, pz0 + 0.36 * (2 - i) + 0.18], color: 0x9a9284, w: { grime: 0.6, mossLow: 0.7, mossH: 0.12 } });
-  // low stone balustrade at the platform front corners
+  // carved stone coping around the platform edge (ovolo + fillet), worn and chipped
+  k.add(mat('stone'), G('platCoping', () => squareMoulding(PW / 2, PD / 2, [[-0.02, -0.12], [0.03, -0.1], [0.05, -0.07], [0.06, -0.035], [0.06, 0], [0.0, 0.0]], { top: false })), { p: [0, PH, pzc], color: 0xa0988a, jitter: 0.008, jitterFreq: 5, w: { moss: 0.6, mossLow: 0, grime: 0.3, ground: PH - 0.2 } });
+  // steps with rounded nosings
+  for (let i = 0; i < 3; i++) {
+    const sz = pz0 + 0.36 * (2 - i) + 0.18, sh = PH * (i + 1) / 3, sw = 3.2 - i * 0.1;
+    k.add(mat('stone'), bbox(sw, sh - 0.03, 0.36, 0.02, 0.4), { p: [0, 0, sz], color: 0x9a9284, jitter: 0.004, jitterFreq: 6, w: { grime: 0.6, mossLow: 0.7, mossH: 0.12 } });
+    k.add(mat('stone'), G('nose:' + sw.toFixed(2), () => cyl(0.035, 0.035, sw, 10, 0.008).rotateZ(Math.PI / 2).translate(sw / 2, 0, 0)), { p: [0, sh - 0.035, sz + 0.16], color: 0xa29a8c, jitter: 0.004, jitterFreq: 9, w: { moss: 0.3, grime: 0.2 } });
+    k.add(mat('stone'), bbox(sw, 0.03, 0.34, 0.01, 0.4), { p: [0, sh - 0.03, sz - 0.02], color: 0x9e968a, w: { moss: 0.3, dust: 0.3 } });
+  }
+  // low stone balustrade at the platform front corners: plinth rail, turned balusters, moulded
+  // hand rail, square posts with lotus-bud finials (one baluster broken, moss in the joints)
   for (const s of [-1, 1]) {
-    k.add(mat('stone'), bbox(3.2, 0.55, 0.22, 0.02, 0.4), { p: [s * 3.45, PH, pz0 - 0.12], color: 0xa29a8a, w: { ground: PH, moss: 0.6, mossLow: 0.6, grime: 0.5 } });
-    for (let i = 0; i < 4; i++) k.add(mat('stone'), G('balpost', () => bbox(0.26, 0.7, 0.26, 0.02, 0.2)), { p: [s * (1.95 + i * 1.0), PH, pz0 - 0.12], color: 0x9a9282, w: { ground: PH, moss: 0.7 } });
-    for (let i = 0; i < 3; i++) if (rng() < 0.7) mossCap(k, 0.6 + rng() * 0.3, 0.24, { p: [s * (2.45 + i * 1.0), PH + 0.55, pz0 - 0.12], seed: i + s * 5 });
+    const bz = pz0 - 0.12, x0 = s * 1.95, x1 = s * 4.95;
+    const len = Math.abs(x1 - x0);
+    k.add(mat('stone'), bbox(len, 0.1, 0.24, 0.02, 0.4), { p: [(x0 + x1) / 2, PH, bz], color: 0x9a9282, w: { ground: PH, moss: 0.6, mossLow: 0.8, grime: 0.6 } });
+    k.add(mat('stone'), G('handrail:' + len, () => squareMoulding(len / 2, 0.09, [[0, 0], [0.015, 0.01], [0.02, 0.04], [0.012, 0.07], [0.0, 0.08]], { top: true, bottom: true })), { p: [(x0 + x1) / 2, PH + 0.5, bz], color: 0xa29a8a, w: { ground: PH, moss: 0.9, streak: 0.4 } });
+    for (let i = 0; i < 4; i++) {
+      const x = s * (1.95 + i * 1.0);
+      k.add(mat('stone'), G('balpost2', () => bbox(0.24, 0.62, 0.24, 0.02, 0.2)), { p: [x, PH, bz], color: 0x9a9282, jitter: 0.004, jitterFreq: 8, w: { ground: PH, moss: 0.7, mossLow: 0.8 } });
+      k.add(mat('stone'), G('balpostCap', () => squareMoulding(0.12, 0.12, [[0, 0], [0.02, 0.015], [0.03, 0.04], [0.03, 0.06], [0, 0.07]], { top: true })), { p: [x, PH + 0.62, bz], color: 0xa49c8c, w: { moss: 0.9 } });
+      k.add(mat('stone'), G('lotusBud', () => lathe([[0, 0], [0.07, 0], [0.075, 0.02], [0.05, 0.035], [0.075, 0.06], [0.08, 0.1], [0.06, 0.15], [0.03, 0.19], [0, 0.22]], 12)), { p: [x, PH + 0.69, bz], color: 0xaaa292, w: { moss: 0.5, streak: 0.4 } });
+      if (i < 3) for (let j = 0; j < 6; j++) {
+        const bx = x + s * (0.22 + j * 0.112);
+        if (s > 0 && i === 1 && j === 3) {
+          k.add(mat('stone'), G('balBroken', () => baluster(0.4, 0.045, 10)), { p: [bx + 0.15, PH + 0.06, bz + 0.25], r: [Math.PI / 2 - 0.2, 0.7, 0], color: 0x9a9282, w: { moss: 0.7 } });
+          continue;
+        }
+        k.add(mat('stone'), G('balTurned', () => baluster(0.4, 0.045, 10)), { p: [bx, PH + 0.1, bz], r: j * 1.3, color: 0xa29a8a, jitter: 0.003, jitterFreq: 20, w: { ground: PH, moss: 0.5, mossLow: 0.8, mossH: 0.15 } });
+      }
+    }
+    for (let i = 0; i < 3; i++) if (rng() < 0.7) mossCap(k, 0.6 + rng() * 0.3, 0.2, { p: [s * (2.45 + i * 1.0), PH + 0.58, bz], seed: i + s * 5 });
   }
 
   // ---- main hall ---------------------------------------------------------------------
@@ -271,7 +295,9 @@ export function createShrineMaRuay(opts = {}) {
       p: [x, y0 + 0.25, pzCol], color: RED, w: { ground: y0, grime: 0.55, grimeH: 1.1, streak: 0.4, streakColor: 0x2a1008 },
       colorFn: (p, n, c) => { const pn = noise.noise3D(p.x * 6, p.y * 3, p.z * 6); if (pn > 0.45) c.lerp(_woodC, (pn - 0.45) * 2.5); },
     });
-    k.add(mat('gold'), G('colcap', () => cyl(0.2, 0.16, 0.16, 14, 0.02)), { p: [x, y0 + 3.33, pzCol], color: GOLD, w: false });
+    // gilded capital: astragal ring, bell, abacus (lathe profile) + gold collar near the base
+    k.add(mat('gold'), G('colcap2', () => lathe([[0.15, 0], [0.175, 0.012], [0.175, 0.03], [0.158, 0.04], [0.17, 0.08], [0.2, 0.13], [0.22, 0.15], [0.22, 0.185], [0, 0.185]], 24)), { p: [x, y0 + 3.2, pzCol], color: GOLD, w: false });
+    k.add(mat('gold'), G('colcollar', () => lathe([[0.168, 0], [0.18, 0.01], [0.18, 0.05], [0.168, 0.06]], 24)), { p: [x, y0 + 0.4, pzCol], color: 0xc89a40, w: { grime: 0.4, ground: y0 } });
     out.colliders.push({ x, z: pzCol, r: 0.26 });
   }
   // inner couplets on the two central columns (vertical boards)

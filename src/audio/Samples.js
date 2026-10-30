@@ -8,7 +8,8 @@
 // leaves the synthesized sound in place.
 //
 // Files are fetched and decoded lazily on first use (a small priority queue, 3 at a time) and kept
-// in an LRU of decoded AudioBuffers (~128 MB). Long loops / beds decode at 32 kHz to halve memory.
+// in an LRU of decoded AudioBuffers (~96 MB of one-shots; buffers pinned by playing loops / beds are
+// not counted or evicted). Long loops / beds decode at 32 kHz (a 40 s stereo bed is ~10 MB).
 // Every decoded buffer is analysed once (rms, loudest 50 ms, peak, seamless loop points) so callers
 // can loudness-match it to the synthesized mix (`normGain`).
 import { SOUNDS, loudnessTarget } from './Synth/registry.js';
@@ -280,7 +281,7 @@ export class SampleBank {
     this.base = opts.base ?? 'assets/audio/';
     this.url = opts.url ?? this.base + 'manifest.json';
     this.enabled = opts.enabled ?? true;
-    this.maxBytes = opts.maxBytes ?? 128 * 1024 * 1024;
+    this.maxBytes = opts.maxBytes ?? 96 * 1024 * 1024; // unpinned (one-shot) budget
     this.entries = {};
     this.variantMap = {}; // synth id -> [key per synth variant] (manifest "replaces": "handbrake:0")
     this.state = 'idle'; // idle | loading | ready | failed
@@ -468,8 +469,11 @@ export class SampleBank {
     if (!pool.length) return -1;
     const i = pool[Math.floor(Math.random() * pool.length)];
     this._last[key] = i;
-    // warm the rest of this key's variants for next time
-    if (mode === 'shot') for (const f of e.files) if (!this.cache.has(f)) this._request(f, e, 2);
+    // warm a few more of this key's variants for next time (bounded: some takes are long)
+    if (mode === 'shot') {
+      let k = 0;
+      for (const f of e.files) if (!this.cache.has(f) && k++ < 3) this._request(f, e, 2);
+    }
     return i;
   }
 
@@ -649,8 +653,11 @@ export class SampleBank {
   _evict(keep) {
     if (this.bytes <= this.maxBytes) return;
     const recs = [...this.cache.values()].filter((r) => r.state === 'ready' && r !== keep && !r.pins).sort((a, b) => a.last - b.last);
+    // a just-decoded loop is about to be pinned by the bed / loop that asked for it
+    let free = recs.reduce((n, r) => n + r.bytes, 0) + (keep && !keep.pins && !keep.e?.loop ? keep.bytes : 0);
     for (const r of recs) {
-      if (this.bytes <= this.maxBytes * 0.85) break;
+      if (free <= this.maxBytes * 0.85) break;
+      free -= r.bytes;
       this.cache.delete(r.file);
       this.bytes -= r.bytes;
       this.stats.evicted++;

@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { engine } from '../../core/Engine.js';
+import { settings } from '../../core/Settings.js';
 import { clamp, lerp, damp, smoothstep, noise } from '../../core/math.js';
 import { templateFor } from './assets.js';
 import { InstanceRig, CONTRACT_BONES, makeChain, solveTwoBone, makeEndBasis, setEndRotation } from './rig.js';
@@ -148,6 +149,9 @@ export class HumanoidGLB {
     this.lookS = { target: null, weight: 0, w: 0, speed: 4, eyesOnly: false, unlimited: false, yaw: 0, pitch: 0, eyeYaw: 0, eyePitch: 0, sacT: 0, sacY: 0, sacP: 0, pos: new THREE.Vector3(), has: false, lock: 0 };
     this.faceS = { blinkT: 1 + Math.random() * 3, blinking: 0, jaw: 0, jawT: 0, talkT: 0, talk: false, amp: 1, expr: { smile: 0, sad: 0, fear: 0, anger: 0, creepy: 0, surprise: 0 }, closed: 0 };
     this.groundFn = null;
+    const gh = this.look.ghost;
+    const heavy = gh && gh.bloodStains > 0.45 && gh.decay > 0.3 ? 1 : 0;
+    this._gore = { cur: { bleedEyes: 0, bleedMouth: 0, amount: 0, crush: heavy }, tgt: { bleedEyes: 0, bleedMouth: 0, amount: 0, crush: heavy }, speed: 0.6, wound: null };
     this.walk = null;
     this.opacity = 1;
     this._lastPos = new THREE.Vector3();
@@ -249,6 +253,21 @@ export class HumanoidGLB {
   }
   setExpression(e) { Object.assign(this.expression, e); }
   setGhost(g, speed = 3) { this.ghostLayer.setTargets(g, speed); }
+  /** Reveal gore at runtime: { bleedEyes 0..1, bleedMouth 0..1, wound:'neck'|'head'|'chest'|null, amount 0..1, crush 0..1, speed } */
+  setGore(g = {}) {
+    const G = this._gore;
+    for (const k of ['bleedEyes', 'bleedMouth', 'amount', 'crush']) if (g[k] !== undefined) G.tgt[k] = g[k];
+    if (g.speed !== undefined) G.speed = g.speed;
+    if (g.wound !== undefined) {
+      G.wound = g.wound;
+      const t = this.t, I = t.index, e = t.eyeMid;
+      const U = this.U.uGoreW.value;
+      if (g.wound === 'neck') U.set(0, 0, 0, 1);
+      else if (g.wound === 'head') U.set(-0.045, e.y + 0.05, e.z + 0.005, 2);
+      else if (g.wound === 'chest') U.set(0.03, t.Gp[I.spine_03].y + 0.06, t.Gp[I.spine_03].z + 0.13, 3);
+      else U.set(0, 0, 0, 0);
+    }
+  }
   play(name, opts = {}) { return this.actions.play(name, opts); }
   stop(name) { this.actions.stop(name); }
 
@@ -300,7 +319,7 @@ export class HumanoidGLB {
     if (kind === 'paper' || kind === 'coins' || kind === 'amulet') off.set(sx * 0.085, -0.03, -0.01);
     grip.position.copy(off.applyQuaternion(inv)).multiplyScalar(1 / (hand.scale.x || 1));
     // base orientation (hand rest frame): items' +Y along the fingers' up-side
-    if (kind === 'cigarette') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(0, sx * Math.PI / 2, 0)));
+    if (kind === 'cigarette') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(-Math.PI / 2, 0, 0))); // through the fingers, filter on the palm side
     else if (kind === 'umbrella') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(0, 0, sx * -Math.PI / 2)));
     else grip.quaternion.copy(inv);
     if (this._layer !== undefined) grip.traverse((o) => o.layers.set(this._layer));
@@ -394,7 +413,8 @@ export class HumanoidGLB {
         b.position.copy(s.position); b.quaternion.copy(s.quaternion); b.scale.copy(s.scale);
       }
     }
-    for (const k of ['uFaceA', 'uFaceB', 'uEye', 'uGhost', 'uEyeShape', 'uTwistO', 'uTwistD']) this.U[k].value.copy(src.U[k].value);
+    for (const k of ['uFaceA', 'uFaceB', 'uEye', 'uGhost', 'uEyeShape', 'uTwistO', 'uTwistD', 'uGore', 'uGoreW']) this.U[k].value.copy(src.U[k].value);
+    this.U.uCrush.value = src.U.uCrush.value;
     this.inner.updateMatrixWorld(true);
     this.ghostLayer.update(dt, true);
     this.ghostLayer.applyPose(dt);
@@ -831,6 +851,11 @@ export class HumanoidGLB {
     U.uEye.value.set(open, open, squint, wide * (1 - closed));
     const rest = this.look.face.smile || 0;
     U.uFaceA.value.set(F.jaw, clamp(ex.smile + rest * 0.35 + (this.actions.smile || 0), 0, 1.3), clamp(ex.sad * 0.9 + ex.anger * 0.3 + ex.fear * 0.25, 0, 1), this.ghostLayer.mouthStretch);
+    // gore: blood runs grow at a rate (seconds), crush is a shape change
+    const G = this._gore;
+    for (const k in G.tgt) { const d = G.tgt[k] - G.cur[k]; G.cur[k] += Math.sign(d) * Math.min(Math.abs(d), dt * (k === 'crush' ? 3 : G.speed)); }
+    U.uGore.value.set(G.cur.bleedEyes, G.cur.bleedMouth, G.wound ? G.cur.amount : 0, settings.get('gore') === 'reduced' ? 1 : 0);
+    U.uCrush.value = G.cur.crush;
     U.uFaceB.value.set(clamp(ex.surprise + ex.fear * 0.6 + (this.actions.brow || 0), 0, 1.2), clamp(ex.anger + ex.creepy * 0.2, 0, 1), clamp(ex.sad + ex.fear * 0.7, 0, 1), clamp(ex.creepy, 0, 1.2));
   }
 

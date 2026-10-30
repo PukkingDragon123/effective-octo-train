@@ -689,6 +689,22 @@ export function squareMoulding(hw, hd, profile, opts = {}) {
   return g;
 }
 
+/**
+ * Rolled steel H/I-section of length len along +Y (origin at the bottom centre): depth h (along
+ * Z), flange width b (along X), flange thickness tf, web thickness tw, small root fillets.
+ */
+export function steelSection(len, h, b, tf = 0.012, tw = 0.008) {
+  const s = new THREE.Shape();
+  const r = Math.min(tf, tw) * 0.8;
+  const P = [[-b / 2, -h / 2], [b / 2, -h / 2], [b / 2, -h / 2 + tf], [tw / 2 + r, -h / 2 + tf], [tw / 2, -h / 2 + tf + r], [tw / 2, h / 2 - tf - r], [tw / 2 + r, h / 2 - tf], [b / 2, h / 2 - tf], [b / 2, h / 2], [-b / 2, h / 2], [-b / 2, h / 2 - tf], [-tw / 2 - r, h / 2 - tf], [-tw / 2, h / 2 - tf - r], [-tw / 2, -h / 2 + tf + r], [-tw / 2 - r, -h / 2 + tf], [-b / 2, -h / 2 + tf]];
+  P.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: len, bevelEnabled: false, steps: Math.max(1, Math.round(len / 0.4)) });
+  g.rotateX(-Math.PI / 2); // extrusion +Z -> +Y; profile y -> -Z
+  g.clearGroups();
+  return indexed(g);
+}
+
 /** Turned (lathed) baluster / finial of height h: vase profile, seg radial segments. */
 export function baluster(h, r, seg = 10) {
   const P = [[0, 0], [r * 1.0, 0], [r * 1.0, 0.08], [r * 0.7, 0.12], [r * 0.75, 0.18], [r * 1.15, 0.38], [r * 1.1, 0.5], [r * 0.6, 0.66], [r * 0.5, 0.74], [r * 0.85, 0.8], [r * 0.85, 0.86], [r * 1.05, 0.9], [r * 1.05, 1.0], [0, 1.0]];

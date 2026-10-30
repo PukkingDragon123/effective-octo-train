@@ -93,6 +93,20 @@ export default async function ({ engine, cameraRig, params }) {
       if (params.get('talk') === '1' && i % 2) h.setTalking(true);
       if (params.get('expr')) h.setExpression({ [params.get('expr')]: +(params.get('amt') || 1) });
     });
+  } else if (view === 'gore') {
+    // reveal moments + crafted props/hair: woman in white (neck snap + split + bleeding eyes),
+    // ผีตายโหง (crushed, broken limbs), boy M (bleeding mouth), Grandma Bua (basket + garland), Ah Kong (cigarette)
+    const ww = add('womanWhite', -1.0, 0);
+    ww.play('neckSnap', { dir: 1, angle: 1.2 });
+    ww.setGore({ wound: 'neck', amount: 1, bleedEyes: 0.8, speed: 100 });
+    ww.lookAt(eyeT, { weight: 1, unlimited: true });
+    const pth = createHumanoidGLB({ id: 'phiTaiHong', sex: 'm', age: 30, outfit: { type: 'tshirt-pants', top: '#5a5a52' }, ghost: { pale: 0.8, decay: 0.4, bloodStains: 0.6 } });
+    pth.root.position.set(-0.35, 0, 0); pth.root.rotation.y = Math.PI; scene.add(pth.root); chars.push(pth);
+    pth.setGhost({ limbBreak: 0.8, headRoll: 0.5, jitter: 0.2 }, 100);
+    pth.setGore({ bleedMouth: 1, wound: 'head', amount: 0.8, speed: 100 });
+    const m = add('boyM', 0.3, 0); m.setGore({ bleedMouth: 0.7, bleedEyes: 0.4, speed: 100 }); m.lookAt(eyeT);
+    const b = add('bua', 0.9, 0); b.lookAt(eyeT);
+    const k = add('ahKong', 1.5, 0); k.play('smoke', { loop: true });
   } else if (view === 'single') {
     const h = add(params.get('who') || 'sri', 0);
     focus = h;
@@ -163,7 +177,7 @@ export default async function ({ engine, cameraRig, params }) {
   console.log(`[characters-glb] built ${chars.length} in ${ms.toFixed(0)} ms`, chars.map((h) => `${h.look?.id}:${h.body?.geometry?.userData?.tris ?? '?'}`).join(' '));
 
   // ---- cameras (characters face +Z)
-  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost'].includes(view) ? view : 'front');
+  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost', 'gore'].includes(view) ? view : 'front');
   const H = focus ? focus.look.height : 1.65;
   const hy = focus ? focus.headPosition.y : 1.5;
   const n = chars.length;
@@ -179,6 +193,7 @@ export default async function ({ engine, cameraRig, params }) {
     hands: [[0.25, H * 0.55, 0.75], [0.15, H * 0.5, 0], -20],
     lineup: [[0, 1.2, n * 0.55 + 1.0], [0, 0.92, 0], -14],
     faces: [[0, 1.5, +(params.get('camz') || 1.6)], [0, 1.49, 0], -40],
+    gore: [[0.25, 1.35, 3.0], [0.25, 1.1, 0], -22],
     ghost: [[0.3, 1.25, n * 0.6 + 1.9], [0, 0.95, 0], -12],
     lineupClose: [[0, 1.45, 2.6], [0, 1.38, 0], -12],
     actions: [[0.2, 1.3, 4.6], [0.05, 0.9, 0], -10],

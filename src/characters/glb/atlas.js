@@ -7,6 +7,7 @@
 // No photo textures: everything is painted with strokes, blobs and procedural weave tiles.
 import * as THREE from 'three';
 import { makeRng } from '../../core/math.js';
+import { FONTS } from '../../ui/fonts.js';
 import { R, torsoT, legT, armT, neckT, handT } from './layout.js';
 import { Painter, weaveTile, strandTile, noiseTile, shade, shadeHex, mix, lum, hexToRgb, css, rgba } from './painter.js';
 
@@ -407,14 +408,14 @@ function paintTop(c) {
   }
   if (o.school) {
     // embroidered initials + student name in navy (fictional school)
-    P.text(T, 0.4, torsoT(1.34), 'ร.ร.บ.ม.', '"Sarabun"', 11, '#1f2f6a');
-    P.text(T, 0.4, torsoT(1.31), look.sex === 'f' ? 'ด.ญ. มานี' : 'ด.ช. เอ็ม', '"Sarabun"', 10, '#1f2f6a');
+    P.text(T, 0.4, torsoT(1.34), 'ร.ร.บ.ม.', FONTS.body, 11, '#1f2f6a');
+    P.text(T, 0.4, torsoT(1.31), look.sex === 'f' ? 'ด.ญ. มานี' : 'ด.ช. เอ็ม', FONTS.body, 10, '#1f2f6a');
     if (look.sex === 'f') P.poly(T, [[0.49, neckF + 0.03], [0.51, neckF + 0.03], [0.515, neckF + 0.12], [0.5, neckF + 0.14], [0.485, neckF + 0.12]], '#1f2a4a', 1);
   }
   if (o.nameTag) {
     const [bx, by] = P.pt(T, 0.4, torsoT(1.335));
     P.g.fillStyle = '#20283a'; P.g.fillRect(bx - 22, by - 7, 44, 14);
-    P.text(T, 0.4, torsoT(1.335), 'สมชาย', '"Sarabun"', 10, '#e8e4d8');
+    P.text(T, 0.4, torsoT(1.335), 'สมชาย', FONTS.body, 10, '#e8e4d8');
     // shoulder straps (epaulettes)
     for (const s of [0.25, 0.75]) P.band(T, 0, 0.03, shade(col, 0.82), 1, s - 0.03, s + 0.03);
   }
@@ -577,6 +578,29 @@ function paintHair(c) {
 }
 
 // ------------------------------------------------------------------ grime / ghost stains
+/** a painterly blood run: tapering wobbly stroke with a drop at the end and a darker dried rim */
+function bloodRun(P, reg, s, t0, len, width, col, rimc, r) {
+  const pts = [];
+  let x = s;
+  for (let i = 0; i <= 14; i++) { const t = t0 + (len * i) / 14; x += (r() - 0.5) * 0.004; pts.push([x, t]); }
+  for (let k = 0; k < 3; k++) {
+    const g = P.g;
+    g.save(); P.clip(reg); g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = k === 0 ? rimc : col;
+    g.globalAlpha = k === 0 ? 0.7 : k === 1 ? 0.85 : 0.35;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const f = i / (pts.length - 1);
+      g.lineWidth = (width * (1 - f * 0.55) + (k === 0 ? 1.2 : k === 2 ? -width * 0.5 : 0)) * (k === 2 ? 0.5 : 1);
+      const [ax, ay] = P.pt(reg, pts[i][0] + (k === 2 ? -0.002 : 0), pts[i][1]), [bx, by] = P.pt(reg, pts[i + 1][0] + (k === 2 ? -0.002 : 0), pts[i + 1][1]);
+      g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
+    }
+    g.restore();
+  }
+  const end = pts[pts.length - 1];
+  P.dot(reg, end[0], end[1], width * 0.75, rimc);
+  P.dot(reg, end[0], end[1] - 0.002, width * 0.55, col);
+}
+
 function paintGrime(c) {
   const { P, look, r } = c;
   // everyday wear: dust at the hems, darker hands/feet
@@ -590,10 +614,32 @@ function paintGrime(c) {
     for (let i = 0; i < 8; i++) P.blob(R.skirt, r(), r(), 0.05, 0.2, '#5a6a70', 0.2 * gh.wet, true);
   }
   if (gh.bloodStains > 0) {
-    const bl = '#5a1410';
-    for (let i = 0; i < 5; i++) P.blob(R.torso, 0.3 + r() * 0.3, r() * 0.5, 0.02 + r() * 0.03, 0.03 + r() * 0.05, bl, 0.6 * gh.bloodStains * 4);
-    P.blob(R.leg, 0.5, legT(0.5), 0.05, 0.06, bl, 0.5 * gh.bloodStains * 4);
-    P.blob(R.arm, 0.75, armT(0.4), 0.05, 0.05, bl, 0.4 * gh.bloodStains * 4);
+    const bs = Math.min(1, gh.bloodStains * 1.6);
+    const fresh = '#4a0a08', dried = '#3a1a10', rimc = '#24100a';
+    // soaked collar / chest: blood running down from the neck, darker dried rims
+    for (let i = 0; i < Math.round(4 + 10 * bs); i++) {
+      const s = 0.36 + r() * 0.28, len = (0.08 + r() * 0.45) * bs;
+      bloodRun(P, R.torso, s, torsoT(1.44), len, 2.2 + r() * 3, r() < 0.5 ? fresh : dried, rimc, r);
+    }
+    P.blob(R.torso, 0.5, torsoT(1.42), 0.14 * bs, 0.06 * bs, fresh, 0.75 * bs);
+    P.blob(R.torso, 0.0, 0.05, 0.1 * bs, 0.08 * bs, dried, 0.5 * bs, true);
+    // splatter
+    for (let i = 0; i < 40 * bs; i++) P.dot(R.torso, 0.3 + r() * 0.4, r() * 0.7, 0.6 + r() * 2.4, rgba(r() < 0.6 ? fresh : dried, 0.75));
+    // road-rash graze (arm + leg): raw abrasion with grit and fine parallel scratches
+    for (const [reg, s0, t0] of [[R.arm, 0.7, armT(0.42)], [R.leg, 0.72, legT(0.55)]]) {
+      P.blob(reg, s0, t0, 0.1 * bs, 0.07 * bs, '#7a2a1e', 0.75 * bs);
+      P.blob(reg, s0, t0, 0.06 * bs, 0.04 * bs, '#5a120c', 0.7 * bs);
+      for (let k = 0; k < 40 * bs; k++) { const ss = s0 + (r() - 0.5) * 0.2 * bs, tt = t0 + (r() - 0.5) * 0.12 * bs; P.line(reg, [[ss - 0.03, tt], [ss + 0.03, tt + (r() - 0.5) * 0.01]], rgba(r() < 0.5 ? '#3a0c08' : '#c08070', 0.5), 0.5 + r() * 0.6, 0.8); }
+      for (let k = 0; k < 30 * bs; k++) P.dot(reg, s0 + (r() - 0.5) * 0.2, t0 + (r() - 0.5) * 0.12, 0.5 + r(), '#2a2420');
+    }
+    // the dress / skirt: drips and a long dried stain
+    for (let i = 0; i < 6 * bs; i++) bloodRun(P, R.skirt, 0.35 + r() * 0.3, 0, (0.2 + r() * 0.6) * bs, 2 + r() * 3, dried, rimc, r);
   }
-  if (gh.decay > 0) { for (const reg of [R.torso, R.leg, R.arm, R.hand]) P.pattern(reg, noiseTile(4, 6, 99), 0.4 * gh.decay, 0, 0, 1, 1, 0.8, 'multiply'); }
+  if (gh.decay > 0) {
+    for (const reg of [R.torso, R.leg, R.arm, R.hand, R.neck]) {
+      P.pattern(reg, noiseTile(4, 6, 99), 0.45 * gh.decay, 0, 0, 1, 1, 0.8, 'multiply');
+      for (let i = 0; i < 26 * gh.decay; i++) P.blob(reg, r(), r(), 0.04 + r() * 0.06, 0.04 + r() * 0.06, r() < 0.5 ? '#4a5a48' : '#5a4a5a', 0.25 * gh.decay, true);
+      for (let i = 0; i < 14 * gh.decay; i++) { let s = r(), t = r(); const pts = [[s, t]]; for (let k = 0; k < 6; k++) { s += (r() - 0.5) * 0.04; t += 0.02 + r() * 0.03; pts.push([s, t]); } P.line(reg, pts, rgba('#2a3448', 0.4), 0.7, 0.7); }
+    }
+  }
 }

@@ -6,7 +6,7 @@ import { makeRng } from '../core/math.js';
 import { fbm, crack } from './noise.js';
 import { Img, rgb, colorOut, dataOut, normalMap, sstep, strokes, bleed } from './painter.js';
 // (no fonts.js import: this module must stay importable from the texture worker)
-const SIGN_FONT = "'Kanit', 'Sarabun', sans-serif";
+const SIGN_FONT = "'Srisakdi', 'Noto Serif Thai', serif";
 
 const STRIPS = [
   // name, colour, pattern

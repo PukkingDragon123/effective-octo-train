@@ -6,7 +6,9 @@
 //    The manifest is fetched at start-up; files are fetched + decoded lazily on first use (likely-first ones
 //    are prefetched after init), loudness-matched to the synth mix, and a random variant with a small pitch
 //    variation is played. Seamless recorded loops serve loop(); one-shots of loop-only recordings play a slice.
-//    Ambience beds (amb_* keys) are layered and crossfaded by ambience.set(). See ./Samples.js.
+//    Ambience beds (amb_* keys) are layered and crossfaded by ambience.set(); the engine layers a recorded
+//    crank/catch, idle, gravel tyres and cabin road noise over its model; the radio uses recorded static, ching
+//    and khaen/khim station idents; the music repitches recorded ranat strikes and ching/chap. See ./Samples.js.
 //  * SYNTHESIS (fallback, and every id without a recording): pure-JS generators in ./Synth (noise,
 //    oscillators, FM, filters, modal / Karplus-Strong / formant synthesis, granular smear), rendered in a
 //    small pool of Web Workers and cached as AudioBuffers.
@@ -28,7 +30,8 @@
 //   audio.samples                      SampleBank: .info(), .credits() (attribution list for the credits screen),
 //                                      .covers(id, 'play'|'loop'), .enabled · audio.setSamplesEnabled(bool)
 //                                      play/loop opts: synth:true (force synthesis), sample:'<key>', sampleVariant
-//   audio.engineSound / audio.bikeSound  { setOn(on,{instant,stall}), setRPM, setLoad, setGear, setSpeed(kmh), setSurface(kind), attach(obj, bodyObj) }
+//   audio.engineSound / audio.bikeSound  { setOn(on,{instant,stall,variant,crank}), setRPM, setLoad, setGear, setSpeed(kmh),
+//                                      setSurface(kind), attach(obj, bodyObj), crankFail() (starter cranks, will not catch) }
 //   audio.ambience.set({hour, rain, wind, insideCar, windowsOpen, nearWater, nearLights, forestDensity, dread, enabled, autoMuffle})
 //   audio.music.setMood('silence'|'menu'|'dread'|'surreal'|'calm'|'nostalgic'|'dawn'|'ending'|'tension', {fade})
 //   audio.radio { setOn, next, setStation(1..4), setStatic(0..1), attach(obj), setVolume, setHour, on, station, song }
@@ -57,10 +60,12 @@
 //              tyres_gravel(loop) tyres_gravel_roll bike_idle(loop) bike_ride_away gong wind_chime_loop(loop)
 //              fluorescent_hum(loop) electric_arc(loop) breath scream_close rumble_rise drone_low(loop) rumble_sub
 //              radio_static(loop) ranat_note khim_phrase khaen_phrase ching
-// Ids served by a recording today (see manifest): most of the list above; still synthesized: key_turn
-// radio_click radio_tune meter_beep switch_click seat_creak collision_thud rain_roof_start cigarette_inhale
-// garland_jingle sting_* scare_hit neck_snap child_laugh_far amulet_hum ui_* chapter_chime (+ horn and
-// bush_scrape loops, fluorescent_flicker loop, music, radio programmes, voices, the engine model).
+// Served by recordings with the current manifest: 59 of the 80 ids above (engine_stall = engine_off pitched down,
+// handbrake 0/1 = handbrake_pull/_release, wiper/heartbeat one-shots = one beat sliced from the loop recording).
+// Still synthesized: key_turn radio_click radio_tune meter_beep switch_click seat_creak collision_thud
+// rain_roof_start cigarette_inhale garland_jingle sting_low sting_high sting_reveal scare_hit neck_snap
+// child_laugh_far amulet_hum ui_hover ui_select ui_back chapter_chime, the held horn / bush_scrape /
+// fluorescent_flicker loops, and the music, radio programmes, voices and the engine model themselves.
 import { engine } from '../core/Engine.js';
 import { settings } from '../core/Settings.js';
 import { bus } from '../core/Events.js';

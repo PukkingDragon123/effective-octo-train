@@ -47,7 +47,7 @@ const DEFS = {
   galv: { map: 'chrome_dirty', normalMap: 'chrome_dirty_normal', roughnessMap: 'chrome_dirty_rough', roughness: 0.85, metalness: 0.65, uv: 1.0, dirt: 0.3 },
   wood: { map: 'wood_old', normalMap: 'wood_old_normal', hi: true, roughness: 0.9, uv: 0.9, dirt: 0.4, moss: 0.2 },
   lacquer: { map: 'red_lacquer', normalMap: 'red_lacquer_normal', roughnessMap: 'red_lacquer_rough', hi: true, roughness: 0.75, uv: 0.8, dirt: 0.3 },
-  gold: { map: 'gold_leaf', normalMap: 'gold_leaf_normal', roughnessMap: 'gold_leaf_rough', hi: true, roughness: 0.7, metalness: 0.8, uv: 1.5, dirt: 0.2 },
+  gold: { map: 'gold_leaf', normalMap: 'gold_leaf_normal', hi: true, roughness: 0.42, metalness: 0.45, uv: 1.5, dirt: 0.2 }, // gold PAINT: reads gold at night without env light
   bronze: { map: 'chrome_dirty', roughness: 0.55, metalness: 0.75, uv: 1.2, dirt: 0.3 },
   tiles: { map: 'roof_tiles', normalMap: 'roof_tiles_normal', hi: true, roughness: 0.7, uv: 0.55, moss: 0.5, dirt: 0.3 },
   corrugated: { map: 'roof_corrugated', normalMap: 'roof_corrugated_normal', roughnessMap: 'roof_corrugated_rough', hi: true, roughness: 1, metalness: 0.35, uv: 0.5, dirt: 0.3 },
@@ -247,7 +247,7 @@ export function graffitiTex(seed = 1) {
       g.rotate((rng() - 0.5) * 0.35);
       g.fillStyle = c;
       g.strokeStyle = c;
-      g.font = `${28 + rng() * 34}px ${FONTS?.hand || 'sans-serif'}`;
+      g.font = `${28 + rng() * 34}px ${FONTS.hand}`;
       const word = words[Math.floor(rng() * words.length)];
       g.shadowColor = c;
       g.shadowBlur = 6;
@@ -432,7 +432,7 @@ export function clockTex() {
     g.arc(64, 70, 58, 0, Math.PI * 2);
     g.fill();
     g.fillStyle = '#222';
-    g.font = `bold 15px ${FONTS?.body || 'sans-serif'}`;
+    g.font = `bold 15px ${FONTS.body}`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     for (let i = 1; i <= 12; i++) {
@@ -520,7 +520,7 @@ function drawNotice(g, w, h, seed) {
     // a few Thai words (hand-lettered notice: buying scrap / room for rent / lost dog)
     const words = ['รับซื้อของเก่า', 'ห้องว่างให้เช่า', 'สุนัขหาย', 'ประกาศ'];
     g.fillStyle = '#f0e8d0';
-    g.font = `bold 15px ${FONTS?.sign || 'sans-serif'}`;
+    g.font = `bold 15px ${FONTS.sign}`;
     g.textAlign = 'center';
     g.fillText(words[seed % 4], w / 2, 29);
   }

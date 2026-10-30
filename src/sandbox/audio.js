@@ -581,7 +581,8 @@ function manualBoard(root, cameraRig) {
     b.onclick = (e) => {
       audio.init();
       fn(b, e);
-      status.textContent = `ctx ${audio.ctx?.state} · voices ${audio.core?.voices.length} · cache ${(audio.core?.cacheBytes / 1e6).toFixed(1)} MB`;
+      const si = audio.samples.info();
+      status.textContent = `ctx ${audio.ctx?.state} · voices ${audio.core?.voices.length} · synth cache ${(audio.core?.cacheBytes / 1e6).toFixed(1)} MB · samples ${si.enabled ? si.state : 'off'} ${si.keys} keys, ${si.decoded} decoded, ${si.cachedMB} MB${si.failed ? ', ' + si.failed + ' failed' : ''}`;
     };
     return b;
   };
@@ -600,6 +601,15 @@ function manualBoard(root, cameraRig) {
     const d = 2 + Math.random() * 6;
     return { x: Math.cos(a) * d, y: 1.4, z: Math.sin(a) * d };
   };
+  const smp = section('recorded samples (manifest) vs synthesis');
+  btn(smp, 'samples ON/OFF', (b) => {
+    audio.setSamplesEnabled(!audio.samples.enabled);
+    b.textContent = `samples ${audio.samples.enabled ? 'ON' : 'OFF'} (new sounds)`;
+  });
+  const extra = section('sample-only ids');
+  for (const id of ['dog_bark_far', 'night_bird', 'knock_window_seq', 'key_remove', 'engine_crank_fail', 'engine_off', 'engine_rev', 'tyres_gravel_roll', 'bike_ride_away', 'gong', 'breath', 'scream_close', 'rumble_rise', 'rumble_sub', 'electric_arc', 'ranat_note', 'khim_phrase', 'khaen_phrase', 'ching']) {
+    btn(extra, id, (b, e) => audio.play(id, e?.shiftKey ? {} : { position: around() }));
+  }
   const sfx = section('one-shots (random position around you; shift-click = centred)');
   for (const id of SOUND_IDS) btn(sfx, id, (b, e) => audio.play(id, e?.shiftKey ? {} : { position: around() }));
   const loops = section('loops (toggle)');

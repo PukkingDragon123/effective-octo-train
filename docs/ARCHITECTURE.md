@@ -91,7 +91,7 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
 * `saves`: `.list() .create(i) .load(i) .write() .data .activeSlot .lastUsed()`
 * `bus`: `.on(name,fn) .once .off .emit(name,data) .wait(name,pred)`
 * `math`: `clamp lerp damp dampAngle smoothstep remap easeInOut easeOutCubic Spring makeRng hashString noise (SimplexNoise: noise2D, noise3D, fbm2, fbm3)`
-* `loadFonts()` / `FONTS` (`src/ui/fonts.js`): `body` Sarabun, `sign` Kanit, `lcd` Chakra Petch, `hand` Mali, `title` Cormorant Garamond.
+* `loadFonts()` / `FONTS` (`src/ui/fonts.js`): **every role is Srisakdi** (owner's choice; weights 400/700 only). Always use `FONTS.*`, never hardcode a family; avoid tracked-out ALL CAPS Latin (its script capitals become unreadable).
 
 ## Event names (bus)
 

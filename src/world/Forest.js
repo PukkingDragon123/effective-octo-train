@@ -37,7 +37,7 @@ const KIND_LOD = {
   mid: { lod0: W.lod.small0, lod1: 70, impostor: true, keepMin: 0.55 },
   small: { lod0: 30, lod1: 60, cull: 64, impostor: false, keepMin: 0.4 },
   ground: { lod0: 14, lod1: W.lod.groundCull, cull: W.lod.groundCull, impostor: false, keepMin: 0.25 },
-  rock: { lod0: 70, lod1: 70, cull: 70, impostor: false, keepMin: 0.8 },
+  rock: { lod0: 24, lod1: 62, cull: 62, impostor: false, keepMin: 0.8 },
   vine: { lod0: 55, lod1: 55, cull: 55, impostor: false, keepMin: 0.6 },
 };
 
@@ -60,7 +60,7 @@ export class Forest {
 
   // ---------------------------------------------------------------------------------
   _materials() {
-    const atlas = foliageAtlas(2048);
+    const atlas = foliageAtlas();
     const barkMap = texSafe('bark', { repeat: [1, 1] });
     const barkN = texSafe('bark_normal', { repeat: [1, 1] });
     const banyanMap = texSafe('bark_banyan', { repeat: [1, 1] }) || barkMap;
@@ -144,10 +144,10 @@ export class Forest {
     }
     // rocks (single geometry, one LOD)
     const rrng = makeRng(5150);
-    for (let v = 0; v < 3; v++) {
+    for (let v = 0; v < 4; v++) {
       const geo = rockGeometry(rrng, 1);
-      this._addVariant('rock', v, { lods: [{ bark: geo }], kind: 'rock', height: 1, radius: 1.2 });
-      this.variants[this.variants.length - 1].lods[0].meshes[0].material = this.mats.rock;
+      const rec = this._addVariant('rock', v, { lods: [{ bark: geo }, { bark: geo.userData.lod1 }], kind: 'rock', height: 1, radius: 1.2 });
+      for (const l of rec.lods) l.meshes[0].material = this.mats.rock;
     }
     // ---- impostors ---------------------------------------------------------------------------
     onProgress?.(0.4, 'กำลังวาดป่าไกล…', 'Painting the distant forest…');

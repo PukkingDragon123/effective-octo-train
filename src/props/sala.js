@@ -1,6 +1,6 @@
 // ศาลา roadside pavilions (2 variants) and the abandoned bus stop.
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, squareMoulding, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, graffitiTex, crackTex, stainTex, clockTex, noticeTex, bugDiffuserTex } from './lib/materials.js';
 import { lightSpec, attachFlicker } from './lib/lights.js';
 import { G, PAL, plasticChair, plasticStool, bottle, can, oilDrum, trashBag, crate, garland } from './lib/small.js';
@@ -123,8 +123,9 @@ export function createSala(opts = {}) {
         if (pn > 0.35) c.lerp(_conc, Math.min(1, (pn - 0.35) * 4) * 0.8);
       },
     });
-    // plinth + cap
-    k.add(mat('concrete'), G('plinth', () => bbox(0.3, 0.18, 0.3, 0.02, 0.15)), { p: [x, FH, z], color: 0x9a948a, w: { ground: FH, mossLow: 1, mossH: 0.25, grime: 0.7 } });
+    // moulded plinth (stepped, chamfered) + capital under the ring beam, mitred profiles
+    k.add(mat('concrete'), G('plinthM', () => squareMoulding(0.12, 0.12, [[0.06, 0], [0.06, 0.1], [0.045, 0.115], [0.04, 0.14], [0.025, 0.155], [0.02, 0.18], [0.004, 0.2], [0, 0.205]])), { p: [x, FH, z], r: [lean, 0, lean], color: 0x9a948a, jitter: 0.004, jitterFreq: 9, w: { ground: FH, mossLow: 1, mossH: 0.25, grime: 0.7 } });
+    k.add(mat('plaster'), G('capitalM', () => squareMoulding(0.12, 0.12, [[0, 0], [0.008, 0.006], [0.008, 0.03], [0.022, 0.045], [0.026, 0.07], [0.04, 0.085], [0.04, 0.11], [0, 0.11]])), { p: [x + lean * (PH - 0.36), FH + PH - 0.36, z - lean * (PH - 0.36)], r: [lean, 0, lean], color: variant === 2 ? 0xb0a894 : 0xd8d0bc, w: { streak: 0.7 * age, grime: 0, moss: 0.4 } });
     out.colliders.push({ x, z, hx: 0.15, hz: 0.15, yaw: 0 });
   }
   // ---- beams (concrete ring beam) ---------------------------------------------
@@ -211,11 +212,14 @@ export function createSala(opts = {}) {
       if (pn > 0.4) c.lerp(_conc, Math.min(1, (pn - 0.4) * 4) * 0.7);
     },
   });
+  k.add(mat('plaster'), G(`wallcap:${W}`, () => squareMoulding((W - 0.4) / 2, 0.07, [[0, 0], [0.012, 0.01], [0.02, 0.03], [0.02, 0.045], [0.0, 0.06]], { top: true })), { p: [0, FH + wallH, -pz], color: 0xcfc7b0, w: { moss: 0.8, streak: 0.6 } });
   out.colliders.push({ x: 0, z: -pz, hx: (W - 0.4) / 2, hz: 0.1, yaw: 0 });
   // L-shaped built-in concrete benches (back + one side), cracked with a broken corner
   const benchY = FH + 0.42;
   const benchSeg = (x, z, w, d, rot) => {
     k.add(mat('concrete'), bbox(w, 0.07, d, 0.02, 0.3), { p: [x, benchY - 0.07, z], r: rot, color: 0xb4ae9e, jitter: 0.004, w: { ground: FH, moss: 0.35, dust: 0.3, grime: 0.2 } });
+    // rounded front nosing worn smooth by years of sitting
+    k.at([x, benchY - 0.035, z], rot, null, () => k.add(mat('concrete'), G(`bnose:${w.toFixed(2)}`, () => cyl(0.04, 0.04, w - 0.02, 10, 0.01).rotateZ(Math.PI / 2).translate(w / 2 - 0.01, 0, 0)), { p: [0, 0, d / 2 - 0.02], color: 0xb8b2a2, jitter: 0.003, jitterFreq: 11, w: { moss: 0.3, dust: 0.3 } }));
     const nLegs = Math.max(2, Math.round(w / 1.2) + 1);
     for (let i = 0; i < nLegs; i++) {
       const lx = -w / 2 + 0.15 + (i / (nLegs - 1)) * (w - 0.3);
@@ -225,7 +229,7 @@ export function createSala(opts = {}) {
   const bw = W - 0.9;
   benchSeg(0, -pz + 0.3, bw, 0.38, 0);
   if (variant === 1) benchSeg(-px + 0.32, 0.15, D - 1.3, 0.36, Math.PI / 2);
-  else benchSeg(px - 0.32, 0.15, D - 1.3, 0.36, Math.PI / 2);
+  else benchSeg(px - 0.32, 0.15, D - 1.3, 0.36, -Math.PI / 2);
   out.colliders.push({ x: 0, z: -pz + 0.3, hx: bw / 2, hz: 0.2, yaw: 0 });
   // seats (on the back bench, facing the road)
   const nSeats = variant === 1 ? 3 : 4;

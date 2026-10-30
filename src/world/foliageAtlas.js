@@ -11,14 +11,16 @@ export const SLOT = {
   bamboo: 4, banana: 5, bananaDead: 6, palm: 7,
   fern: 8, grass: 9, elephant: 10, vines: 11,
   shrub: 12, deadTwigs: 13, epiphyte: 14, tallGrass: 15,
+  small: 16, smallDark: 17,
 };
-export const ATLAS_GRID = 4;
+export const ATLAS_GRID = 5;
+export const ATLAS_SIZE = 2560;
 
 /** UV rect of a slot (inset a little to avoid bleeding). */
 export function slotRect(slot) {
   const g = ATLAS_GRID;
   const x = slot % g, y = Math.floor(slot / g);
-  const inset = 2 / 2048;
+  const inset = 2 / ATLAS_SIZE;
   // canvas row 0 is the top; textures are flipped so v = 1 - row
   return { u0: x / g + inset, u1: (x + 1) / g - inset, v0: 1 - (y + 1) / g + inset, v1: 1 - y / g - inset };
 }
@@ -127,6 +129,49 @@ function paintCluster(g, S, rng, base, opts = {}) {
     const w = len * (opts.aspect ?? 0.32) * (0.8 + rng() * 0.4);
     const dark = L.d / (S * 0.5);
     paintLeaf(g, rng, L.x, L.y, ang + Math.PI, len, w, [base[0], base[1], base[2] * (1.05 - dark * 0.3)], { tip: opts.tip, veins: opts.veins, hueJ: opts.hueJ });
+  }
+}
+
+/**
+ * Reference-6 foliage: several sub-clumps of many small, individually readable leaves on thin
+ * twigs, with see-through gaps between clumps; back leaves dark, front leaves pale.
+ */
+function paintSmallLeaves(g, S, rng, dark) {
+  const base = dark ? [98, 0.34, 0.2] : [86, 0.42, 0.29];
+  const clumps = [];
+  const nC = 6 + Math.floor(rng() * 3);
+  for (let i = 0; i < nC; i++) {
+    const a = -Math.PI / 2 + (rng() - 0.5) * 2.5;
+    const d = S * (0.1 + rng() * 0.28);
+    clumps.push({ x: S / 2 + Math.cos(a) * d, y: S * 0.52 + Math.sin(a) * d * 0.95, r: S * (0.085 + rng() * 0.06) });
+  }
+  for (const c of clumps) {
+    const x0 = S / 2 + (rng() - 0.5) * S * 0.05;
+    twig(g, x0, S * 0.98, c.x, c.y, S * 0.007, hsl(28, 0.2, 0.15));
+    for (let k = 0; k < 4; k++) {
+      const a = rng() * Math.PI * 2;
+      twig(g, c.x, c.y, c.x + Math.cos(a) * c.r * 0.9, c.y + Math.sin(a) * c.r * 0.8, S * 0.004, hsl(30, 0.2, 0.17));
+    }
+  }
+  const leaves = [];
+  for (const c of clumps) {
+    const n = 26 + Math.floor(rng() * 16);
+    for (let k = 0; k < n; k++) {
+      const a = rng() * Math.PI * 2;
+      const rr = Math.sqrt(rng()) * c.r;
+      leaves.push({ x: c.x + Math.cos(a) * rr, y: c.y + Math.sin(a) * rr * 0.85, depth: rng(), c });
+    }
+  }
+  // a few stray leaves outside the clumps break the outline
+  for (let k = 0; k < 18; k++) leaves.push({ x: S * (0.1 + rng() * 0.8), y: S * (0.1 + rng() * 0.75), depth: rng(), c: { x: S / 2, y: S * 0.9 } });
+  leaves.sort((a, b) => a.depth - b.depth);
+  for (const L of leaves) {
+    const ang = Math.atan2(L.y - L.c.y, L.x - L.c.x) + Math.PI / 2 + (rng() - 0.5) * 1.1 + Math.PI;
+    const len = S * 0.06 * (0.72 + rng() * 0.55);
+    const w = len * (0.42 + rng() * 0.12);
+    const lv = 0.5 + L.depth * 0.85;
+    const yellow = !dark && rng() < 0.05;
+    paintLeaf(g, rng, L.x, L.y, ang, len, w, [yellow ? 58 : base[0], base[1], base[2] * lv], { tip: 0.45, veins: false, hueJ: 16 });
   }
 }
 
@@ -378,7 +423,7 @@ function paintDeadTwigs(g, S, rng) {
 let _atlas = null;
 
 /** Build (once) and return the foliage atlas DataTexture. size = atlas px (2048 high / 1024 low). */
-export function foliageAtlas(size = 2048) {
+export function foliageAtlas(size = ATLAS_SIZE) {
   if (_atlas) return _atlas;
   const S = size / ATLAS_GRID;
   const canvas = document.createElement('canvas');
@@ -411,6 +456,8 @@ export function foliageAtlas(size = 2048) {
   paint(SLOT.deadTwigs, (S) => paintDeadTwigs(g, S, rng));
   paint(SLOT.epiphyte, (S) => paintEpiphyte(g, S, rng));
   paint(SLOT.tallGrass, (S) => paintGrass(g, S, rng, true));
+  paint(SLOT.small, (S) => paintSmallLeaves(g, S, rng, false));
+  paint(SLOT.smallDark, (S) => paintSmallLeaves(g, S, rng, true));
 
   const img = g.getImageData(0, 0, size, size);
   dilate(img.data, size, size, 6);

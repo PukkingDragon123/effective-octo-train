@@ -93,6 +93,10 @@ export class EngineSound {
     if (!this.core) return;
     const now = this.core.ctx.currentTime;
     if (on) {
+      // the start sound carries its own starter crank: cut a separate 'ignition' crank fired just before it
+      if (this.P.startSfx && !opts.instant && !opts.silent) {
+        for (const v of this.core.voices) if (v.id === 'ignition' && !v.stopped && (!v.started || now - v.startTime < 0.8)) v.stop(0.06);
+      }
       if (opts.instant || !this.P.startSfx || opts.silent) {
         this._startAt = now;
         this._rpmS = this.P.idle * 1.4;

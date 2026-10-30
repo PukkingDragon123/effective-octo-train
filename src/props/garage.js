@@ -4,7 +4,7 @@
 // old man sits, a small Chinese wall altar glowing red, the 'อู่ กม.9' sign, a dog bowl.
 // Front (open side) faces +Z toward the road.
 import * as THREE from 'three';
-import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, makeRng, noise } from './lib/kit.js';
+import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, steelSection, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex, paintingTex, photoTex, clockTex, noticeTex, graffitiTex } from './lib/materials.js';
 import { lightSpec, attachFlicker, LIGHT_PRESETS } from './lib/lights.js';
 import { G, PAL, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, incensePot, fruitPlate, candle, garland, waterJar } from './lib/small.js';
@@ -139,11 +139,14 @@ export function createGarage(opts = {}) {
   out.colliders.push({ x: 0, z: zB, hx: W / 2, hz: 0.12, yaw: 0 }, { x: xL, z: 0, hx: 0.12, hz: D / 2, yaw: 0 }, { x: xR, z: 0, hx: 0.12, hz: D / 2, yaw: 0 });
 
   // ---- front frame: steel columns, beam, sign, folded accordion gate --------------------------
+  // rolled H-section steel columns on bolted base plates + an I-beam lintel (painted teal-grey)
   for (const x of [xL + 0.1, xR - 0.1]) {
-    k.add(mat('metal'), bbox(0.16, HF, 0.16, 0.01, 0.4), { p: [x, 0, zF - 0.1], color: 0x3a4a52, w: { grime: 0.7, grimeH: 0.9, streak: 0.8, streakColor: 0x6a3a1a } });
+    k.add(mat('metal'), G('hcol:' + HF, () => steelSection(HF - 0.02, 0.16, 0.15, 0.012, 0.008)), { p: [x, 0.02, zF - 0.1], r: Math.PI / 2, color: 0x3a4a52, w: { grime: 0.7, grimeH: 0.9, streak: 0.8, streakColor: 0x6a3a1a } });
+    k.add(mat('metal'), G('hbase', () => bbox(0.26, 0.02, 0.26, 0.004, 0.2)), { p: [x, 0, zF - 0.1], color: 0x2e3a40, w: { grime: 0.8, streak: 0.5 } });
+    for (const [bx, bz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.add(mat('rust'), G('hbolt', () => cyl(0.012, 0.012, 0.03, 6, 0.003)), { p: [x + bx * 0.1, 0.02, zF - 0.1 + bz * 0.1], color: 0x5a3a20, w: false });
     out.colliders.push({ x, z: zF - 0.1, r: 0.12 });
   }
-  k.add(mat('metal'), bbox(W + 0.3, 0.26, 0.18, 0.01, 0.4), { p: [0, HF - 0.1, zF - 0.1], color: 0x3a4a52, w: { grime: 0, streak: 0.7, streakColor: 0x6a3a1a } });
+  k.add(mat('metal'), G('ibeam:' + W, () => steelSection(W + 0.3, 0.26, 0.14, 0.012, 0.008).rotateZ(Math.PI / 2).translate((W + 0.3) / 2, 0, 0)), { p: [0, HF - 0.1 + 0.13, zF - 0.1], r: [Math.PI / 2, 0, 0], color: 0x3a4a52, w: { grime: 0, streak: 0.7, streakColor: 0x6a3a1a } });
   // painted sign board on the fascia
   // garage_sign texture is 2.0 x 0.78 -> 2.5 x 0.975 face on a riveted steel board
   k.add(mat('metal'), bbox(2.66, 1.1, 0.06, 0.01, 0.3), { p: [-0.6, HF + 0.02, zF + 0.0], color: 0xd8d0b8, w: { grime: 0, streak: 0.9, streakColor: 0x5a3a20 } });

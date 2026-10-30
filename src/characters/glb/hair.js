@@ -175,6 +175,7 @@ export function buildHairGeometry(t, look) {
   }
   // ---- curtain (long hair / bob)
   const curtainTris = [];
+  const curtainCols = [];
   if (st.curtain && !look.acc.includes('helmet')) {
     const hb = t.Gp[iHead];
     const bodyR = bodyRadiusFn(t);
@@ -186,7 +187,7 @@ export function buildHairGeometry(t, look) {
     const left = run.filter((j) => cols[j] > 0).sort((a, b) => cols[a] - cols[b]);
     const right = run.filter((j) => cols[j] <= 0).sort((a, b) => cols[a] - cols[b]);
     const order = [...left, ...right];
-    const cgrid = [];
+    const cgrid = curtainCols;
     for (let ci = 0; ci < order.length; ci++) {
       const j = order[ci];
       const th = cols[j];
@@ -241,46 +242,120 @@ export function buildHairGeometry(t, look) {
     // close the seam at the back (θ = ±π share the same column position)
   }
   // ---- bun / ponytail
+  // ---- strand cards: tapered clumps layered over the shell (double-sided, alpha-cut tips)
+  const card = (pts, w0, wDirs, nrms, wts, u0) => {
+    const n = pts.length;
+    const L = [], Rr = [];
+    for (let i = 0; i < n; i++) {
+      const f = i / (n - 1);
+      const w = w0 * Math.pow(1 - f, 0.8) * (0.75 + 0.25 * Math.sin(f * 3.1));
+      const off = wDirs[i].clone().multiplyScalar(w * 0.5);
+      L.push(addV(pts[i].clone().add(off), u0, 0.64 + f * 0.34, wts[i]));
+      Rr.push(addV(pts[i].clone().sub(off), u0 + 0.025, 0.64 + f * 0.34, wts[i]));
+    }
+    for (let i = 0; i < n - 1; i++) curtainTris.push([L[i], L[i + 1], Rr[i]], [Rr[i], L[i + 1], Rr[i + 1]]);
+    void nrms;
+  };
+  const nCards = { short: 170, 'gray-short': 140, messy: 230, pompadour: 190, long: 120, bob: 150, bun: 120, ponytail: 120, bald: 70 }[look.hair.style] ?? 120;
+  const cardLen = { short: 0.05, 'gray-short': 0.04, messy: 0.06, pompadour: 0.08, long: 0.09, bob: 0.08, bun: 0.1, ponytail: 0.1, bald: 0.035 }[look.hair.style] ?? 0.06;
+  for (let i = 0; i < nCards; i++) {
+    const j = Math.floor(rng() * J);
+    if (!okCol(j)) continue;
+    const th0 = cols[j] + rng() * (2 * Math.PI / J);
+    const a = Math.abs(th0) * 180 / Math.PI;
+    const ph0 = lerp(topPh, phiAtHeight(G, th0, lineY(th0)), rng() * 0.75);
+    const lineF = phiAtHeight(G, th0, lineY(th0));
+    const pts = [], wd = [], nr = [], wt = [];
+    const seg = 6;
+    const drift = (rng() - 0.5) * 0.25 + (st.slick ? (th0 > 0 ? 0.2 : -0.2) : 0);
+    for (let k = 0; k <= seg; k++) {
+      const f = k / seg;
+      const ph = Math.max(lineF - 0.05, ph0 - (cardLen / 0.1) * f * 0.75);
+      const th = th0 + drift * f;
+      const kk = clamp((topPh - ph) / Math.max(0.1, topPh - lineF), 0, 1);
+      const p = pt(th, ph, thickAt0(th, ph, 1 - kk) * edgeK(kk) + 0.0015 + f * 0.0012 + (st.spikes ? rng() * 0.004 * f : 0));
+      pts.push(p);
+      const n = dirOf(th, ph, new THREE.Vector3());
+      nr.push(n);
+      wd.push(new THREE.Vector3(Math.cos(th), 0, -Math.sin(th)));
+      wt.push([[iHead, 1]]);
+    }
+    void a;
+    card(pts, 0.008 + rng() * 0.007, wd, nr, wt, rng() * 0.95);
+  }
+  // curtain clumps (long / bob): follow the hanging columns, ending in tapered, uneven tips
+  if (curtainCols.length) {
+    for (const colIdx of curtainCols) {
+      const nClumps = wet > 0.3 ? 3 : 2;
+      for (let c = 0; c < nClumps; c++) {
+        const side = (rng() - 0.5) * 0.012, out = 0.002 + rng() * 0.006;
+        const ext = 0.02 + rng() * 0.06;
+        const pts = [], wd = [], wt = [];
+        for (let k = 0; k < colIdx.length; k++) {
+          const v = verts[colIdx[k]];
+          const p = v.p.clone();
+          const r2 = new THREE.Vector3(p.x, 0, p.z - C.z).normalize();
+          const tng = new THREE.Vector3(r2.z, 0, -r2.x);
+          p.addScaledVector(r2, out).addScaledVector(tng, side);
+          if (k === colIdx.length - 1) p.y -= ext;
+          pts.push(p); wd.push(tng); wt.push(v.w);
+        }
+        card(pts, (wet > 0.3 ? 0.011 : 0.016) + rng() * 0.008, wd, null, wt, rng() * 0.95);
+      }
+    }
+  }
   if (st.extra === 'bun') {
+    // coiled bun: a small core wrapped by twisted clumps, with a hairpin
     const th = Math.PI, ph = 0.42;
     const c0 = pt(th, ph, 0.0);
     const n = new THREE.Vector3().copy(dirOf(th, ph, _d));
-    const center = c0.clone().addScaledVector(n, 0.032);
-    const s = new THREE.SphereGeometry(0.042, 14, 10);
-    s.scale(1.1, 0.85, 0.9);
+    const center = c0.clone().addScaledVector(n, 0.026);
+    const s = new THREE.SphereGeometry(0.03, 12, 8);
+    s.scale(1.05, 0.85, 0.85);
     const p = s.attributes.position, uv = s.attributes.uv;
     const base = verts.length;
-    for (let i = 0; i < p.count; i++) {
-      const v = new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i));
-      const tw = noise.noise3D(v.x * 40, v.y * 40, v.z * 40) * 0.003;
-      v.multiplyScalar(1 + tw / 0.04).add(center);
-      addV(v, uv.getX(i), 0.64 + uv.getY(i) * 0.3, [[iHead, 1]]);
-    }
+    for (let i = 0; i < p.count; i++) addV(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)).add(center), uv.getX(i), 0.64 + uv.getY(i) * 0.2, [[iHead, 1]]);
     const ix = s.index.array;
     for (let i = 0; i < ix.length; i += 3) tris.push([base + ix[i], base + ix[i + 1], base + ix[i + 2]]);
     s.dispose();
+    const up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3(1, 0, 0);
+    for (let c = 0; c < 4; c++) {
+      const pts = [], wd = [], wt = [];
+      const a0 = c * 1.6;
+      for (let k = 0; k <= 14; k++) {
+        const f = k / 14, a = a0 + f * Math.PI * 2.2, rr = 0.036 * (1 - f * 0.55);
+        const q = center.clone().addScaledVector(side, Math.cos(a) * rr).addScaledVector(up, Math.sin(a) * rr * 0.82).addScaledVector(n, 0.012 * Math.sin(f * 3 + c) + 0.006);
+        pts.push(q);
+        wd.push(n.clone());
+        wt.push([[iHead, 1]]);
+      }
+      card(pts, 0.022, wd, null, wt, rng() * 0.9);
+    }
   }
   if (st.extra === 'ponytail') {
     const th = Math.PI, ph = 0.2;
-    const root = pt(th, ph, 0.004);
-    const ch = ['hair_1', 'hair_2', 'hair_3'].map((n) => t.index[n]);
-    const RS = 8, LS = 9, len = 0.3;
-    const base = verts.length;
-    for (let l = 0; l <= LS; l++) {
-      const f = l / LS;
-      const c = root.clone().add(new THREE.Vector3(0, -len * f * 0.95, -0.02 - 0.03 * Math.sin(f * 1.5)));
-      const rad = 0.017 * (1 - f * 0.6) * (l === 0 ? 1.2 : 1);
-      const s = f * ch.length * 0.999;
-      const i0 = Math.floor(s), fr = s - i0;
-      const w = f < 0.1 ? [[iHead, 1 - f / 0.1], [ch[0], f / 0.1]] : i0 + 1 < ch.length ? [[ch[i0], 1 - fr], [ch[i0 + 1], fr]] : [[ch[ch.length - 1], 1]];
-      for (let rr = 0; rr <= RS; rr++) {
-        const a = (rr / RS) * Math.PI * 2;
-        addV(c.clone().add(new THREE.Vector3(Math.cos(a) * rad, 0, Math.sin(a) * rad * 0.8)), rr / RS, 0.64 + f * 0.36, w);
+    const root = pt(th, ph, 0.006);
+    const ch = ['hair_1', 'hair_2', 'hair_3'].map((nn) => t.index[nn]);
+    // hair tie
+    const tie = new THREE.TorusGeometry(0.016, 0.005, 6, 14);
+    tie.rotateX(Math.PI / 2);
+    const tb = verts.length, tp = tie.attributes.position;
+    for (let i = 0; i < tp.count; i++) addV(new THREE.Vector3(tp.getX(i), tp.getY(i), tp.getZ(i)).add(root), 0.5, 0.2, [[iHead, 1]]);
+    const tix = tie.index.array;
+    for (let i = 0; i < tix.length; i += 3) tris.push([tb + tix[i], tb + tix[i + 1], tb + tix[i + 2]]);
+    tie.dispose();
+    for (let c = 0; c < 12; c++) {
+      const a = (c / 12) * Math.PI * 2, len = 0.26 + rng() * 0.08;
+      const pts = [], wd = [], wt = [];
+      for (let k = 0; k <= 8; k++) {
+        const f = k / 8;
+        const q = root.clone().add(new THREE.Vector3(Math.cos(a) * 0.012 * (1 + f * 1.4), -len * f, -0.02 - 0.035 * Math.sin(f * 1.5) + Math.sin(a) * 0.01 * (1 + f)));
+        pts.push(q);
+        wd.push(new THREE.Vector3(-Math.sin(a), 0, Math.cos(a)));
+        const s2 = f * ch.length * 0.999, i0 = Math.floor(s2), fr = s2 - i0;
+        wt.push(f < 0.1 ? [[iHead, 1 - f / 0.1], [ch[0], f / 0.1]] : i0 + 1 < ch.length ? [[ch[i0], 1 - fr], [ch[i0 + 1], fr]] : [[ch[ch.length - 1], 1]]);
       }
-    }
-    for (let l = 0; l < LS; l++) for (let rr = 0; rr < RS; rr++) {
-      const a0 = base + l * (RS + 1) + rr, a1 = a0 + 1, b0 = a0 + RS + 1, b1 = b0 + 1;
-      tris.push([a0, a1, b0], [b0, a1, b1]);
+      card(pts, 0.02, wd, null, wt, rng() * 0.9);
     }
   }
   return toGeometry(verts, tris, curtainTris, C);

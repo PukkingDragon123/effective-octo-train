@@ -27,8 +27,14 @@ function anchor(parent, name, x, y, z, yaw = 0) {
 // ---------------------------------------------------------------------------
 /** Chofa: the hooked bird-beak finial at a gable apex. Origin at apex, faces +Z. */
 export function chofa(k, p, s = 1, color = 0xd8a840, yaw = 0) {
-  const g = G('chofa', () => tube(smoothPath([V(0, 0, 0), V(0, 0.05, 0.005), V(0, 0.1, 0.0), V(0, 0.14, -0.025), V(0, 0.15, -0.06), V(0, 0.125, -0.07)], 14), (t) => 0.014 * (1 - t * 0.8) + 0.002, 6, true));
+  // swan-neck finial: blade-like (flattened sideways), thick socle tapering to a hooked beak
+  const g = G('chofa2', () => {
+    const t = tube(smoothPath([V(0, 0, 0.004), V(0, 0.035, 0.01), V(0, 0.08, 0.006), V(0, 0.12, -0.012), V(0, 0.148, -0.042), V(0, 0.152, -0.07), V(0, 0.138, -0.088), V(0, 0.12, -0.084), V(0, 0.114, -0.07)], 28), (u) => 0.017 * Math.pow(1 - u, 0.75) + 0.0022, 8, true);
+    t.scale(0.6, 1, 1);
+    return t;
+  });
   k.add(mat('gold'), g, { p, s, r: yaw, color, w: { grime: 0, vary: 0.2 } });
+  k.add(mat('gold'), G('chofaSocle', () => lathe([[0, 0], [0.022, 0], [0.024, 0.008], [0.016, 0.014], [0.014, 0.022], [0, 0.022]], 10)), { p, s, color, w: false });
 }
 /** Hang hong: curled end at the bottom of a bargeboard. */
 function hangHong(k, p, s, color, side) {
