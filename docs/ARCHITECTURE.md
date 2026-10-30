@@ -242,3 +242,15 @@ waits for `window.__ready`, steps frames deterministically, saves a PNG, and pri
 console errors. **Check screenshots visually (Read the PNG) and fix every console
 error.** Sandboxes read URL params via `ctx.params` (e.g. `?hour=23`, `?cam=interior`).
 SwiftShader is CPU-rendered: keep sandbox sizes modest (e.g. 960x540) and frames low.
+
+### narrative data (`src/game/data/`)
+Pure data modules (no engine imports) consumed by gameplay, ui and audio. Barrel:
+`src/game/data/index.js`; full schema: `src/game/data/SCHEMA.md`. Key exports: `CHARACTERS`
+(voice params + createHumanoid specs), `RULES`/`RULE_PARAMS`/`HIDDEN_LINE`/`PENCIL_NOTES`,
+`PASSENGERS` (9 rides; one file each in `rides/`; dialogue beats triggered by ride progress,
+time, other beats or bus-style events listed in `DIALOGUE_EVENTS`), `ENCOUNTERS`, `MEMORIES`,
+`ENDINGS`, Ah Kong's `INTRO_GARAGE`/`TUTORIAL_STEPS`/`RESTART_LINES`/`DEATH_HINTS`/`TIME_SKIP`,
+radio `STATIONS`/`SONGS`/`DJ_LINES`/`SPECIAL_BROADCASTS`, world text (`CHAPTERS`, `DEATH_CARDS`,
+`SIGNS`, `POSTERS`, `NOODLE_MENU`, `LOADING_LINES`…) and `CREDITS`. Hours use the 21..30 scale.
+Validate with `node -e "import('./src/sandbox/narrative-validate.js').then(m=>m.runNode())"` or the
+`narrative` sandbox.

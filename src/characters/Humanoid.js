@@ -10,7 +10,7 @@ import { clamp, lerp, damp, smoothstep, noise, Spring } from '../core/math.js';
 import { skinMaterial, paintedMaterial } from '../render/index.js';
 import { computeProportions, computeLayout, Rig, BONE_INDEX as BI, BONE_COUNT } from './Rig.js';
 import { buildBodyGeometry, skinRGB } from './BodyBuilder.js';
-import { buildHeadGeometry, MORPHS, MORPH_INDEX } from './Head.js';
+import { buildHeadGeometry, faceParams, MORPHS, MORPH_INDEX } from './Head.js';
 import { paintFace } from './Face.js';
 import { Pose, composePose, solveTwoBone, ARM, LEG, HAND_FROM_TARGET } from './IK.js';
 import { Animator, fingers } from './ProcAnim.js';
@@ -33,7 +33,7 @@ const bodyCache = new Map();
 const headCache = new Map();
 let _bodyMat = null;
 function bodyMaterial() {
-  if (!_bodyMat) _bodyMat = skinMaterial({ vertexColors: true, roughness: 0.78, name: 'character-body' });
+  if (!_bodyMat) _bodyMat = skinMaterial({ vertexColors: true, roughness: 0.8, wet: 0.04, name: 'character-body' });
   return _bodyMat;
 }
 export function geometryStats() {
@@ -70,6 +70,7 @@ export class Humanoid {
   // -------------------------------------------------------------------------
   _build(spec) {
     const P = (this.P = computeProportions(spec));
+    P.face = faceParams(spec, P);
     const L = (this.layout = computeLayout(P));
     const rig = (this.rig = new Rig(L));
     for (const b of rig.bones) this.bones[b.name] = b;
@@ -98,7 +99,8 @@ export class Humanoid {
     this.face = head.F;
     const ghost = spec.ghost || {};
     const bodyMat = ghost.pale || ghost.wet ? skinMaterial({ vertexColors: true, roughness: 0.78 - (ghost.wet || 0) * 0.4, pale: ghost.pale || 0, name: 'character-body-ghost' }) : bodyMaterial();
-    const headMat = skinMaterial({ map: head.tex.map, vertexColors: true, roughness: 0.62, pale: ghost.pale || 0, name: 'character-head' });
+    // roughness lives in the painted roughness map (G channel = absolute roughness)
+    const headMat = skinMaterial({ map: head.tex.map, vertexColors: true, roughness: 1.0, wet: 0.04 + (ghost.wet || 0) * 0.5, pale: ghost.pale || 0, name: 'character-head' });
     headMat.roughnessMap = head.tex.roughnessMap;
     if (head.tex.emissiveMap) {
       headMat.emissiveMap = head.tex.emissiveMap;

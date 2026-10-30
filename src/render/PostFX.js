@@ -68,6 +68,8 @@ class PostFX {
       uResolution: { value: new THREE.Vector2(1, 1) },
     };
     this.enabled = true;
+    /** debug: 'shafts' | 'paint' | 'bloom' | 'tensor' | 'scene' shows that buffer raw */
+    this.debugView = null;
     /** 'auto' (scan the scene for GLASS-layer meshes every 30 frames) | true | false */
     this.glass = 'auto';
     this.sky = null; // set by installRendering (grade targets, sun for shafts)
@@ -371,11 +373,10 @@ class PostFX {
         shafts = sky.sunVisibility * onScreen * clamp(facing * 2, 0, 1);
         if (shafts > 0.01) {
           const m = this.matShaftMask.uniforms;
-          m.tSrc.value = this.bloomDown[0].texture ?? this.sceneRT.texture;
-          if (!needBloomChain) m.tSrc.value = this.sceneRT.texture;
+          m.tSrc.value = this.sceneRT.texture;
           m.uSun.value.set(sx, sy);
           m.uAspect.value = w / h;
-          m.uThreshold.value = 0.55 / Math.max(exposure, 0.2);
+          m.uThreshold.value = 0.35 / Math.max(exposure, 0.2);
           this._pass(renderer, this.matShaftMask, this.shaftA);
           const b = this.matShaftBlur.uniforms;
           b.uSun.value.set(sx, sy);
@@ -418,7 +419,7 @@ class PostFX {
     fu.uLift.value.addScalar(lb);
     fu.uColorMul.value.copy(P.tint);
     fu.uBloom.value = clamp(bloomAmt * 0.075, 0, 0.5);
-    fu.uShafts.value = shafts * 0.9;
+    fu.uShafts.value = shafts * 1.6;
     if (sky) fu.uShaftCol.value.copy(sky.sunColor);
     fu.uVignette.value = cfg.vignette * P.vignette;
     fu.uGrain.value = cfg.grain * P.grain;
@@ -437,6 +438,13 @@ class PostFX {
       fu.uFlash.value.set(fl.color.r, fl.color.g, fl.color.b, k * k * (cfg.reduceFlashes ? 0.25 : 1) * 2.0 / Math.max(exposure, 0.3));
     } else fu.uFlash.value.w = 0;
     this._pass(renderer, paint > 0.001 ? this.matFinal : this.matFinalNoPaint, null);
+    if (this.debugView) {
+      const tex = { shafts: this.shaftA.texture, paint: this.paintRT.texture, bloom: this.bloomUp[0]?.texture, tensor: this.tensorRT?.texture, scene: this.sceneRT.texture }[this.debugView];
+      if (tex) {
+        this.matCopy.uniforms.tSrc.value = tex;
+        this._pass(renderer, this.matCopy, null);
+      }
+    }
     renderer.autoClear = prevAutoClear;
   }
 }

@@ -66,7 +66,7 @@ export function anatomyPrims(P, L) {
     // obliques / love handles
     put('waist', ellipsoid([sg * 0.105 * s * Math.pow(P.fat, 0.3), yP + 0.065 * s, 0.006 * s], [0.042 * s * P.fat, 0.07 * s, 0.07 * s * Math.pow(P.fat, 0.5)], R({ k: 0.05 * s, tag: 'oblique' })));
     // trapezius slope
-    put('trap', roundCone([sg * 0.022 * s, yN + 0.04 * s, P.neckZ + 0.012 * s], [sg * (P.shoulderX - 0.02 * s), yS + 0.028 * s, 0.014 * s], 0.04 * s, 0.03 * s, R({ k: 0.045 * s, tag: 'trap' })));
+    put('trap', roundCone([sg * 0.03 * s, yN + 0.005 * s, P.neckZ + 0.022 * s], [sg * (P.shoulderX - 0.02 * s), yS + 0.026 * s, 0.016 * s], 0.034 * s, 0.028 * s, R({ k: 0.04 * s, tag: 'trap' })));
     // clavicle ridge
     put('clav', capsule([sg * 0.02 * s, yS - 0.002 * s, -0.052 * s], [sg * (P.shoulderX - 0.005 * s), yS + 0.03 * s, -0.012 * s], 0.0115 * s, R({ k: 0.022 * s, tag: 'clavicle' })));
   }
@@ -75,8 +75,7 @@ export function anatomyPrims(P, L) {
     put('belly', ellipsoid([0, yP + 0.075 * s, -0.045 * s - 0.035 * s * b], [(0.115 + 0.035 * b) * s, (0.1 + 0.025 * b) * s, (0.075 + 0.035 * b) * s], R({ k: 0.08 * s, tag: 'belly' })));
   }
   // neck
-  put('neck', roundCone([0, yS - 0.035 * s, 0.022 * s], [0, P.headY + 0.012 * s, P.headZ + 0.004 * s], P.neckR * 1.1, P.neckR, { k: 0.045 * s, region: 'neck', tag: 'neck' }));
-  if (!fem && P.adult > 0.5) put('neck', ellipsoid([0, lerp(yN, P.chinY, 0.45), P.headZ - P.neckR * 0.82], [0.011 * s, 0.016 * s, 0.01 * s], { k: 0.015 * s, region: 'neck', tag: 'adam' }));
+  for (const p of neckPrims(P, 0, 0)) put('neck', p);
 
   // ---- arms
   for (const side of ['L', 'R']) {
@@ -128,6 +127,20 @@ export function anatomyPrims(P, L) {
     put(gs, sphere(An, P.ankleR * 1.02, Lg({ k: 0.02 * s, tag: 'ankle' })));
   }
   return { all, G };
+}
+
+/** Neck column + sternocleidomastoids + larynx, offset by (dy, dz) (head-local uses -headY, -headZ). */
+export function neckPrims(P, dy, dz) {
+  const s = P.H / 1.7;
+  const o = (p) => [p[0], p[1] + dy, p[2] + dz];
+  const out = [];
+  const R = { k: 0.04 * s, region: 'neck', mat: 'skin', tag: 'neck' };
+  out.push(roundCone(o(P.neckBot), o(P.neckTop), P.neckR * 1.12, P.neckR, R));
+  for (const sg of [-1, 1]) {
+    out.push(capsule(o([sg * 0.04 * s, P.headY + 0.012 * s, P.headZ + 0.02 * s]), o([sg * 0.012 * s, P.shoulderY + 0.0 * s, -0.03 * s]), 0.0115 * s, { ...R, k: 0.022 * s, tag: 'scm' }));
+  }
+  if (!P.fem && P.adult > 0.5) out.push(ellipsoid(o([0, lerp(P.neckY, P.chinY, 0.5), P.neckTop[2] - P.neckR * 0.9]), [0.011 * s, 0.015 * s, 0.009 * s], { ...R, k: 0.015 * s, tag: 'adam' }));
+  return out;
 }
 
 // ---------------------------------------------------------------------------

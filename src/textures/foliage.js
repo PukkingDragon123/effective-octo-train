@@ -78,8 +78,8 @@ function atlas(w, h, seed) {
     w, h, img,
     H: new Float32Array(w * h),
     ang: new Float32Array(w * h),
-    N: fbm(w, h, { cells: 16, octaves: 4, seed }),
-    N2: fbm(w, h, { cells: 64, octaves: 2, seed: seed + 1 }),
+    N: fbm(w, h, { cells: 8, octaves: 3, seed }),
+    N2: fbm(w, h, { cells: 48, octaves: 1, seed: seed + 1 }),
   };
 }
 
@@ -112,8 +112,20 @@ function leaf(A, o) {
   const L = o.len, hwMax = o.width / 2;
   const ca = Math.cos(o.angle), sa = Math.sin(o.angle);
   const bend = (o.bend || 0) * L;
-  const shapeFn = typeof o.shape === 'function' ? o.shape : SHAPES[o.shape || 'ovate'];
+  const shapeSrc = typeof o.shape === 'function' ? o.shape : SHAPES[o.shape || 'ovate'];
   const t0 = o.tStart ?? 0;
+  // tabulate the outline once per leaf (transcendental shape functions are hot otherwise)
+  const LUT_N = Math.max(24, Math.min(256, Math.round(o.len / 2)));
+  const lut = new Float32Array(LUT_N + 1);
+  for (let q = 0; q <= LUT_N; q++) lut[q] = Math.max(0, shapeSrc(t0 + ((1 - t0) * q) / LUT_N));
+  const lutScale = LUT_N / (1 - t0);
+  const shapeFn = (t) => {
+    const f = (t - t0) * lutScale;
+    const q = f | 0;
+    if (q >= LUT_N) return lut[LUT_N];
+    const r = f - q;
+    return lut[q] + (lut[q + 1] - lut[q]) * r;
+  };
   const rng = makeRng(o.seed ?? 1);
   // bbox from outline samples
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;

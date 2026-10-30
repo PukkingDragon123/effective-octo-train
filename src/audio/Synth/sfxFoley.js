@@ -252,7 +252,7 @@ export const FOLEY_SFX = {
   },
 
   bell_temple: {
-    vars: 2, ref: 6, rolloff: 0.6, reverb: 0.5, sr: 32000, gain: 1,
+    vars: 2, ref: 6, rolloff: 0.6, reverb: 0.5, sr: 22050, gain: 1,
     gen({ sr, rng, v }) {
       const f = v === 0 ? 112 : 96;
       const dur = 11;
@@ -292,7 +292,7 @@ export const FOLEY_SFX = {
   },
 
   alms_bowl: {
-    vars: 2, ref: 1.5, reverb: 0.15,
+    vars: 2, ref: 1.5, reverb: 0.15, sr: 24000,
     gen({ sr, rng }) {
       const out = alloc(sr, 3.2);
       const f = 330 + rng() * 40;

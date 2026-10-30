@@ -13,7 +13,7 @@
 //       { type:'interact', id }                         interact:use with that id
 //       { type:'enterVehicle' }                          player sits in the driver's seat
 //       { type:'control', control, value }               taxi:control (value '*' = any change; valueNot: x = anything but x;
-//                                                        min: n = numeric value >= n)
+//                                                        min: n = numeric value >= n; path: read value[path] first)
 //       { type:'drive', meters }                         distance driven
 //       { type:'speedKmh', min?, max? }                  speed reached / dropped to
 //       { type:'stop' }                                  speed < 1 km/h after moving
@@ -69,7 +69,7 @@ export const TUTORIAL_STEPS = [
     id: 'openDoor',
     lines: [K('ประตูคนขับอยู่ขวา รถพวงมาลัยขวา', "Driver's door is on the right. Right-hand drive.")],
     hint: { th: 'มองที่มือจับประตูแล้วกด F', en: 'Look at the door handle and press F', keys: ['F'] },
-    waitFor: { type: 'interact', id: 'taxi.door_fr' },
+    waitFor: { type: 'interact', id: 'taxi.door.fr.out' }, // vehicle: outside handle of the driver door (RHD)
   },
   {
     id: 'sit',
@@ -115,7 +115,7 @@ export const TUTORIAL_STEPS = [
     },
     waitFor: {
       auto: { type: 'control', control: 'gear', value: 'D' },
-      manual: { type: 'control', control: 'gear', value: 1 },
+      manual: { type: 'control', control: 'gear', value: '1' },
     },
   },
   {
@@ -181,7 +181,7 @@ export const TUTORIAL_STEPS = [
     id: 'window',
     lines: [K('กระจกต้องหมุนเอง รถเก่า', 'You crank the window yourself. Old car.')],
     hint: { th: 'กด T หรือมองที่มือหมุนแล้วกด F', en: 'Press T, or look at the crank and press F', keys: ['T', 'F'] },
-    waitFor: { type: 'control', control: 'window', min: 0.3 },
+    waitFor: { type: 'control', control: 'window', path: 'amount', min: 0.3 }, // taxi:control value {window, amount}
     after: [K('แต่ถ้ามีเสียงเรียกชื่อลื้อจากข้างนอก... อย่าเปิด', "But if a voice outside calls your name... don't open it.", { tone: 'whisper' })],
   },
   {

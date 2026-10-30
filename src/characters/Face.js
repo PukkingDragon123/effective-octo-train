@@ -398,7 +398,7 @@ export function paintFace(ctx, size = 1024) {
   paintEyeTile(g, W, H, spec, rng);
 
   // ---- roughness (G channel)
-  rg.fillStyle = 'rgb(0,150,0)';
+  rg.fillStyle = 'rgb(0,160,0)';
   rg.fillRect(0, 0, rv.width, rv.height);
   const rpx = (p) => { const [x, y] = px(p[0], p[1], p[2]); return [x / 4, y / 4]; };
   const rdab = (p, r, val, a) => {
@@ -409,13 +409,13 @@ export function paintFace(ctx, size = 1024) {
     rg.fillStyle = grd;
     rg.fillRect(x - r / 4, y - r / 4, r / 2, r / 2);
   };
-  rdab([0, my, mz], S(0.02 * hs), 90, 0.8); // lips
-  rdab([0, F.noseTipY, -0.11 * hs], S(0.015 * hs), 110, 0.6);
-  rdab([0, F.browY + 0.035 * hs, -0.09 * hs], S(0.03 * hs), 120, 0.5);
-  for (const sg of [-1, 1]) rdab([sg * eX, eY, eZ - 0.012 * hs], S(0.012 * hs), 70, 0.7); // wet lid margins
-  const wetv = Math.round(150 - (ghost.wet || 0) * 90);
+  rdab([0, my, mz], S(0.02 * hs), 115, 0.8); // lips
+  rdab([0, F.noseTipY, -0.11 * hs], S(0.015 * hs), 128, 0.6);
+  rdab([0, F.browY + 0.035 * hs, -0.09 * hs], S(0.03 * hs), 138, 0.5);
+  for (const sg of [-1, 1]) rdab([sg * eX, eY, eZ - 0.012 * hs], S(0.01 * hs), 95, 0.6); // wet lid margins
+  const wetv = Math.round(160 - (ghost.wet || 0) * 90);
   if (ghost.wet) { rg.fillStyle = `rgba(0,${wetv},0,0.8)`; rg.fillRect(0, 0, rv.width, rv.height * 0.9); }
-  rg.fillStyle = 'rgb(0,25,0)';
+  rg.fillStyle = 'rgb(0,30,0)';
   rg.fillRect(EYE_TILE.u0 * rv.width, (1 - EYE_TILE.v0 - EYE_TILE.size) * rv.height, EYE_TILE.size * rv.width, EYE_TILE.size * rv.height);
 
   const map = new THREE.CanvasTexture(cv);

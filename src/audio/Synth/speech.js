@@ -234,6 +234,7 @@ export function buildSpeechScore(phrases, preset, rng, opts = {}) {
   const sc = new VoxScore({ f0: preset.f0, av: 0 });
   const rate = clamp(preset.rate * (opts.rate ?? 1), 0.4, 2.2);
   const toneDepth = (opts.toneDepth ?? 1) * (preset.whisper ? 0.5 : 1);
+  const fr = opts.fric ?? (preset.whisper ? 0.45 : 1); // frication scale (chant / whisper are softer)
   sc.rest(0.04);
   let pi = 0;
   for (const ph of phrases) {
@@ -258,12 +259,12 @@ export function buildSpeechScore(phrases, preset, rng, opts = {}) {
       if (PLOSIVE[on]) {
         const [ff, fq] = PLOSIVE[on];
         sc.seg(0.045 * stretch, { av: on === 'b' || on === 'd' ? 0.12 : 0, ah: 0, af: 0, f0: st(0) });
-        sc.seg(0.012, { af: 0.9 * amp, ff, fq, ...vp }, { af: 0.2 });
-        if (ASPIRATED[on]) sc.seg(0.05 * stretch, { af: 0.15, ah: 0.5 * amp, ff }, { ah: 0.3, af: 0 });
+        sc.seg(0.012, { af: 0.9 * amp * fr, ff, fq, ...vp }, { af: 0.2 * fr });
+        if (ASPIRATED[on]) sc.seg(0.05 * stretch, { af: 0.15 * fr, ah: 0.5 * amp, ff }, { ah: 0.3, af: 0 });
         else sc.seg(0.006, { af: 0, ah: 0 });
       } else if (FRIC[on] && on !== 'h') {
         const [ff, fq, fa] = FRIC[on];
-        sc.seg(0.085 * stretch, { av: 0, ah: 0, af: fa * amp, ff, fq, f0: st(0), ...vp }, { af: fa * 0.7 * amp });
+        sc.seg(0.085 * stretch, { av: 0, ah: 0, af: fa * amp * fr, ff, fq, f0: st(0), ...vp }, { af: fa * 0.7 * amp * fr });
       } else if (on === 'h') {
         sc.seg(0.06 * stretch, { av: 0, af: 0, ah: 0.6 * amp, f0: st(0), ...vp }, { ah: 0.45 * amp });
       } else if (SONOR[on]) {
@@ -330,7 +331,7 @@ export function renderMurmur(sr, th, voice = {}, seed = null) {
     drift: 0.25 + ghost * 0.6,
   });
   // gentle "behind the mouth" darkening so it reads as a murmur, not clear speech
-  const lp = new SVF(sr, preset.whisper ? 7000 : 4200, 0.6);
+  const lp = new SVF(sr, preset.whisper ? 5200 : 4200, 0.6);
   for (let i = 0; i < out.length; i++) out[i] = lp.process(out[i]);
   if (ghost > 0) out = ghostify(sr, out, ghost, rng);
   normalize(out, 0.8);

@@ -114,7 +114,7 @@ float dlbPhaseHG(float c, float g) {
 vec3 dlbFogTint(vec3 rd) {
   vec3 c = dlbFogColor;
   float cs = dot(rd, dlbSunDir);
-  c += dlbSunScatter * (dlbPhaseHG(cs, 0.72) * 3.0 + 0.25 * max(cs, 0.0));
+  c += dlbSunScatter * (dlbPhaseHG(cs, 0.78) * 2.5 + 0.35 * max(cs, 0.0) + 0.1);
   float cm = dot(rd, dlbMoonDir);
   c += dlbMoonScatter * (dlbPhaseHG(cm, 0.8) * 2.5 + 0.15);
   c += dlbFlash * vec3(0.05, 0.055, 0.07);

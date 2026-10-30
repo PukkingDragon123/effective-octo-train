@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { clamp, lerp, smoothstep, makeRng, hashString, noise } from '../core/math.js';
 import { ellipsoid, sphere, roundCone, capsule, custom, basisFromEuler, primsBounds } from './SDF.js';
 import { BONE_INDEX as BI, BONE_COUNT } from './Rig.js';
-import { meshPart } from './BodyBuilder.js';
+import { meshPart, neckPrims } from './BodyBuilder.js';
 import { packWeights } from './BodyBuilder.js';
 
 export const MORPHS = ['browUp', 'browInnerUp', 'browDown', 'smile', 'frown', 'mouthWide', 'blinkL', 'blinkR', 'lidWide', 'squint', 'cheekL', 'cheekR', 'lipPress', 'sneer'];
@@ -25,8 +25,8 @@ export function faceParams(spec, P) {
   const fs = hs * (1 - child * 0.16); // face features scale
   const F = {
     hs, fs, fem, child, old, seed,
-    eyeX: 0.0315 * hs * j(0.03), eyeY: 0.062 * hs, eyeZ: -0.07 * hs,
-    eyeR: 0.0118 * hs,
+    eyeX: 0.0318 * hs * j(0.03), eyeY: 0.06 * hs, eyeZ: -0.0705 * hs,
+    eyeR: 0.0121 * hs,
     eyeSize: (f.eyeSize ?? 1) * j(0.05) * (1 + child * 0.06),
     eyeTilt: (fem ? 0.06 : 0.03) + (rng() - 0.5) * 0.06,
     lidOpen: (0.85 + rng() * 0.15) * (1 - old * 0.18),
@@ -47,101 +47,106 @@ export function faceParams(spec, P) {
     smileRest: f.smile ?? 0,
   };
   // landmarks (head-local)
-  F.browY = F.eyeY + 0.017 * fs;
-  F.noseTipY = 0.018 * fs - (F.noseLen - 1) * 0.01;
-  F.noseBaseY = 0.006 * fs - (F.noseLen - 1) * 0.008;
-  F.mouthY = -0.0135 * fs;
+  const fy = (y) => F.eyeY + (y - 0.06) * fs;
+  F.browY = fy(0.078);
+  F.noseTipY = fy(0.017 - (F.noseLen - 1) * 0.01);
+  F.noseBaseY = fy(0.006 - (F.noseLen - 1) * 0.006);
+  F.mouthY = fy(-0.0135);
   F.chinY = -(P.headY - P.chinY);
   F.crownY = P.H - P.headY;
-  F.mouthZ = -0.0985 * fs;
-  F.cornerX = 0.0235 * fs * F.mouthW;
+  F.mouthZ = -0.0905 * lerp(hs, fs, 0.6);
+  F.cornerX = 0.0238 * fs * F.mouthW;
   return F;
 }
 
-/** SDF primitives of the head in head-local space. */
+/** SDF primitives of the head in head-local space (origin = head pivot, -Z = face). */
 export function headPrims(P, F, spec) {
   const hs = F.hs, fs = F.fs;
   const prims = [];
   const add = (p) => (prims.push(p), p);
   const R = (o) => ({ region: 'head', mat: 'skin', ...o });
+  const SUB = (o) => ({ op: 'sub', ...o });
   const fat = F.fat;
   const cY = F.crownY;
-  // cranium (broad, slightly brachycephalic), occiput, forehead
-  const crR = [0.0755 * hs * (1 + F.child * 0.03), 0.091 * hs, 0.093 * hs];
-  add(ellipsoid([0, cY - crR[1] - 0.0 * hs, 0.012 * hs], crR, R({ k: 0.02 })));
-  add(ellipsoid([0, 0.07 * hs, 0.045 * hs], [0.065 * hs, 0.07 * hs, 0.06 * hs], R({ k: 0.03 * hs })));
-  add(ellipsoid([0, 0.105 * hs, -0.032 * hs], [0.064 * hs, 0.06 * hs, 0.058 * hs], R({ k: 0.03 * hs })));
-  // temples slightly hollow
-  for (const sg of [-1, 1]) add(ellipsoid([sg * 0.074 * hs, 0.085 * hs, -0.035 * hs], [0.012 * hs, 0.025 * hs, 0.02 * hs], { op: 'sub', k: 0.02 * hs }));
-  // mid-face & maxilla
-  add(ellipsoid([0, 0.035 * fs, -0.045 * fs], [0.058 * fs, 0.058 * fs, 0.056 * fs], R({ k: 0.03 * hs })));
-  add(ellipsoid([0, 0.0 * fs, -0.07 * fs], [0.033 * fs, 0.025 * fs, 0.03 * fs], R({ k: 0.02 * hs })));
-  // cheekbones + cheeks
+  const eY = F.eyeY;
+  // face-space point: features below the eyes shrink with fs (children), x/z scale with fs
+  const f = (x, y, z) => [x * fs, eY + (y - 0.06) * fs, z * lerp(hs, fs, 0.6)];
+  const k = (v) => v * hs;
+  // ---- cranium: broad vault, flat-ish occiput, sloping forehead
+  add(ellipsoid([0, cY - 0.09 * hs, 0.014 * hs], [0.0765 * hs, 0.09 * hs, 0.093 * hs], R({ k: k(0.02) })));
+  add(ellipsoid([0, 0.06 * hs, 0.05 * hs], [0.062 * hs, 0.06 * hs, 0.055 * hs], R({ k: k(0.03) }))); // occipital / back of skull base
+  add(ellipsoid(f(0, 0.108, -0.04), [0.066 * hs, 0.056 * hs, 0.052 * hs], R({ k: k(0.03) }))); // forehead
+  for (const sg of [-1, 1]) add(ellipsoid([sg * 0.074 * hs, 0.088 * hs, -0.036 * hs], [0.012 * hs, 0.022 * hs, 0.02 * hs], SUB({ k: k(0.018) }))); // temples
+  // ---- face mask: one smooth volume from the cheekbones down to the jaw (keeps the face soft)
+  add(ellipsoid(f(0, 0.012, -0.03), [0.06 * fs * (0.92 + 0.08 * F.jaw), 0.064 * fs, 0.055 * fs], R({ k: k(0.03) })));
+  // ---- midface (maxilla + nasal base) and the mouth "muzzle" (teeth arch)
+  add(ellipsoid(f(0, 0.026, -0.05), [0.045 * fs, 0.04 * fs, 0.042 * fs], R({ k: k(0.028) })));
+  add(ellipsoid(f(0, -0.012, -0.066), [0.03 * fs, 0.025 * fs, 0.026 * fs], R({ k: k(0.024) })));
+  // ---- cheekbones (zygoma body + arch), cheeks
   for (const sg of [-1, 1]) {
-    add(ellipsoid([sg * 0.049 * fs, 0.048 * fs, -0.058 * fs], [0.022 * fs * F.cheekbone, 0.015 * fs, 0.022 * fs], R({ k: 0.022 * hs, basis: basisFromEuler(0, sg * 0.5, 0) })));
-    add(ellipsoid([sg * 0.037 * fs, 0.012 * fs, -0.062 * fs], [0.026 * fs * F.cheek, 0.028 * fs, 0.022 * fs * F.cheek], R({ k: 0.025 * hs })));
-    if (F.old > 0.3) add(ellipsoid([sg * 0.045 * fs, -0.025 * fs, -0.05 * fs], [0.018 * fs, 0.02 * fs, 0.02 * fs], R({ k: 0.02 * hs }))); // jowls
+    const cb = F.cheekbone;
+    add(ellipsoid(f(sg * 0.048, 0.044, -0.056), [0.02 * fs * cb, 0.014 * fs, 0.02 * fs], R({ k: k(0.022), basis: basisFromEuler(0, sg * 0.55, sg * -0.25) })));
+    add(capsule(f(sg * 0.054, 0.045, -0.048), f(sg * 0.062, 0.043, -0.012), 0.0085 * fs, R({ k: k(0.02) })));
+    add(ellipsoid(f(sg * 0.036, 0.006, -0.06), [0.024 * fs * F.cheek, 0.026 * fs, 0.021 * fs * F.cheek], R({ k: k(0.028) })));
+    if (F.old > 0.35) add(ellipsoid(f(sg * 0.042, -0.03, -0.05), [0.016 * fs, 0.016 * fs, 0.016 * fs], R({ k: k(0.022) }))); // jowls
   }
-  // jaw (mandible): angle -> chin
+  // ---- mandible: ramus (TMJ -> gonion) + body (gonion -> chin) + chin (subtle, well blended)
   const jw = F.jaw;
   for (const sg of [-1, 1]) {
-    add(roundCone([sg * 0.056 * hs * jw, 0.008 * hs, 0.014 * hs], [sg * 0.049 * hs * jw, -0.026 * fs, 0.002 * hs], 0.016 * hs, 0.017 * hs, R({ k: 0.02 * hs })));
-    add(roundCone([sg * 0.049 * hs * jw, -0.026 * fs, 0.002 * hs], [sg * 0.017 * fs, -0.048 * fs, -0.07 * fs], 0.017 * hs, 0.016 * fs, R({ k: 0.022 * hs })));
+    const tmj = f(sg * 0.057, 0.034, -0.006);
+    const gon = f(sg * 0.046 * jw, -0.026, -0.008);
+    const chn = f(sg * 0.016, -0.05, -0.07);
+    add(capsule(tmj, gon, 0.009 * hs, R({ k: k(0.024) })));
+    add(capsule(gon, chn, 0.0085 * fs, R({ k: k(0.024) })));
   }
-  add(ellipsoid([0, F.chinY + 0.014 * fs, -0.077 * fs], [0.021 * fs * F.chin, 0.017 * fs, 0.015 * fs * F.chin], R({ k: 0.018 * hs })));
-  // under-chin / submandibular fill (fuller for heavy / old)
-  add(ellipsoid([0, F.chinY + 0.02 * hs, -0.03 * hs], [0.045 * hs * jw, 0.025 * hs + (fat - 1) * 0.02, 0.045 * hs], R({ k: 0.03 * hs })));
-  if (fat > 1.1 || F.old > 0.5) add(ellipsoid([0, F.chinY + 0.002, -0.045 * hs], [0.035 * hs, 0.018 * hs, 0.03 * hs], R({ k: 0.03 * hs })));
-  // brow ridge
+  add(ellipsoid(f(0, -0.046, -0.074), [0.02 * fs * F.chin, 0.014 * fs, 0.014 * fs * F.chin], R({ k: k(0.018) })));
+  // soft under-jaw for heavy / elderly (double chin)
+  if (fat > 1.1 || F.old > 0.55) add(ellipsoid(f(0, -0.056, -0.048), [0.03 * fs, 0.013 * fs + (fat - 1) * 0.012, 0.026 * fs], R({ k: k(0.025) })));
+  // ---- brow ridge + glabella
   const br = F.brow;
+  for (const sg of [-1, 1]) add(capsule(f(sg * 0.009, 0.077, -0.088), f(sg * 0.05, 0.08, -0.071), (0.006 + 0.004 * br) * fs, R({ k: k(0.013) })));
+  add(ellipsoid(f(0, 0.07, -0.086), [0.011 * fs, 0.013 * fs, 0.009 * fs], R({ k: k(0.012) })));
+  // ---- eye sockets (carved to fit the eyeballs; lids are separate shells)
   for (const sg of [-1, 1]) {
-    add(capsule([sg * 0.008 * fs, F.browY + 0.002 * fs, -0.089 * fs], [sg * 0.05 * fs, F.browY + 0.004 * fs, -0.073 * fs], (0.0065 + 0.0045 * br) * fs, R({ k: 0.014 * hs })));
+    const ex = sg * F.eyeX;
+    add(ellipsoid([ex, eY + 0.0015 * hs, F.eyeZ - 0.0055 * hs], [0.0178 * hs * F.eyeSize, 0.0125 * hs * F.eyeSize, 0.0135 * hs], SUB({ k: k(0.0065), basis: basisFromEuler(0, 0, sg * -F.eyeTilt) })));
+    // upper-lid fullness (East Asian: fuller lid, low crease) and the lower lid / tear trough
+    add(ellipsoid([ex + sg * 0.002 * hs, eY + 0.0118 * hs, F.eyeZ - 0.0095 * hs], [0.0168 * hs, 0.0052 * hs * (0.8 + 0.4 * F.epicanthic), 0.0072 * hs], R({ k: k(0.0055) })));
+    add(ellipsoid([ex, eY - 0.0142 * hs, F.eyeZ - 0.0078 * hs], [0.0158 * hs, 0.0045 * hs, 0.0068 * hs], R({ k: k(0.0055) })));
   }
-  // glabella / nasion fill
-  add(ellipsoid([0, F.browY - 0.006 * fs, -0.088 * fs], [0.012 * fs, 0.014 * fs, 0.01 * fs], R({ k: 0.012 * hs })));
-  // eye sockets (carved), sized to the eyeball; lids are separate geometry
-  for (const sg of [-1, 1]) {
-    add(ellipsoid([sg * F.eyeX, F.eyeY + 0.001 * hs, F.eyeZ - 0.004 * hs], [0.0172 * hs * F.eyeSize, 0.0122 * hs * F.eyeSize, 0.0145 * hs], { op: 'sub', k: 0.007 * hs, basis: basisFromEuler(0, 0, sg * -F.eyeTilt) }));
-    // upper lid crease / orbital fat (subtle bulge above the eye, stronger for epicanthic folds)
-    add(ellipsoid([sg * (F.eyeX + 0.002 * hs), F.eyeY + 0.0115 * hs, F.eyeZ - 0.009 * hs], [0.017 * hs, 0.0055 * hs, 0.0075 * hs], R({ k: 0.006 * hs })));
-    // lower lid / under-eye
-    add(ellipsoid([sg * F.eyeX, F.eyeY - 0.0145 * hs, F.eyeZ - 0.0075 * hs], [0.016 * hs, 0.005 * hs, 0.007 * hs], R({ k: 0.006 * hs })));
-  }
-  // nose
+  // ---- nose: bridge, tip, alae, nostrils (lower bridge, broader alae)
   const nw = F.noseW, np = F.noseProj;
-  const tip = [0, F.noseTipY, -0.1065 * fs - 0.006 * np * fs];
-  add(roundCone([0, F.browY - 0.012 * fs, -0.087 * fs], [0, F.noseTipY + 0.008 * fs, tip[2] + 0.004 * fs], 0.0062 * fs, 0.0082 * fs * nw, R({ k: 0.008 * hs })));
-  add(ellipsoid(tip, [0.0112 * fs * nw, 0.0105 * fs, 0.0105 * fs], R({ k: 0.006 * hs })));
+  const tip = f(0, F.noseTipY / fs - 0.0, -0.104 - 0.006 * np);
+  tip[1] = F.noseTipY;
+  add(roundCone(f(0, 0.066, -0.088), [0, F.noseTipY + 0.009 * fs, tip[2] + 0.005 * fs], 0.0058 * fs, 0.0078 * fs * nw, R({ k: k(0.0075) })));
+  add(ellipsoid(tip, [0.0108 * fs * nw, 0.0098 * fs, 0.0102 * fs], R({ k: k(0.0055) })));
   for (const sg of [-1, 1]) {
-    add(ellipsoid([sg * 0.0135 * fs * nw, F.noseBaseY + 0.007 * fs, -0.097 * fs], [0.0085 * fs * nw, 0.0072 * fs, 0.008 * fs], R({ k: 0.004 * hs })));
-    add(ellipsoid([sg * 0.0068 * fs * nw, F.noseBaseY + 0.0035 * fs, -0.1 * fs], [0.0042 * fs * nw, 0.0024 * fs, 0.0048 * fs], { op: 'sub', k: 0.002 * hs }));
+    add(ellipsoid([sg * 0.0132 * fs * nw, F.noseBaseY + 0.0068 * fs, tip[2] + 0.0105 * fs], [0.0082 * fs * nw, 0.007 * fs, 0.0078 * fs], R({ k: k(0.0038) })));
+    add(ellipsoid([sg * 0.0066 * fs * nw, F.noseBaseY + 0.0032 * fs, tip[2] + 0.0068 * fs], [0.0041 * fs * nw, 0.0024 * fs, 0.0046 * fs], SUB({ k: k(0.002) })));
   }
-  // lips
+  // ---- lips (subtle volumes on the muzzle)
   const lf = F.lipFull;
   const mz = F.mouthZ;
-  add(ellipsoid([0, F.mouthY + 0.0055 * fs, mz + 0.0005], [F.cornerX * 1.0, 0.0062 * fs * lf, 0.009 * fs], R({ k: 0.006 * hs, basis: basisFromEuler(-0.25, 0, 0) })));
-  add(ellipsoid([0, F.mouthY - 0.0062 * fs, mz + 0.0025 * fs], [F.cornerX * 0.88, 0.0068 * fs * lf, 0.009 * fs], R({ k: 0.006 * hs, basis: basisFromEuler(0.3, 0, 0) })));
-  // philtrum ridges + mouth line groove
-  add(capsule([0, F.noseBaseY - 0.002 * fs, -0.098 * fs], [0, F.mouthY + 0.01 * fs, mz - 0.0015 * fs], 0.0018 * fs, { op: 'sub', k: 0.003 * hs }));
-  add(ellipsoid([0, F.mouthY, mz - 0.003 * fs], [F.cornerX * 0.98, 0.0016 * fs, 0.0085 * fs], { op: 'sub', k: 0.0025 * hs }));
-  for (const sg of [-1, 1]) add(sphere([sg * F.cornerX * 1.02, F.mouthY + 0.0005, mz + 0.006 * fs], 0.0032 * fs, { op: 'sub', k: 0.004 * hs }));
-  // ears
+  add(ellipsoid([0, F.mouthY + 0.0052 * fs, mz + 0.0012 * hs], [F.cornerX * 0.97, 0.0048 * fs * lf, 0.0066 * fs], R({ k: k(0.006), basis: basisFromEuler(-0.35, 0, 0) })));
+  add(ellipsoid([0, F.mouthY - 0.006 * fs, mz + 0.0026 * fs], [F.cornerX * 0.84, 0.0056 * fs * lf, 0.0068 * fs], R({ k: k(0.006), basis: basisFromEuler(0.35, 0, 0) })));
+  add(capsule([0, F.noseBaseY - 0.0015 * fs, mz + 0.0035 * fs], [0, F.mouthY + 0.0098 * fs, mz - 0.0005 * fs], 0.0015 * fs, SUB({ k: k(0.0026) }))); // philtrum
+  add(ellipsoid([0, F.mouthY, mz - 0.0024 * fs], [F.cornerX * 0.97, 0.0014 * fs, 0.0074 * fs], SUB({ k: k(0.0022) }))); // lip line
+  for (const sg of [-1, 1]) add(sphere([sg * F.cornerX * 1.03, F.mouthY + 0.0004, mz + 0.005 * fs], 0.0027 * fs, SUB({ k: k(0.0036) })));
+  // mentolabial sulcus (groove under the lower lip)
+  add(capsule([-0.011 * fs, F.mouthY - 0.0155 * fs, mz + 0.002 * fs], [0.011 * fs, F.mouthY - 0.0155 * fs, mz + 0.002 * fs], 0.0028 * fs, SUB({ k: k(0.006) })));
+  // ---- ears
   const es = F.earSize;
   for (const sg of [-1, 1]) {
-    const ec = [sg * 0.0735 * hs, 0.046 * hs, 0.008 * hs];
-    const eb = basisFromEuler(0.18, sg * -0.35, sg * 0.05);
-    add(ellipsoid(ec, [0.0095 * hs, 0.03 * hs * es, 0.018 * hs * es], R({ k: 0.006 * hs, basis: eb })));
-    add(ellipsoid([ec[0] + sg * 0.004 * hs, ec[1] - 0.002 * hs, ec[2] - 0.0005], [0.006 * hs, 0.016 * hs * es, 0.01 * hs * es], { op: 'sub', k: 0.004 * hs, basis: eb }));
-    add(sphere([ec[0] - sg * 0.0015 * hs, ec[1] - 0.026 * hs * es, ec[2] - 0.004 * hs], 0.0075 * hs * es, R({ k: 0.006 * hs })));
+    const ec = [sg * 0.0745 * hs, 0.047 * hs, 0.007 * hs];
+    const eb = basisFromEuler(0.2, sg * -0.42, sg * 0.06);
+    add(ellipsoid(ec, [0.0088 * hs, 0.029 * hs * es, 0.0175 * hs * es], R({ k: k(0.0055), basis: eb })));
+    add(ellipsoid([ec[0] + sg * 0.0045 * hs, ec[1] + 0.001 * hs, ec[2] - 0.0005 * hs], [0.0058 * hs, 0.0165 * hs * es, 0.0098 * hs * es], SUB({ k: k(0.0038), basis: eb }))); // concha
+    add(sphere([ec[0] - sg * 0.001 * hs, ec[1] - 0.025 * hs * es, ec[2] - 0.004 * hs], 0.0072 * hs * es, R({ k: k(0.0055) }))); // lobe
+    add(capsule([ec[0] - sg * 0.008 * hs, ec[1] + 0.002 * hs, ec[2] - 0.012 * hs], [ec[0] - sg * 0.014 * hs, ec[1] - 0.002 * hs, ec[2] - 0.02 * hs], 0.004 * hs, R({ k: k(0.005) }))); // tragus/base
   }
-  // upper neck (matches the body neck primitive in rig space)
-  const nb = P.headY + 0.012 * (P.H / 1.7);
-  const neckTop = [0, nb - P.headY, P.headZ + 0.004 * (P.H / 1.7) - P.headZ];
-  const neckBot = [0, P.shoulderY - 0.035 * (P.H / 1.7) - P.headY, 0.022 * (P.H / 1.7) - P.headZ];
-  const t = 1 - (0.13 * hs) / Math.hypot(neckTop[1] - neckBot[1], neckTop[2] - neckBot[2]);
-  const nb2 = [0, lerp(neckBot[1], neckTop[1], clamp(t, 0, 1)), lerp(neckBot[2], neckTop[2], clamp(t, 0, 1))];
-  add(roundCone(nb2, neckTop, P.neckR * 1.02, P.neckR * 0.985, R({ k: 0.03 * hs })));
-  add(roundCone(neckTop, [0, 0.03 * hs, 0.005 * hs], P.neckR * 0.985, P.neckR * 0.9, R({ k: 0.03 * hs })));
+  // ---- upper neck (identical to the body's neck column) + skull-to-neck join behind the jaw
+  for (const p of neckPrims(P, -P.headY, -P.headZ)) add(p);
+  add(roundCone([0, P.neckTop[1] - P.headY, P.neckTop[2] - P.headZ], [0, 0.035 * hs, 0.02 * hs], P.neckR * 0.98, P.neckR * 0.9, R({ k: k(0.03) })));
   return prims;
 }
 
@@ -202,10 +207,10 @@ function eyeball(F, sg, out) {
 function eyelids(F, sg, out, uvFn) {
   const R0 = F.eyeR;
   const c = [sg * F.eyeX, F.eyeY, F.eyeZ];
-  const a0 = 1.08 * F.eyeSize; // half-width of the opening (azimuth)
+  const a0 = 1.28 * F.eyeSize; // half-width of the opening (azimuth)
   const a1 = a0 + 0.45;
   const tilt = F.eyeTilt * sg;
-  const upOpen = 0.36 * F.lidOpen * (F.eyeSize), loOpen = -0.4 * (F.eyeSize);
+  const upOpen = 0.43 * F.lidOpen * F.eyeSize, loOpen = -0.42 * F.eyeSize;
   const NA = 16, NB = 7;
   const tmpUV = [0, 0];
   const lid = (upper) => {
@@ -277,7 +282,7 @@ function eyelids(F, sg, out, uvFn) {
  */
 export function buildHeadGeometry(spec, P, L, W, quality = 1) {
   const t0 = performance.now();
-  const F = faceParams(spec, P);
+  const F = P.face || faceParams(spec, P);
   const prims = headPrims(P, F, spec);
   const hs = F.hs;
   const b = primsBounds(prims, 0.01);

@@ -4,7 +4,8 @@
 //   signTex(kind, opts)        Thai signage / decals / printed matter (CanvasTexture)
 //   canvasTexture(w,h,draw,opts), fontsReady(), FONTS
 //   FOLIAGE_ATLAS, ROAD_MARKINGS   uv layouts of the atlas textures
-//   preloadTextures(keys, onProgress)   async warm-up (yields between keys)
+//   preloadTextures(keys, onProgress)   async warm-up (Web Worker pool, parallel)
+//   preloadSigns([[kind, opts], ...])   async sign warm-up
 //   setTextureQuality('low'|'medium'|'high'|'ultra'), TEXTURE_KEYS, SIGN_KINDS, textureStats()
 //
 // Internals: noise.js (tileable noise), painter.js (float images, stroke stamping, baked
@@ -168,22 +169,133 @@ export function isTextureReady(key) {
   return !!f && cache.has(key + '@' + familySize(f, {}));
 }
 
+// ---------------------------------------------------------------------------
+// Worker pool (pure generators run in parallel off the main thread during preload)
+// ---------------------------------------------------------------------------
+let pool = null;
+function getPool() {
+  if (pool !== null) return pool;
+  try {
+    if (typeof Worker === 'undefined') throw new Error('no workers');
+    const n = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 1));
+    pool = { workers: [], idle: [], queue: [], jobs: new Map(), nextId: 1 };
+    for (let i = 0; i < n; i++) {
+      const w = new Worker(new URL('./texture.worker.js', import.meta.url), { type: 'module' });
+      w.onmessage = (e) => onWorkerMessage(w, e.data);
+      w.onerror = (e) => {
+        console.warn('[textures] worker error, falling back to main thread', e.message || e);
+        // fail every job of this worker; preload falls back to sync generation
+        for (const [id, job] of pool.jobs) if (job.worker === w) (pool.jobs.delete(id), job.resolve(false));
+      };
+      pool.workers.push(w);
+      pool.idle.push(w);
+    }
+  } catch (err) {
+    pool = false;
+  }
+  return pool;
+}
+function pump() {
+  while (pool && pool.idle.length && pool.queue.length) {
+    const job = pool.queue.shift();
+    const w = pool.idle.pop();
+    job.worker = w;
+    pool.jobs.set(job.id, job);
+    w.postMessage({ id: job.id, key: job.fam.keys[0], size: job.size });
+  }
+}
+function onWorkerMessage(w, msg) {
+  const job = pool.jobs.get(msg.id);
+  pool.idle.push(w);
+  if (job) {
+    pool.jobs.delete(msg.id);
+    if (msg.ok) {
+      stats.generated++;
+      stats.ms += msg.ms;
+      stats.perFamily[job.fam.keys[0] + '@' + job.size] = Math.round(msg.ms) + 'w';
+      for (const k of job.fam.keys) {
+        const raw = msg.raws[k];
+        const ck = k + '@' + job.size;
+        if (raw && !cache.has(ck)) cache.set(ck, makeTexture(k, raw));
+      }
+      job.resolve(true);
+    } else {
+      console.warn('[textures] worker generator failed', job.fam.keys[0], msg.error);
+      job.resolve(false);
+    }
+  }
+  pump();
+}
+function runInWorker(fam, size) {
+  return new Promise((resolve) => {
+    pool.queue.push({ id: pool.nextId++, fam, size, resolve });
+    pump();
+  });
+}
+/** Terminate the worker pool (it is re-created on the next preload). */
+export function disposeTextureWorkers() {
+  if (pool) for (const w of pool.workers) w.terminate();
+  pool = null;
+}
+
+const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
+
 /**
- * Generate textures ahead of time, yielding to the browser between families so a loading
- * screen can animate. keys default to TEXTURE_KEYS. onProgress(done, total, key).
+ * Generate textures ahead of time (call once at boot / behind a loading screen, before the
+ * world is built). Pure families run in a Web Worker pool in parallel; canvas-based ones run on
+ * the main thread between yields. keys default to TEXTURE_KEYS. onProgress(done, total, key).
+ * opts: { workers=true }. Resolves when every requested key is cached; tex() never waits —
+ * if it is called for a family still in flight it simply generates synchronously.
  */
-export async function preloadTextures(keys = TEXTURE_KEYS, onProgress = null) {
+export async function preloadTextures(keys = TEXTURE_KEYS, onProgress = null, opts = {}) {
   const fams = [];
   for (const k of keys) {
     const f = KEY_TO_FAMILY.get(k);
     if (f && !fams.includes(f)) fams.push(f);
   }
   let done = 0;
-  for (const f of fams) {
-    if (!cache.has(f.keys[0] + '@' + familySize(f, {}))) generate(f, familySize(f, {}));
+  const total = fams.length;
+  const tick = (f) => {
     done++;
-    if (onProgress) onProgress(done, fams.length, f.keys[0]);
-    await new Promise((r) => setTimeout(r, 0));
+    if (onProgress) onProgress(done, total, f.keys[0]);
+  };
+  const todo = fams.filter((f) => !cache.has(f.keys[0] + '@' + familySize(f, {})));
+  for (const f of fams) if (!todo.includes(f)) tick(f);
+  const p = opts.workers === false ? false : getPool();
+  const main = [];
+  const jobs = [];
+  for (const f of todo) {
+    if (p && !f.dom) {
+      jobs.push(
+        runInWorker(f, familySize(f, {})).then(async (ok) => {
+          if (!ok && !cache.has(f.keys[0] + '@' + familySize(f, {}))) {
+            await yieldFrame();
+            generate(f, familySize(f, {}));
+          }
+          tick(f);
+        }),
+      );
+    } else main.push(f);
+  }
+  for (const f of main) {
+    if (!cache.has(f.keys[0] + '@' + familySize(f, {}))) generate(f, familySize(f, {}));
+    tick(f);
+    await yieldFrame();
+  }
+  await Promise.all(jobs);
+}
+
+/**
+ * Pre-draw sign textures (main thread, yielding between them). list: [[kind, opts], ...].
+ * onProgress(done, total, kind).
+ */
+export async function preloadSigns(list, onProgress = null) {
+  let i = 0;
+  for (const [kind, o] of list) {
+    signTex(kind, o || {});
+    i++;
+    if (onProgress) onProgress(i, list.length, kind);
+    await yieldFrame();
   }
 }
 
@@ -199,7 +311,7 @@ export function textureStats() {
  *   'poster' {variant}, 'drink_label' {variant}, 'snack_wrapper' {variant}, 'receipt' {lines}, 'lottery',
  *   'calendar', 'noodle_menu', 'garage_sign', 'bus_stop_sign', 'temple_sign', 'fork_sign' {side:'left'|'right'},
  *   'amulet_face', 'buddha_card', 'speed_sign' {kmh}, 'warning_sign' {th,en}, 'shop_sign' {th,en}
- * Common opts: { weather=0.5 (0 clean .. 1 ruined), seed, scale=1 (resolution multiplier) }.
+ * Common opts: { weather=1 (multiplier on the ageing: 0 = pristine, 1.5 = ruined) }.
  * Returned texture.userData: { kind, aspect (w/h), alpha (true when the shape is cut out by alpha),
  *   size:[metres w,h] suggested physical size, normalMap? (relief items like amulet_face) }.
  */
@@ -207,7 +319,7 @@ export function signTex(kind, opts = {}) {
   const key = 'sign:' + kind + ':' + JSON.stringify(opts);
   if (cache.has(key)) return cache.get(key);
   const t0 = performance.now();
-  const t = drawSign(kind, opts, canvasTexture);
+  const t = drawSign(kind, opts);
   stats.perFamily[key] = Math.round(performance.now() - t0);
   t.name = key;
   cache.set(key, t);

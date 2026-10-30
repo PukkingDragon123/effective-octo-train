@@ -3,7 +3,7 @@
 // hand), which are loaded at boot before anything calls signTex().
 import * as THREE from 'three';
 import { FONTS } from '../ui/fonts.js';
-import { newCanvas, rr, text, cjk, elephant, bolts, weather, thaiDigits, makeRng, hashString } from './signkit.js';
+import { newCanvas, rr, text, cjk, elephant, bolts, weather, thaiDigits, makeRng, hashString, setWeatherScale } from './signkit.js';
 import { PRINTED } from './printed.js';
 
 const PI = Math.PI;
@@ -546,7 +546,7 @@ function noodleMenu(o) {
   text(g, o.shop ?? 'ร้านป้าเล็ก  เปิดทั้งคืน', W / 2, 160, { size: 40, weight: 600, color: '#ffe2a0' });
   const items = o.items ?? [
     ['เส้นเล็ก / เส้นใหญ่ / หมี่', ''],
-    ['บะหมี่ / วุ้นเส้น / มาม่า', ''],
+    ['บะหมี่ / วุ้นเส้น / เกี๊ยว', ''],
     ['น้ำตก หมู / เนื้อ', ''],
     ['ธรรมดา', '40'],
     ['พิเศษ', '50'],
@@ -638,6 +638,7 @@ export const SIGN_KINDS = {
 export function drawSign(kind, opts = {}) {
   const fn = DESIGNS[kind];
   let r;
+  setWeatherScale(opts.weather ?? 1);
   if (!fn) {
     console.warn(`[textures] unknown sign kind "${kind}"`);
     const cv = newCanvas(256, 128);
@@ -646,6 +647,7 @@ export function drawSign(kind, opts = {}) {
     text(cv.g, opts.th || opts.text || kind, 128, 64, { size: 28, maxW: 240 });
     r = { cv, size: [1, 0.5] };
   } else r = fn(opts);
+  setWeatherScale(1);
   const t = new THREE.CanvasTexture(r.cv.c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;

@@ -56,6 +56,7 @@ export function computeProportions(spec = {}) {
   P.crownY = H;
   P.chinY = chinY;
   P.headY = chinY + HH * 0.24; // head pivot (atlas)
+  P.headScale = HH / 0.232;
   P.headZ = 0.012;
   P.neckY = chinY - neckLen * 0.62; // neck base
   P.neckZ = 0.022;
@@ -66,6 +67,10 @@ export function computeProportions(spec = {}) {
   P.shoulderX = shW / 2 - 0.035 * (H / 1.7);
   P.shoulderZ = 0.012;
   P.clavY = P.shoulderY + 0.012;
+  // neck column (shared by the body and the head mesh so the seam deforms identically)
+  const sN = H / 1.7;
+  P.neckBot = [0, P.shoulderY - 0.03 * sN, 0.03 * sN];
+  P.neckTop = [0, P.headY + 0.012 * sN, P.headZ + 0.016 * sN];
   P.clavX = 0.022;
   P.clavZ = -0.012;
   // torso
@@ -121,15 +126,15 @@ export function computeLayout(P) {
   set('neck', [0, P.neckY, P.neckZ], basisFromYZ(0, 1, -0.18, 0, 0, 1));
   set('head', [0, P.headY, P.headZ], up);
   // head-local features (filled by Head.js layout but we need defaults)
-  const hs = P.HH / 0.232;
-  set('jaw', [0, P.headY + 0.004 * hs, P.headZ - 0.012 * hs], up);
-  const eyeY = P.headY + 0.062 * hs;
-  const eyeZ = P.headZ - 0.07 * hs;
-  set('eyeL', [-0.031 * hs, eyeY, eyeZ], up);
-  set('eyeR', [0.031 * hs, eyeY, eyeZ], up);
+  const hs = P.headScale;
+  const Fc = P.face || { eyeX: 0.0318 * hs, eyeY: 0.06 * hs, eyeZ: -0.0705 * hs, fs: hs };
+  set('jaw', [0, P.headY + Fc.eyeY - 0.024 * Fc.fs, P.headZ - 0.006 * hs], up);
+  const eyeY = P.headY + Fc.eyeY;
+  const eyeZ = P.headZ + Fc.eyeZ;
+  set('eyeL', [-Fc.eyeX, eyeY, eyeZ], up);
+  set('eyeR', [Fc.eyeX, eyeY, eyeZ], up);
   P.eyeY = eyeY;
   P.eyeZ = eyeZ;
-  P.headScale = hs;
 
   for (const s of ['L', 'R']) {
     const sg = s === 'R' ? 1 : -1;

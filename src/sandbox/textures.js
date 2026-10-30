@@ -6,7 +6,7 @@
 //   &post=1 keeps the game's post pipeline (default: plain render so colours are judged raw)
 //   &cols=4&rows=3 grid layout, &t=seconds of light animation
 import * as THREE from 'three';
-import { tex, signTex, TEXTURE_KEYS, SIGN_KINDS, FOLIAGE_ATLAS, ROAD_MARKINGS, textureStats, FONTS } from '../textures/index.js';
+import { tex, signTex, TEXTURE_KEYS, SIGN_KINDS, FOLIAGE_ATLAS, ROAD_MARKINGS, textureStats, FONTS, preloadTextures } from '../textures/index.js';
 
 const DATA_SUFFIX = /_(normal|rough|height)$/;
 
@@ -86,6 +86,12 @@ export default async function ({ engine, cameraRig, params, rendering }) {
     dir.position.set(Math.cos(t * 0.8) * 4, 3 + Math.sin(t * 0.5), 4);
   };
 
+  if (params.get('preload') === '1') {
+    const t0 = performance.now();
+    await preloadTextures(TEXTURE_KEYS, null, { workers: params.get('workers') !== '0' });
+    window.__preloadMs = Math.round(performance.now() - t0);
+    console.log('[textures sandbox] preload ms', window.__preloadMs);
+  }
   if (mode === 'grid') {
     const cols = Number(params.get('cols') || 4), rows = Number(params.get('rows') || 3);
     const keys = TEXTURE_KEYS.filter((k) => !DATA_SUFFIX.test(k));

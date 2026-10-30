@@ -94,7 +94,7 @@ export const RIDE_MONK = {
             branches: {
               father: [
                 P('พ่อแม่คือพระในบ้านนะโยม', 'Parents are the Buddhas of the home, layman.'),
-                P('ตายแล้วก็ยังขอโทษได้ ถ้าใจเราถึง', "Even after death you can say sorry, if your heart is truly in it.", { emotion: 'smile' }),
+                P('ถึงเขาจะจากไปแล้ว ก็ยังขอโทษได้นะโยม ถ้าใจเราถึง', "Even if he's gone, you can still say sorry, if your heart is truly in it.", { emotion: 'smile' }),
               ],
               nothing: [P('ไม่มีอะไรก็ดีแล้ว... แต่ถ้ามี ก็วางลงบ้างนะ', "Nothing is good... but if there is something, set it down now and then.")],
             },

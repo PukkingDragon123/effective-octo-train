@@ -377,33 +377,60 @@ export function imgBytes(img) {
 
 /**
  * For alpha-tested cards: replace colour where alpha is ~0 by the alpha-weighted blur of
- * neighbouring colours so mipmaps don't pull in dark fringes.
+ * neighbouring colours so mipmaps don't pull in dark fringes. Done at 1/4 resolution.
  */
 export function bleed(img, radius = 6) {
   const { w, h, d } = img;
-  const n = w * h;
-  const A = new Float32Array(n), R = new Float32Array(n), G = new Float32Array(n), Bc = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const a = d[i * 4 + 3] > 0.5 ? 1 : d[i * 4 + 3];
-    A[i] = a;
-    R[i] = d[i * 4] * a;
-    G[i] = d[i * 4 + 1] * a;
-    Bc[i] = d[i * 4 + 2] * a;
+  const f = 4;
+  const lw = Math.max(1, (w / f) | 0), lh = Math.max(1, (h / f) | 0);
+  const ln = lw * lh;
+  const A = new Float32Array(ln), R = new Float32Array(ln), G = new Float32Array(ln), B = new Float32Array(ln);
+  let tr = 0, tg = 0, tb = 0, ta = 0;
+  for (let y = 0; y < h; y++) {
+    const ly = Math.min(lh - 1, (y / f) | 0);
+    for (let x = 0; x < w; x++) {
+      const j = (y * w + x) * 4;
+      const a = d[j + 3];
+      if (a <= 0.02) continue;
+      const li = ly * lw + Math.min(lw - 1, (x / f) | 0);
+      A[li] += a;
+      R[li] += d[j] * a;
+      G[li] += d[j + 1] * a;
+      B[li] += d[j + 2] * a;
+    }
   }
-  const ab = blur(A, w, h, radius, 2), rb = blur(R, w, h, radius, 2), gb = blur(G, w, h, radius, 2), bb = blur(Bc, w, h, radius, 2);
-  const ab2 = blur(A, w, h, radius * 4, 2), rb2 = blur(R, w, h, radius * 4, 2), gb2 = blur(G, w, h, radius * 4, 2), bb2 = blur(Bc, w, h, radius * 4, 2);
-  for (let i = 0; i < n; i++) {
-    const j = i * 4;
-    const a = d[j + 3];
-    if (a >= 0.99) continue;
-    let s = ab[i], r, g, b;
-    if (s > 1e-3) (r = rb[i] / s), (g = gb[i] / s), (b = bb[i] / s);
-    else if (ab2[i] > 1e-4) (r = rb2[i] / ab2[i]), (g = gb2[i] / ab2[i]), (b = bb2[i] / ab2[i]);
-    else continue;
-    const t = a; // keep original colour where partially opaque
-    d[j] = r + (d[j] - r) * t;
-    d[j + 1] = g + (d[j + 1] - g) * t;
-    d[j + 2] = b + (d[j + 2] - b) * t;
+  for (let i = 0; i < ln; i++) {
+    tr += R[i];
+    tg += G[i];
+    tb += B[i];
+    ta += A[i];
+  }
+  const r = Math.max(1, Math.round(radius / f));
+  const ab = blur(A, lw, lh, r, 2), rb = blur(R, lw, lh, r, 2), gb = blur(G, lw, lh, r, 2), bb = blur(B, lw, lh, r, 2);
+  const avg = ta > 0 ? [tr / ta, tg / ta, tb / ta] : [0.3, 0.35, 0.25];
+  for (let y = 0; y < h; y++) {
+    const ly = Math.min(lh - 1, (y / f) | 0);
+    for (let x = 0; x < w; x++) {
+      const j = (y * w + x) * 4;
+      const a = d[j + 3];
+      if (a >= 0.99) continue;
+      const li = ly * lw + Math.min(lw - 1, (x / f) | 0);
+      const s = ab[li];
+      let cr, cg, cb;
+      if (s > 1e-3) {
+        const k = Math.min(1, s * 4);
+        cr = (rb[li] / s) * k + avg[0] * (1 - k);
+        cg = (gb[li] / s) * k + avg[1] * (1 - k);
+        cb = (bb[li] / s) * k + avg[2] * (1 - k);
+      } else {
+        cr = avg[0];
+        cg = avg[1];
+        cb = avg[2];
+      }
+      d[j] = cr + (d[j] - cr) * a;
+      d[j + 1] = cg + (d[j + 1] - cg) * a;
+      d[j + 2] = cb + (d[j + 2] - cb) * a;
+    }
   }
   return img;
 }

@@ -65,6 +65,7 @@ const browser = await chromium.launch({
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
 });
 const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
+page.setDefaultTimeout(timeout);
 const logs = [];
 page.on('console', (m) => {
   const t = m.type();
@@ -98,7 +99,7 @@ try {
     }
     await page.waitForTimeout(wait);
     const file = shots > 1 ? out.replace(/\.png$/, `-${s + 1}.png`) : out;
-    await page.screenshot({ path: file });
+    await page.screenshot({ path: file, timeout: 180000 });
     console.log('saved', path.relative(root, file));
     if (args.evalEach) await page.evaluate(`(async () => { ${args.evalEach} })()`);
     if (s < shots - 1) await page.waitForTimeout(interval);

@@ -64,7 +64,7 @@ export const HORROR_SFX = {
     },
   },
   transformer_hum: {
-    vars: 1, ref: 3, reverb: 0.1, loopable: true,
+    vars: 1, ref: 3, reverb: 0.1, loopable: true, sr: 22050,
     gen({ sr, rng }, loop = false) {
       const out = mainsHum(sr, rng, loop ? 4 : 2.5, { buzz: 0.12, hum: 1.2, crackles: 0.05 });
       if (!loop) {
@@ -126,7 +126,7 @@ export const HORROR_SFX = {
 
   // ---------------------------------------------------------------- body / horror
   breath_neck: {
-    vars: 3, cabin: true, ref: 0.4, reverb: 0.02, loopable: true,
+    vars: 3, cabin: true, ref: 0.4, reverb: 0.02, loopable: true, sr: 24000,
     gen({ sr, rng }, loop = false) {
       const cycles = loop ? 2 : 1;
       return vox(sr, rng, (sc) => {
@@ -145,7 +145,7 @@ export const HORROR_SFX = {
     },
   },
   whisper: {
-    vars: 6, cabin: true, ref: 0.8, reverb: 0.15, bus: 'sfx',
+    vars: 6, cabin: true, ref: 0.8, reverb: 0.15, bus: 'sfx', sr: 24000,
     gen({ sr, rng, v }) {
       const text = WHISPERS[v % WHISPERS.length];
       const { buffer } = renderMurmur(sr, text, { gender: v % 2 ? 'f' : 'm', whisper: true, rate: 0.75, ghost: 0.35 }, 77 + v);
@@ -153,7 +153,7 @@ export const HORROR_SFX = {
     },
   },
   heartbeat: {
-    vars: 2, cabin: true, ref: 0.5, reverb: 0, loopInterval: 0.86, stereoCenter: true,
+    vars: 2, cabin: true, ref: 0.5, reverb: 0, loopInterval: 0.86, stereoCenter: true, sr: 16000,
     gen({ sr, rng }) {
       const out = alloc(sr, 0.7);
       L(out, sr, 0, 0.3, 1, (b) => thud(b, sr, rng, 0, { f: 58, fEnd: 38, t60: 0.17, noise: 0.25, click: 0 }));
@@ -164,7 +164,7 @@ export const HORROR_SFX = {
     },
   },
   sting_low: {
-    vars: 2, stereo: false, cabin: true, reverb: 0.4, bus: 'music',
+    vars: 2, stereo: false, cabin: true, reverb: 0.4, bus: 'music', sr: 22050,
     gen({ sr, rng }) {
       const out = alloc(sr, 4.5);
       L(out, sr, 0, 4, 1, (b) => {
@@ -191,7 +191,7 @@ export const HORROR_SFX = {
     },
   },
   sting_reveal: {
-    vars: 2, cabin: true, reverb: 0.35, bus: 'music',
+    vars: 2, cabin: true, reverb: 0.35, bus: 'music', sr: 24000,
     gen({ sr, rng }) {
       const rise = 1.6;
       const out = alloc(sr, rise + 3.2);
@@ -213,7 +213,7 @@ export const HORROR_SFX = {
     },
   },
   scare_hit: {
-    vars: 3, cabin: true, reverb: 0.3, bus: 'music', gain: 1,
+    vars: 3, cabin: true, reverb: 0.3, bus: 'music', gain: 1, sr: 24000,
     gen({ sr, rng }) {
       const out = alloc(sr, 4.5);
       // the braam: detuned brass-like saws through an opening/closing filter, overdriven
@@ -243,7 +243,7 @@ export const HORROR_SFX = {
     },
   },
   giant_hand_rumble: {
-    vars: 2, ref: 10, rolloff: 0.3, reverb: 0.3, loopable: true, sr: 24000,
+    vars: 2, ref: 10, rolloff: 0.3, reverb: 0.3, loopable: true, sr: 16000,
     gen({ sr, rng }, loop = false) {
       const dur = loop ? 8 : 6.5;
       const out = alloc(sr, dur);
@@ -304,7 +304,7 @@ export const HORROR_SFX = {
     },
   },
   scream_far: {
-    vars: 3, ref: 8, rolloff: 0.5, reverb: 0.5,
+    vars: 3, ref: 8, rolloff: 0.5, reverb: 0.5, sr: 24000,
     gen({ sr, rng }) {
       const f0 = 820 + rng() * 200;
       const dur = 1.3 + rng() * 0.8;
@@ -322,7 +322,7 @@ export const HORROR_SFX = {
     },
   },
   child_laugh_far: {
-    vars: 3, ref: 6, rolloff: 0.5, reverb: 0.5,
+    vars: 3, ref: 6, rolloff: 0.5, reverb: 0.5, sr: 24000,
     gen({ sr, rng }) {
       const n = 5 + Math.floor(rng() * 4);
       const f0 = 360 + rng() * 80;
@@ -343,7 +343,7 @@ export const HORROR_SFX = {
     },
   },
   giggle: {
-    vars: 3, ref: 1, reverb: 0.2,
+    vars: 3, ref: 1, reverb: 0.2, sr: 24000,
     gen({ sr, rng }) {
       const n = 4 + Math.floor(rng() * 3);
       const f0 = 430 + rng() * 70;
@@ -360,7 +360,7 @@ export const HORROR_SFX = {
     },
   },
   amulet_hum: {
-    vars: 1, cabin: true, ref: 0.6, reverb: 0.3, loopable: true, sr: 32000, stereoCenter: true,
+    vars: 1, cabin: true, ref: 0.6, reverb: 0.3, loopable: true, sr: 24000, stereoCenter: true,
     gen({ sr, rng }, loop = false) {
       const dur = loop ? 8 : 4.5;
       const out = alloc(sr, dur + 0.5);
@@ -391,7 +391,7 @@ export const HORROR_SFX = {
     },
   },
   monk_chant: {
-    vars: 2, ref: 3, reverb: 0.45, loopable: true, sr: 32000,
+    vars: 2, ref: 3, reverb: 0.45, loopable: true, sr: 24000,
     gen({ sr, rng, v }, loop = false) {
       const text = v === 0 ? 'นะโม ตัสสะ ภะคะวะโต อะระหะโต สัมมาสัมพุทธัสสะ' : 'พุทธัง สะระณัง คัจฉามิ ธัมมัง สะระณัง คัจฉามิ';
       const phrases = parseThai(text);
@@ -400,7 +400,7 @@ export const HORROR_SFX = {
       const parts = voices.map((vc, k) => {
         const r = rngFrom(100 + k + v * 7);
         const preset = { ...voicePreset({ gender: 'm', age: 45 }), f0: vc.f0, rate: 0.62 + r() * 0.03 };
-        const sc = buildSpeechScore(phrases, preset, r, { toneDepth: 0.12 });
+        const sc = buildSpeechScore(phrases, preset, r, { toneDepth: 0.12, fric: 0.3 });
         const b = renderVox(sr, sc, { rng: r, formantScale: vc.fs, jitter: 0.004, shimmer: 0.03, breath: 0.08, drift: 0.05 });
         len = Math.max(len, b.length);
         return b;
@@ -451,7 +451,7 @@ export const HORROR_SFX = {
     },
   },
   chapter_chime: {
-    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.45, gain: 0.8, sr: 32000,
+    vars: 1, bus: 'ui', stereoCenter: true, reverb: 0.45, gain: 0.8, sr: 24000,
     gen({ sr, rng }) {
       const dur = 6;
       const out = alloc(sr, dur);

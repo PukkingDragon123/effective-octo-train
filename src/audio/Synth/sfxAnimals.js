@@ -112,7 +112,7 @@ function dawnChorus(sr, rng, dur) {
 
 export const ANIMAL_SFX = {
   dog_bark: {
-    vars: 6, ref: 3, reverb: 0.35, rolloff: 0.8,
+    vars: 6, ref: 3, reverb: 0.35, rolloff: 0.8, sr: 24000,
     gen({ sr, rng, v }) {
       const size = 0.85 + (v % 3) * 0.15;
       const f0 = 330 + rng() * 120;
@@ -129,7 +129,7 @@ export const ANIMAL_SFX = {
   },
 
   dog_howl: {
-    vars: 3, ref: 4, reverb: 0.5, rolloff: 0.7,
+    vars: 3, ref: 4, reverb: 0.5, rolloff: 0.7, sr: 24000,
     gen({ sr, rng }) {
       const f0 = 430 + rng() * 80;
       const dur = 2.6 + rng() * 1.4;
@@ -144,7 +144,7 @@ export const ANIMAL_SFX = {
   },
 
   dog_whine: {
-    vars: 3, ref: 2, reverb: 0.2,
+    vars: 3, ref: 2, reverb: 0.2, sr: 24000,
     gen({ sr, rng }) {
       const n = 2 + Math.floor(rng() * 2);
       return vox(sr, rng, (sc) => {
@@ -161,7 +161,7 @@ export const ANIMAL_SFX = {
 
   gecko: {
     // tokay gecko "ตุ๊ก-แก": throaty rattle, then a staged accelerando of tuk-kae pairs that weaken at the end
-    vars: 3, ref: 3, reverb: 0.3, rolloff: 0.8, sr: 32000,
+    vars: 3, ref: 3, reverb: 0.3, rolloff: 0.8, sr: 24000,
     gen({ sr, rng }) {
       const pairs = 5 + Math.floor(rng() * 4);
       const f0 = 260 + rng() * 40;
@@ -194,7 +194,7 @@ export const ANIMAL_SFX = {
   },
 
   owl: {
-    vars: 3, ref: 4, reverb: 0.45, rolloff: 0.7,
+    vars: 3, ref: 4, reverb: 0.45, rolloff: 0.7, sr: 22050,
     gen({ sr, rng, v }) {
       const out = alloc(sr, 2.6);
       const f = 300 + rng() * 60;
@@ -219,7 +219,7 @@ export const ANIMAL_SFX = {
 
   koel: {
     // Asian koel "ko-EL", rising and more frantic with each repetition (dawn)
-    vars: 2, ref: 5, reverb: 0.35, rolloff: 0.6,
+    vars: 2, ref: 5, reverb: 0.35, rolloff: 0.6, sr: 22050,
     gen({ sr, rng }) {
       const reps = 5 + Math.floor(rng() * 4);
       const out = alloc(sr, reps * 0.62 + 0.8);
@@ -236,7 +236,7 @@ export const ANIMAL_SFX = {
   },
 
   rooster: {
-    vars: 3, ref: 5, reverb: 0.3, rolloff: 0.6,
+    vars: 3, ref: 5, reverb: 0.3, rolloff: 0.6, sr: 24000,
     gen({ sr, rng }) {
       const f0 = 520 + rng() * 120;
       return vox(sr, rng, (sc) => {
@@ -270,7 +270,7 @@ export const ANIMAL_SFX = {
   },
 
   elephant_trumpet: {
-    vars: 2, ref: 8, reverb: 0.35, rolloff: 0.6,
+    vars: 2, ref: 8, reverb: 0.35, rolloff: 0.6, sr: 24000,
     gen({ sr, rng }) {
       const out = alloc(sr, 3.2);
       // short rumble grunt before
@@ -297,7 +297,7 @@ export const ANIMAL_SFX = {
   },
 
   elephant_rumble: {
-    vars: 2, ref: 6, reverb: 0.25, rolloff: 0.6, sr: 24000,
+    vars: 2, ref: 6, reverb: 0.25, rolloff: 0.6, sr: 16000,
     gen({ sr, rng }) {
       const dur = 3 + rng() * 1.5;
       const out = alloc(sr, dur + 0.3);
@@ -321,7 +321,7 @@ export const ANIMAL_SFX = {
   },
 
   frog_croak: {
-    vars: 4, ref: 2, reverb: 0.25,
+    vars: 4, ref: 2, reverb: 0.25, sr: 24000,
     gen({ sr, rng, v }) {
       if (v === 0) {
         // banded bullfrog "oong-aang" (อึ่งอ่าง)

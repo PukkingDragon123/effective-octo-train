@@ -78,7 +78,7 @@ const TYPES = {
     `,
   },
   rain: {
-    count: 2600, radius: 16, height: 13, blending: NORMAL, mode: STREAK, minPx: 0.9, color: 0xc8d4dc, cameraCentred: true, streak: 0.042,
+    count: 2600, radius: 9, height: 8, blending: NORMAL, mode: STREAK, minPx: 0.9, color: 0xc8d4dc, cameraCentred: true, streak: 0.042,
     intensityUniform: 'uRain',
     body: /* glsl */ `
       float speed = 8.5 + aSeed2.x * 3.0;
@@ -93,7 +93,7 @@ const TYPES = {
       rel.xz = mod(rel.xz, box.xz) - box.xz * 0.5;
       wp = vec3(uOrigin.x + rel.x, uOrigin.y - H * 0.35 + p0.y, uOrigin.z + rel.z);
       vel = vec3(wind.x, -speed, wind.y);
-      vec3 lit = dlbAmbient * 2.2 + dlbHeadlightColor * dlbHeadlightAt(wp) * 2.4 + dlbLampLightAt(wp) * 0.7 + dlbFlash * vec3(0.15);
+      vec3 lit = dlbAmbient * 2.5 + dlbFogColor * 1.5 + dlbHeadlightColor * dlbHeadlightAt(wp) * 14.0 + dlbLampLightAt(wp) * 1.6 + dlbFlash * vec3(0.15);
       float dc = length(wp - cameraPosition);
       float fade = smoothstep(0.4, 1.6, dc) * (1.0 - smoothstep(uRadius * 0.6, uRadius, length(rel.xz)));
       col = vec4(uColor * lit, (0.16 + aSeed2.y * 0.14) * fade);

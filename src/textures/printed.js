@@ -189,7 +189,7 @@ function sticker(o) {
     drive_slow: { bg: '#f2c832', fg: '#1a1a1a', th: 'ขับช้าๆ ปลอดภัย', sub: 'ถึงช้าดีกว่าไม่ถึง' },
     lucky: { bg: '#c8261e', fg: '#f6d46a', th: 'รวยๆ เฮงๆ', sub: 'ค้าขายร่ำรวย' },
     no_smoking: { bg: '#f4f1e8', fg: '#c8261e', th: 'ห้ามสูบบุหรี่', sub: 'ในรถ  ขอบคุณครับ' },
-    merit: { bg: '#2a4a8a', fg: '#f6e6a8', th: 'สาธุ ๙๙', sub: 'ขอให้แคล้วคลาดปลอดภัย' },
+    merit: { bg: '#2a4a8a', fg: '#f6e6a8', th: 'สาธุ', sub: 'ขอให้แคล้วคลาดปลอดภัย' },
   };
   const ds = designs[v] || designs.drive_slow;
   dieCut(g, () => {
@@ -237,8 +237,9 @@ function poster(o) {
     g.ellipse(256, 300, 150, 230, 0, 0, PI * 2);
     g.fill();
     const fg = g.createRadialGradient(256, 290, 10, 256, 300, 110);
-    fg.addColorStop(0, '#e8e4d0');
-    fg.addColorStop(1, '#8a948a');
+    fg.addColorStop(0, '#f2eedc');
+    fg.addColorStop(0.7, '#b8c0b4');
+    fg.addColorStop(1, '#6a746a');
     g.fillStyle = fg;
     g.beginPath();
     g.ellipse(256, 300, 78, 108, 0, 0, PI * 2);
@@ -255,9 +256,9 @@ function poster(o) {
     g.fill();
     // hair strands over the face
     g.strokeStyle = '#050505';
-    for (let i = 0; i < 26; i++) {
-      g.lineWidth = 2 + rng() * 4;
-      const x = 180 + rng() * 150;
+    for (let i = 0; i < 14; i++) {
+      g.lineWidth = 1.5 + rng() * 3;
+      const x = i < 7 ? 170 + rng() * 40 : 300 + rng() * 40;
       g.beginPath();
       g.moveTo(x, 170);
       g.bezierCurveTo(x + (rng() - 0.5) * 60, 280, x + (rng() - 0.5) * 60, 380, x + (rng() - 0.5) * 50, 520);

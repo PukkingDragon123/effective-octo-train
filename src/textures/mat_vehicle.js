@@ -60,10 +60,10 @@ export function genTaxiPaint(S = 1024) {
   const grime = new Float32Array(n), mud = new Float32Array(n);
   for (let y = 0, i = 0; y < h; y++) {
     const t = y / h;
-    for (let x = 0; x < w; x++, i++) grime[i] = sstep(0.45, 1.0, t + mid[i] * 0.12 + low[i] * 0.08) * 0.75;
+    for (let x = 0; x < w; x++, i++) grime[i] = sstep(0.6, 1.05, t + mid[i] * 0.15 + low[i] * 0.1) * 0.6;
   }
-  for (let c = 0; c < 900 * k * k; c++) {
-    const y = h * (0.78 + Math.pow(rng(), 2) * 0.22), x = rng() * w;
+  for (let c = 0; c < 500 * k * k; c++) {
+    const y = h * (1 - Math.pow(rng(), 2.5) * 0.25), x = rng() * w;
     disc(mud, w, h, x, y, (0.8 + Math.pow(rng(), 3) * 5) * k, 0.6 + rng() * 0.4, 'max', 0.6);
   }
   const mudRun = drip(mud, w, h, 2305, 0.9, 0.96);
@@ -81,7 +81,7 @@ export function genTaxiPaint(S = 1024) {
     tint(img, chipRust, '#5a2c16', 0.95);
     tint(img, rustRun, '#6e3a1c', 0.5);
     tint(img, grime, '#4a4136', 0.55);
-    tint(img, mudRun, '#5a4632', 0.75);
+    tint(img, mudRun, '#5a4632', 0.55);
     strokes(img, { seed: 2306, len: [30 * k, 80 * k], width: [8 * k, 16 * k], opacity: 0.12, coverage: 0.4, angle: 0, angleJitter: 0.2, valueJitter: 0.035 });
     return img;
   };

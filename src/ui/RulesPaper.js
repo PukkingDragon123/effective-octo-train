@@ -141,11 +141,12 @@ function write(g, rng, text, x, y, o) {
       x += w * (0.85 + rng() * 0.3);
       continue;
     }
-    const n = noise.noise2D(x * 0.011 + o.seed, y * 0.01);
-    const pressure = Math.max(0.55, Math.min(1, (o.pressure ?? 0.86) + n * 0.16 + (rng() - 0.5) * 0.08));
-    const dy = (x - x0) * (o.slope || 0) + Math.sin(x * 0.012 + o.seed) * (o.wave ?? 1.6) + (rng() - 0.5) * (o.jy ?? 1.6);
-    const rot = (rng() - 0.5) * (o.rot ?? 0.05);
-    const sc = 1 + (rng() - 0.5) * (o.sj ?? 0.06);
+    const n = noise.noise2D(x * 0.009 + o.seed, y * 0.013);
+    const n2 = noise.noise2D(x * 0.004 - o.seed, y * 0.007 + 3.1);
+    const pressure = Math.max(0.5, Math.min(1, (o.pressure ?? 0.86) + n * 0.22 + (rng() - 0.5) * 0.1));
+    const dy = (x - x0) * (o.slope || 0) + n2 * (o.wave ?? 1.6) * 1.8 + Math.sin(x * 0.021 + o.seed) * (o.wave ?? 1.6) * 0.5 + (rng() - 0.5) * (o.jy ?? 1.8);
+    const rot = (rng() - 0.5) * (o.rot ?? 0.075) + n2 * 0.03;
+    const sc = 1 + (rng() - 0.5) * (o.sj ?? 0.085) + n * 0.03;
     g.save();
     g.translate(x, y + dy);
     if (o.skew) g.transform(1, 0, o.skew, 1, 0, 0);
@@ -177,35 +178,59 @@ function measure(g, text, font, track = 0) {
   return g.measureText(text).width + graphemes(text).length * track;
 }
 
-/** Wrap a token list ([{t, strike}]) into lines no wider than maxW. */
+/**
+ * Wrap a token list ([{t, strike}]) into lines no wider than maxW. Prefers breaking at a
+ * space (Thai separates clauses with spaces) when that keeps the line at least half full,
+ * which avoids a lone word dangling on the next line.
+ */
 function wrapTokens(g, tokens, font, maxW, track) {
+  const items = [];
+  for (const tok of tokens) for (const wd of words(tok.t)) items.push({ t: wd, strike: !!tok.strike, w: measure(g, wd, font, track) * (tok.strike ? 1.05 : 1), ws: /^\s+$/.test(wd) });
   const lines = [];
   let cur = [];
   let cw = 0;
-  for (const tok of tokens) {
-    for (const wd of words(tok.t)) {
-      const ws = /^\s+$/.test(wd);
-      const w = measure(g, wd, font, track) * (tok.strike ? 1.05 : 1);
-      if (!cur.length && ws) continue;
-      if (cw + w > maxW && cur.length) {
+  let lastSpace = -1; // index in cur of the last whitespace item
+  let lastSpaceW = 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!cur.length && it.ws) continue;
+    if (cw + it.w > maxW && cur.length) {
+      if (lastSpace > 0 && lastSpaceW >= maxW * 0.5 && !it.ws) {
+        // break at the clause space; carry the rest over
+        const carry = cur.slice(lastSpace + 1);
+        lines.push(cur.slice(0, lastSpace));
+        cur = carry;
+        cw = carry.reduce((a, b) => a + b.w, 0);
+      } else {
         lines.push(cur);
         cur = [];
         cw = 0;
-        if (ws) continue;
       }
-      const last = cur[cur.length - 1];
-      if (last && last.strike === !!tok.strike) last.t += wd;
-      else cur.push({ t: wd, strike: !!tok.strike });
-      cw += w;
+      lastSpace = -1;
+      if (it.ws && !cur.length) continue;
     }
+    if (it.ws) {
+      lastSpace = cur.length;
+      lastSpaceW = cw;
+    }
+    cur.push(it);
+    cw += it.w;
   }
   if (cur.length) lines.push(cur);
-  // drop trailing whitespace tokens
-  for (const l of lines) {
-    const last = l[l.length - 1];
-    if (last) last.t = last.t.replace(/\s+$/, '');
-  }
-  return lines;
+  // merge into strike / no-strike runs, trim edges
+  return lines.map((l) => {
+    const out = [];
+    for (const it of l) {
+      const last = out[out.length - 1];
+      if (last && last.strike === it.strike) last.t += it.t;
+      else out.push({ t: it.t, strike: it.strike });
+    }
+    if (out.length) {
+      out[0].t = out[0].t.replace(/^\s+/, '');
+      out[out.length - 1].t = out[out.length - 1].t.replace(/\s+$/, '');
+    }
+    return out.filter((o) => o.t.length);
+  });
 }
 
 function ruleTokens(rule) {
@@ -292,7 +317,7 @@ function buildBase(w, h) {
     }
     mg.putImageData(img, 0, 0);
     g.globalCompositeOperation = 'multiply';
-    g.globalAlpha = 0.55;
+    g.globalAlpha = 0.8;
     g.imageSmoothingEnabled = true;
     g.drawImage(m, 0, 0, W, H);
     g.globalAlpha = 1;
@@ -426,7 +451,7 @@ function blobPath(rng, cx, cy, r, irregular = 0.28, seed = 0) {
   const n = 48;
   for (let i = 0; i <= n; i++) {
     const a = (i / n) * Math.PI * 2;
-    const k = 1 + noise.noise2D(Math.cos(a) * 1.4 + seed, Math.sin(a) * 1.4 + seed) * irregular + Math.sin(a * 3 + seed) * irregular * 0.3;
+    const k = 1 + noise.noise2D(Math.cos(a) * 0.9 + seed, Math.sin(a) * 0.9 + seed) * irregular + Math.sin(a * 2 + seed) * irregular * 0.25;
     const x = cx + Math.cos(a) * r * k;
     const y = cy + Math.sin(a) * r * k * 0.82;
     if (i === 0) p.moveTo(x, y);
@@ -441,22 +466,32 @@ function waterStain(g, rng, cx, cy, r, seed) {
   g.save();
   g.clip(p);
   const rg = g.createRadialGradient(cx, cy, r * 0.1, cx, cy, r * 1.15);
-  rg.addColorStop(0, 'rgba(250,246,236,0.10)');
-  rg.addColorStop(0.75, 'rgba(160,140,100,0.06)');
-  rg.addColorStop(1, 'rgba(120,96,60,0.16)');
+  rg.addColorStop(0, 'rgba(250,246,236,0.08)');
+  rg.addColorStop(0.7, 'rgba(160,140,100,0.05)');
+  rg.addColorStop(1, 'rgba(120,96,60,0.13)');
   g.fillStyle = rg;
   g.fillRect(cx - r * 2, cy - r * 2, r * 4, r * 4);
   g.restore();
-  // tide line
+  // broken tide line: alpha drifts along the edge so it never reads as an outline
+  const n = 90;
+  let prev = null;
   g.save();
-  g.lineWidth = 2.2;
-  g.strokeStyle = 'rgba(128,100,58,0.22)';
-  g.filter = 'blur(0.8px)';
-  g.stroke(p);
-  g.lineWidth = 1;
-  g.strokeStyle = 'rgba(110,84,46,0.25)';
-  g.filter = 'none';
-  g.stroke(p);
+  g.lineCap = 'round';
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const k = 1 + noise.noise2D(Math.cos(a) * 0.9 + seed, Math.sin(a) * 0.9 + seed) * 0.3 + Math.sin(a * 2 + seed) * 0.075;
+    const pt = [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k * 0.82];
+    if (prev) {
+      const v = Math.max(0, noise.noise2D(a * 1.3 + seed * 2, 5.5) * 0.5 + 0.35);
+      g.strokeStyle = `rgba(120,90,48,${0.24 * v})`;
+      g.lineWidth = 1 + v * 1.6;
+      g.beginPath();
+      g.moveTo(prev[0], prev[1]);
+      g.lineTo(pt[0], pt[1]);
+      g.stroke();
+    }
+    prev = pt;
+  }
   g.restore();
   return p;
 }
@@ -464,9 +499,9 @@ function waterStain(g, rng, cx, cy, r, seed) {
 function cigaretteBurn(g, rng, cx, cy) {
   // scorch halo
   const s = g.createRadialGradient(cx, cy, 4, cx, cy, 44);
-  s.addColorStop(0, 'rgba(70,40,15,0.55)');
-  s.addColorStop(0.35, 'rgba(120,70,25,0.32)');
-  s.addColorStop(0.7, 'rgba(160,110,50,0.12)');
+  s.addColorStop(0, 'rgba(60,30,10,0.7)');
+  s.addColorStop(0.3, 'rgba(130,70,22,0.42)');
+  s.addColorStop(0.62, 'rgba(170,110,45,0.16)');
   s.addColorStop(1, 'rgba(160,110,50,0)');
   g.fillStyle = s;
   g.beginPath();
@@ -527,10 +562,10 @@ function folds(g, rng, shape) {
     // the crease: dark fold line + highlight, slightly wavy and broken
     for (let x = 0; x < W; x += 8) {
       const yy = y + noise.noise2D(x * 0.008, y) * 2.2;
-      g.fillStyle = `rgba(70,50,28,${0.2 + rng() * 0.12})`;
-      g.fillRect(x, yy - 0.6, 8.5, 1.2);
-      g.fillStyle = `rgba(255,252,240,${0.25 + rng() * 0.2})`;
-      g.fillRect(x, yy + 1.2, 8.5, 1.1);
+      g.fillStyle = `rgba(70,50,28,${0.26 + rng() * 0.14})`;
+      g.fillRect(x, yy - 0.6, 8.5, 1.4);
+      g.fillStyle = `rgba(255,252,240,${0.32 + rng() * 0.2})`;
+      g.fillRect(x, yy + 1.3, 8.5, 1.3);
     }
   };
   const creaseV = (x) => {
@@ -672,7 +707,7 @@ function forkDoodle(g, rng, x, y, s) {
   const f = `500 ${Math.round(19 * s)}px ${FONTS.hand}`;
   write(g, rng, 'ผี', x - 74 * s, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 3, alpha: 0.9 });
   write(g, rng, 'คน', x + 50 * s, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 4, alpha: 0.9 });
-  write(g, rng, 'ศาล', x + 12 * s, y + 18 * s, { font: `400 ${Math.round(14 * s)}px ${FONTS.hand}`, size: 14 * s, color: INK, seed: 5, alpha: 0.75 });
+  write(g, rng, 'ศาล', x + 16 * s, y + 24 * s, { font: `400 ${Math.round(14 * s)}px ${FONTS.hand}`, size: 14 * s, color: INK, seed: 5, alpha: 0.75 });
 }
 
 // ------------------------------------------------------------------- main ----
@@ -752,13 +787,13 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   // ---- header ---------------------------------------------------------------
   {
     const hs = 56;
-    const r = write(ink, rng, 'กฎของรถคันนี้', 150, 150, { font: `600 ${hs}px ${FONTS.hand}`, size: hs, color: INK, seed: 1.3, slope: -0.012, wave: 1.2, heavy: false, alpha: 0.95, pressure: 0.92 });
-    handLine(ink, rng, 146, 166, r.x + 8, 162, { width: 2.6, alpha: 0.85 });
-    handLine(ink, rng, 160, 174, r.x - 18, 171, { width: 2, alpha: 0.7 });
-    write(ink, rng, 'rules of this car', 156, 200, { font: `400 20px ${FONTS.hand}`, size: 20, color: INK_EN, seed: 2.1, alpha: 0.8, wave: 0.8 });
+    const r = write(ink, rng, 'กฎของรถคันนี้', 150, 132, { font: `600 ${hs}px ${FONTS.hand}`, size: hs, color: INK, seed: 1.3, slope: -0.012, wave: 1.2, heavy: false, alpha: 0.95, pressure: 0.92 });
+    handLine(ink, rng, 146, 146, r.x + 8, 141, { width: 2.6, alpha: 0.85 });
+    handLine(ink, rng, 160, 154, r.x - 18, 150, { width: 2, alpha: 0.7 });
+    write(ink, rng, 'rules of this car', r.x + 24, 130, { font: `400 21px ${FONTS.hand}`, size: 21, color: INK_EN, seed: 2.1, alpha: 0.8, wave: 0.8 });
     // top-right: "learn them by heart!"
     ink.save();
-    ink.translate(760, 112);
+    ink.translate(770, 100);
     ink.rotate(-0.05);
     const rr = write(ink, rng, 'อ่านให้ขึ้นใจ!!', 0, 0, { font: `500 30px ${FONTS.hand}`, size: 30, color: INK, seed: 5.2, alpha: 0.9 });
     write(ink, rng, 'learn them by heart', 8, 28, { font: `400 17px ${FONTS.hand}`, size: 17, color: INK_EN, seed: 6.4, alpha: 0.75 });
@@ -801,9 +836,10 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
     for (const lineToks of it.thLines) {
       const y = lineY(li);
       let x = X0 + (li === it.line ? 0 : 6);
-      const slope = (rng() - 0.55) * 0.012;
+      const slope = (rng() - 0.6) * 0.018;
       for (const tok of lineToks) {
         const o = { font: plan.thFont, size: thSize, color: INK, seed: li * 3.3 + 0.7, slope, blob: true, alpha: 0.96, heavy: isThree, track: 0.4 };
+        if (tok.strike) x += 7;
         const res = write(ink, rng, tok.t, x, y, o);
         if (isThree) write(ink, rng, tok.t, x + 0.5, y + 0.4, { ...o, alpha: 0.35, heavy: false, blob: false });
         if (tok.strike) {
@@ -827,6 +863,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
             ink.stroke();
             ink.restore();
           }
+          res.x += 5;
         } else {
           for (const e of emph) {
             let k = tok.t.indexOf(e.w);
@@ -922,7 +959,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
     ink.stroke();
     ink.restore();
     // the little fork map, if the page has room
-    if (!passengerNotes.length && LAST - li >= 4) forkDoodle(ink, rng, 470, sy0 - 52, 1.0);
+    if (!passengerNotes.length && LAST - li >= 5) forkDoodle(ink, rng, 330, sy0 - 70, 1.45);
   }
 
   // ---- texture the ink (ballpoint skips) and pencil (graphite grain) -------------
@@ -979,7 +1016,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
     ctx.globalCompositeOperation = 'source-over';
     waterStain(ctx, drng, cx, cy, r, 2.2);
   }
-  waterStain(ctx, drng, 880, 260, 46, 8.1);
+  waterStain(ctx, drng, 905, 1210, 52, 8.1);
   ctx.globalCompositeOperation = 'multiply';
   coffeeRing(ctx, drng, 770, 1030, 92, 1, 0.8);
   coffeeRing(ctx, drng, 802, 1062, 90, 0.55, 1.4);

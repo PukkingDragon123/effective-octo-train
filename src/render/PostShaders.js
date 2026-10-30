@@ -72,12 +72,14 @@ uniform float uAspect;
 uniform float uThreshold;
 varying vec2 vUv;
 void main() {
-  vec3 c = texture2D(tSrc, vUv).rgb;
+  vec4 t = texture2D(tSrc, vUv);
+  vec3 c = t.rgb;
+  float sky = 1.0 - clamp(t.a, 0.0, 1.0);
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   vec2 d = (vUv - uSun) * vec2(uAspect, 1.0);
-  float fall = exp(-dot(d, d) * 2.2);
-  float m = max(l - uThreshold, 0.0) / (1.0 + l);
-  gl_FragColor = vec4(c / max(l, 1e-4) * m * fall, 1.0);
+  float fall = exp(-dot(d, d) * 3.0);
+  float m = sky * (max(l - uThreshold, 0.0) / (1.0 + l) + 0.15) * fall;
+  gl_FragColor = vec4(m, m, m, 1.0);
 }
 `;
 

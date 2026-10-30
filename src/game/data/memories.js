@@ -7,7 +7,8 @@
 //   titleTH, titleEN,
 //   where: { landmark?: LAYOUT key | null, taxi?: interactable / anchor name, hours?: [from,to] },
 //   how: { th, en }               short hint (debug / accessibility "memory hints" option),
-//   interactId?: string           interact id the gameplay layer should register / listen to,
+//   interactId?: string|null      interact id to listen to (interact:use); null = use `event` + `requires` instead,
+//   event?: bus event name that may complete it (amulet:hold, taxi:control),
 //   requires?: { hours?:[from,to], station?:number, item?:string, onFoot?:boolean, stage?:string },
 //   text: [{ th, en }]            the moment itself: shown as subtitles / Ton's thoughts when found,
 //   pencil: { th, en }            Ton's pencil note added to the rules paper,
@@ -52,7 +53,8 @@ export const MEMORIES = [
     titleEN: "Mum's Amulet",
     where: { landmark: 'garage', taxi: 'amuletHang' },
     how: { th: 'กำพระที่ห้อยกระจกครั้งแรก (ช่วงสอนขับ)', en: 'Hold the amulet hanging from the mirror for the first time (tutorial).' },
-    interactId: 'taxi.amulet',
+    interactId: null, // fires on the first bus 'amulet:hold' {active:true} (tutorial step 'amulet')
+    event: 'amulet:hold',
     requires: { stage: 'tutorial' },
     text: [
       { th: 'พระองค์เล็ก เลี่ยมกรอบทองเก่า ๆ อุ่นในมือ', en: 'A small amulet in an old gold frame. Warm in my hand.' },
@@ -100,7 +102,7 @@ export const MEMORIES = [
     titleEN: 'The Unsent Letter',
     where: { landmark: null, taxi: 'gloveBox', hours: [26, 30] },
     how: { th: 'เปิดลิ้นชักหน้ารถ หลังตีสอง', en: 'Open the glovebox after 02:00.' },
-    interactId: 'taxi.gloveBox',
+    interactId: 'taxi.glovebox',
     requires: { hours: [26, 30] },
     text: [
       { th: '"ถึง ต้น"', en: '"To Ton,"' },
@@ -118,7 +120,8 @@ export const MEMORIES = [
     titleEN: "Dad's Favourite Song",
     where: { landmark: null, taxi: 'radioKnob', hours: [27, 28] },
     how: { th: 'จูนวิทยุไปคลื่นสามช่วงตีสามถึงตีสี่', en: 'Tune the radio to station 3 between 03:00 and 04:00.' },
-    interactId: 'taxi.radio',
+    interactId: null, // fires when taxi.state.radioOn && radioStation === 3 during the hours (taxi:control radio / radioTune)
+    event: 'taxi:control',
     requires: { hours: [27, 28], station: 3 },
     text: [
       { th: 'เพลง "ทางกลับบ้าน"... สมาน เสียงทอง', en: '"The Way Home"... Saman Golden-Voice.' },

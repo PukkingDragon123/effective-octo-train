@@ -14,9 +14,9 @@ import { TAU, clamp, rngFrom, SVF, Biquad, OnePole, Wander, alloc, normalize, Re
 export const CAR_CFG = {
   cylinders: 4, // fires per 720°
   imbalance: [1.0, 0.9, 1.06, 0.95],
-  pulseWidth: 0.42, // radians of crank per pulse rise/decay (blowdown)
-  snap: 0.35, // sharp combustion edge component
-  rasp: 0.22, // noise burst per firing
+  pulseWidth: 0.36, // radians of crank per pulse rise/decay (blowdown)
+  snap: 0.55, // sharp combustion edge component
+  rasp: 0.18, // noise burst per firing
   valveTick: 0.05,
   mech: 0.04, // mechanical hash
   jitter: 0.03, // firing timing jitter (fraction of interval)

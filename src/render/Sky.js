@@ -78,31 +78,31 @@ const KEYS = [
     shadowTint: 0x2c2c62, highTint: 0xb0b4e0, split: 0.26,
   }),
   K(29.1, {
-    zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x78a2b0, fog: 0x587c88, fogDensity: 0.008, fogH: 0.035, fogK: 0.22, fogNoise: 0.55,
-    amb: 0x9ab8cc, ambI: 0.35, hemiSky: 0x86aac8, hemiGround: 0x2a2a26, hemiI: 0.8, moonC: 0xc0d0f0, moonI: 0.05,
+    zenith: 0x1e3460, mid: 0x3a6080, horizon: 0x78a2b0, fog: 0x587c88, fogDensity: 0.008, fogH: 0.024, fogK: 0.22, fogNoise: 0.55,
+    amb: 0x9ab8cc, ambI: 0.28, hemiSky: 0x86aac8, hemiGround: 0x2a2a26, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.05,
     stars: 0.05, clouds: 0.32, cloudC: 0x6a7e98, skyVis: 0.85, surreal: 0, dawn: 0.5, moonScatter: 0.15, glow: 0xd09080, glowI: 0.5,
-    exposure: 1.5, sat: 1.0, contrast: 1.05, temp: -0.02, tint: 0.0, lift: [0.006, 0.01, 0.014], gain: [1.0, 1.0, 1.0],
+    exposure: 1.4, sat: 1.0, contrast: 1.05, temp: -0.02, tint: 0.0, lift: [0.006, 0.01, 0.014], gain: [1.0, 1.0, 1.0],
     shadowTint: 0x2a4a6a, highTint: 0xf0c0a0, split: 0.24,
   }),
   K(29.55, {
-    zenith: 0x34507e, mid: 0x7c98ae, horizon: 0xe0a487, fog: 0x9a8a8a, fogDensity: 0.006, fogH: 0.03, fogK: 0.25, fogNoise: 0.55,
-    amb: 0xd0b0a8, ambI: 0.45, hemiSky: 0xa0b8d0, hemiGround: 0x3a3028, hemiI: 0.95, moonC: 0xc0d0f0, moonI: 0.0,
+    zenith: 0x34507e, mid: 0x7c98ae, horizon: 0xe0a487, fog: 0x9a8a8a, fogDensity: 0.005, fogH: 0.02, fogK: 0.25, fogNoise: 0.55,
+    amb: 0xd0b0a8, ambI: 0.3, hemiSky: 0xa0b8d0, hemiGround: 0x3a3028, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.3, cloudC: 0xc09890, skyVis: 0.85, surreal: 0, dawn: 0.75, moonScatter: 0.0, glow: 0xffa070, glowI: 0.9,
-    exposure: 1.2, sat: 1.04, contrast: 1.06, temp: 0.08, tint: 0.02, lift: [0.008, 0.006, 0.01], gain: [1.02, 1.0, 0.98],
+    exposure: 1.05, sat: 1.04, contrast: 1.06, temp: 0.08, tint: 0.02, lift: [0.008, 0.006, 0.01], gain: [1.02, 1.0, 0.98],
     shadowTint: 0x3a4a7a, highTint: 0xffc890, split: 0.26,
   }),
   K(29.75, {
-    zenith: 0x46689a, mid: 0x9cb0c0, horizon: 0xf0b078, fog: 0xc09a78, fogDensity: 0.005, fogH: 0.028, fogK: 0.25, fogNoise: 0.55,
-    amb: 0xe0c0a0, ambI: 0.5, hemiSky: 0xb0c4d8, hemiGround: 0x483626, hemiI: 1.0, moonC: 0xc0d0f0, moonI: 0.0,
+    zenith: 0x46689a, mid: 0x9cb0c0, horizon: 0xf0b078, fog: 0xc09a78, fogDensity: 0.0045, fogH: 0.018, fogK: 0.25, fogNoise: 0.55,
+    amb: 0xe0c0a0, ambI: 0.3, hemiSky: 0xb0c4d8, hemiGround: 0x483626, hemiI: 0.6, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.28, cloudC: 0xe0a880, skyVis: 0.85, surreal: 0, dawn: 0.9, moonScatter: 0.0, glow: 0xffb060, glowI: 1.2,
-    exposure: 1.05, sat: 1.08, contrast: 1.07, temp: 0.14, tint: 0.02, lift: [0.01, 0.006, 0.008], gain: [1.04, 1.0, 0.95],
+    exposure: 0.95, sat: 1.08, contrast: 1.07, temp: 0.14, tint: 0.02, lift: [0.01, 0.006, 0.008], gain: [1.04, 1.0, 0.95],
     shadowTint: 0x3a4a7a, highTint: 0xffc070, split: 0.28,
   }),
   K(30.0, {
-    zenith: 0x5480b2, mid: 0xb0c4d0, horizon: 0xf0c490, fog: 0xc8ac8c, fogDensity: 0.004, fogH: 0.018, fogK: 0.25, fogNoise: 0.5,
-    amb: 0xe8d0b0, ambI: 0.55, hemiSky: 0xc0d4e8, hemiGround: 0x4a3a28, hemiI: 1.1, moonC: 0xc0d0f0, moonI: 0.0,
+    zenith: 0x5480b2, mid: 0xb0c4d0, horizon: 0xf0c490, fog: 0xc8ac8c, fogDensity: 0.0035, fogH: 0.012, fogK: 0.25, fogNoise: 0.5,
+    amb: 0xe8d0b0, ambI: 0.35, hemiSky: 0xc0d4e8, hemiGround: 0x4a3a28, hemiI: 0.7, moonC: 0xc0d0f0, moonI: 0.0,
     stars: 0.0, clouds: 0.25, cloudC: 0xf0c8a0, skyVis: 0.9, surreal: 0, dawn: 1.0, moonScatter: 0.0, glow: 0xffc070, glowI: 1.0,
-    exposure: 1.0, sat: 1.06, contrast: 1.05, temp: 0.12, tint: 0.01, lift: [0.01, 0.008, 0.008], gain: [1.03, 1.0, 0.96],
+    exposure: 0.95, sat: 1.06, contrast: 1.05, temp: 0.12, tint: 0.01, lift: [0.01, 0.008, 0.008], gain: [1.03, 1.0, 0.96],
     shadowTint: 0x40507a, highTint: 0xffd090, split: 0.24,
   }),
 ];
@@ -232,7 +232,8 @@ void main() {
   float sigma = dlbFogDensity + dlbFogHeightDensity * 0.5;
   col += dlbInscatter(cameraPosition, rd, 80.0, sigma, gl_FragCoord.xy);
   col += dlbFlash * vec3(0.12, 0.13, 0.16) * (0.5 + 0.5 * yc);
-  gl_FragColor = vec4(max(col, vec3(0.0)), 1.0);
+  // alpha 0 marks sky pixels (PostFX uses it as the occlusion mask for sun shafts)
+  gl_FragColor = vec4(max(col, vec3(0.0)), 0.0);
 }
 `;
 
@@ -434,7 +435,7 @@ class Sky {
     U.uMoonScatter.value.copy(cur.moonC).multiplyScalar(cur.moonI * cur.moonScatter * 0.09 * (1 - rain * 0.5));
     U.uSunDir.value.copy(this.sunDir);
     this.sunColor.setRGB(1.0, 0.62, 0.3).lerp(_c.setRGB(1.0, 0.78, 0.52), smoothstep(29.6, 30.0, h));
-    U.uSunScatter.value.copy(this.sunColor).multiplyScalar(smoothstep(-6 * DEG, 3 * DEG, sunElev) * 0.55 * (1 - rain * 0.6));
+    U.uSunScatter.value.copy(this.sunColor).multiplyScalar(smoothstep(-6 * DEG, 3 * DEG, sunElev) * 0.22 * (1 - rain * 0.6));
 
     // --- lights ---------------------------------------------------------------
     const lightning = this._lightning;
@@ -446,7 +447,7 @@ class Sky {
     this.moon.color.copy(cur.moonC);
     this.moon.intensity = cur.moonI * (1 - rain * 0.6) * smoothstep(-3 * DEG, 8 * DEG, moonElev);
     this.sun.color.copy(this.sunColor);
-    this.sun.intensity = 3.2 * sunUp * (1 - rain * 0.7);
+    this.sun.intensity = 4.2 * sunUp * (1 - rain * 0.7);
     const sunCasting = this.sun.intensity > 0.02 && settings.get('shadows');
     this.sun.shadow.autoUpdate = !!sunCasting;
     U.uAmbient.value.copy(cur.amb).multiplyScalar(cur.ambI).add(_c.copy(cur.hemiSky).multiplyScalar(cur.hemiI * 0.6));

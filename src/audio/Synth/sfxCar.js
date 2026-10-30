@@ -63,7 +63,7 @@ export const CAR_SFX = {
   },
 
   door_close: {
-    vars: 3, cabin: true, ref: 2, reverb: 0.18,
+    vars: 3, cabin: true, ref: 2, reverb: 0.18, sr: 24000,
     gen({ sr, rng }) {
       const out = alloc(sr, 1.1);
       // the slam: heavy low thunk of the whole body + air pressure
@@ -122,7 +122,7 @@ export const CAR_SFX = {
   },
 
   ignition: {
-    vars: 2, cabin: true, ref: 2.5, reverb: 0.12,
+    vars: 2, cabin: true, ref: 2.5, reverb: 0.12, sr: 24000,
     gen({ sr, rng }) {
       const dur = 1.5 + rng() * 0.4;
       const out = alloc(sr, dur + 0.3);
@@ -137,7 +137,7 @@ export const CAR_SFX = {
   },
 
   engine_start: {
-    vars: 2, cabin: true, ref: 3, reverb: 0.15, sr: 32000,
+    vars: 2, cabin: true, ref: 3, reverb: 0.15, sr: 22050,
     gen({ sr, rng, v }) {
       const crank = ENGINE_START_CRANK[v] ?? 0.85;
       const dur = crank + 2.4;
@@ -163,7 +163,7 @@ export const CAR_SFX = {
   },
 
   engine_stall: {
-    vars: 2, cabin: true, ref: 3, reverb: 0.15,
+    vars: 2, cabin: true, ref: 3, reverb: 0.15, sr: 22050,
     gen({ sr, rng, v }) {
       const dur = 1.8;
       const out = alloc(sr, dur + 0.3);
@@ -236,7 +236,7 @@ export const CAR_SFX = {
   },
 
   wiper: {
-    vars: 2, cabin: true, ref: 1.2, reverb: 0.05, loopInterval: 1.25,
+    vars: 2, cabin: true, ref: 1.2, reverb: 0.05, loopInterval: 1.25, sr: 24000,
     gen({ sr, rng }) {
       const dur = 1.2;
       const out = alloc(sr, dur + 0.15);
@@ -424,7 +424,7 @@ export const CAR_SFX = {
   },
 
   seat_creak: {
-    vars: 4, cabin: true, ref: 1.2, reverb: 0.06,
+    vars: 4, cabin: true, ref: 1.2, reverb: 0.06, sr: 24000,
     gen({ sr, rng }) {
       const dur = 0.5 + rng() * 0.6;
       const out = alloc(sr, dur + 0.5);
@@ -447,7 +447,7 @@ export const CAR_SFX = {
   },
 
   collision_thud: {
-    vars: 3, cabin: true, ref: 3, reverb: 0.2,
+    vars: 3, cabin: true, ref: 3, reverb: 0.2, sr: 24000,
     gen({ sr, rng }) {
       const out = alloc(sr, 1.6);
       L(out, sr, 0, 1.0, 1, (b) => {
@@ -483,7 +483,7 @@ export const CAR_SFX = {
   },
 
   knock_trunk: {
-    vars: 3, cabin: true, ref: 2, reverb: 0.12,
+    vars: 3, cabin: true, ref: 2, reverb: 0.12, sr: 24000,
     gen({ sr, rng }) {
       // a fist on the trunk lid, heard from inside: hollow, boomy, metallic
       const out = alloc(sr, 0.8);
@@ -498,7 +498,7 @@ export const CAR_SFX = {
   },
 
   thump_roof: {
-    vars: 3, cabin: true, ref: 2, reverb: 0.12,
+    vars: 3, cabin: true, ref: 2, reverb: 0.12, sr: 24000,
     gen({ sr, rng }) {
       // something heavy lands on the roof: deep boom, oil-can pop, creak of the pillars
       const out = alloc(sr, 1.6);
@@ -542,7 +542,7 @@ export const CAR_SFX = {
   },
 
   rain_roof_start: {
-    vars: 1, cabin: true, ref: 2, reverb: 0.08, sr: 32000,
+    vars: 1, cabin: true, ref: 2, reverb: 0.08, sr: 24000,
     gen({ sr, rng }) {
       const dur = 5;
       const out = alloc(sr, dur);
@@ -570,7 +570,7 @@ export const CAR_SFX = {
   },
   motorbike_pass: {
     // a distant old motorbike passing on another road (early night ambience)
-    vars: 2, ref: 8, rolloff: 0.6, reverb: 0.4, sr: 24000,
+    vars: 2, ref: 8, rolloff: 0.6, reverb: 0.4, sr: 22050,
     gen({ sr, rng, v }) {
       const dur = 9;
       const shifts = [0, 2.2, 4.6, 7.2];

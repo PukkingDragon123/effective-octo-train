@@ -24,8 +24,8 @@ export function genSkin(S = 512) {
   const wr2 = fbm(w, h, { cells: [8, 40], octaves: 2, seed: 3207 });
   const fine = fbm(w, h, { cells: 120, octaves: 1, seed: 3208 });
   const img = new Img(w, h);
-  gradientMap(img, field(n, (i) => 0.55 + low[i] * 0.2 + fine[i] * 0.06), [[0, '#8a5c44'], [0.5, '#b4836a'], [1, '#cfa286']]);
-  tint(img, smask(red, 0.0, 0.6, 0.4), '#b0604e', 0.35);
+  gradientMap(img, field(n, (i) => 0.55 + low[i] * 0.2 + fine[i] * 0.06), [[0, '#87593c'], [0.5, '#b58562'], [1, '#d2a47c']]);
+  tint(img, smask(red, 0.1, 0.7, 0.35), '#b0644e', 0.28);
   tint(img, smask(blue, 0.2, 0.7, 0.25), '#7a7a6a', 0.3);
   const poreM = field(n, (i) => (pT[pores.id[i]] < 0.75 ? 1 - sstep(0.06, 0.16, pores.f1[i]) : 0));
   const wrinkle = field(n, (i) => Math.max(1 - sstep(0.0, 0.08, Math.abs(wr1[i])), 1 - sstep(0.0, 0.08, Math.abs(wr2[i]))) * 0.6);
@@ -117,12 +117,23 @@ function weave(w, h, threads, twill, seed) {
   return { H, warpM, slub, slub2 };
 }
 
-/** Soft cloth folds (height) shared by the cloth generators. */
+/** Soft drape folds (height 0..1): long parallel folds whose phase drifts slowly (tileable). */
 function folds(w, h, seed, k, dir = 'v') {
   const n = w * h;
-  const f = fbm(w, h, { cells: dir === 'v' ? [5, 1] : [1, 5], octaves: 3, seed });
-  const g = fbm(w, h, { cells: 3, octaves: 3, seed: seed + 1 });
-  return field(n, (i) => Math.sin(f[i] * 7 + g[i] * 2) * 0.5 + 0.5);
+  const vert = dir === 'v';
+  const p1 = fbm(w, h, { cells: vert ? [1, 2] : [2, 1], octaves: 2, seed });
+  const p2 = fbm(w, h, { cells: vert ? [2, 3] : [3, 2], octaves: 2, seed: seed + 1 });
+  const p3 = fbm(w, h, { cells: 4, octaves: 2, seed: seed + 2 });
+  const out = new Float32Array(n);
+  const T = Math.PI * 2;
+  for (let y = 0, i = 0; y < h; y++) {
+    for (let x = 0; x < w; x++, i++) {
+      const u = vert ? x / w : y / h;
+      const v = 0.5 + 0.26 * Math.sin(T * (u * 3 + p1[i] * 0.7)) + 0.16 * Math.sin(T * (u * 7 + p2[i] * 0.9)) + 0.08 * Math.sin(T * (u * 15 + p3[i]));
+      out[i] = v;
+    }
+  }
+  return out;
 }
 
 function clothFinish(img, H, n, w, h, k, seed, sheen) {

@@ -22,8 +22,8 @@ const PROFILES = {
     layers: [900, 2200, 4400],
     idle: 820,
     redline: 6200,
-    res: [[105, 1.3, 7], [290, 2, 4], [760, 2.5, 2], [1800, 1.5, -2]],
-    gain: 0.9,
+    res: [[105, 1.4, 4], [330, 2.2, 6], [620, 3, 3], [1350, 2, 2], [2900, 1.5, -4]],
+    gain: 0.55,
     whine: [0, 38, 23, 15.5, 11.5, 9.2], // Hz per km/h by gear (index = gear number; R uses 45)
     tyre: 1,
     ref: 3,
@@ -34,8 +34,8 @@ const PROFILES = {
     layers: [1500, 3800, 7200],
     idle: 1450,
     redline: 9000,
-    res: [[180, 1.8, 6], [420, 2.5, 5], [1250, 3, 3], [2600, 2, 1]],
-    gain: 0.75,
+    res: [[180, 1.8, 5], [420, 2.5, 6], [1250, 3, 4], [2600, 2, 2]],
+    gain: 0.5,
     whine: [0, 60, 44, 33, 27, 22],
     tyre: 0.6,
     ref: 2,
@@ -159,7 +159,7 @@ export class EngineSound {
     });
     this.hp = ctx.createBiquadFilter();
     this.hp.type = 'highpass';
-    this.hp.frequency.value = 22;
+    this.hp.frequency.value = 38;
     node.connect(this.hp);
     this.lp = ctx.createBiquadFilter();
     this.lp.type = 'lowpass';
@@ -375,12 +375,12 @@ export class EngineSound {
     }
     // drive + tone
     const rpmN = clamp(rpm / P.redline, 0, 1);
-    this.sum.gain.setTargetAtTime(0.55 + ld * 0.75 + rpmN * 0.2, now, tc);
+    this.sum.gain.setTargetAtTime(0.45 + ld * 0.5 + rpmN * 0.15, now, tc);
     const muffle = this.core.muffle;
-    const bright = (700 + rpm * 0.45 + ld * 2400) * (1 - 0.35 * muffle);
+    const bright = (1100 + rpm * 0.55 + ld * 2600) * (1 - 0.35 * muffle);
     this.lp.frequency.setTargetAtTime(clamp(bright, 300, 9000), now, tc);
     const lash = this._lashT && now - this._lashT < 0.12 ? 0.8 : 1;
-    const level = this._onGain * P.gain * this.volume * (0.4 + 0.35 * ld + 0.25 * rpmN + (this._loadS < -0.1 ? 0.05 : 0)) * limCut * lash;
+    const level = this._onGain * P.gain * this.volume * (0.5 + 0.25 * ld + 0.25 * rpmN) * limCut * lash;
     this.out.gain.setTargetAtTime(level, now, 0.02);
     // intake
     this.intakeBP.frequency.setTargetAtTime(250 + rpm * 0.18, now, tc);

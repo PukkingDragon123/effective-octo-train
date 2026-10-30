@@ -5,7 +5,8 @@
 import { makeRng } from '../core/math.js';
 import { fbm, crack } from './noise.js';
 import { Img, rgb, colorOut, dataOut, normalMap, sstep, strokes, bleed } from './painter.js';
-import { FONTS } from '../ui/fonts.js';
+// (no fonts.js import: this module must stay importable from the texture worker)
+const SIGN_FONT = "'Kanit', 'Sarabun', sans-serif";
 
 const STRIPS = [
   // name, colour, pattern
@@ -155,8 +156,8 @@ export function genRoadStencils(S = 1024) {
     g.fillText(txt, 0, 6);
     g.restore();
   };
-  stretched('ช้าลง', cell(0, 0.5, 0.25, 1), `800 120px ${FONTS.sign}`, white);
-  stretched('SLOW', cell(0.25, 0.5, 0.5, 1), `800 120px ${FONTS.sign}`, white);
+  stretched('ช้าลง', cell(0, 0.5, 0.25, 1), `800 120px ${SIGN_FONT}`, white);
+  stretched('SLOW', cell(0.25, 0.5, 0.5, 1), `800 120px ${SIGN_FONT}`, white);
   const arrow = ([x, y, cw, ch], turn) => {
     g.save();
     g.fillStyle = white;

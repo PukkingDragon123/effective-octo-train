@@ -138,7 +138,7 @@ export default async function ({ engine, cameraRig, params, settings }) {
   if (quality) settings.set('graphicsPreset', quality);
   if (paint !== null) settings.set('painterly', parseFloat(paint));
   const camMode = P('cam', 'road');
-  const headlights = P('headlights', '1') !== '0';
+  const headlights = P('headlights', parseFloat(P('hour', 21.5)) >= 29.4 ? '0' : '1') !== '0';
 
   const scene = engine.scene;
   const rng = makeRng(7);
@@ -361,6 +361,13 @@ export default async function ({ engine, cameraRig, params, settings }) {
   } else if (camMode === 'side') {
     eye.position.set(roadX(-22) + 2.5, 1.5, -22);
     eye.lookAt(roadX(-32) - 5, 1.5, -31);
+  } else if (camMode === 'moon' || camMode === 'sun') {
+    const d = (camMode === 'moon' ? sky.moonDir : sky.sunDir).clone();
+    eye.position.set(roadX(-10), 1.5, -10);
+    const flat = new THREE.Vector3(d.x, 0, d.z).normalize();
+    const tgt = eye.position.clone().addScaledVector(flat, 30);
+    tgt.y += Math.min(Math.max(d.y, 0.05), 0.9) * 30 * (camMode === 'moon' ? 0.85 : 0.4);
+    eye.lookAt(tgt);
   } else if (camMode === 'up') {
     eye.position.set(roadX(-10), 1.4, -10);
     eye.lookAt(roadX(-40), 14, -45);

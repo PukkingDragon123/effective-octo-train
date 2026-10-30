@@ -484,7 +484,7 @@ function opChips(d, w, h, k, seed, amount, sub, edgeF, low, fine) {
     const chance = amount * (0.25 + edgeF[i] * 1.8) * (0.6 + low[i] * 0.6);
     const cellR = (Math.imul(W.id[i], 2654435761) >>> 0) % 1000;
     if (cellR / 1000 > chance * 0.6) continue;
-    const m = sstep(0.42, 0.3, W.f1[i] + fine[i] * 0.12);
+    const m = sstep(0.36, 0.24, W.f1[i] + fine[i] * 0.3 + low[i] * 0.12);
     if (m <= 0) continue;
     const sh = 0.85 + fine[i] * 0.15;
     d[j] += (sub[0] * sh - d[j]) * m;
@@ -615,7 +615,19 @@ function opGloss(d, w, h, amount, low) {
  *  painted), paint (painterly smear opacity), edge (darken / wear borders), dust, gloss (laminate glare)
  * Each step is its own small function so the JIT optimises the pixel loops.
  */
+let WEATHER_SCALE = 1;
+/** Global multiplier for weathering strengths (signTex opts.weather). */
+export function setWeatherScale(v) {
+  WEATHER_SCALE = v;
+}
+const SCALED = ['fade', 'grime', 'streaks', 'chips', 'scratches', 'rustEdge', 'moss', 'paper', 'tear', 'dust', 'edge'];
+
 export function weather(cv, o = {}) {
+  if (WEATHER_SCALE !== 1) {
+    o = { ...o };
+    for (const k of SCALED) if (o[k] !== undefined) o[k] = Math.min(1.5, o[k] * WEATHER_SCALE);
+    if (WEATHER_SCALE < 0.05) o.rust = null;
+  }
   const { g, w, h } = cv;
   const id = g.getImageData(0, 0, w, h);
   const n = w * h;
