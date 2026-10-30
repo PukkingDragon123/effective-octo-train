@@ -279,7 +279,7 @@ function candle(rng) {
     const t = (y + 0.075) / H;
     const drip = Math.max(0, Math.sin(a * 3 + s)) ** 6 * 0.0018 * smooth(1, 0.35, t) + Math.max(0, Math.sin(a * 5 - s)) ** 8 * 0.0012 * smooth(1, 0.6, t);
     const lip = t > 0.97 ? 1 - 0.12 * (t - 0.97) / 0.03 : 1;
-    return (R + drip) * lip * (1 + 0.01 * Math.sin(y * 900 + a));
+    return (R + drip) * lip;
   });
   const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x7a1410, roughness: 0.42, metalness: 0, emissive: 0x2a0402 }));
   const flameMat = new THREE.ShaderMaterial({
@@ -591,11 +591,11 @@ export class IncenseScene {
     this.t = 0;
     this.disposed = false;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setClearColor(0x040405, 1);
     this.renderer = renderer;
@@ -657,7 +657,7 @@ export class IncenseScene {
       m.rotation.order = 'ZXY';
       scene.add(m);
     }
-    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.12), haze(-0.42, 1.6, 0.9, 7.1, 0.16), shrineWall());
+    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.12), haze(-0.42, 1.6, 0.9, 7.1, 0.16));
 
     // ---- the stick
     this.u = {
