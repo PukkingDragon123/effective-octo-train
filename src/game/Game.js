@@ -74,7 +74,7 @@ export async function startGame(ctx) {
   await step('characters', 'กำลังปลุกผู้โดยสาร…', 'Waking the passengers…', 0.27, () => CharactersModule.loadCharacterAssets?.());
   await step('vehicle', 'กำลังเข็นแท็กซี่ออกจากอู่…', 'Rolling the taxi out…', 0.32, () => VehicleModule.loadVehicleAssets?.());
   await step('props', 'กำลังจัดของในอู่…', 'Cluttering the garage…', 0.36, () => PropsModule.loadPropAssets?.());
-  await step('world assets', 'กำลังหาหินและรากไม้…', 'Gathering roots and stones…', 0.4, () => (WorldModule.loadWorldAssets || PropsModule.loadWorldAssets)?.());
+  await step('world assets', 'กำลังหาหินและรากไม้…', 'Gathering roots and stones…', 0.4, () => WorldModule.loadWorldAssets?.());
 
   // --- world --------------------------------------------------------------------
   const world = new World();

@@ -179,7 +179,6 @@ export class Motorcycle {
     const tailMesh = new THREE.Mesh(xform(tl, [0, 0.72, 0.86]), this._tailMat);
     this.leanGroup.add(tailMesh);
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.13), m.plate);
-    this._proc = [procBody, tailMesh, plate];
     plate.position.set(0, 0.62, 0.9);
     this.leanGroup.add(plate);
     // seat
@@ -196,6 +195,7 @@ export class Motorcycle {
     for (const sx of [-1, 1]) mb.add('rubber', rod([sx * 0.1, 0.3, -0.02], [sx * 0.22, 0.3, -0.02], 0.016, 6));
     const procBody = mb.build({ paint: m.paint, shield: m.shield, black: m.black, engine: m.engine, rust: m.rust, chrome: m.chrome, seat: m.seat, foam: m.foam, rubber: m.rubber });
     this.leanGroup.add(procBody);
+    this._proc = [procBody, tailMesh, plate];
 
     // ---- steering assembly (fork, front wheel, handlebar, headlight, basket) -------------------
     const steer = new THREE.Group();

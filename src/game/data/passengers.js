@@ -13,7 +13,10 @@
 //   encounters [{ id (ENCOUNTERS key), at (ride progress 0..1), optional? }],
 //   deathOnWrong 'giantHand'|'trueForm'|'roadFold'|'windowAttack'|'dragBack'|'home',
 //   memoryHooks [memory ids], dialogue { hail, greet, destination, beats[], arriveCorrect,
-//   arriveWrong, idle, onLookBack, onFaceGaze, onFaceGazeWarn? }, finale? (Somchai only) }
+//   arriveWrong, idle, onLookBack, onFaceGaze, onFaceGazeWarn?, loopVariants? }, finale? (Somchai only) }
+//
+// Thai-first replies: lines may carry `if` (Condition), reply options too. ALWAYS resolve a block with
+// logic.dialogueBlock(ride, key, ctx) / logic.resolveLines(lines, ctx) before dialogue.play().
 //
 // Ride progress = distance driven since pickup / distance from the pickup's stopPos to the
 // fork decision point (0 at pickup, 1 at the fork).
@@ -40,6 +43,7 @@ export const DIALOGUE_EVENTS = [
   'windowOpen', 'windowClose', 'wipersOn',
   'stopped', 'speeding', 'collision',
   'meterOn', 'meterOffTooLong', 'meterGlitch',
+  'meter444', // r11: the meter rolled to 444 (before the stop and the count)
   'honkShrine', 'amulet',
   'knock1', 'knock3',
   'breathPassed', 'nameCallAnswered', 'nameCallIgnored',

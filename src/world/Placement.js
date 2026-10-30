@@ -555,7 +555,8 @@ export class Placement {
   /** Giant sacred tree (ต้นตะเคียน / ต้นไทร) wrapped in tri-colour cloth, offerings at its feet. */
   _sacredTree(lm, seed) {
     const world = this.world;
-    const forest = world.forest || this._miniForest();
+    const forest = world.forest;
+    if (!forest) return null; // built without a forest (tests): no hero tree
     const species = { sacredTree1: 'dipterocarp', sacredTree2: 'banyan', sacredTree3: 'rainTree' }[lm.key] || 'banyan';
     const tree = forest.makeSingle(species, seed % 3, 9000 + seed, { scale: species === 'dipterocarp' ? 1.15 : 1.05 });
     const built = tree.userData.built;
@@ -600,7 +601,8 @@ export class Placement {
 
   /** Banana grove: one old banana plant wrapped in cloth for นางตานี, offerings at its foot. */
   _nangTani(lm, seed) {
-    const forest = this.world.forest || this._miniForest();
+    const forest = this.world.forest;
+    if (!forest) return null;
     const tree = forest.makeSingle('banana', 1, 7000 + seed, { scale: 1.2 });
     const pos = lm.pos.clone();
     pos.y = this._ground(pos.x, pos.z) - 0.03;
@@ -626,13 +628,6 @@ export class Placement {
     colliders.addCircle(pos.x, pos.z, 0.3, { tag: TAG });
     this.colliderCount++;
     return { object: tree, tree, clothWrap: wrap, offering: tray.object, colliders: [] };
-  }
-
-  _miniForest() {
-    if (this._mf) return this._mf;
-    // the world was built without a forest: a material-only forest for single hero plants
-    // (Forest is imported lazily by World; reuse its class through the module cache)
-    throw new Error('sacred trees need world.forest');
   }
 
   // ---------------------------------------------------------------------------------------

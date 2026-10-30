@@ -708,7 +708,7 @@ def boolean(ob, cutter, op='DIFFERENCE', solver='EXACT', apply=True, hole_tolera
     m = ob.modifiers.new('Bool', 'BOOLEAN')
     m.operation = op
     m.solver = solver
-    if cutter.type == 'MESH':
+    if isinstance(cutter, bpy.types.Object):
         m.object = cutter
     else:
         m.operand_type = 'COLLECTION'

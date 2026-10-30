@@ -25,20 +25,20 @@ export const RIDE_MONK = {
   },
   specialRules: [
     { rule: 'r6', exception: 'radioOnRequest', note: 'He asks for the radio ON. Dhamma talk on station 4 (AM 1080, audio/Radio.js).' },
-    { rule: 'r11', at: 0.46, exception: 'monkAboard', note: 'Meter ๔๔๔ with a monk aboard: nothing counts. Stopping is harmless too.' },
-    { rule: 'r14', at: 0.7, exception: 'monkAsks', note: 'He asks for the window down to sprinkle holy water: safe after midnight.' },
+    { rule: 'r11', at: 0.44, exception: 'monkAboard', note: 'Meter ๔๔๔ with a monk aboard: nothing counts. Stopping is harmless too.' },
+    { rule: 'r14', at: 0.62, exception: 'monkAsks', note: 'He asks for the window down to sprinkle holy water: safe after midnight.' },
     { rule: 'r10', note: 'He approves loudly if you honk at the shrine.' },
     { rule: 'r3', lookBack: 'warn' },
   ],
   encounters: [
-    { id: 'krahang', at: 0.26 },
-    { id: 'meter444', at: 0.46 }, // outcome 'monkAboard': no voice, no count
-    { id: 'strayDogs', at: 0.58 },
-    { id: 'monkBlessing', at: 0.7 },
+    { id: 'krahang', at: 0.28 },
+    { id: 'meter444', at: 0.44 }, // outcome 'monkAboard': no voice, no count
+    { id: 'strayDogs', at: 0.56 },
+    { id: 'monkBlessing', at: 0.62 },
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 180, stretch: 'fog' }, // 1.3 km carrying ~2.5 min of talk + the blessing
+  pacing: { cruiseKmh: 40, minSeconds: 200, stretch: 'fog' }, // 1.3 km carrying ~2.5 min of talk + the blessing
   dialogue: {
     hail: [P('โยม... โยม', 'Layman... layman.', { action: 'hail' })],
     greet: [
@@ -68,7 +68,7 @@ export const RIDE_MONK = {
     beats: [
       {
         id: 'radioRequest',
-        trigger: { type: 'progress', at: 0.14 },
+        trigger: { type: 'progress', at: 0.17 },
         set: { monkWantsRadio: true },
         lines: [
           P('โยม เปิดวิทยุให้หน่อยได้ไหม', 'Layman, could you turn on the radio?'),
@@ -117,7 +117,7 @@ export const RIDE_MONK = {
       {
         id: 'heavyHeart',
         essential: true, // seeds the forgiveness ending
-        trigger: { type: 'progress', at: 0.34 },
+        trigger: { type: 'progress', at: 0.33 },
         lines: [
           P('โยมดูเหมือนแบกอะไรหนัก ๆ ไว้ในใจนะ', 'You look like you carry something heavy in your heart.'),
           C([

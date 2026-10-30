@@ -79,7 +79,7 @@ const DECAL_SHAPE = /* glsl */ `
   }
 `;
 const DECAL_ROUGH = /* glsl */ `
-  roughnessFactor = mix(0.55, mix(0.16, 0.035, dlbBlood.z), smoothstep(0.0, 0.5, dlbBloodThick));
+  roughnessFactor = mix(0.55, mix(0.18, 0.07, dlbBlood.z), smoothstep(0.0, 0.5, dlbBloodThick));
   roughnessFactor = mix(roughnessFactor, 0.7, dlbBloodRim * 0.6);
 `;
 
@@ -101,7 +101,7 @@ export function bloodDecalMaterial(opts = {}) {
     brush: 0.25,
     wet: 0,
     puddles: 0,
-    envReflect: 1.3,
+    envReflect: 0.6,
     transparent: true,
     opacity: opts.opacity ?? 1,
     depthWrite: false,
@@ -117,7 +117,9 @@ export function bloodDecalMaterial(opts = {}) {
         .replace('#include <alphamap_fragment>', '#include <alphamap_fragment>\n' + DECAL_SHAPE)
         .replace('#include <lights_physical_fragment>', DECAL_ROUGH + '\n#include <lights_physical_fragment>')
         // headlight fill: the crimson still reads at grazing angles in the beam
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * dlbHeadlightColor * (dlbHeadlightAt(vDlbWP) * 22.0);');
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * dlbHeadlightColor * (dlbHeadlightAt(vDlbWP) * 45.0);')
+        // reflections in the film pick up the blood's colour (reads as blood, not as a puddle)
+        .replace('#include <lights_fragment_end>', '  radiance *= mix(vec3(1.0), vec3(0.85, 0.3, 0.3), 1.0 - dlbGore * 0.4);\n#include <lights_fragment_end>');
     },
   });
   Object.assign(m.userData.uniforms, extra);

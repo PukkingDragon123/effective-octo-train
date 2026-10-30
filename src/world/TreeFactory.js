@@ -615,7 +615,7 @@ function deadTree(rng, opts) {
   const sc = opts.scale ?? 1;
   const H = (8 + rng() * 8) * sc, R0 = (0.22 + rng() * 0.18) * sc;
   const trunk = growPath(rng, { x: 0, y: -0.3, z: 0 }, new THREE.Vector3((rng() - 0.5) * 0.3, 1, (rng() - 0.5) * 0.3), H, R0, R0 * 0.55, 9, { wobble: 0.1 });
-  const tint = [0.75, 0.72, 0.66];
+  const tint = [0.46, 0.43, 0.38]; // weathered grey-brown (pale trunks read as bones in headlights)
   skel.branches.push({ pts: trunk, level: 0, cap: true, color: aoColor(tint, 0.6, 0, 3) });
   const nb = 4 + Math.floor(rng() * 5);
   for (let b = 0; b < nb; b++) {

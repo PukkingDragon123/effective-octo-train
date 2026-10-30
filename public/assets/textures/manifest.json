@@ -3,8 +3,44 @@
  "overlays": {},
  "printed": {},
  "textures": {
+  "asphalt": {
+   "bytes": 1864188,
+   "file": "ground/asphalt.webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "srgb": true
+  },
+  "asphalt_height": {
+   "bytes": 242456,
+   "file": "ground/asphalt_height.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "asphalt_normal": {
+   "bytes": 1732296,
+   "file": "ground/asphalt_normal.webp",
+   "size": [
+    2048,
+    2048
+   ],
+   "srgb": false
+  },
+  "asphalt_rough": {
+   "bytes": 319764,
+   "file": "ground/asphalt_rough.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
   "bark": {
-   "bytes": 372212,
+   "bytes": 371354,
    "file": "nature/bark.webp",
    "size": [
     1024,
@@ -13,7 +49,7 @@
    "srgb": true
   },
   "bark_banyan": {
-   "bytes": 327670,
+   "bytes": 300918,
    "file": "nature/bark_banyan.webp",
    "size": [
     1024,
@@ -22,7 +58,7 @@
    "srgb": true
   },
   "bark_banyan_normal": {
-   "bytes": 266836,
+   "bytes": 262874,
    "file": "nature/bark_banyan_normal.webp",
    "size": [
     1024,
@@ -31,7 +67,7 @@
    "srgb": false
   },
   "bark_banyan_rough": {
-   "bytes": 1232,
+   "bytes": 1248,
    "file": "nature/bark_banyan_rough.webp",
    "size": [
     512,
@@ -56,8 +92,773 @@
     512
    ],
    "srgb": false
+  },
+  "carpet": {
+   "bytes": 372478,
+   "file": "vehicle/carpet.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "carpet_normal": {
+   "bytes": 364738,
+   "file": "vehicle/carpet_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "cloth_green": {
+   "bytes": 313744,
+   "file": "cloth/cloth_green.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "cloth_normal": {
+   "bytes": 100858,
+   "file": "cloth/cloth_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "cloth_red": {
+   "bytes": 315882,
+   "file": "cloth/cloth_red.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "cloth_yellow": {
+   "bytes": 473766,
+   "file": "cloth/cloth_yellow.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "concrete": {
+   "bytes": 396606,
+   "file": "ground/concrete.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "concrete_moss": {
+   "bytes": 411674,
+   "file": "ground/concrete_moss.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "concrete_moss_normal": {
+   "bytes": 530528,
+   "file": "ground/concrete_moss_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "concrete_moss_rough": {
+   "bytes": 15392,
+   "file": "ground/concrete_moss_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "concrete_normal": {
+   "bytes": 427462,
+   "file": "ground/concrete_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "concrete_rough": {
+   "bytes": 13168,
+   "file": "ground/concrete_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "dash_plastic": {
+   "bytes": 65528,
+   "file": "vehicle/dash_plastic.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "dash_plastic_normal": {
+   "bytes": 260990,
+   "file": "vehicle/dash_plastic_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "dash_plastic_rough": {
+   "bytes": 10890,
+   "file": "vehicle/dash_plastic_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "fabric_cotton": {
+   "bytes": 469482,
+   "file": "cloth/fabric_cotton.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "fabric_cotton_normal": {
+   "bytes": 425946,
+   "file": "cloth/fabric_cotton_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "fabric_denim": {
+   "bytes": 452808,
+   "file": "cloth/fabric_denim.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "fabric_denim_normal": {
+   "bytes": 97782,
+   "file": "cloth/fabric_denim_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "fabric_sarong": {
+   "bytes": 209196,
+   "file": "cloth/fabric_sarong.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "fabric_sarong_normal": {
+   "bytes": 425946,
+   "file": "cloth/fabric_sarong_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "fabric_seat": {
+   "bytes": 155272,
+   "file": "vehicle/fabric_seat.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "fabric_seat_normal": {
+   "bytes": 237516,
+   "file": "vehicle/fabric_seat_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "fabric_seat_rough": {
+   "bytes": 15712,
+   "file": "vehicle/fabric_seat_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "fabric_silk": {
+   "bytes": 437724,
+   "file": "cloth/fabric_silk.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "fabric_silk_normal": {
+   "bytes": 100858,
+   "file": "cloth/fabric_silk_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "fabric_silk_rough": {
+   "bytes": 23918,
+   "file": "cloth/fabric_silk_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "gold_leaf": {
+   "bytes": 195052,
+   "file": "built/gold_leaf.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "gold_leaf_normal": {
+   "bytes": 379242,
+   "file": "built/gold_leaf_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "gold_leaf_rough": {
+   "bytes": 41202,
+   "file": "built/gold_leaf_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "gravel": {
+   "bytes": 531568,
+   "file": "ground/gravel.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "gravel_normal": {
+   "bytes": 630918,
+   "file": "ground/gravel_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "gravel_rough": {
+   "bytes": 7272,
+   "file": "ground/gravel_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "headliner": {
+   "bytes": 304672,
+   "file": "vehicle/headliner.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "headliner_normal": {
+   "bytes": 389072,
+   "file": "vehicle/headliner_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "lantern_paper": {
+   "bytes": 72678,
+   "file": "built/lantern_paper.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "leaf_litter": {
+   "bytes": 271048,
+   "file": "ground/leaf_litter.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "leaf_litter_normal": {
+   "bytes": 502250,
+   "file": "ground/leaf_litter_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "leaf_litter_rough": {
+   "bytes": 44484,
+   "file": "ground/leaf_litter_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "leather_seat": {
+   "bytes": 251952,
+   "file": "vehicle/leather_seat.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "leather_seat_normal": {
+   "bytes": 339612,
+   "file": "vehicle/leather_seat_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "leather_seat_rough": {
+   "bytes": 108070,
+   "file": "vehicle/leather_seat_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "metal_painted": {
+   "bytes": 398238,
+   "file": "built/metal_painted.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "metal_painted_normal": {
+   "bytes": 379882,
+   "file": "built/metal_painted_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "metal_painted_rough": {
+   "bytes": 62968,
+   "file": "built/metal_painted_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "monk_robe": {
+   "bytes": 416230,
+   "file": "cloth/monk_robe.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "monk_robe_normal": {
+   "bytes": 302660,
+   "file": "cloth/monk_robe_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "moss": {
+   "bytes": 460534,
+   "file": "ground/moss.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "moss_normal": {
+   "bytes": 665578,
+   "file": "ground/moss_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "moss_rough": {
+   "bytes": 53694,
+   "file": "ground/moss_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "paint_peel_red": {
+   "bytes": 315794,
+   "file": "built/paint_peel_red.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "paint_peel_red_normal": {
+   "bytes": 333024,
+   "file": "built/paint_peel_red_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "paint_peel_red_rough": {
+   "bytes": 24768,
+   "file": "built/paint_peel_red_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "paint_peel_white": {
+   "bytes": 525440,
+   "file": "built/paint_peel_white.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "paint_peel_white_normal": {
+   "bytes": 333466,
+   "file": "built/paint_peel_white_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "paint_peel_white_rough": {
+   "bytes": 10660,
+   "file": "built/paint_peel_white_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "red_lacquer": {
+   "bytes": 391400,
+   "file": "built/red_lacquer.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "red_lacquer_normal": {
+   "bytes": 611860,
+   "file": "built/red_lacquer_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "red_lacquer_rough": {
+   "bytes": 101828,
+   "file": "built/red_lacquer_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "rock": {
+   "bytes": 444830,
+   "file": "ground/rock.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "rock_normal": {
+   "bytes": 297866,
+   "file": "ground/rock_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "rock_rough": {
+   "bytes": 48836,
+   "file": "ground/rock_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "roof_corrugated": {
+   "bytes": 265174,
+   "file": "built/roof_corrugated.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "roof_corrugated_normal": {
+   "bytes": 306472,
+   "file": "built/roof_corrugated_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "roof_corrugated_rough": {
+   "bytes": 30348,
+   "file": "built/roof_corrugated_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "roof_tiles": {
+   "bytes": 260476,
+   "file": "built/roof_tiles.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "roof_tiles_normal": {
+   "bytes": 260714,
+   "file": "built/roof_tiles_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "roof_tiles_rough": {
+   "bytes": 6400,
+   "file": "built/roof_tiles_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "rust": {
+   "bytes": 329042,
+   "file": "built/rust.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "rust_normal": {
+   "bytes": 387254,
+   "file": "built/rust_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "rust_rough": {
+   "bytes": 37724,
+   "file": "built/rust_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "soil": {
+   "bytes": 327366,
+   "file": "ground/soil.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "soil_normal": {
+   "bytes": 574056,
+   "file": "ground/soil_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "soil_rough": {
+   "bytes": 34106,
+   "file": "ground/soil_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "taxi_paint": {
+   "bytes": 117454,
+   "file": "vehicle/taxi_paint.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "taxi_paint_green": {
+   "bytes": 55054,
+   "file": "vehicle/taxi_paint_green.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "taxi_paint_normal": {
+   "bytes": 57166,
+   "file": "vehicle/taxi_paint_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "taxi_paint_rough": {
+   "bytes": 33326,
+   "file": "vehicle/taxi_paint_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "taxi_paint_yellow": {
+   "bytes": 114576,
+   "file": "vehicle/taxi_paint_yellow.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "wood_old": {
+   "bytes": 367528,
+   "file": "built/wood_old.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "wood_old_normal": {
+   "bytes": 130434,
+   "file": "built/wood_old_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "wood_old_rough": {
+   "bytes": 20050,
+   "file": "built/wood_old_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "wood_planks": {
+   "bytes": 169058,
+   "file": "built/wood_planks.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "wood_planks_normal": {
+   "bytes": 103388,
+   "file": "built/wood_planks_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "wood_planks_rough": {
+   "bytes": 1274,
+   "file": "built/wood_planks_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
   }
  },
- "totalBytes": 2623922,
+ "totalBytes": 27040240,
  "version": 1
 }

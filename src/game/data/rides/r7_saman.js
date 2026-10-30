@@ -25,22 +25,22 @@ export const RIDE_SAMAN = {
     extra: ['His cigarette smoke and his betel spit pass straight through the closed glass.', 'Outdated detail: booked for the fair "in 2526" (ask: reply "catch").', 'Sequins catch no light in the mirror: the seat is empty.'],
   },
   specialRules: [
-    { rule: 'r13', at: 0.3, exception: 'betel', note: 'Betel juice on the windshield: only betel. Wiping is safe.' },
-    { rule: 'r15', at: 0.52, exception: 'fatherDedication', note: 'Station 3 says "ต้น": it is Somchai\'s request. Listen to the end (memory m_song).' },
-    { rule: 'r8', at: 0.74, note: 'Breath on the neck. Hold amulet + eyes front. Saman sings you through it.' },
+    { rule: 'r13', at: 0.44, exception: 'betel', note: 'Betel juice on the windshield: only betel. Wiping is safe.' },
+    { rule: 'r15', at: 0.55, exception: 'fatherDedication', note: 'Station 3 says "ต้น": it is Somchai\'s request. Listen to the end (memory m_song).' },
+    { rule: 'r8', at: 0.7, note: 'Breath on the neck. Hold amulet + eyes front. Saman sings you through it.' },
     { rule: 'r4', note: 'Consistent rules: even a friendly ghost must not be stared at.' },
     { rule: 'r3', lookBack: 'warn', note: 'He is friendly: looking back gets a joke, but the breath event still counts.' },
   ],
   encounters: [
     { id: 'strayDogs', at: 0.1, optional: true },
-    { id: 'betelSpit', at: 0.3 },
-    { id: 'fatherDedication', at: 0.52, optional: true }, // requires the radio on (station 3)
-    { id: 'faceAgainstGlass', at: 0.62 },
-    { id: 'breathOnNeck', at: 0.74 },
+    { id: 'betelSpit', at: 0.44 },
+    { id: 'fatherDedication', at: 0.55, optional: true }, // requires the radio on (station 3)
+    { id: 'faceAgainstGlass', at: 0.64 },
+    { id: 'breathOnNeck', at: 0.7 },
   ],
   deathOnWrong: 'windowAttack',
   memoryHooks: ['m_song'],
-  pacing: { cruiseKmh: 40, minSeconds: 200, stretch: 'fog' }, // ~1.1 km: the shrine fog stretches the road
+  pacing: { cruiseKmh: 40, minSeconds: 240, stretch: 'fog' }, // ~1.1 km: the shrine fog stretches the road
   dialogue: {
     hail: [P('ฮัลโหล! แท็กซี่! ทางนี้ครับพี่น้อง!', 'Hello! Taxi! Over here, brothers and sisters!', { tone: 'shout', action: 'wave' })],
     greet: [
@@ -67,13 +67,13 @@ export const RIDE_SAMAN = {
     destination: [
       P('ไปงานวัดครับ ผมมีคิวขึ้นเวทีตีสี่', "To the temple fair. I'm on stage at four."),
       P('เขาจ้างผมไว้ตั้งแต่ปีสองห้าสองหก... เอ๊ย ปีนี้แหละ', 'They booked me back in 2526... er, I mean this year.', { emotion: 'surprise' }),
-      C([O('catch', 'สองห้าสองหก? สี่สิบกว่าปีแล้วนะลุง', '2526? That was over forty years ago, Uncle.'), SIL()], {
+      C([O('catch', 'สองห้าสองหกเลยเหรอลุง', '2526, Uncle? Really?'), SIL()], {
         id: 'saman_year',
         timeout: 6,
         setOnPick: { catch: { 'clue.saman.year': true } },
         branches: {
           catch: [
-            P('สี่สิบกว่าปี...', 'Over forty years...', { tone: 'whisper' }),
+            P('เอ๊ะ... นั่นมันสี่สิบกว่าปีแล้วนี่', 'Huh... that was over forty years ago.', { tone: 'whisper' }),
             P('มิน่า คนดูรอนานจัง', "No wonder the crowd's been waiting so long.", { emotion: 'smile', action: 'laugh' }),
           ],
         },
@@ -82,7 +82,7 @@ export const RIDE_SAMAN = {
     beats: [
       {
         id: 'station3',
-        trigger: { type: 'progress', at: 0.12 },
+        trigger: { type: 'progress', at: 0.23 },
         lines: [P('เปิดวิทยุหน่อยพ่อหนุ่ม ขอคลื่นสามนะ', 'Put the radio on, young man. Station three, please.')],
       },
       {
@@ -95,7 +95,7 @@ export const RIDE_SAMAN = {
       },
       {
         id: 'joke1',
-        trigger: { type: 'progress', at: 0.2 },
+        trigger: { type: 'progress', at: 0.3 },
         lines: [
           P('ทายซิ ผีอะไรชอบนั่งแท็กซี่', 'Riddle me this: what kind of ghost loves taxis?'),
           C([
@@ -150,17 +150,12 @@ export const RIDE_SAMAN = {
       {
         id: 'mySong',
         essential: true, // points the player at station 3 and memory m_song
-        trigger: { type: 'progress', at: 0.38 },
+        trigger: { type: 'progress', at: 0.37 },
         lines: [
           P('ตีสามแล้ว... คลื่นสามจะเปิดเพลงผม', "Past three... station three'll play my song now."),
           P('เพลง "ทางกลับบ้าน" ผมร้องเอง', "'The Way Home'. I sang that one myself.", { emotion: 'smile' }),
           P('มีคนขับแท็กซี่คนนึงชอบมาก เปิดทุกเช้าเลย', 'A taxi driver I knew loved it. Played it every morning.'),
         ],
-      },
-      {
-        id: 'smoke',
-        trigger: { type: 'progress', at: 0.45 },
-        lines: [P('ขอสูบบุหรี่หน่อยนะ ไม่ต้องเปิดกระจกหรอก', 'Mind if I smoke? No need to open the window.', { action: 'smoke' })],
       },
       {
         // r15 EXCEPTION: the radio says "ต้น" — and this once you do NOT retune.
@@ -235,6 +230,7 @@ export const RIDE_SAMAN = {
     idle: [
       P('♪ ลา ลา ลา... ♪', '♪ La la la... ♪', { tone: 'sing' }),
       P('ไมค์ผมหายไปไหนนะ', "Where's my microphone got to?"),
+      P('ขอสูบบุหรี่หน่อยนะ ไม่ต้องเปิดกระจกหรอก', 'Mind if I smoke? No need to open the window.', { action: 'smoke' }),
       P('ผมเคยร้องให้คนดูเป็นพันเลยนะ', 'I once sang for thousands, you know.'),
       P('รู้ไหม ทำไมผีโกหกไม่เก่ง... เพราะคนมองทะลุหมด!', 'Know why ghosts are bad liars? ...You can see right through them!', { emotion: 'smile', action: 'laugh' }),
     ],

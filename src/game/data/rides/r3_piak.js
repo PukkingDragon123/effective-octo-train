@@ -24,20 +24,20 @@ export const RIDE_PIAK = {
     extra: ['Pale, staggers, mumbles: looks like a ghost on purpose.', 'His breath fogs the side window in big blooms.', 'Car dips hard when he flops in.'],
   },
   specialRules: [
-    { rule: 'r15', at: 0.27, note: 'Only if the radio is on (he asks for music in greet): DJ Nok says "ต้น…". Retune within 5 s. Piak asks who she is calling; answering the radio is the break.' },
-    { rule: 'r5', at: 0.62, note: 'Three knocks from the trunk while Piak sleeps. Do not stop for 25 s.' },
+    { rule: 'r15', at: 0.31, note: 'He asks for music; if you do not, the radio clicks on by itself. DJ Nok says "ต้น…". Retune within 5 s. Piak asks who she is calling; answering the radio is the break.' },
+    { rule: 'r5', at: 0.69, note: 'Three knocks from the trunk while Piak sleeps. Do not stop for 25 s.' },
     { rule: 'r3', lookBack: 'warn' },
   ],
   encounters: [
-    { id: 'wireCrawler', at: 0.2 },
-    { id: 'radioName', at: 0.27, optional: true }, // requires the radio on
-    { id: 'yaiSpeed', at: 0.42 },
-    { id: 'trunkKnocks', at: 0.62 },
-    { id: 'somethingEnormous', at: 0.84, optional: true },
+    { id: 'wireCrawler', at: 0.25 },
+    { id: 'radioName', at: 0.31 }, // switches the radio on itself if he hasn't
+    { id: 'yaiSpeed', at: 0.51 },
+    { id: 'trunkKnocks', at: 0.69 },
+    { id: 'somethingEnormous', at: 0.88, optional: true },
   ],
   deathOnWrong: 'giantHand',
   memoryHooks: ['m_noodle'],
-  pacing: { cruiseKmh: 45, minSeconds: 120, stretch: 'none' },
+  pacing: { cruiseKmh: 40, minSeconds: 100, stretch: 'none' },
   dialogue: {
     hail: [
       P('เฮ้ย! แท็กซี่! หยุด ๆ ๆ', 'Oi! Taxi! Stop, stop, stop!', { tone: 'shout', action: 'hail' }),
@@ -70,7 +70,7 @@ export const RIDE_PIAK = {
     beats: [
       {
         id: 'song1',
-        trigger: { type: 'progress', at: 0.12 },
+        trigger: { type: 'progress', at: 0.14 },
         lines: [
           P('♪ น้ำตาหยดลง... กลางท้องนา... ♪', '♪ My tears fall down... into the paddy... ♪', { tone: 'sing', action: 'sing' }),
           P('ร้องเพราะไหมไอ้หนู ลุงเคยประกวดได้ที่สามนะ', 'Sounds good, eh, kid? I came third in a contest once.', { emotion: 'smile' }),
@@ -120,7 +120,7 @@ export const RIDE_PIAK = {
       },
       {
         id: 'neverScared',
-        trigger: { type: 'progress', at: 0.32 },
+        trigger: { type: 'progress', at: 0.41 },
         lines: [
           P('รู้ไหม ลุงเห็นผีมาเยอะ ไม่เคยกลัวสักที', "You know, I've seen plenty of ghosts. Never once scared."),
           C([
@@ -153,8 +153,8 @@ export const RIDE_PIAK = {
       },
       {
         id: 'sleepy',
-        essential: true, // he must be asleep (or singing) before the knocks (rule 5 at 0.62)
-        trigger: { type: 'progress', at: 0.5 },
+        essential: true, // he must be asleep (or singing) before the knocks (rule 5 at 0.69)
+        trigger: { type: 'progress', at: 0.58 },
         lines: [
           P('ง่วงแล้ว... ขอลุงหลับแป๊บนะ', 'Sleepy... gonna rest my eyes a bit.', { action: 'sleep' }),
           C([
@@ -188,7 +188,7 @@ export const RIDE_PIAK = {
       },
       {
         id: 'sleepTalk',
-        trigger: { type: 'progress', at: 0.7 },
+        trigger: { type: 'progress', at: 0.74 },
         if: { flag: { piakAsleep: true } },
         lines: [P('แม่... อย่าเปิดท้ายรถนะแม่...', "Mum... don't open the trunk, Mum...", { tone: 'whisper', emotion: 'fear' })],
       },

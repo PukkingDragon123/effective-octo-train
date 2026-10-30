@@ -28,8 +28,8 @@ export const RIDE_SRI = {
     { rule: 'r3', lookBack: 'warn', note: 'Human passenger: looking back only earns a scolding.' },
   ],
   encounters: [
-    { id: 'treeWatcher', at: 0.36 },
-    { id: 'salaShadows', at: 0.58, optional: true }, // passing sala2
+    { id: 'treeWatcher', at: 0.39 },
+    { id: 'salaShadows', at: 0.6, optional: true }, // passing sala2
     { id: 'roadFigure', at: 0.76 },
   ],
   deathOnWrong: 'giantHand',
@@ -81,7 +81,7 @@ export const RIDE_SRI = {
       },
       {
         id: 'newFace',
-        trigger: { type: 'progress', at: 0.08 },
+        trigger: { type: 'progress', at: 0.13 },
         lines: [
           P('หนุ่มเพิ่งมาขับแถวนี้ใช่ไหม หน้าไม่คุ้นเลย', "You're new round here, aren't you? Don't know your face."),
           C([
@@ -111,7 +111,7 @@ export const RIDE_SRI = {
       {
         id: 'yaiSpeedLegend',
         essential: true, // the legend must be heard before ride 3's Yai Speed encounter
-        trigger: { type: 'progress', at: 0.17 },
+        trigger: { type: 'progress', at: 0.22 },
         lines: [
           P('รู้จักยายสปีดไหม', 'Ever heard of Yai Speed?'),
           C([
@@ -144,7 +144,7 @@ export const RIDE_SRI = {
       },
       {
         id: 'garland',
-        trigger: { type: 'progress', at: 0.42 },
+        trigger: { type: 'progress', at: 0.44 },
         lines: [
           P('มาลัยพวกนี้ ป้าร้อยเองทั้งเย็นเลยนะ', 'I strung all these jasmine garlands myself. All evening.', { emotion: 'smile' }),
           P('แขวนหน้ารถสักพวงไหม ยี่สิบบาท', 'Hang one up front? Twenty baht.'),
@@ -167,7 +167,7 @@ export const RIDE_SRI = {
       },
       {
         id: 'greenYellowTaxi',
-        trigger: { type: 'progress', at: 0.5 },
+        trigger: { type: 'progress', at: 0.53 },
         lines: [
           P('เมื่อก่อนมีแท็กซี่เขียวเหลืองวิ่งเส้นนี้คันนึง', 'There used to be a green-yellow cab on this road.'),
           P('คนขับใจดีมาก ไม่เคยโกงมิเตอร์ป้าเลย', 'Lovely driver. Never once fiddled my fare.', { emotion: 'smile' }),
@@ -187,7 +187,7 @@ export const RIDE_SRI = {
       },
       {
         id: 'foggedGlass',
-        trigger: { type: 'progress', at: 0.64 },
+        trigger: { type: 'progress', at: 0.66 },
         lines: [
           P('หนาวจัง กระจกฝ้าหมดแล้ว', "So cold. My window's all fogged up.", { action: 'reachOut' }),
           P('ลูกสาวป้าโทรตามอีกแล้ว ห่วงแม่จะแย่', "My daughter's calling again. Worried sick about her mum."),

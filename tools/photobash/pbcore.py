@@ -351,7 +351,7 @@ def brush_strokes(canvas, src, n, length, width, seed=0, angle=None, opacity=0.6
 
 
 def painterly(a, sigma=6, strokes=1800, length=26, width=9, seed=1, opacity=0.55, detail=1.08, kuwa=5,
-              angle=None, mask=None, keep=0.0, jitter=0.08):
+              angle=None, mask=None, keep=0.45, jitter=0.08):
     """Frequency-separated overpaint: paint brushwork over the LOW frequencies of the photo,
     then put the photo's high-frequency detail back on top (sharp, never blurry)."""
     low, high = split_freq(a, sigma)

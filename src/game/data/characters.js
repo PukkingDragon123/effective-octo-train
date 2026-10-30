@@ -211,6 +211,21 @@ export const CHARACTERS = {
     },
   },
 
+  mMother: {
+    id: 'mMother',
+    nameTH: 'แม่น้องเอ็ม',
+    nameEN: "M's mother",
+    role: "Human. Boy M's mother, still waiting at the KM 11 bus stop with dinner. Appears only in the dawn endings if Ton promised M (flags.promisedM).",
+    voice: { gender: 'f', age: 38, pitch: 1.04, rate: 0.85, ghost: 0, whisper: false },
+    appearance: {
+      id: 'mMother', sex: 'f', age: 38, height: 1.56, build: 'thin', skinTone: 0.55,
+      hair: { style: 'ponytail', color: '#1c1714' },
+      outfit: { type: 'tshirt-pants', top: '#8c7a6a', bottom: '#2f2c34', accent: '#c9b89a', shoes: 'sandals' },
+      accessories: [],
+      face: { seed: 3811, wrinkles: 0.3, smile: 0.0, eyeSize: 0.98, noseWidth: 1.0, jaw: 0.96, cheek: 0.94 },
+    },
+  },
+
   extraChild: {
     id: 'extraChild',
     nameTH: '(เด็กในกระจก)',

@@ -81,52 +81,62 @@ def asphalt(S=2048):
     m = maps('ph_asphalt_02', S)
     col, n, r, h = m['color'], m['normal'], m['rough'], m['height']
     tr = maps('ph_asphalt_track', S)
-    # --- tar patches (repairs): irregular rectangles of darker, finer, newer asphalt
+    base_mean = col.reshape(-1, 3).mean(0)
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    # --- tar repairs: irregular, slightly darker & finer asphalt with a thin dark seam
     rng = np.random.default_rng(7)
     patch = np.zeros((S, S), np.float32)
-    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
-    edge_n = fbm(S, 24, 4, 71)
-    for _ in range(5):
+    warp = (fbm(S, 9, 4, 71) - 0.5) * S * 0.05
+    for _ in range(2):
         cx, cy = rng.random() * S, rng.random() * S
-        w, hh = S * (0.08 + rng.random() * 0.22), S * (0.05 + rng.random() * 0.14)
-        a = (rng.random() - 0.5) * 0.25
+        w, hh = S * (0.22 + rng.random() * 0.2), S * (0.12 + rng.random() * 0.1)
+        a = (rng.random() - 0.5) * 0.5
         dx = (xx - cx + S / 2) % S - S / 2
         dy = (yy - cy + S / 2) % S - S / 2
         u = dx * np.cos(a) + dy * np.sin(a)
         v = -dx * np.sin(a) + dy * np.cos(a)
-        d = np.maximum(np.abs(u) - w / 2, np.abs(v) - hh / 2) + (edge_n - 0.5) * S * 0.02
-        patch = np.maximum(patch, sstep(2.0, -2.0, d))
-    patch_col = grade(tr['color'], sat=0.5, contrast=1.1) * 0.62
-    col = apply_layer(col, patch_col, patch)
-    h = h * (1 - patch * 0.6) + (tr['height'] * 0.4 + 0.45) * patch
-    n = blend_normals(n * (1 - patch[..., None]) + tr['normal'] * patch[..., None], normal_from_height(blur(patch, 1.5), 5))
-    r = r * (1 - patch) + (tr['rough'] * 0.9) * patch
-    # --- crack network + black tar crack-sealing bands (common on Thai rural roads)
-    f1, _ = cells(S // 4, 26, seed=11)
-    f1b, _ = cells(S // 4, 26, seed=12)
-    edges = resize_tile(np.abs(f1 - f1b), (S, S))
-    crack_n = fbm(S, 10, 5, 13)
-    crack = sstep(0.06, 0.0, edges) * sstep(0.35, 0.6, crack_n)
-    fine = fbm(S, 60, 4, 14, aniso=(1, 1))
-    crack = np.maximum(crack, sstep(0.035, 0.0, np.abs(fine - 0.5)) * sstep(0.55, 0.75, crack_n) * 0.7)
-    crack *= 1 - patch * 0.7
-    seal = blur(sstep(0.2, 0.6, blur(crack, 3) * 3), 1.2) * sstep(0.45, 0.7, fbm(S, 6, 3, 15))
-    col = apply_layer(col, col * 0.35, crack * 0.85)
-    col = apply_layer(col, np.full_like(col, 0.045), seal * 0.9)
-    h = h - crack * 0.35 + seal * 0.08
-    r = r * (1 - seal * 0.55) - crack * 0.1
-    # --- wetness: low areas and seal bands get glossier (puddle film), grime in cavities
-    cav = np.clip(cavity_from_height(h, 10), 0, 1)
+        d = np.maximum(np.abs(u) - w / 2, np.abs(v) - hh / 2) + warp
+        patch = np.maximum(patch, sstep(1.5, -1.5, d))
+    pcol = match_stats(tr['color'], base_mean * 0.84, 1.0)
+    pcol = grade(pcol, sat=0.4)
+    seam = np.clip(sstep(0.0, 0.5, patch) - sstep(0.5, 1.0, patch), 0, 1)
+    seam = blur(seam, 1.0)
+    col = apply_layer(col, pcol, patch)
+    col = apply_layer(col, col * 0.5, seam * 0.6)
+    h = h * (1 - patch * 0.5) + (tr['height'] * 0.5 + 0.4) * patch * 0.5
+    n = n * (1 - patch[..., None]) + tr['normal'] * patch[..., None]
+    r = r * (1 - patch) + (tr['rough'] * 0.85) * patch
+    # --- thin crack network (worley edges, wobbling, broken up)
+    f1, _ = cells(S // 2, 22, seed=11)
+    f1b, _ = cells(S // 2, 22, seed=12)
+    e = resize_tile(np.abs(f1 - f1b), (S, S))
+    wob = blur((fbm(S, 40, 3, 18) - 0.5) * 0.02, 1)
+    crack_w = 0.006 + 0.006 * fbm(S, 14, 3, 19)
+    crack = sstep(crack_w, crack_w * 0.3, np.abs(e + wob))
+    crack *= sstep(0.4, 0.55, fbm(S, 8, 4, 13))
+    hair = sstep(0.008, 0.0, np.abs(fbm(S, (30, 30), 4, 14) - 0.5)) * sstep(0.62, 0.75, fbm(S, 6, 3, 20)) * 0.6
+    crack = np.clip(np.maximum(crack, hair) * (1 - patch * 0.8), 0, 1)
+    # --- black tar crack sealant along some long cracks (glossy, dusty, blobby edges)
+    sealsrc = sstep(0.62, 0.78, fbm(S, 5, 3, 15))
+    seal = blur(crack, 4) * 5 * sealsrc
+    seal = sstep(0.35, 0.7, seal + (fbm(S, 50, 3, 21) - 0.5) * 0.4)
+    scol = match_stats(tr['color'], base_mean * 0.32, 1.0)
+    col = apply_layer(col, scol, seal * 0.85)
+    col = apply_layer(col, col * 0.25, crack * (1 - seal) * 0.9)
+    h = h - crack * 0.3 * (1 - seal) + seal * 0.04
+    r = r * (1 - seal * 0.5) - crack * 0.05
+    # --- wetness film in low areas + faint tyre polish bands along v
+    cav = np.clip(cavity_from_height(h, 12), 0, 1)
     wet = sstep(0.25, 0.8, cav) * sstep(0.35, 0.7, fbm(S, 5, 3, 16))
-    r = r * (1 - wet * 0.45)
-    col = col * (1 - wet[..., None] * 0.22)
-    # --- tyre polish: two faint smoother bands along v (wheel tracks) slightly darker
+    r = r * (1 - wet * 0.4)
+    col = col * (1 - wet[..., None] * 0.18)
     u = np.linspace(0, 1, S, endpoint=False)[None, :]
-    tracks = (sstep(0.12, 0.0, np.abs(u - 0.28)) + sstep(0.12, 0.0, np.abs(u - 0.72))) * 0.5
-    r = r * (1 - tracks * 0.18)
-    col = col * (1 - tracks[..., None] * 0.08)
-    col = grade(col, sat=0.55, contrast=1.08, shadow_tint='#1d2a30', shadow_amt=0.25)
-    col = painterly(col, sigma=10, strokes=int(2600 * (S / 2048) ** 2), length=46, width=15, seed=17, opacity=0.32,
+    tracks = (sstep(0.1, 0.0, np.abs(u - 0.28)) + sstep(0.1, 0.0, np.abs(u - 0.72))) * 0.5
+    tracks = tracks * (0.7 + 0.3 * fbm(S, (3, 8), 3, 22))
+    r = r * (1 - tracks * 0.15)
+    col = col * (1 - tracks[..., None] * 0.07)
+    col = grade(col, sat=0.55, contrast=1.06, shadow_tint='#1d2a30', shadow_amt=0.2)
+    col = painterly(col, sigma=10, strokes=int(3200 * (S / 2048) ** 2), length=50, width=16, seed=17, opacity=0.35,
                     detail=1.12, kuwa=5)
     n = blend_normals(n, normal_from_height(blur(h, 1.0), 2.5), 0.6)
     out = finish('asphalt', col, n, r, None, strength=0.9)
@@ -261,8 +271,8 @@ def bark_banyan(S=1024):
     col = col * (0.88 + 0.18 * flutes[..., None])
     # tone down the scan's pale lichen spots, keep them as faint mottling
     L = lum(col)
-    spots = sstep(0.05, 0.2, L - blur(L, 12))
-    col = apply_layer(col, blur(col, 6), spots * 0.6)
+    spots = blur(sstep(0.04, 0.16, L - blur(L, 30)), 2)
+    col = apply_layer(col, blur(col, 14), spots * 0.85)
     col = saturate(col, 0.5) * hex2rgb('#e8e4d8') * 1.05
     lichen = sstep(0.7, 0.85, fbm(S, (8, 4), 4, 102))
     col = apply_layer(col, col * 0.5 + hex2rgb('#9da08a') * 0.45, lichen * 0.35)
@@ -299,7 +309,7 @@ def rust(S=1024):
     st = streaks(S, 60, 123, (0.2, 0.7), (2, 6))
     col = apply_layer(col, col * hex2rgb('#5a2a12') * 1.6, st * 0.5)
     col = grade(col, sat=0.75, contrast=1.08)
-    col = painterly(col, sigma=6, strokes=1500, length=24, width=9, seed=124, opacity=0.38, detail=1.12)
+    col = painterly(col, sigma=4, strokes=1500, length=24, width=8, seed=124, opacity=0.3, detail=1.2, kuwa=3, keep=0.7)
     return finish('rust', col, n, r)
 
 
@@ -317,14 +327,14 @@ def metal_painted(S=1024):
     return finish('metal_painted', col, n, r, strength=0.8)
 
 
-def _peel(base_sid, crack_sid, S, key, tint, seed):
+def _peel(base_sid, crack_sid, S, key, tint, seed, thr=0.62):
     b = maps(base_sid, S)
     c = maps(crack_sid, S)
     col, n, r, h = b['color'], b['normal'], b['rough'], b['height']
     # crackle structure from the peeling wall scan (its height has the crack network)
     ch = c['height']
     crack = sstep(0.12, 0.0, ch - blur(ch, 3) + 0.06)
-    flakes = sstep(0.62, 0.72, fbm(S, 5, 5, seed) * 0.8 + (1 - ch) * 0.3)
+    flakes = sstep(thr, thr + 0.1, fbm(S, 5, 5, seed) * 0.8 + (1 - ch) * 0.3)
     base = saturate(col, 0.25) * 0.75 + hex2rgb('#8f8a7c') * 0.15
     paint = col
     if tint is not None:
@@ -343,7 +353,7 @@ def _peel(base_sid, crack_sid, S, key, tint, seed):
 
 def paint_peel(S=1024):
     out = _peel('ph_worn_plaster_wall', 'ph_peeling_painted_wall', S, 'paint_peel_white', '#e6e2d4', 141)
-    out.update(_peel('ph_red_plaster_weathered', 'ph_peeling_painted_wall', S, 'paint_peel_red', None, 142))
+    out.update(_peel('ph_red_plaster_weathered', 'ph_peeling_painted_wall', S, 'paint_peel_red', None, 142, thr=0.5))
     return out
 
 
@@ -390,11 +400,11 @@ def gold_leaf(S=1024):
     seam_x = np.abs(((xx + jit) % (S / k)) - 1.5) < 1.5
     seam_y = np.abs(((yy + jit * 0.7) % (S / k)) - 1.5) < 1.5
     seam = (seam_x | seam_y).astype(np.float32)
-    col = col * (0.85 + 0.3 * sq[..., None])
+    col = col * (0.95 + 0.1 * sq[..., None])
     col = saturate(col, 1.1) * hex2rgb('#ffd890') * 1.1
     bole = sstep(0.72, 0.8, fbm(S, 9, 5, 173)) * (0.5 + 0.5 * seam)
     col = apply_layer(col, hex2rgb('#6b1d12') * (0.7 + 0.3 * fbm(S, 40, 3, 174)[..., None]), bole)
-    col = apply_layer(col, col * 0.6, seam * 0.35)
+    col = apply_layer(col, col * 0.7, seam * 0.25)
     r = r * (1 - bole) + 0.7 * bole
     grime = sstep(0.5, 0.9, fbm(S, 4, 4, 175)) * 0.45
     col = apply_layer(col, col * hex2rgb('#3a2c18') * 1.5, grime)
@@ -457,15 +467,15 @@ def taxi_paint(S=1024):
     v = np.linspace(0, 1, S, endpoint=False)[:, None]  # 0 = top of image (v=1), 1 = bottom (v=0, sills)
     bottom = np.repeat(sstep(0.55, 1.0, v), S, 1)
     scr = np.clip(norm01(sc1) * 0.6 + norm01(sc2) * 0.6, 0, 1)
-    scr = sstep(0.45, 0.95, scr)
+    scr = sstep(0.3, 0.85, scr)
     sp = sstep(0.55, 0.95, norm01(spots))
     leak = sstep(0.4, 0.9, 1 - norm01(lk))
-    mud = np.clip(bottom * (0.6 + 0.6 * fbm(S, (6, 3), 4, 201, aniso=(1, 0.5))) - 0.25, 0, 1)
+    mud = np.clip(bottom * (0.35 + 0.6 * fbm(S, (6, 3), 4, 201)) - 0.3, 0, 1) * 0.8
     mud = np.clip(mud + blur_dir(sstep(0.7, 0.9, fbm(S, 12, 3, 202)) * bottom, 50, axis=0) * 0.5, 0, 1)
-    rustm = sstep(0.78, 0.92, fbm(S, 10, 4, 203) * 0.7 + bottom * 0.5) * bottom
+    rustm = sstep(0.86, 0.96, fbm(S, 10, 4, 203) * 0.75 + bottom * 0.4) * bottom
     # weathering layer (near white; multiplied by material.color)
     w = np.ones((S, S, 3), np.float32) * hex2rgb('#efece6')
-    w = apply_layer(w, w * 0.82, scr * 0.5)
+    w = apply_layer(w, w * 0.8, scr * 0.6)
     w = apply_layer(w, w * 0.78, sp * 0.35)
     w = apply_layer(w, w * hex2rgb('#c8c0b0'), leak * 0.45)
     w = apply_layer(w, hex2rgb('#7a6a55') * (0.7 + 0.5 * fbm(S, 30, 3, 204)[..., None]), mud * 0.8)
@@ -539,7 +549,7 @@ def headliner(S=1024):
         rings = np.maximum(rings, sstep(0.1, 0.0, np.abs(d - 1)) * 0.8 + sstep(1.0, 0.6, d) * 0.25)
     nic = sstep(0.4, 0.9, fbm(S, 3, 4, 242)) * 0.5
     col = apply_layer(col, col * hex2rgb('#b39a6a') * 1.2, nic)
-    col = apply_layer(col, col * hex2rgb('#8a7350') * 1.1, rings)
+    col = apply_layer(col, col * hex2rgb('#8a7350') * 1.1, rings * 0.7)
     col = painterly(col, sigma=6, strokes=900, length=30, width=10, seed=243, opacity=0.25, detail=1.1, kuwa=0)
     return finish('headliner', col, m['normal'], None)
 
@@ -589,7 +599,9 @@ def cloths(S=1024):
             yi = int(y * S)
             seams[yi - 2:yi + 2, x0:x1] = 1
     seams = blur(seams, 1.2)
-    robe = apply_layer(robe, robe * 0.62, seams * 0.9)
+    robe = apply_layer(robe, robe * 0.78, seams * 0.8)
+    folds = fbm(S, (3, 1.5), 4, 272)
+    robe = robe * (0.85 + 0.3 * folds[..., None])
     hn = normal_from_height(1 - seams * 0.6, 4)
     out.update(finish('monk_robe', robe, blend_normals(lin['normal'], hn), None, strength=0.8))
     # sarong (pha khao ma): woven check over the cotton weave

@@ -41,6 +41,7 @@ export const SETTINGS_TABS = [
         rows: [
           { key: 'brightness', type: 'slider', th: 'ความสว่าง', en: 'Brightness', min: 0.6, max: 1.6, step: 0.02, fmt: 'x' },
           { key: 'bloom', type: 'slider', th: 'แสงฟุ้ง', en: 'Bloom', min: 0, max: 1.5, step: 0.05, fmt: 'pct' },
+          { key: 'sharpen', type: 'slider', th: 'ความคมชัด', en: 'Sharpening', min: 0, max: 1, step: 0.05, fmt: 'pct' },
           { key: 'filmGrain', type: 'slider', th: 'เกรนฟิล์ม', en: 'Film grain', min: 0, max: 1, step: 0.05, fmt: 'pct' },
           { key: 'chromaticAberration', type: 'slider', th: 'ขอบสีเหลื่อม', en: 'Chromatic aberration', min: 0, max: 1, step: 0.05, fmt: 'pct' },
           { key: 'vignette', type: 'slider', th: 'ขอบภาพมืด', en: 'Vignette', min: 0, max: 1, step: 0.05, fmt: 'pct' },
@@ -52,6 +53,7 @@ export const SETTINGS_TABS = [
           { key: 'fov', type: 'slider', th: 'มุมมองกล้อง', en: 'Field of view', min: 55, max: 100, step: 1, fmt: 'deg' },
           { key: 'headBob', type: 'slider', th: 'การโยกของศีรษะ', en: 'Head bob', min: 0, max: 1, step: 0.05, fmt: 'pct' },
           { key: 'cameraShake', type: 'slider', th: 'กล้องสั่น', en: 'Camera shake', min: 0, max: 1, step: 0.05, fmt: 'pct' },
+          { key: 'gore', type: 'seg', th: 'เลือดและความรุนแรง', en: 'Blood & gore', options: [['full', 'เต็มที่', 'Full'], ['reduced', 'ลดลง', 'Reduced']] },
           { key: 'reduceFlashes', type: 'seg', th: 'ลดแสงวาบและภาพกะพริบ', en: 'Reduce flashes', options: ONOFF },
         ],
       },

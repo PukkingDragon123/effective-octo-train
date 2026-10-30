@@ -26,20 +26,20 @@ export const RIDE_NUAN = {
   },
   specialRules: [
     { rule: 'r4', note: 'Temptation: "don\'t you want to see my face?" Reply "want" sets lure r4.' },
-    { rule: 'r11', at: 0.3, note: 'Meter ๔๔๔: stop, head down, count; the voice outside asks "นับถึงไหนแล้ว" (answering = death).' },
-    { rule: 'r14', at: 0.3, note: 'Chained from the 444 stop: something knocks and asks for a lighter. Window stays up.' },
-    { rule: 'r7', at: 0.56, note: 'Name call outside; she tells you not to answer.' },
+    { rule: 'r11', at: 0.29, note: 'Meter ๔๔๔: stop, head down, count; the voice outside asks "นับถึงไหนแล้ว" (answering = death).' },
+    { rule: 'r14', at: 0.29, note: 'Chained from the 444 stop: something knocks and asks for a lighter. Window stays up.' },
+    { rule: 'r7', at: 0.74, note: 'Name call outside; she tells you not to answer.' },
     { rule: 'r3', lookBack: 'death' },
   ],
   encounters: [
-    { id: 'krasue', at: 0.15 },
-    { id: 'meter444', at: 0.3 }, // chains windowKnock (after midnight)
-    { id: 'nameCall', at: 0.56 },
-    { id: 'krahang', at: 0.76 },
+    { id: 'krasue', at: 0.23 },
+    { id: 'meter444', at: 0.29 }, // chains windowKnock (after midnight)
+    { id: 'nameCall', at: 0.74 },
+    { id: 'krahang', at: 0.86 },
   ],
   deathOnWrong: 'windowAttack',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 160, stretch: 'fog' }, // the 444 stop eats ~20 s
+  pacing: { cruiseKmh: 40, minSeconds: 185, stretch: 'fog' }, // the 444 stop eats ~20 s
   dialogue: {
     hail: [P('แวะรับฉันหน่อยได้ไหมจ๊ะ', 'Would you stop for me?', { tone: 'whisper', action: 'hail' })],
     greet: [
@@ -95,12 +95,12 @@ export const RIDE_NUAN = {
       },
       {
         id: 'redMoon',
-        trigger: { type: 'progress', at: 0.38 },
+        trigger: { type: 'progress', at: 0.47 },
         lines: [P('คืนนี้พระจันทร์สีแดงนะ... เห็นไหมจ๊ะ', 'The moon is red tonight... do you see?')],
       },
       {
         id: 'seeMyFace',
-        trigger: { type: 'progress', at: 0.42 },
+        trigger: { type: 'progress', at: 0.5 },
         lines: [
           P('พ่อหนุ่มไม่อยากเห็นหน้าฉันหรือจ๊ะ', "Don't you want to see my face, young man?", { tone: 'whisper', emotion: 'creepy' }),
           P('ผู้ชายทุกคนอยากเห็นทั้งนั้นแหละ', 'Every man always did.', { emotion: 'smile' }),
@@ -128,7 +128,7 @@ export const RIDE_NUAN = {
       {
         id: 'promise',
         essential: true,
-        trigger: { type: 'progress', at: 0.48 },
+        trigger: { type: 'progress', at: 0.62 },
         lines: [
           P('ฉันรอคนคนหนึ่งอยู่ใต้ต้นกล้วยมานานแล้ว', "I've waited under the banana tree for someone, a long time.", { emotion: 'sad' }),
           P('เขาสัญญาว่าจะกลับมา แล้วก็ไม่เคยกลับ', 'He promised he would come back. He never did.'),
@@ -162,11 +162,6 @@ export const RIDE_NUAN = {
         id: 'nameCallIgnored',
         trigger: { type: 'event', event: 'nameCallIgnored' },
         lines: [P('เก่งมาก... ป่านี้ชอบเลียนเสียงคนที่เรารัก', 'Well done... this forest likes to borrow the voices we love.', { emotion: 'smile' })],
-      },
-      {
-        id: 'light',
-        trigger: { type: 'progress', at: 0.66 },
-        lines: [P('ฉันไม่เคยหนักอะไรเลยนะ... จะนั่งตรงไหนก็ตาม', 'I never weigh anything... wherever I sit.', { tone: 'whisper' })],
       },
       {
         id: 'krahang',
@@ -205,6 +200,7 @@ export const RIDE_NUAN = {
       P('ลมพัดใบกล้วยดังเหมือนคนกระซิบนะ', 'The wind in the banana leaves sounds like whispering.'),
       P('เธอทำงานกลางคืนทุกคืนเลยหรือจ๊ะ', 'Do you work every night?'),
       P('ดอกกล้วยบานตอนกลางคืน ไม่มีใครเห็นหรอก', 'Banana flowers open at night. Nobody ever sees.'),
+      P('ฉันไม่เคยหนักอะไรเลยนะ... จะนั่งตรงไหนก็ตาม', 'I never weigh anything... wherever I sit.', { tone: 'whisper' }),
     ],
     onLookBack: [P('หันมาทำไมจ๊ะ... ฉันอยู่ทุกที่แหละ', "Why turn round? I'm everywhere.", { tone: 'ghost', emotion: 'creepy' })],
     onFaceGazeWarn: [P('มองอีกนิดสิจ๊ะ... อีกนิดเดียว', 'Look a little longer... just a little.', { tone: 'whisper', emotion: 'smile' })],

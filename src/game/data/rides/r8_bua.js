@@ -36,7 +36,7 @@ export const RIDE_BUA = {
   memoryHooks: ['m_photo', 'm_helmet'],
   // marketLamp → fork is only ~680 m but carries ~3 min of the night's warmest talk plus the
   // elephants. Old woman aboard + blue-hour mist: cap the speed and let the mist stretch the road.
-  pacing: { cruiseKmh: 35, speedCapKmh: 45, minSeconds: 220, stretch: 'mist' },
+  pacing: { cruiseKmh: 35, speedCapKmh: 45, minSeconds: 235, stretch: 'mist' },
   gives: { item: 'garland', flag: 'garland', at: 'beat:garland' },
   dialogue: {
     hail: [P('พ่อคุณ... จอดให้ยายหน่อยลูก', 'Dear boy... stop for Grandma, love.', { action: 'hail' })],
@@ -53,7 +53,7 @@ export const RIDE_BUA = {
       {
         id: 'chai',
         essential: true,
-        trigger: { type: 'progress', at: 0.1 },
+        trigger: { type: 'progress', at: 0.12 },
         lines: [
           P('ไอ้ชายมันขับแท็กซี่สีนี้แหละ มาซื้อมาลัยยายทุกเช้า', 'Chai drove a cab this colour. Bought my garlands every morning.'),
           P('พวงละยี่สิบ ให้ยายห้าสิบ ไม่เคยเอาทอน', "Twenty baht a garland, he'd hand me fifty. Never took change.", { emotion: 'smile' }),
@@ -63,7 +63,7 @@ export const RIDE_BUA = {
       {
         id: 'hisSon',
         essential: true,
-        trigger: { type: 'progress', at: 0.2 },
+        trigger: { type: 'progress', at: 0.19 },
         lines: [
           P('มันชอบเอามาลัยแขวนหน้ารถ บอกว่าให้ลูกชายแคล้วคลาด', 'He hung it by the mirror. Said it was to keep his son safe.'),
           P('ลูกชายมันไปอยู่กรุงเทพฯ ไม่เคยกลับมาเลย', 'His son went off to Bangkok. Never came back.', { emotion: 'sad' }),
@@ -140,13 +140,13 @@ export const RIDE_BUA = {
       },
       {
         id: 'blueHour',
-        trigger: { type: 'progress', at: 0.68 },
+        trigger: { type: 'progress', at: 0.67 },
         lines: [P('ฟ้าเริ่มสางแล้ว... ไก่ขันแล้ว ได้ยินไหม', "The sky's getting pale... hear the roosters?", { emotion: 'smile' })],
       },
       {
         id: 'funeral',
         essential: true,
-        trigger: { type: 'progress', at: 0.78 },
+        trigger: { type: 'progress', at: 0.71 },
         lines: [
           P('ไอ้ชายมันเสียตอนหน้าฝน ตรงโค้งนั่นแหละ', 'Chai died in the rains. On that curve back there.', { emotion: 'sad' }),
           P('งานศพมันน่ะ... ลูกชายมันไม่มา', 'At his funeral... his son never came.', { if: { flag: { buaKnowsTon: false } } }),

@@ -509,7 +509,7 @@ export class Forest {
             if (r < 0.08) this._place('rock', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.4 + rng() * 0.5, rng, { dy: -0.15 });
             continue;
           }
-          if (inGrove && r < 0.78 && nr.e > 1.5) {
+          if (inGrove && r < 0.78 && nr.e > 2.6) {
             // clumps of 1-4 stems (mother plant + suckers), all leaning a little apart
             const nc = 1 + Math.floor(rng() * 3.5);
             for (let c = 0; c < nc; c++) {
@@ -522,7 +522,7 @@ export class Forest {
             this._place('bamboo', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng, { dy: -0.1 });
             continue;
           }
-          if (zbn > 0.5 && r < 0.35 && nr.e > 1.8) {
+          if (zbn > 0.5 && r < 0.35 && nr.e > 2.6) {
             this._place('banana', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.8 + rng() * 0.4, rng);
             if (rng() < 0.5) this._place('banana', Math.floor(rng() * 4), x + 0.7, z - 0.4, rng() * 6.28, 0.55 + rng() * 0.3, rng, { lean: { x: 1, z: -0.5, a: 0.12 } });
             continue;

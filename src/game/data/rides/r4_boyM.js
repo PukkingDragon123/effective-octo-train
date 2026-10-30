@@ -25,22 +25,22 @@ export const RIDE_BOY_M = {
   },
   specialRules: [
     { rule: 'r1', note: 'Nobody visible hails: the empty bus stop IS the pickup. Driving past folds the road.' },
-    { rule: 'r6', at: 0.22, note: 'Radio turns itself on (static + a warped children\'s tune); he asks for it off. Grace 8 s.' },
-    { rule: 'r16', at: 0.63, note: 'A second child in the mirror only. M asks who she is: replying "who" = ruleBreak r16.' },
+    { rule: 'r6', at: 0.23, note: 'Radio turns itself on (static + a warped children\'s tune); he asks for it off. Grace 8 s.' },
+    { rule: 'r16', at: 0.59, note: 'A second child in the mirror only. M asks who she is: replying "who" = ruleBreak r16.' },
     { rule: 'r4', exception: 'hasReflection', note: 'He has a reflection but is a ghost: rule 4 does not identify him.' },
     { rule: 'r3', lookBack: 'warn', note: 'Turning round shows an empty seat; soft line, no death.' },
   ],
   encounters: [
-    { id: 'krasue', at: 0.16 },
-    { id: 'radioSelfOn', at: 0.22 },
+    { id: 'krasue', at: 0.18 },
+    { id: 'radioSelfOn', at: 0.23 },
     { id: 'somethingEnormous', at: 0.5, optional: true },
-    { id: 'extraPassenger', at: 0.63 },
+    { id: 'extraPassenger', at: 0.59 },
     { id: 'twistedNeckReflection', at: 0.9, optional: true }, // or as the rule-6 escalation
   ],
   wrongAftermath: 'reflectionStays',
   deathOnWrong: 'dragBack',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 150, stretch: 'fog' }, // from midnight on the road grows longer than it should
+  pacing: { cruiseKmh: 40, minSeconds: 175, stretch: 'fog' }, // from midnight on the road grows longer than it should
   dialogue: {
     hail: [P('รอด้วยครับ...', 'Wait for me...', { tone: 'whisper' })],
     // Nobody at the stop; the door opens by itself; a voice from an empty seat. The world says it, not text.
@@ -100,7 +100,7 @@ export const RIDE_BOY_M = {
       },
       {
         id: 'stars',
-        trigger: { type: 'progress', at: 0.34 },
+        trigger: { type: 'progress', at: 0.3 },
         lines: [
           P('วันนี้ครูให้ดาวผมตั้งสามดวงแน่ะ', 'Teacher gave me three stars today.', { emotion: 'smile' }),
           P('จะเอาไปอวดแม่', "I'm going to show Mum."),
@@ -125,7 +125,7 @@ export const RIDE_BOY_M = {
       },
       {
         id: 'turnAround',
-        trigger: { type: 'progress', at: 0.45 },
+        trigger: { type: 'progress', at: 0.42 },
         lines: [
           P('พี่ครับ... ทำไมพี่ไม่หันมาคุยกับผมล่ะ', "Mister... why don't you turn round and talk to me?"),
           C([
@@ -149,7 +149,7 @@ export const RIDE_BOY_M = {
       },
       {
         id: 'theTruck',
-        trigger: { type: 'progress', at: 0.55 },
+        trigger: { type: 'progress', at: 0.52 },
         lines: [
           P('รถคันใหญ่ ๆ มันขับเร็วมากเลยครับ ไฟจ้ามาก', 'The big truck was going so fast. Its lights were so bright.', { emotion: 'sad' }),
           P('แล้วผมก็... หลับไป', 'And then I... fell asleep.', { tone: 'whisper', pause: 1.2 }),
@@ -190,13 +190,13 @@ export const RIDE_BOY_M = {
       },
       {
         id: 'coldDinner',
-        trigger: { type: 'progress', at: 0.72 },
+        trigger: { type: 'progress', at: 0.7 },
         lines: [P('แม่คงรอนานแล้ว... ข้าวคงเย็นหมดแล้ว', "Mum must've waited ages... dinner must be cold by now.", { emotion: 'sad' })],
       },
       {
         id: 'tellMum',
         essential: true,
-        trigger: { type: 'progress', at: 0.8 },
+        trigger: { type: 'progress', at: 0.74 },
         lines: [
           P('พี่ครับ ถ้าเจอแม่ผม บอกแม่ด้วยนะครับ...', 'Mister, if you ever see my mum, tell her...', { emotion: 'sad' }),
           P('ว่าผมไม่เจ็บแล้ว', "...that it doesn't hurt any more.", { tone: 'whisper', pause: 1.2 }),

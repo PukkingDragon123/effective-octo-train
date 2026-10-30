@@ -287,6 +287,8 @@ export const PAPER = {
     ink: 'red',
     hand: 'somchai',
   },
+  // Ending 'successor': a new line appears on the back, under Somchai's red ink, in Ah Kong's hand.
+  successorNote: { th: 'กะนี้เป็นของลื้อแล้ว', en: 'This shift is yours now.' },
 };
 
 /**

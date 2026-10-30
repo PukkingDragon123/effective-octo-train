@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS = {
   // graphics
   graphicsPreset: 'high',
   ...GRAPHICS_PRESETS.high,
+  sharpen: 0.5, // contrast-adaptive sharpening after the painterly pass (0..1)
   filmGrain: 0.35,
   chromaticAberration: 0.3,
   vignette: 0.6,

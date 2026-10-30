@@ -5,7 +5,7 @@
 // Replies: hospital (exposes her outdated detail), year, lookAtMe (trap), thatNight.
 import { P, S, C, O, SIL, tr } from '../lines.js';
 
-const sorryLines = [P('รีบหน่อยนะคะ แฟนฉันรออยู่ห้องฉุกเฉิน', "Please hurry. My boyfriend's waiting in the ER.")];
+const hurryLines = [P('รีบหน่อยนะคะ แฟนฉันรออยู่ห้องฉุกเฉิน', "Please hurry. My boyfriend's waiting in the ER.")];
 
 export const RIDE_WOMAN_WHITE = {
   id: 'womanWhite',
@@ -26,20 +26,20 @@ export const RIDE_WOMAN_WHITE = {
   },
   specialRules: [
     { rule: 'r4', note: '"Look at me" trap. Face-gaze timer runs whenever you look straight at her. Reply "where" sets lure r4.' },
-    { rule: 'r13', at: 0.4, note: 'Blood drips from the roof in the rain: wipers OFF. She asks you to wipe. Leads into the upside-down head.' },
+    { rule: 'r13', at: 0.43, note: 'Blood drips from the roof in the rain: wipers OFF. She asks you to wipe. Leads into the upside-down head.' },
     { rule: 'r9', at: 0.6, note: 'Cabin light dies by itself; switching it back on = ceiling crawl.' },
     { rule: 'r3', lookBack: 'death', note: 'Back-seat events: fingers, upside-down head, face on glass.' },
   ],
   encounters: [
-    { id: 'fingersDoorFrame', at: 0.24 },
-    { id: 'bloodDrip', at: 0.4 },
-    { id: 'upsideDownHead', at: 0.48 },
+    { id: 'fingersDoorFrame', at: 0.28 },
+    { id: 'bloodDrip', at: 0.43 },
+    { id: 'upsideDownHead', at: 0.51 },
     { id: 'cabinLightDies', at: 0.6 },
     { id: 'faceAgainstGlass', at: 0.7 },
   ],
   deathOnWrong: 'trueForm',
   memoryHooks: [],
-  pacing: { cruiseKmh: 40, minSeconds: 130, stretch: 'none' }, // rain: the player drives slower anyway
+  pacing: { cruiseKmh: 40, minSeconds: 120, stretch: 'none' }, // rain: the player drives slower anyway
   dialogue: {
     hail: [P('รอด้วยค่ะ... ช่วยด้วย...', 'Wait for me... please...', { tone: 'ghost', action: 'hail' })],
     greet: [
@@ -49,7 +49,7 @@ export const RIDE_WOMAN_WHITE = {
     destination: [
       P('ไปโรงพยาบาลประจำจังหวัดค่ะ', 'The provincial hospital, please.'),
       C([
-        O('closed', 'โรงพยาบาลนั้นปิดไปแล้วนะครับ', 'That hospital closed down.'),
+        O('closed', 'ที่นั่นปิดไปแล้วนะครับ', 'That place closed down.'),
         O('ok', 'ได้ครับ', 'Sure.'),
         SIL(),
       ], {
@@ -61,8 +61,8 @@ export const RIDE_WOMAN_WHITE = {
             P('...ปิดแล้ว?', '...closed?', { tone: 'whisper', pause: 1.0 }),
             P('ไม่จริง แฟนฉันยังอยู่ในนั้น', "No. My boyfriend's still in there.", { emotion: 'anger' }),
           ],
-          ok: sorryLines,
-          silent: sorryLines,
+          ok: hurryLines,
+          silent: hurryLines,
         },
       }),
     ],
@@ -147,7 +147,7 @@ export const RIDE_WOMAN_WHITE = {
       },
       {
         id: 'whyNotLook',
-        trigger: { type: 'progress', at: 0.44 },
+        trigger: { type: 'progress', at: 0.47 },
         if: { flag: { trapDefused: false } },
         lines: [P('ทำไมไม่มองฉันล่ะ... คนอื่นเขาก็มองกันทั้งนั้น', "Why won't you look at me... everyone else did.", { emotion: 'anger', tone: 'ghost' })],
       },

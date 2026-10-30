@@ -10,15 +10,17 @@
 //   gazeMode: 'notLooking' (spawn only outside the view, reveal when looked at) | 'mirrorOnly' |
 //             'sideWindow' (only visible through a side window) | 'any',
 //   cooldownSec, chance (0..1 per director check, ~every 6 s while eligible; ride-scheduled ones ignore chance),
-//   durationSec: [min,max], ruleId?: 'r1'..'r10' when it is a rule event,
+//   durationSec: [min,max], ruleId?: 'r1'..'r16' when it is a rule event (DIALOGUE_EVENTS 'meter444' fires as r11 starts),
 //   creature?: creatures/ factory name, respectSoftens?: r10 respect shortens it, amuletRepels?: holding the amulet ends it,
 //   needsReflection?: only for passengers whose clues.reflection is not 'none',
 //   lines?: [Line] spoken when it starts, whispers?: [Line] random ambient whispers while it runs,
+//   countLines?: [Line] (meter444 only) the counting voice, played once the taxi has stopped,
 //   choice?: { prompt?:Line, id, options:[{key,th,en}], timeout, defaultKey },
 //   outcomes?: { key: { lines:[Line], result:'safe'|'death:<type>'|'ending:<id>'|'scare:<name>'|'escalate:<name>' } },
 //   exception?: true          this encounter is a rule's designed EXCEPTION (nothing bad happens; the rule
 //                             "should" apply but does not: monk + 444, betel juice, the father's dedication),
-//   requires?: { radioOn?: true, passengerAboard?: bool }  extra spawn gates (free drive),
+//   requires?: { radioOn?: true, passengerAboard?: bool }  extra FREE-DRIVE spawn gates (ride-scheduled
+//                             encounters ignore them, like chance/cooldown: they make it true themselves),
 //   chains?: [{ id, atSecond, if?: Condition }]  start another encounter while this one runs (444 → window knock),
 //   broadcast?: SPECIAL_BROADCASTS id whose lines this encounter plays on the radio,
 //   staging: designer notes for the director / creatures programmer,
@@ -299,7 +301,8 @@ export const ENCOUNTERS = {
     id: 'meter444', nameTH: 'มิเตอร์ ๔๔๔', nameEN: 'The Meter Shows 444', kind: 'rule', ruleId: 'r11',
     hours: [23, 29], where: ['ride:nuan', 'ride:monk', 'freeDrive'], gazeMode: 'any',
     cooldownSec: 900, chance: 0.1, durationSec: [14, 22],
-    lines: [
+    // played only once the car has STOPPED (one per second, moving window to window), then `choice`
+    countLines: [
       V('หนึ่ง...', 'One...', { tone: 'whisper' }),
       V('สอง...', 'Two...', { tone: 'whisper' }),
       V('สาม...', 'Three...', { tone: 'whisper' }),
@@ -362,7 +365,7 @@ export const ENCOUNTERS = {
       switchedOff: { lines: [S('voice', 'ปิดทำไม... พี่อยู่ข้างหลังนี่เอง', "Why switch me off... I'm right behind you.", { tone: 'whisper' })], result: 'escalate:backSeatVoice' },
       ignored: { lines: [S('voice', 'ต้น...', 'Ton...', { tone: 'whisper' })], result: 'escalate:backSeatVoice' },
     },
-    staging: "DJ Nok's cheerful voice slows and drops an octave mid-sentence and says the driver's name. Retune within RULE_PARAMS.radioNameTuneSeconds = safe (static, then an ordinary song). Switching OFF, answering, or doing nothing = the same voice continues from the back seat (escalate backSeatVoice: 'ต้น… หันมาสิ', a rule-3 test; looking back = death:lookBack). In ride 3 Uncle Piak has just asked for the radio. EXCEPTION (fatherDedication): at 03:00 on station 3 the name is said by Somchai's request — listen to the end.",
+    staging: "Free drive: only while the radio is on. Ride-scheduled (ride 3): if the radio is off it clicks on by itself (static, then DJ Nok). DJ Nok's cheerful voice slows and drops an octave mid-sentence and says the driver's name. Retune within RULE_PARAMS.radioNameTuneSeconds = safe (static, then an ordinary song). Switching OFF, answering, or doing nothing = the same voice continues from the back seat (escalate backSeatVoice: 'ต้น… หันมาสิ', a rule-3 test; looking back = death:lookBack). In ride 3 Uncle Piak has just asked for the radio. EXCEPTION (fatherDedication): at 03:00 on station 3 the name is said by Somchai's request — listen to the end.",
   },
   fatherDedication: {
     id: 'fatherDedication', nameTH: 'เพลงที่พ่อขอ', nameEN: "The Father's Request", kind: 'rule', ruleId: 'r15', exception: true,
