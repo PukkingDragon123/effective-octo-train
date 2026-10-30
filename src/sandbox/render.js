@@ -476,7 +476,7 @@ export default async function ({ engine, cameraRig, params, settings }) {
     engine.camera.add(pane);
   }
 
-  window.__render = { sky, lightPool, particles, postfx, settings, GLOBAL_UNIFORMS, lampHandles };
+  window.__render = { sky, lightPool, particles, postfx, settings, GLOBAL_UNIFORMS, lampHandles, spot };
 }
 
 function mergeGeos(geos) {

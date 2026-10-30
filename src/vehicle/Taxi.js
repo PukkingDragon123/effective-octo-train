@@ -316,13 +316,16 @@ export class Taxi {
     amount = clamp(amount, 0, 1);
     if (Math.abs(from - amount) < 1e-3) return Promise.resolve();
     const opening = amount > from;
-    const obj = door === 'trunk' ? this.anchors.trunk : this.anchors['door' + door.toUpperCase()];
+    const obj = this._doorAnchor(door);
     if (opening) audio.play(door === 'trunk' ? 'door_open' : 'door_open', { object: obj });
     const tw = { from, to: amount, t: 0, dur: Math.max(0.05, duration) };
     this.controls.doorTweens[door] = tw;
     return new Promise((res) => {
       tw.resolve = res;
     });
+  }
+  _doorAnchor(door) {
+    return door === 'trunk' ? this.anchors.trunk : door === 'hood' ? this.anchors.hood : this.anchors['door' + door.toUpperCase()] || this.root;
   }
   /** Which glass/mirror the player is currently looking through. */
   getGazeTarget() {
@@ -495,7 +498,7 @@ export class Taxi {
       s.doors[id] = lerp(tw.from, tw.to, k);
       if (k >= 1) {
         delete this.controls.doorTweens[id];
-        if (tw.to < tw.from && tw.to < 0.02) audio.play(id === 'trunk' ? 'door_close' : 'door_close', { object: id === 'trunk' ? this.anchors.trunk : this.anchors['door' + id.toUpperCase()] });
+        if (tw.to < tw.from && tw.to < 0.02) audio.play('door_close', { object: this._doorAnchor(id) });
         bus.emit('taxi:door', { door: id, open: tw.to });
         this.controls.refreshLabel();
         tw.resolve?.();

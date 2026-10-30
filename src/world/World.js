@@ -11,6 +11,7 @@ import { W } from './constants.js';
 import { settings } from '../core/Settings.js';
 import { tex } from '../textures/index.js';
 import { sampleTextureRed } from './shaderUtil.js';
+import { Ambience } from './Ambience.js';
 
 export { RoadSpline, RoadNetwork };
 
@@ -150,6 +151,8 @@ export class World {
       lap('props');
     }
     this.group.updateMatrixWorld(true);
+    // foliage particles (falling leaves, gusts, spores, fireflies, moths); world.ambience.setEnabled(false) to mute
+    if (opts.ambience !== false) this.ambience = new Ambience(this);
 
     this._settingsOff = settings.onChange(({ key }) => {
       if (key === 'foliageDensity' || key === 'graphicsPreset' || key === '*') this.setDensity(settings.get('foliageDensity') ?? 1);
@@ -231,6 +234,7 @@ export class World {
     if (this.waterMaterial?.userData.flow) this.waterMaterial.userData.flow.offset.y -= dt * 0.12;
     if (this.forest) this.forest.update(dt, focus);
     if (this.placement) this.placement.update(dt, focus);
+    if (this.ambience) this.ambience.update(dt, focus);
   }
 
   /** Foliage density multiplier (settings.foliageDensity). */
@@ -241,6 +245,7 @@ export class World {
 
   dispose() {
     this._settingsOff?.();
+    this.ambience?.dispose();
     this.placement?.dispose?.();
     this.forest?.dispose?.();
     this.group.traverse((o) => {

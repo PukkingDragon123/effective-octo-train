@@ -442,29 +442,58 @@ export class Terrain {
     const attr = { e: 0, pad: 0, wet: 0, ditch: 0, cut: 0 };
     let done = 0;
     let lastYield = performance.now();
+    this._buildFeatureMask();
     for (const [tx, tz] of keys) {
       const nv = n + 1;
       const ap = nv + 2; // apron for normals
       const H = new Float32Array(ap * ap);
+      const AE = new Float32Array(ap * ap * 4); // attributes per apron vertex (e, pad, wet, cut)
       const A = new Uint8Array(nv * nv * 4);
       const inside = new Uint8Array(nv * nv);
+      const sample = (i, j) => {
+        const x = tx + (i - 1) * res, z = tz + (j - 1) * res;
+        const k = j * ap + i;
+        H[k] = this.heightRaw(x, z, attr);
+        AE[k * 4] = attr.e;
+        AE[k * 4 + 1] = attr.pad;
+        AE[k * 4 + 2] = attr.wet;
+        AE[k * 4 + 3] = attr.cut;
+      };
+      // pass 1: every 2nd vertex exactly; pass 2: exact near roads / pads / water, else
+      // bilinear from pass 1 (the far field is smooth hills: no visible difference, ~3x faster)
+      for (let j = 0; j < ap; j += 2) for (let i = 0; i < ap; i += 2) sample(i, j);
       for (let j = 0; j < ap; j++) {
         for (let i = 0; i < ap; i++) {
+          if (!(i & 1) && !(j & 1)) continue;
           const x = tx + (i - 1) * res, z = tz + (j - 1) * res;
-          const core = i >= 1 && j >= 1 && i <= nv && j <= nv;
-          H[j * ap + i] = this.heightRaw(x, z, core ? attr : null);
-          if (core) {
-            const k = (j - 1) * nv + (i - 1);
-            A[k * 4] = Math.round(clamp(attr.e / 30, 0, 1) * 255);
-            A[k * 4 + 1] = Math.round(clamp(attr.pad, 0, 1) * 255);
-            A[k * 4 + 2] = Math.round(clamp(attr.wet, 0, 1) * 255);
-            A[k * 4 + 3] = Math.round(clamp(attr.cut * 0.5 + 0.5, 0, 1) * 255);
-            inside[k] = this._coarseDist(x, z) < W.corridor + 6 ? 1 : 0;
+          const i0 = i & ~1, j0 = j & ~1;
+          const i1 = Math.min(ap - 1, i0 + 2), j1 = Math.min(ap - 1, j0 + 2);
+          if (this._needsExact(x, z) || ((i & 1) && i1 === i0) || ((j & 1) && j1 === j0)) {
+            sample(i, j);
+            continue;
           }
+          const fx = (i - i0) / 2, fz = (j - j0) / 2;
+          const k00 = j0 * ap + i0, k10 = j0 * ap + i1, k01 = j1 * ap + i0, k11 = j1 * ap + i1;
+          const w00 = (1 - fx) * (1 - fz), w10 = fx * (1 - fz), w01 = (1 - fx) * fz, w11 = fx * fz;
+          const k = j * ap + i;
+          H[k] = H[k00] * w00 + H[k10] * w10 + H[k01] * w01 + H[k11] * w11;
+          for (let c = 0; c < 4; c++) AE[k * 4 + c] = AE[k00 * 4 + c] * w00 + AE[k10 * 4 + c] * w10 + AE[k01 * 4 + c] * w01 + AE[k11 * 4 + c] * w11;
         }
         if (performance.now() - lastYield > 40) {
           await new Promise((r) => setTimeout(r, 0));
           lastYield = performance.now();
+        }
+      }
+      for (let j = 1; j <= nv; j++) {
+        for (let i = 1; i <= nv; i++) {
+          const x = tx + (i - 1) * res, z = tz + (j - 1) * res;
+          const ka = (j * ap + i) * 4;
+          const k = (j - 1) * nv + (i - 1);
+          A[k * 4] = Math.round(clamp(AE[ka] / 30, 0, 1) * 255);
+          A[k * 4 + 1] = Math.round(clamp(AE[ka + 1], 0, 1) * 255);
+          A[k * 4 + 2] = Math.round(clamp(AE[ka + 2], 0, 1) * 255);
+          A[k * 4 + 3] = Math.round(clamp(AE[ka + 3] * 0.5 + 0.5, 0, 1) * 255);
+          inside[k] = this._coarseDist(x, z) < W.corridor + 6 ? 1 : 0;
         }
       }
       const tile = this._makeTile(tx, tz, nv, ap, H, A, inside, res);
@@ -475,6 +504,28 @@ export class Terrain {
       done++;
       onProgress?.(done / keys.length);
     }
+  }
+
+  /** Coarse-grid mask of cells that need exact terrain samples (pads, creek, ponds, authored mods). */
+  _buildFeatureMask() {
+    const nx = this.cnx, nz = this.cnz;
+    const m = (this._fmask = new Uint8Array(nx * nz));
+    const stamp = (x, z, r) => {
+      const i0 = Math.max(0, Math.floor((x - r - this.minx) / COARSE)), i1 = Math.min(nx - 1, Math.ceil((x + r - this.minx) / COARSE));
+      const j0 = Math.max(0, Math.floor((z - r - this.minz) / COARSE)), j1 = Math.min(nz - 1, Math.ceil((z + r - this.minz) / COARSE));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) m[j * nx + i] = 1;
+    };
+    for (const p of this.pads) stamp(p.x, p.z, p.r + 3);
+    for (const p of this.ponds) stamp(p.x, p.z, p.r + 8);
+    for (const md of this.mods) stamp(md.x, md.z, md.r * 0.35);
+    if (this.creek) for (const p of this.creek.spline.points) stamp(p.x, p.z, 20);
+  }
+
+  _needsExact(x, z) {
+    if (this._coarseDist(x, z) < 34) return true;
+    const i = Math.round((x - this.minx) / COARSE), j = Math.round((z - this.minz) / COARSE);
+    if (i < 0 || j < 0 || i >= this.cnx || j >= this.cnz) return false;
+    return this._fmask[j * this.cnx + i] === 1;
   }
 
   _tileKey(tx, tz) {

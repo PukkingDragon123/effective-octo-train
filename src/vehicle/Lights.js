@@ -88,9 +88,12 @@ export class TaxiLights {
     this.lenses = lenses;
     this.parts = interiorParts;
     // --- headlight spot ----------------------------------------------------------------------
+    // positions follow the anchors (overridden by the GLB's empties / light nodes)
+    const hl = taxi.anchorLocal('headlightL'), hr = taxi.anchorLocal('headlightR');
+    const tl = taxi.anchorLocal('taillightL'), tr = taxi.anchorLocal('taillightR');
     const spot = new THREE.SpotLight(0xffe6c0, 0, 70, 0.5, 0.55, 1.35);
-    spot.position.set(0, 0.62, -2.32);
-    spot.target.position.set(0, 0.0, -16);
+    spot.position.set((hl.x + hr.x) / 2, (hl.y + hr.y) / 2 + 0.025, Math.min(hl.z, hr.z) - 0.12);
+    spot.target.position.set(spot.position.x, 0.0, spot.position.z - 13.7);
     body.add(spot, spot.target);
     const shadows = !!settings.get('shadows') && ['high', 'ultra'].includes(settings.get('graphicsPreset'));
     spot.castShadow = shadows;
@@ -106,11 +109,11 @@ export class TaxiLights {
     // --- volumetric beams --------------------------------------------------------------------
     this.beams = [];
     const make = (len, ang) => (typeof R.createVolumetricBeam === 'function' ? R.createVolumetricBeam({ color: 0xffe2b8, length: len, angle: ang, intensity: 0, noise: 0.85 }) : fallbackBeam(len, ang, 0xffe2b8));
-    for (const sx of [-1, 1]) {
+    for (const hp of [hl, hr]) {
       const low = make(15, 0.3);
       const high = make(28, 0.2);
       for (const b of [low, high]) {
-        b.position.set(sx * 0.515, 0.595, -2.22);
+        b.position.set(hp.x, hp.y, hp.z - 0.02);
         b.castShadow = false;
         b.receiveShadow = false;
         b.userData.setIntensity?.(0);
@@ -124,13 +127,13 @@ export class TaxiLights {
     // --- taillight road glow -----------------------------------------------------------------
     const poolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color: 0xff2010, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.2).rotateX(-Math.PI / 2), poolMat);
-    pool.position.set(0, 0.03, 2.9);
+    pool.position.set((tl.x + tr.x) / 2, 0.03, Math.max(tl.z, tr.z) + 0.72);
     pool.renderOrder = 2;
     taxi.chassis.add(pool);
     this.tailPool = pool;
     const headPoolMat = new THREE.MeshBasicMaterial({ map: poolTexture(), color: 0xffd8a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
     const hp = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 5).rotateX(-Math.PI / 2), headPoolMat);
-    hp.position.set(0, 0.035, -4.6);
+    hp.position.set(spot.position.x, 0.035, spot.position.z - 2.3);
     taxi.chassis.add(hp);
     this.headPool = hp;
     // --- contact shadow: soft ground occlusion under the body and each tyre (night scenes
@@ -150,12 +153,13 @@ export class TaxiLights {
     this.contactShadow = ao;
     // --- dome + dash glow ----------------------------------------------------------------------
     const dome = new THREE.PointLight(0xffd59a, 0, 3.2, 2);
-    dome.position.set(0, 1.3, 0.25);
+    dome.position.copy(taxi.anchorLocal('cabinLight')).add(new THREE.Vector3(0, -0.04, 0));
     body.add(dome);
     this.dome = dome;
     // instrument backlight spilling onto the wheel rim, the driver's hands and chest
     const dash = new THREE.PointLight(0x9cf0c0, 0, 1.25, 2);
-    dash.position.set(0.37, 0.93, -0.64); // under the binnacle hood, above the column shroud
+    // under the binnacle hood, above the column shroud
+    dash.position.copy(taxi.anchorLocal('steeringWheel')).add(new THREE.Vector3(0, 0.09, -0.38));
     body.add(dash);
     this.dash = dash;
     // night-adapted eyes: a very faint cool fill that only exists while the camera is in the
