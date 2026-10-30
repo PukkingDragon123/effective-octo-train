@@ -294,20 +294,24 @@ class Interior:
             ring = lathe(f'{nm}_ring', prof, segments=48, mat=mat('plastic_dash'))
             ring.data.transform(M @ Matrix.Translation((gx, gy, 0.0)))
             parts.append(ring)
-            face = quad(f'gauge_{nm}_face', (0, 0, 0), (1, 0, 0), (0, 1, 0), 2 * r, 2 * r, 'emissive_gauge')
+            # square face quad (0..1 UV, u to the driver's right), dial centre = quad centre; the
+            # game paints it with VT.gaugeTex (dial radius 0.47 of the quad)
+            face = quad(f'gauge_{nm}', (0, 0, 0), (1, 0, 0), (0, 1, 0), 2 * r, 2 * r, 'emissive_gauge')
             face.data.transform(M @ Matrix.Translation((gx, gy, -0.0055)))
             self.objs[face.name] = face
             needle = self.needle(f'needle_{"speedo" if nm == "speedo" else "tacho"}', r * 0.88)
             piv = M @ Vector((gx, gy, -0.002))
-            needle.data.transform(M.to_3x3().to_4x4())
+            # rest pose = the zero mark of gaugeTex (7:30 o'clock), sweeping clockwise
+            needle.data.transform(M.to_3x3().to_4x4() @ Matrix.Rotation(math.radians(135), 4, 'Z'))
             needle.data.transform(Matrix.Translation(piv))
             self.objs[needle.name] = needle
             self.pivots[needle.name] = (piv, tuple(-nrm), (0, 270), 'needle')
         # small gauges (fuel above, temp below) on one face quad, right of the speedo
         sx = 0.172
-        sface = quad('gauge_small_face', (0, 0, 0), (1, 0, 0), (0, 1, 0), 0.052, 0.104, 'emissive_gauge')
-        sface.data.transform(M @ Matrix.Translation((sx, 0.0, -0.004)))
-        self.objs['gauge_small_face'] = sface
+        for nm, gy in (('gauge_fuel', 0.026), ('gauge_temp', -0.026)):
+            sface = quad(nm, (0, 0, 0), (1, 0, 0), (0, 1, 0), 0.052, 0.052, 'emissive_gauge')
+            sface.data.transform(M @ Matrix.Translation((sx, gy, -0.004)))
+            self.objs[nm] = sface
         sb = extrude_outline('small_bez', rounded_rect_2d(-0.03, -0.056, 0.03, 0.056, 0.012, 4), -0.003, 0.006,
                              plane='XY')
         bm = bmesh.new()
@@ -319,9 +323,10 @@ class Interior:
         assign_mat(sb, 'plastic_dash')
         parts.append(sb)
         for nm, gy in (('needle_fuel', 0.026), ('needle_temp', -0.026)):
-            nd = self.needle(nm, 0.019, w=0.0022)
-            piv = M @ Vector((sx - 0.012, gy, -0.002))
-            nd.data.transform(M.to_3x3().to_4x4())
+            nd = self.needle(nm, 0.021, w=0.0022)
+            piv = M @ Vector((sx, gy, -0.002))
+            # rest pose = E / C mark of gaugeTex (left, slightly below centre), sweeping clockwise
+            nd.data.transform(M.to_3x3().to_4x4() @ Matrix.Rotation(math.radians(126), 4, 'Z'))
             nd.data.transform(Matrix.Translation(piv))
             self.objs[nm] = nd
             self.pivots[nm] = (piv, tuple(-nrm), (0, 90), 'needle')
@@ -678,6 +683,31 @@ class Interior:
     @staticmethod
     def _bead_proto():
         verts = []
+        # dome bead (the lower half sits in the cover's cord mesh and is never seen): 3 rings of 8
+        segs = 8
+        r = 0.0098
+        rings_z = [(-0.35, 0.94), (0.30, 0.95), (0.78, 0.62)]
+        for zf, rf in rings_z:
+            for j in range(segs):
+                th = 2 * math.pi * (j + 0.5 * (zf > 0.5)) / segs
+                verts.append((r * rf * math.cos(th), r * rf * math.sin(th), r * zf))
+        verts.append((0, 0, r))
+        faces = []
+        for i in range(len(rings_z) - 1):
+            for j in range(segs):
+                a = i * segs + j
+                b = i * segs + (j + 1) % segs
+                faces.append((a, b, b + segs, a + segs))
+        top = len(verts) - 1
+        for j in range(segs):
+            faces.append(((len(rings_z) - 1) * segs + j, (len(rings_z) - 1) * segs + (j + 1) % segs, top))
+        ob = new_mesh_obj('bead', verts, faces, smooth=True)
+        recalc_normals(ob)
+        return ob
+
+    @staticmethod
+    def _bead_proto_full():
+        verts = []
         rings, segs = 4, 7
         r = 0.0098
         verts.append((0, 0, -r))
@@ -832,10 +862,13 @@ class Interior:
         dl = extrude_outline('dome', rounded_rect_2d(-0.065, -0.30, 0.065, -0.20, 0.012, 4), dz - 0.012, dz, plane='XY')
         add_bevel(dl, 0.003, 2, angle=30)
         apply_modifiers(dl)
-        assign_mat(dl, 'lens_clear')
+        assign_mat(dl, 'emissive_gauge')
+        planar_uv(dl, (1, 0, 0), (0, 1, 0))
         dlb = extrude_outline('domeb', rounded_rect_2d(-0.075, -0.31, 0.075, -0.19, 0.015, 4), dz - 0.006, dz + 0.002,
                               plane='XY', mat=mat('plastic_dash'))
-        self.objs['dome_light'] = join([dlb, dl], name='dome_light')
+        # lens = contract node 'dome_light' (the game skins it with the emissive dome material)
+        self.objs['dome_light'] = dl
+        self.objs['dome_base'] = dlb
         self.anchor['cabinLight'] = (0.0, -0.25, dz - 0.014)
         # pillar trims (A, B, C) as rounded strips
         parts = []
