@@ -71,7 +71,7 @@ def rotate_sprite(rgba, nrm, deg, scale=1.0):
 
 
 def extract(src, min_area=1500, max_n=40, solidity=0.55, max_aspect=9.0, petiole_flip=True, keep_border=False,
-            orient='auto'):
+            orient='auto', taper=False, max_width_ratio=None):
     """Cut leaves (connected alpha components) out of a scan atlas; return canonical Sprites (tip up)."""
     cn, an, nn = _maps_for(src)
     col = load(src, cn)
@@ -105,10 +105,13 @@ def extract(src, min_area=1500, max_n=40, solidity=0.55, max_aspect=9.0, petiole
         y0, y1, x0, x1 = max(0, y - pad), min(H, y + h + pad), max(0, x - pad), min(W, x + w + pad)
         mask = (lab[y0:y1, x0:x1] == i).astype(np.float32)
         mask = np.maximum(mask, 0) * a[y0:y1, x0:x1]
+        mask *= sstep(0.025, 0.07, lum(col[y0:y1, x0:x1]))  # drop black UV junk inside the island
         # soften the hard component cut by the scan's own alpha only
         rgba = np.concatenate([col[y0:y1, x0:x1], mask[..., None]], -1)
         nr = nrm[y0:y1, x0:x1]
         ys, xs = np.nonzero(mask > 0.5)
+        if len(xs) < max(50, min_area * 0.5):
+            continue
         pts = np.stack([xs, ys], 1).astype(np.float64)
         c = pts.mean(0)
         evals, evecs = np.linalg.eigh(np.cov((pts - c).T))
@@ -126,6 +129,15 @@ def extract(src, min_area=1500, max_n=40, solidity=0.55, max_aspect=9.0, petiole
         fill = am.mean()
         if fill > 0.86 or lum(r2[..., :3])[am].mean() < 0.05:
             continue  # rectangles (stem/bark UV strips) and black junk islands
+        rows = am.sum(1)
+        nz = np.nonzero(rows)[0]
+        if taper and len(nz) > 10:
+            k = max(2, len(nz) // 10)
+            ends = min(rows[nz[:k]].mean(), rows[nz[-k:]].mean())
+            if ends > rows.max() * 0.45 or rows[nz[:k]].mean() > rows.max() * 0.7 and rows[nz[-k:]].mean() > rows.max() * 0.7:
+                continue  # constant-width strip, not a leaf
+        if max_width_ratio and rows.max() / max(1, len(nz)) > max_width_ratio:
+            continue
         out.append(Sprite(r2, n2, f'{src}#{i}'))
         if len(out) >= max_n:
             break
@@ -278,8 +290,24 @@ class Card:
 _LIB = {}
 
 
+def squeeze(sps, sx):
+    out = []
+    for s in sps:
+        h, w = s.rgba.shape[:2]
+        nw = max(4, int(w * sx))
+        r = cv2.resize(s.rgba, (nw, h), interpolation=cv2.INTER_AREA)
+        n = cv2.resize(s.nrm, (nw, h), interpolation=cv2.INTER_AREA)
+        n[..., 0] /= max(sx, 0.2)
+        n /= np.linalg.norm(n, axis=2, keepdims=True) + 1e-6
+        out.append(Sprite(r, n, s.name + '~'))
+    return out
+
+
 def lib(name):
     if name in _LIB:
+        return _LIB[name]
+    if name == 'leaflet':
+        _LIB[name] = lib('narrow') + squeeze(lib('lance'), 0.4) + squeeze(lib('elong'), 0.35)
         return _LIB[name]
     spec = {
         'small': ('acg_LeafSet024', dict(min_area=3000)),
@@ -294,7 +322,7 @@ def lib(name):
         'tropical': ('ph_anthurium_botany_01', dict(min_area=8000)),
         'island': ('ph_island_tree_02', dict(min_area=4000)),
         'shrub': ('ph_shrub_04', dict(min_area=1200)),
-        'narrow': ('ph_shrub_02', dict(min_area=1500, max_aspect=14)),
+        'narrow': ('ph_shrub_02', dict(min_area=1500, max_aspect=14, taper=True, max_width_ratio=0.3)),
         'arrow': ('ph_potted_plant_02', dict(min_area=20000, solidity=0.5, flip=True)),
         'round': ('ph_calathea_orbifolia_01', dict(min_area=20000)),
         'palmate': ('ph_pachira_aquatica_01', dict(min_area=20000, solidity=0.35)),
@@ -302,7 +330,8 @@ def lib(name):
         'bipinnate': ('ph_jacaranda_tree', dict(min_area=8000, solidity=0.1, max_aspect=20, petiole_flip=False)),
         'blade': ('acg_Foliage001', dict(min_area=1500, solidity=0.2, max_aspect=200, petiole_flip=False)),
         'strand': ('acg_Foliage006', dict(min_area=800, solidity=0.1, max_aspect=200, petiole_flip=False)),
-        'seed': ('acg_Foliage002', dict(min_area=800, solidity=0.05, max_aspect=200, petiole_flip=False)),
+        'seed': ('acg_Foliage002', dict(min_area=800, solidity=0.05, max_aspect=200, petiole_flip=False,
+                                        max_width_ratio=0.16)),
         'stick': ('acg_StickSet001', dict(min_area=1500, solidity=0.1, max_aspect=60, petiole_flip=False)),
     }[name]
     opts = dict(spec[1])
@@ -386,9 +415,12 @@ def comp_cluster(card, rng, leaves, n, size, base=None, spread=0.42, twigs=6, da
         ex = W / 2 + math.cos(a) * d * 0.95
         ey = H * cy - math.sin(a) * d * 0.85 + H * 0.05
         ends.append((ex, ey, min(W, H) * (0.1 + rng.random() * 0.07)))
+    fork = (bx + (rng.random() - 0.5) * W * 0.04, by - H * (0.16 + rng.random() * 0.1))
+    card.stroke([(bx, by), ((bx + fork[0]) / 2, (by + fork[1]) / 2), fork], min(W, H) * 0.02, min(W, H) * 0.014, col_fn)
     for ex, ey, r in ends:
-        mx, my = (bx + ex) / 2 + (rng.random() - 0.5) * W * 0.12, (by + ey) / 2 + (rng.random() - 0.5) * H * 0.06
-        pts = [(bx + (rng.random() - 0.5) * W * 0.03, by)]
+        sx, sy = fork
+        mx, my = (sx + ex) / 2 + (rng.random() - 0.5) * W * 0.12, (sy + ey) / 2 + (rng.random() - 0.5) * H * 0.06
+        pts = [(sx + (rng.random() - 0.5) * W * 0.02, sy)]
         for t in np.linspace(0.2, 1, 6):
             qx = (1 - t) ** 2 * pts[0][0] + 2 * (1 - t) * t * mx + t * t * ex
             qy = (1 - t) ** 2 * pts[0][1] + 2 * (1 - t) * t * my + t * t * ey
@@ -420,8 +452,10 @@ def comp_cluster(card, rng, leaves, n, size, base=None, spread=0.42, twigs=6, da
         card.stamp(sp, (px, py), tip, L, tint=tint, value=v, sat=sat, flip=rng.random() < 0.5)
 
 
-def comp_single(card, rng, sp, base, tip, sat=0.8, value=1.0, tint=None):
+def comp_single(card, rng, sp, base, tip, sat=0.8, value=1.0, tint=None, max_w=None):
     L = math.hypot(tip[0] - base[0], tip[1] - base[1])
+    if max_w and sp.width / sp.length * L > max_w:
+        L = max_w * sp.length / sp.width
     ang = math.degrees(math.atan2(-(tip[1] - base[1]), tip[0] - base[0]))
     card.stamp(sp, base, ang, L, tint=tint, value=value, sat=sat)
 
@@ -485,11 +519,11 @@ def comp_grass(card, rng, blades, seeds, n=120, tall=True, wrap=True):
         tint, v = leaf_tint(rng, depth * 0.8 + 0.1, autumn=0.12)
         card.stamp(sp, (x, H - 2), 90 + lean, h, tint=tint, value=v, sat=0.7, flip=rng.random() < 0.5)
     if tall and seeds:
-        for i in range(n // 7):
+        for i in range(n // 9):
             x = rng.random() * W
             sp = seeds[rng.integers(len(seeds))]
-            card.stamp(sp, (x, H - 2), 90 + (rng.random() - 0.5) * 30, H * (0.7 + rng.random() * 0.28),
-                       tint=np.array([1.15, 1.05, 0.85]), value=0.85, sat=0.4)
+            card.stamp(sp, (x, H - 2), 90 + (rng.random() - 0.5) * 24, H * (0.6 + rng.random() * 0.3),
+                       tint=np.array([1.1, 1.05, 0.9]), value=0.8, sat=0.45)
 
 
 def comp_vine(card, rng, leaves, n_strands=10, leafy=True, wrap=True):
@@ -526,96 +560,117 @@ _LAMINA = {}
 
 
 def lamina(dead=False):
-    """Rectified banana lamina patch (veins horizontal), tileable vertically by mirroring."""
+    """Banana lamina photo patch rectified so the veins run horizontally (along x), with the low
+    frequencies flattened (only vein / blotch detail is kept). Mirror-tiled vertically."""
     key = 'dead' if dead else 'fresh'
     if key in _LAMINA:
         return _LAMINA[key]
-    if dead:
-        img = load('wm_banana_plant_garden', 'photo')
-        patch = img[760:1400, 200:390]  # dried leaves hanging on the pseudostem
-        patch = cv2.resize(patch, (patch.shape[1], patch.shape[0]))
-        ang = 90.0
-    else:
-        img = load('wm_banana_plant_garden', 'photo')
-        patch = img[1180:1500, 900:1270]
-        from pbcore import flow_angle
-        fa = flow_angle(patch, 10)
-        c = np.cos(2 * fa).mean(), np.sin(2 * fa).mean()
-        ang = math.degrees(0.5 * math.atan2(c[1], c[0]))
+    from pbcore import flow_angle
+    img = load('wm_banana_plant_garden', 'photo')
+    patch = img[760:1400, 190:400] if dead else img[1170:1520, 880:1275]
+    fa = flow_angle(patch, 12)
+    c2, s2 = np.cos(2 * fa).mean(), np.sin(2 * fa).mean()
+    ang = math.degrees(0.5 * math.atan2(s2, c2))  # dominant vein direction (image space, y down)
     h, w = patch.shape[:2]
-    M = cv2.getRotationMatrix2D((w / 2, h / 2), -ang if not dead else 0, 1.0)
+    M = cv2.getRotationMatrix2D((w / 2, h / 2), ang, 1.0)
     rot = cv2.warpAffine(patch, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-    cy, cx = h // 2, w // 2
-    s = int(min(h, w) * 0.42)
-    crop = rot[cy - s:cy + s, cx - s:cx + s] if not dead else rot[:, :]
-    # flatten lighting (keep vein detail), then mirror-tile vertically
-    low = cv2.GaussianBlur(crop, (0, 0), 18)
-    flat = np.clip(crop / np.maximum(low, 0.05) * low.reshape(-1, 3).mean(0), 0, 1)
-    tile = np.concatenate([flat, flat[::-1]], 0)
-    _LAMINA[key] = tile
-    return tile
+    s_ = int(min(h, w) * 0.34)
+    crop = rot[h // 2 - s_:h // 2 + s_, w // 2 - s_:w // 2 + s_]
+    low = cv2.GaussianBlur(crop, (0, 0), 10)
+    detail = crop / np.maximum(low, 0.04)
+    tile = np.concatenate([detail, detail[::-1]], 0)
+    tile = np.concatenate([tile, tile[:, ::-1]], 1)
+    _LAMINA[key] = tile.astype(np.float32)
+    return _LAMINA[key]
 
 
 def comp_banana(card, rng, dead=False, torn=0.35, frame=None):
-    """Blade with midrib along the card's vertical centre (base at bottom), lamina strips torn along
-    the veins; photo lamina mapped across, painted dry edges and midrib."""
+    """Banana blade: midrib vertical through the frame centre (base at the bottom). Veins leave the
+    midrib almost square, rising slightly toward the tip; the blade tears into ribbons ALONG the
+    veins (wedge slits opening toward the margin), some ribbons broken off with dry ragged ends.
+    The lamina is a vein-aligned real photo; colour, slits, midrib and dry edges are painted."""
     W, H = card.w, card.h
     x0, y0, x1, y1 = frame or (0, 0, W, H)
     cw, chh = x1 - x0, y1 - y0
     cx = x0 + cw / 2
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    t = (y1 - yy) / chh  # 0 base .. 1 tip
+    tc = np.clip(t, 0, 1)
+    dx = np.abs(xx - cx)
+    side = (xx > cx).astype(np.int32)
+    # oblong blade, blunt tip, tapering base
+    hw = cw * 0.47 * np.sqrt(np.clip(1 - np.abs(2 * tc - 1) ** 7, 0, 1)) * (0.55 + 0.45 * sstep(0.0, 0.25, tc))
+    if dead:
+        hw *= 0.85
+    wav = (fbm((W, H), (3, 14), 3, int(rng.integers(1e6))) - 0.5) * cw * 0.03
+    margin = hw + wav
+    # vein coordinate: constant along a vein (veins rise ~16 deg toward the tip)
+    rise = 0.28
+    vy = t * chh + dx * rise  # along-blade position where this vein meets the midrib
+    inside = (dx < margin) & (t > 0) & (t < 1)
+    # slits along veins: wedge gaps opening toward the margin
+    nsl = int((8 + 26 * torn) * (1.3 if dead else 1.0))
+    gap = np.zeros((H, W), bool)
+    broken = np.zeros((H, W), np.float32)
+    for sd in (0, 1):
+        pos = np.sort(rng.random(nsl)) * chh * 0.96 + chh * 0.02
+        for k, p in enumerate(pos):
+            d0 = cw * 0.47 * (0.04 + rng.random() * (0.65 if torn < 0.5 else 0.45))
+            gw = 1.0 + rng.random() * 2.5 + (dx - d0) / max(cw, 1) * (6 + torn * 18)
+            m = (side == sd) & (dx > d0) & (np.abs(vy - p) < gw)
+            gap |= m
+            # broken ribbon: between this slit and the next, the outer part is missing
+            if k + 1 < len(pos) and rng.random() < torn * (0.6 if not dead else 0.9):
+                cut = cw * 0.47 * (0.3 + rng.random() * 0.55)
+                rag = (fbm((W, H), 30, 3, int(rng.integers(1e6))) - 0.5) * cw * 0.05
+                seg = (side == sd) & (vy > p) & (vy < pos[k + 1])
+                broken = np.maximum(broken, (seg & (dx > cut + rag)).astype(np.float32))
+                # dry fringe just inside the broken end
+                broken = np.maximum(broken, (seg & (dx > cut + rag - cw * 0.03) & (dx <= cut + rag)) * 0.5)
+    alive = inside & ~gap & (broken < 1)
+    alpha = alive.astype(np.float32)
+    alpha = cv2.GaussianBlur(alpha, (0, 0), 0.55)
+    # --- lamina: vein-aligned photo detail (x = across the vein = along the blade)
     lam = lamina(dead)
     lh, lw = lam.shape[:2]
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    t = np.clip((y1 - yy) / chh, 0, 1)  # 0 at base, 1 at tip
-    half = cw * 0.47 * np.sin(np.clip(t * 1.02 + 0.03, 0, 1) * math.pi) ** 0.55
-    side = np.sign(xx - cx)
-    dx = np.abs(xx - cx)
-    # tears: strips along the veins (veins run from midrib outward, slightly toward the tip)
-    nstrip = 34
-    phase = (t * nstrip + dx / max(cw, 1) * 2.5)  # slanted veins
-    sid = np.floor(phase).astype(np.int32)
-    tear_len = rng.random((nstrip + 8, 2)).astype(np.float32)
-    tear_on = (rng.random((nstrip + 8, 2)) < torn).astype(np.float32)
-    si = np.clip(sid, 0, nstrip + 7)
-    sd = (side > 0).astype(np.int32)
-    cut = tear_on[si, sd] * (0.25 + 0.7 * tear_len[si, sd])  # fraction of half-width missing
-    reach = half * (1 - cut)
-    frac = phase - sid
-    gap = (tear_on[si, sd] > 0) & ((frac < 0.06) | (frac > 0.94)) & (dx > half * 0.08)
-    inside = (dx < reach) & (dx < half) & ~gap & (t > 0.0) & (t < 1.0)
-    # ragged margin
-    edge_n = fbm((W, H), 60, 3, int(rng.integers(1e6))) * 0.04 * cw
-    inside &= dx < (reach - edge_n + cw * 0.02)
-    alpha = inside.astype(np.float32)
-    alpha = cv2.GaussianBlur(alpha, (0, 0), 0.6)
-    # lamina photo: u across (distance from midrib), v along the blade (repeat)
-    lu = np.clip(dx / max(cw * 0.47, 1), 0, 0.999) * (lw - 1)
-    lv = ((t * chh * 1.6 + (xx < cx) * lh * 0.37) % lh)
-    col = cv2.remap(lam, lu.astype(np.float32), lv.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
-    # mirror slant of veins on the left half via remap already symmetric in dx
-    tint = hex2rgb('#cfe0a8') if not dead else hex2rgb('#e4c79a')
-    col = saturate(col, 0.75 if not dead else 0.55) * tint * (1.05 if not dead else 1.1)
-    # dry brown margins & tear edges
-    edge_dist = np.clip((reach - dx) / max(cw * 0.06, 1), 0, 1)
-    dry = (1 - edge_dist) * (0.55 if not dead else 0.3) * sstep(0.3, 0.7, fbm((W, H), 8, 3, 33))
-    col = col * (1 - dry[..., None]) + hex2rgb('#6b5434') * (0.7 + 0.3 * col) * dry[..., None]
-    # light along the length, darker toward the base & tip
-    col = col * (0.8 + 0.3 * np.sin(t * math.pi))[..., None]
-    # midrib
-    mr = sstep(cw * 0.022, cw * 0.008, dx) * (t < 0.995)
-    mid_col = hex2rgb('#c9d29a') if not dead else hex2rgb('#b49a6a')
-    col = col * (1 - mr[..., None]) + mid_col * (0.85 + 0.15 * t[..., None]) * mr[..., None]
-    alpha = np.maximum(alpha, (sstep(cw * 0.022, cw * 0.012, dx) * (t < 0.99)).astype(np.float32))
-    # normals: midrib ridge + vein corrugation
-    hgt = mr * 0.8 + np.sin(phase * math.pi * 2 * 4) * 0.08
-    nrm = normal_from_height(hgt.astype(np.float32), 6, wrap=False)
-    rgba = np.concatenate([np.clip(col, 0, 1), alpha[..., None]], -1)
-    card.over(rgba.astype(np.float32), nrm, 0, 0)
+    scale = 1.25 if not dead else 1.6
+    u = (vy * scale) % lw
+    v = (dx * scale + side * lh * 0.37) % lh
+    det = cv2.remap(lam, u.astype(np.float32), v.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
+    det = np.clip(det, 0.4, 1.8)
+    if not dead:
+        base = hex2rgb('#5d7a34') * (0.85 + 0.3 * fbm((W, H), (2, 5), 3, 41)[..., None])
+        base = base * (0.9 + 0.25 * sstep(0.0, 0.5, dx / np.maximum(hw, 1))[..., None])  # paler toward margins
+    else:
+        base = hex2rgb('#8a6a42') * (0.75 + 0.45 * fbm((W, H), (3, 8), 4, 42)[..., None])
+    col = base * (0.55 + 0.45 * saturate(det, 0.6))
+    # painted veins (fine, lighter) for the hand-made read
+    vein = sstep(0.82, 1.0, np.cos(vy / max(2.6, cw * 0.012) * math.pi * 2) * 0.5 + 0.5)
+    col = col * (1 + vein[..., None] * 0.07)
+    # dry / yellowing: margins, broken ends, random patches
+    edge = 1 - np.clip((margin - dx) / max(cw * 0.05, 1), 0, 1)
+    dry = np.clip(edge * (0.7 if not dead else 0.3) * sstep(0.25, 0.6, fbm((W, H), 10, 3, 43)) + broken * 0.9, 0, 1)
+    yellow = sstep(0.68, 0.85, fbm((W, H), (2, 6), 4, 44)) * (0.5 if not dead else 0.0)
+    col = col * (1 - yellow[..., None]) + col * hex2rgb('#f0d070') * 1.4 * yellow[..., None]
+    brown = hex2rgb('#5c4428') * (0.8 + 0.4 * fbm((W, H), 40, 3, 45)[..., None])
+    col = col * (1 - dry[..., None]) + brown * dry[..., None]
+    # value: darker toward base and tip
+    col = col * (0.72 + 0.35 * np.sin(tc * math.pi) ** 0.5)[..., None]
+    # midrib (+ petiole stub to the frame bottom)
+    mw = cw * (0.026 - 0.016 * tc)
+    mr = sstep(mw, mw * 0.55, dx) * (t < 0.985) * (yy <= y1)
+    mid_col = (hex2rgb('#b8c486') if not dead else hex2rgb('#a48a5c')) * (0.75 + 0.25 * tc[..., None])
+    mid_col = mid_col * (0.85 + 0.15 * np.cos(dx / np.maximum(mw, 1) * math.pi)[..., None])
+    col = col * (1 - mr[..., None]) + mid_col * mr[..., None]
+    alpha = np.maximum(alpha, mr.astype(np.float32))
+    # normals: midrib ridge + vein corrugation + photo micro relief
+    hgt = mr * 1.0 + np.cos(vy / max(3.0, cw * 0.02) * math.pi * 2) * 0.05 + (lum(det) - 1) * 0.08
+    nrm = normal_from_height(hgt.astype(np.float32), 5, wrap=False)
+    rgba = np.concatenate([np.clip(col, 0, 1), alpha[..., None]], -1).astype(np.float32)
+    rgba[..., :3] = np.nan_to_num(rgba[..., :3])
+    card.over(rgba, nrm, 0, 0)
 
 
-# =======================================================================================
-# Atlas builders
-# =======================================================================================
 def cell_px(uv, W, H):
     u0, v0, u1, v1 = uv
     return int(round(u0 * W)), int(round((1 - v1) * H)), int(round(u1 * W)), int(round((1 - v0) * H))
@@ -638,7 +693,7 @@ def build_contract(w, keys, S=1024):
         trop = lib('tropical')
         comp_single(c, rng, max(trop, key=lambda s: s.length), to_px([0.25, 0.51]), to_px([0.25, 0.985]), sat=0.8)
         arrow = lib('arrow')
-        comp_single(c, rng, arrow[0], to_px([0.75, 0.6]), to_px([0.75, 0.985]), sat=0.8)
+        comp_single(c, rng, arrow[0], to_px([0.75, 0.6]), to_px([0.75, 0.985]), sat=0.8, max_w=S * 0.48)
         sub = Card(S // 2, S // 2)
         comp_cluster(sub, rng, lib('island') + lib('elong'), 34, S * 0.11, twigs=5, spread=0.5)
         _blit(c, sub, 0, S // 2)
@@ -666,15 +721,15 @@ def build_contract(w, keys, S=1024):
     if not keys or 'leaf_bamboo' in keys:
         c = new()
         nar = lib('narrow')
-        _bamboo_twig(c, rng, nar, to_px([0.03, 0.55]), to_px([0.45, 0.95]), 9)
-        _bamboo_twig(c, rng, nar, to_px([0.53, 0.97]), to_px([0.95, 0.55]), 9, droop=True)
-        _bamboo_twig(c, rng, nar, to_px([0.25, 0.02]), to_px([0.25, 0.48]), 11)
-        _bamboo_twig(c, rng, nar, to_px([0.52, 0.25]), to_px([0.98, 0.25]), 6)
+        _bamboo_twig(c, rng, lib('leaflet'), to_px([0.03, 0.55]), to_px([0.45, 0.95]), 9)
+        _bamboo_twig(c, rng, lib('leaflet'), to_px([0.53, 0.97]), to_px([0.95, 0.55]), 9, droop=True)
+        _bamboo_twig(c, rng, lib('leaflet'), to_px([0.25, 0.02]), to_px([0.25, 0.48]), 11)
+        _bamboo_twig(c, rng, lib('leaflet'), to_px([0.52, 0.25]), to_px([0.98, 0.25]), 6)
         out['leaf_bamboo'] = c
     # ---- leaf_palm: frond (green), frond_dry (base at top, hanging)
     if not keys or 'leaf_palm' in keys:
         c = new()
-        nar = lib('narrow')
+        nar = lib('leaflet')
         comp_pinnate(c, rng, nar, to_px([0.25, 0.0]), to_px([0.25, 1.0]), n=46, leaf_len=0.4)
         comp_pinnate(c, rng, nar, to_px([0.75, 1.0]), to_px([0.75, 0.0]), n=40, leaf_len=0.32, dry=True,
                      spread_deg=25)
@@ -759,7 +814,7 @@ def build_world(w, keys, SIZE=2048, GRID=5):
         c = Card(S, S)
         m = 5  # margin px kept transparent
         if name == 'broadA':
-            comp_cluster(c, rng, lib('island') + lib('elong'), 120, S * 0.13, twigs=8)
+            comp_cluster(c, rng, lib('island') + lib('elong'), 170, S * 0.12, twigs=8)
         elif name == 'broadB':
             comp_cluster(c, rng, lib('tropical') + lib('broad'), 46, S * 0.24, twigs=6)
         elif name == 'rain':
@@ -771,12 +826,12 @@ def build_world(w, keys, SIZE=2048, GRID=5):
         elif name == 'fig':
             comp_cluster(c, rng, lib('pointed') + lib('small'), 170, S * 0.1, twigs=9, dark=True)
         elif name == 'bamboo':
-            _bamboo_twig(c, rng, lib('narrow'), (S / 2, S - m), (S / 2 + S * 0.05, m), 22)
+            _bamboo_twig(c, rng, lib('leaflet'), (S / 2, S - m), (S / 2 + S * 0.05, m), 22)
         elif name in ('banana', 'bananaDead'):
             comp_banana(c, rng, dead=name == 'bananaDead', torn=0.4 if name == 'banana' else 0.85,
                         frame=(m, m, S - m, S - m))
         elif name == 'palm':
-            comp_pinnate(c, rng, lib('narrow'), (S / 2, S - m), (S / 2, m), n=42, leaf_len=0.44)
+            comp_pinnate(c, rng, lib('leaflet'), (S / 2, S - m), (S / 2, m), n=42, leaf_len=0.44)
         elif name == 'fern':
             fr = sorted(lib('frond'), key=lambda s: -s.length)
             comp_frond(c, rng, fr[0], (S / 2, S - m), (S / 2, m), sat=0.75)
@@ -791,7 +846,7 @@ def build_world(w, keys, SIZE=2048, GRID=5):
             _mask_center(g, S)
             c = g
         elif name == 'elephant':
-            comp_single(c, rng, lib('arrow')[0], (S / 2, S * 0.97), (S / 2, S * 0.04), sat=0.8)
+            comp_single(c, rng, lib('arrow')[0], (S / 2, S * 0.97), (S / 2, S * 0.04), sat=0.8, max_w=S - 2 * m - 4)
         elif name == 'vines':
             v = Card(S, S)
             comp_vine(v, rng, lib('heart') + lib('ivy'), n_strands=14, leafy=True)
@@ -800,9 +855,13 @@ def build_world(w, keys, SIZE=2048, GRID=5):
             comp_cluster(c, rng, lib('shrub') + lib('small'), 190, S * 0.075, twigs=10, cy=0.5)
         elif name == 'deadTwigs':
             st = lib('stick')
-            for k in range(7):
-                comp_single(c, rng, st[rng.integers(len(st))], (S * (0.35 + rng.random() * 0.3), S - m),
-                            (S * (0.1 + rng.random() * 0.8), S * (0.05 + rng.random() * 0.4)), sat=0.6, value=0.8)
+            thin = sorted(st, key=lambda q: q.width / q.length)[:4]
+            for k in range(9):
+                bxk = S * (0.4 + rng.random() * 0.2)
+                ang = math.radians(90 + (rng.random() - 0.5) * 110)
+                Lk = S * (0.35 + rng.random() * 0.4)
+                comp_single(c, rng, thin[rng.integers(len(thin))], (bxk, S - m),
+                            (bxk + math.cos(ang) * Lk, S - m - math.sin(ang) * Lk), sat=0.5, value=0.7, max_w=S * 0.06)
             dry = lib('dry') + lib('dry2')
             for k in range(14):
                 c.stamp(dry[rng.integers(len(dry))], (S * (0.2 + rng.random() * 0.6), S * (0.15 + rng.random() * 0.6)),
@@ -815,7 +874,7 @@ def build_world(w, keys, SIZE=2048, GRID=5):
                             (S / 2 + math.cos(math.radians(a)) * S * 0.45, S * 0.93 - math.sin(math.radians(a)) * S * 0.8),
                             sat=0.75, value=0.7 + rng.random() * 0.4)
         elif name in ('small', 'smallDark'):
-            comp_cluster(c, rng, lib('small') + lib('shrub'), 230, S * 0.065, twigs=8, clumps=8,
+            comp_cluster(c, rng, lib('small') + lib('shrub'), 320, S * 0.062, twigs=9, clumps=9,
                          dark=name == 'smallDark', spread=0.5)
         x = int(round((slot % GRID) * SIZE / GRID))
         y = int(round((slot // GRID) * SIZE / GRID))

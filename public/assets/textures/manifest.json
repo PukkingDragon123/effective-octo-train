@@ -338,7 +338,7 @@
   },
   "foliage_world": {
    "alpha": true,
-   "bytes": 419252,
+   "bytes": 450742,
    "file": "foliage/foliage_world.webp",
    "grid": 5,
    "size": [
@@ -369,7 +369,7 @@
    "wrap": "clamp"
   },
   "foliage_world_normal": {
-   "bytes": 100628,
+   "bytes": 99268,
    "file": "foliage/foliage_world_normal.webp",
    "size": [
     1024,
@@ -407,7 +407,7 @@
   },
   "grass_card": {
    "alpha": true,
-   "bytes": 237580,
+   "bytes": 257582,
    "file": "foliage/grass_card.webp",
    "size": [
     1024,
@@ -417,7 +417,7 @@
    "wrap": "clamp"
   },
   "grass_card_normal": {
-   "bytes": 37700,
+   "bytes": 39744,
    "file": "foliage/grass_card_normal.webp",
    "size": [
     512,
@@ -482,7 +482,7 @@
   },
   "leaf_bamboo": {
    "alpha": true,
-   "bytes": 52526,
+   "bytes": 78572,
    "file": "foliage/leaf_bamboo.webp",
    "size": [
     1024,
@@ -492,7 +492,7 @@
    "wrap": "clamp"
   },
   "leaf_bamboo_normal": {
-   "bytes": 16546,
+   "bytes": 26644,
    "file": "foliage/leaf_bamboo_normal.webp",
    "size": [
     512,
@@ -503,7 +503,7 @@
   },
   "leaf_banana": {
    "alpha": true,
-   "bytes": 84628,
+   "bytes": 123586,
    "file": "foliage/leaf_banana.webp",
    "size": [
     1024,
@@ -513,7 +513,7 @@
    "wrap": "clamp"
   },
   "leaf_banana_normal": {
-   "bytes": 32050,
+   "bytes": 23768,
    "file": "foliage/leaf_banana_normal.webp",
    "size": [
     512,
@@ -572,7 +572,7 @@
   },
   "leaf_palm": {
    "alpha": true,
-   "bytes": 42044,
+   "bytes": 156634,
    "file": "foliage/leaf_palm.webp",
    "size": [
     1024,
@@ -582,7 +582,7 @@
    "wrap": "clamp"
   },
   "leaf_palm_normal": {
-   "bytes": 20532,
+   "bytes": 32870,
    "file": "foliage/leaf_palm_normal.webp",
    "size": [
     512,
@@ -593,7 +593,7 @@
   },
   "leaf_tropical": {
    "alpha": true,
-   "bytes": 89636,
+   "bytes": 91898,
    "file": "foliage/leaf_tropical.webp",
    "size": [
     1024,
@@ -603,7 +603,7 @@
    "wrap": "clamp"
   },
   "leaf_tropical_normal": {
-   "bytes": 19616,
+   "bytes": 19756,
    "file": "foliage/leaf_tropical_normal.webp",
    "size": [
     512,
@@ -974,7 +974,7 @@
   },
   "vine": {
    "alpha": true,
-   "bytes": 76556,
+   "bytes": 78670,
    "file": "foliage/vine.webp",
    "size": [
     1024,
@@ -984,7 +984,7 @@
    "wrap": "clamp"
   },
   "vine_normal": {
-   "bytes": 20696,
+   "bytes": 20922,
    "file": "foliage/vine_normal.webp",
    "size": [
     512,
@@ -1048,6 +1048,6 @@
    "srgb": false
   }
  },
- "totalBytes": 28331062,
+ "totalBytes": 28581728,
  "version": 1
 }

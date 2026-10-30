@@ -571,7 +571,7 @@ class Ext:
     def build_ws_rw(self):
         nW, nA, nS, nC, nR = self.g_counts()
         NG = self.g.G.shape[0]
-        r_top_ws = tb.G_ROW_OF[3] - 0.35
+        r_top_ws = self.g.G_ROW_OF[3] - 0.35
         # windshield: columns +-(nW-1) (A-pillar starts at nW-1)
         cmax = nW - 1 - 0.18
         loop2 = rounded_poly_2d([(-cmax, 0.55), (cmax, 0.55), (cmax, r_top_ws), (-cmax, r_top_ws)],
@@ -587,7 +587,7 @@ class Ext:
         # rear window: last nR columns (centre at NG-1)
         c0 = NG - 1           # centre column index (x = 0)
         span = nR - 1 - 0.2   # columns toward the C pillar
-        r_top_rw = tb.G_ROW_OF[3] - 0.35
+        r_top_rw = self.g.G_ROW_OF[3] - 0.35
         loop2 = self._rrect_cr(-span, span, 0.6, r_top_rw, rc_bot=(1.6, 0.3), rc_top=(2.4, 0.5))
         P = np.array([self.G(self._rw_col(c), r) * np.array([np.sign(c) if c != 0 else 1, 1, 1]) for c, r in loop2])
         Nn = self.normals_at(P)

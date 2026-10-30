@@ -75,6 +75,9 @@ class Input {
     this.mouse = { x: 0, y: 0, ndcX: 0, ndcY: 0, locked: false };
     this._mdx = 0;
     this._mdy = 0;
+    // virtual input from on-screen touch controls (src/ui/MobileControls.js)
+    this.virtualActions = new Set();
+    this.virtualAxis = { steer: 0, throttle: 0, brake: 0, moveX: 0, moveY: 0, lean: 0 };
     this._wheel = 0;
     this._wheelCodes = new Set();
     this.enabled = true;
@@ -167,6 +170,8 @@ class Input {
       }
     }
 
+    if (this.enabled) for (const a of this.virtualActions) this.actions.add(a);
+
     // gamepad
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     this.gamepad = null;
@@ -191,6 +196,12 @@ class Input {
     }
 
     // analog axes
+    const va = this.virtualAxis;
+    padSteer = clamp(padSteer + va.steer, -1, 1);
+    padMoveX = clamp(padMoveX + va.moveX, -1, 1);
+    padMoveY = clamp(padMoveY + va.moveY, -1, 1);
+    padThrottle = Math.max(padThrottle, va.throttle);
+    padBrake = Math.max(padBrake, va.brake);
     const kSteer = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0);
     const kThrottle = this.down('forward') ? 1 : 0;
     const kBrake = this.down('back') ? 1 : 0;
@@ -201,7 +212,7 @@ class Input {
     this.axis.brake = Math.max(kBrake, padBrake);
     this.axis.moveX = clamp(kSteer + padMoveX, -1, 1);
     this.axis.moveY = clamp(kThrottle - kBrake + padMoveY, -1, 1);
-    const leanTarget = (this.down('leanRight') ? 1 : 0) - (this.down('leanLeft') ? 1 : 0);
+    const leanTarget = clamp((this.down('leanRight') ? 1 : 0) - (this.down('leanLeft') ? 1 : 0) + va.lean, -1, 1);
     this.axis.lean = damp(this.axis.lean, leanTarget, 6, dt);
 
     // look
@@ -217,6 +228,18 @@ class Input {
     }
     this._mdx = 0;
     this._mdy = 0;
+  }
+
+  /** Touch controls: hold/release a named action (same names as KEY_BINDINGS). */
+  setVirtual(action, isDown) {
+    if (isDown) this.virtualActions.add(action);
+    else this.virtualActions.delete(action);
+    if (isDown) this.lastDevice = 'touch';
+  }
+  /** Touch look: add a drag delta in CSS pixels (same scale as mouse movement). */
+  addLook(dx, dy) {
+    this._mdx += dx;
+    this._mdy += dy;
   }
 
   down(action) {

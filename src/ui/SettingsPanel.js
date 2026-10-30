@@ -83,6 +83,7 @@ export const SETTINGS_TABS = [
           { key: 'mouseSensitivity', type: 'slider', th: 'ความไวเมาส์', en: 'Mouse sensitivity', min: 0.2, max: 3, step: 0.05, fmt: 'x' },
           { key: 'invertY', type: 'seg', th: 'กลับแกนมองขึ้น–ลง', en: 'Invert look Y', options: ONOFF },
           { key: 'gamepadLookSensitivity', type: 'slider', th: 'ความไวการมองด้วยจอย', en: 'Gamepad look speed', min: 0.2, max: 3, step: 0.05, fmt: 'x' },
+          { key: 'touchControls', type: 'seg', th: 'ปุ่มบนจอ (มือถือ)', en: 'Touch controls', options: [['auto', 'อัตโนมัติ', 'Auto'], ['on', 'เปิด', 'On'], ['off', 'ปิด', 'Off']] },
           { key: 'transmission', type: 'seg', th: 'ระบบเกียร์', en: 'Transmission', options: [['auto', 'Auto', 'ออโต้'], ['manual', 'Manual', 'ธรรมดา']] },
           { key: 'showPrompts', type: 'seg', th: 'แสดงคำแนะนำเมื่อเล็งสิ่งของ', en: 'Interaction prompts', options: ONOFF },
         ],

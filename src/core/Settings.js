@@ -42,6 +42,8 @@ export const DEFAULT_SETTINGS = {
   invertY: false,
   gamepadLookSensitivity: 1.0,
   transmission: 'auto', // 'auto' | 'manual'
+  touchControls: 'auto', // 'auto' (on touch devices) | 'on' | 'off'
+  testPanel: true, // owner's test panel button (top-left)
   showPrompts: false, // minimal text: the crosshair dot blooms on targets but shows no label
   // text / language
   language: 'th', // 'th' = the whole game in Thai only (default) | 'both' = Thai with English helpers

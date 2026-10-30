@@ -994,6 +994,10 @@ MAT_DEFS = {
     'lens_amber': dict(color=(0.9, 0.42, 0.03), rough=0.12, metal=0.0, atlas='ext_parts', alpha=0.85),
     'emissive_meter': dict(color=(0.05, 0.05, 0.05), rough=0.3, metal=0.0, atlas=None, emit=(1.0, 0.25, 0.1)),
     'emissive_gauge': dict(color=(0.05, 0.05, 0.05), rough=0.4, metal=0.0, atlas=None, emit=(0.5, 0.9, 0.6)),
+    'plate': dict(color=(0.92, 0.92, 0.88), rough=0.5, metal=0.0, atlas=None),
+    'sign_panel': dict(color=(0.93, 0.92, 0.86), rough=0.35, metal=0.0, atlas='ext_parts', emit=(0.0, 0.0, 0.0)),
+    'sign_text': dict(color=(0.62, 0.04, 0.03), rough=0.4, metal=0.0, atlas='ext_parts'),
+    'paint_black': dict(color=(0.02, 0.02, 0.022), rough=0.45, metal=0.0, atlas='ext_parts'),
     # motorbike extras
     'paint_moto': dict(color=(0.32, 0.05, 0.05), rough=0.5, metal=0.0, atlas='moto'),
 }

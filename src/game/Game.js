@@ -24,6 +24,8 @@ const { PlayerBody, createHumanoid } = CharactersModule;
 import { audio } from '../audio/index.js';
 import { ui } from '../ui/index.js';
 import { postfx, sky, lightPool, particles } from '../render/index.js';
+import { installMobileControls } from '../ui/MobileControls.js';
+import { installTestPanel } from '../ui/TestPanel.js';
 import { MenuState } from './states/MenuState.js';
 import { IntroState } from './states/IntroState.js';
 import { GarageState } from './states/GarageState.js';
@@ -114,6 +116,8 @@ export async function startGame(ctx) {
   g.fsm.register(MenuState).register(IntroState).register(GarageState).register(TutorialState).register(ShiftState).register(DeathState).register(EndingState);
 
   installPause();
+  installMobileControls(document.getElementById('ui'));
+  if (ctx.settings.get('testPanel') !== false) installTestPanel(document.getElementById('ui'));
   ui.showLoading(1, 'พร้อมแล้ว', 'Ready');
   if (!skipLoading) await new Promise((r) => setTimeout(r, 600));
   ui.hideLoading();

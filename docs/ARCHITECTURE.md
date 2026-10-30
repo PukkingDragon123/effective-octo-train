@@ -167,6 +167,9 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
   colour multiplier; `temperature` is added; `letterbox, fade (+fadeColor), horror, amulet,
   blur, distortion, blood` are absolute 0..1; `sharpen` is a multiplier.
   `postfx.debugView = 'shafts'|'paint'|'bloom'|'tensor'|'scene'|'grade'`.
+  Screen-space shafts: sun god rays at dawn, **moonlight shafts** through the canopy at night when
+  the moon is in view (`postfx.moonShafts` 0..1, `postfx.shaftStrength` multiplier); both are
+  stronger in thick fog.
 * **Sharpness** (owner directive): scene RT at full drawing-buffer resolution, MSAA 4× on
   high/ultra, 2× on medium, FXAA-lite on low; alpha-tested painted/foliage materials use
   alpha-to-coverage; every material texture gets max anisotropic filtering at compile time
@@ -197,9 +200,28 @@ menu camera). `engine.timeScale` scales dt (slow motion in cinematics).
   `headlightBoost` (foliage default 0.35) adds a pale-green fill inside the headlight beam;
   translucency glows pale yellow-green when a light is behind the leaves.
 * **Sky**: `sky.sunAzimuth` (deg, 0 = −Z, 90 = +X) aims the sunrise; `sky.setWetness(v)`;
-  `sky.flash(k)` (lightning, auto during heavy dread rain; `sky.lightning=false` disables);
-  `sky.overrides = {fogDensity}`; `sky.sunVisibility`, `sky.grade` (read by PostFX).
-* **lightPool.add** extra spec: `groundY, poolRadius, poolIntensity, beam (true | {length, angle,
+  `sky.overrides = {fogDensity, groundMist, mist, ...}`; `sky.sunVisibility`, `sky.moonVisibility`,
+  `sky.grade` (read by PostFX).
+  * **Fog layers**: distance fog + height fog + a dense **ground mist** (`uGroundMist` at the fog
+    base, falloff `uGroundMistFalloff` 1/m) that hugs the road, pools in dips (absolute height),
+    rolls in drifts with the wind and is paler than the fog above it. All in-scattering (beam,
+    lamps) follows the drifting patches. Thickest in dread / surreal, golden at dawn.
+  * **`sky.setFogBoost(mult, secs)`** multiplies every fog layer (shrine, scares; back with 1);
+    `sky.fogBoost` reads the current value. **`sky.setGroundMist(mult, secs)`** scales only the mist.
+  * **Lightning**: `sky.setLightning(true|'auto'|'always'|false, strength?)`, `sky.lightningStrength`
+    (0..1, subtle 0.7). Auto = rain > 0.45 before dawn. `sky.flash(k, multi=true)` = a 2–3 flicker
+    strike lighting sky, fog and ambient; emits bus **`sky:lightning` {strength, delay}** for thunder.
+    `settings.reduceFlashes` scales it down.
+* **Light accents**: `LIGHT_ACCENTS` (sodium orange, fluorescent sick green-white, dying, shrine
+  crimson, candle amber, neon, headlight cold blue-white, moon). `lightPool.add({kind})` takes the
+  default colour + flicker from it. Fog halos use a richer version of each lamp colour with
+  brightness ∝ √intensity (dim prop lamps still glow in the mist); flicker lights the fog.
+  Vehicles: use `LIGHT_ACCENTS.headlight` for the SpotLights / beams (the fog scatter colour
+  `uHeadlightColor` is now cold blue-white).
+* **Painted materials** also get an atmospheric rim (fog / lamp / beam light at grazing angles,
+  stronger when wet; `atmoRim` opt, 0 disables) and twinkling glints on wet, up-facing surfaces
+  where a lamp or the headlights hit.
+* **lightPool.add** extra spec: `kind, groundY, poolRadius, poolIntensity, beam (true | {length, angle,
   intensity, direction}), onFlicker({type:'on'|'off'|'stutter'|'restrike'|'spark', handle,
   position}), scatter`. Handles also expose `level`, `position`, `setPosition(v)`, `beam`.
   The 4 nearest lamps feed fog in-scattering + reflections on wet surfaces.

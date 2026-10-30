@@ -216,7 +216,11 @@ vec3 dlbApplyFog(vec3 col, vec3 wp, vec2 fragXY) {
   float sigma = min(od / max(d, 1e-3), 4.0);
   // lights scattered in the medium follow the same drifting patches (beams look patchy)
   vec3 ins = dlbInscatter(ro, rd, d, sigma, fragXY) * (0.45 + 0.55 * nm);
-  return col * T + dlbFogTint(rd) * (1.0 - T) + ins;
+  // the low mist is paler than the fog above it (catches sky / moon light): a visible layer
+  vec3 tint = dlbFogTint(rd);
+  float gFrac = (o2.y * nmG) / max(od, 1e-4);
+  tint = mix(tint, tint * 1.35 + dlbMoonScatter * 0.5 + dlbAmbient * 0.02, gFrac);
+  return col * T + tint * (1.0 - T) + ins;
 #endif
 }
 // Transmittance only (for additive particles / glows).
