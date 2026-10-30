@@ -16,6 +16,8 @@
 //   rig.js       per-instance skeleton, additive/world rotations, two-bone IK
 //   anim.js      mixer modes / crossfades; actions.js procedural actions; ghost.js ghost layer
 //   Humanoid.js  the runtime character; PlayerBody.js the first-person body
+import * as THREE from 'three';
+import { paintedMaterial } from '../../render/index.js';
 import { loadTemplates, TEMPLATES } from './assets.js';
 import { HumanoidGLB, LOD_DISTANCE } from './Humanoid.js';
 import { PlayerBodyGLB } from './PlayerBody.js';
@@ -38,5 +40,16 @@ export function createHumanoidGLB(spec = {}) {
 
 /** Alias with the contract's name, so callers can swap modules: `import { createHumanoid } from './characters/glb/index.js'`. */
 export const createHumanoid = createHumanoidGLB;
+
+/** Animals (contract stub, unchanged from src/characters/index.js): elephant | elephantCalf | dog. */
+export function createQuadruped(kind, opts = {}) {
+  void opts;
+  const root = new THREE.Group();
+  const s = kind === 'elephant' ? 3 : kind === 'elephantCalf' ? 1.5 : 0.6;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(s * 0.6, s * 0.6, s), paintedMaterial({ color: 0x555555 }));
+  m.position.y = s * 0.6;
+  root.add(m);
+  return { root, setGait() {}, walkTo(p) { root.position.copy(p); return Promise.resolve(); }, lookAt() {}, bark() {}, update() {}, dispose() { root.removeFromParent(); } };
+}
 export const Humanoid = HumanoidGLB;
 export const PlayerBody = PlayerBodyGLB;

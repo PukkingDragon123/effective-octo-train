@@ -191,7 +191,7 @@ export class Motorcycle {
     // kickstand + pegs
     mb.add('black', rod([-0.08, 0.3, 0.05], [-0.22, 0.02, 0.12], 0.012, 6));
     for (const sx of [-1, 1]) mb.add('rubber', rod([sx * 0.1, 0.3, -0.02], [sx * 0.22, 0.3, -0.02], 0.016, 6));
-    this.leanGroup.add(mb.build({ paint: m.paint, shield: m.shield, black: m.black, engine: m.engine, rust: m.rust, chrome: m.chrome, seat: m.seat, foam: m.foam }));
+    this.leanGroup.add(mb.build({ paint: m.paint, shield: m.shield, black: m.black, engine: m.engine, rust: m.rust, chrome: m.chrome, seat: m.seat, foam: m.foam, rubber: m.rubber }));
 
     // ---- steering assembly (fork, front wheel, handlebar, headlight, basket) -------------------
     const steer = new THREE.Group();
@@ -443,7 +443,11 @@ export class Motorcycle {
     this.spot.intensity = on ? 70 : 0;
     this._headMat.emissiveIntensity = on ? 3 : 0;
     this._tailMat.emissiveIntensity = on ? (brake > 0.05 ? 3 : 1) : 0;
-    if (this.beam) this.beam.userData.setIntensity?.(on ? 0.45 : 0);
+    if (this.beam) {
+      this.beam.userData.setIntensity?.(on ? 0.26 : 0);
+      this.beam.userData.setGroundY?.(this.pos.y + 0.03);
+      this.beam.visible = on;
+    }
     this.spot.getWorldPosition(_hp);
     this.spot.target.getWorldPosition(_hd).sub(_hp);
     submitHeadlight(this, on ? 1 : 0, _hp, _hd, BIKE_CONE, this.controlsEnabled ? 1e4 : this.autopilotSpec ? 50 : 0);

@@ -33,6 +33,7 @@ export const TAXI_ANCHORS = {
   trunk: [0, 0.98, 2.12], roofTop: [0, 1.42, 0.3], hood: [0, 0.86, -1.6], headlightL: [-0.515, 0.595, -2.2], headlightR: [0.515, 0.595, -2.2],
   taillightL: [-0.55, 0.8, 2.18], taillightR: [0.55, 0.8, 2.18], gloveBox: [-0.41, 0.66, -0.7], sunVisorDriver: [0.45, 1.29, -0.3],
   doorFL: [-0.95, 0.8, -0.12], doorFR: [0.95, 0.8, -0.12], doorRL: [-0.95, 0.8, 0.62], doorRR: [0.95, 0.8, 0.62],
+  dashSticker: [-0.45, 0.842, -0.5955],
 };
 
 const _v = new THREE.Vector3();
@@ -131,6 +132,10 @@ export class Taxi {
     this.parts.photoAnchor.add(this.anchors.sunVisorDriver);
     this.anchors.gloveBox.position.set(0, 0, 0);
     this.parts.gloveAnchor.add(this.anchors.gloveBox);
+    if (this.parts.stickerAnchor) {
+      this.anchors.dashSticker.position.set(0, 0, 0.002);
+      this.parts.stickerAnchor.add(this.anchors.dashSticker);
+    }
     this.anchors.amuletHang.position.copy(INT.mirrorPos).add(new THREE.Vector3(0, -0.01, -0.005));
     this.seats = { driver: this.anchors.driverSeat, frontPassenger: this.anchors.frontPassengerSeat, rearLeft: this.anchors.rearLeftSeat, rearRight: this.anchors.rearRightSeat, rearCenter: this.anchors.rearCenterSeat };
 

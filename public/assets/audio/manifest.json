@@ -61,7 +61,14 @@
     "title": "210915-1876_PH_Tokay_gecko.wav"
    }
   ],
-  "notes": "Tokay gecko (ตุ๊กแก) full call sequences: throaty rattle intro then 3-11 'tuk-kae' calls. _1 Laos (Bokeo), _2 Thailand, _3 Indonesia, _4/_6 Philippines. Long (5-25 s): play as one spatial event; don't loop.",
+  "fileCredit": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
   "lufs": [
    -17.1,
    -18.9,
@@ -69,7 +76,8 @@
    -16.9,
    -18.9,
    -16.8
-  ]
+  ],
+  "notes": "Tokay gecko (ตุ๊กแก) full call sequences: throaty rattle intro then 3-11 'tuk-kae' calls. _1 Laos (Bokeo), _2 Thailand, _3 Indonesia, _4/_6 Philippines. Long (5-25 s): play as one spatial event; don't loop."
  },
  "owl": {
   "files": [
@@ -117,7 +125,14 @@
     "title": "Boobook Owl / Mopoke"
    }
   ],
-  "notes": "Night owls: _1-_3 scops owl 'toink' series (close cousin of Thai oriental/collared scops owls), _4-_6 boobook/hawk-owl 'boo-book' double hoots (Ninox, same genus as Thailand's brown boobook).",
+  "fileCredit": [
+   0,
+   0,
+   1,
+   2,
+   2,
+   3
+  ],
   "lufs": [
    -16.0,
    -16.0,
@@ -125,7 +140,8 @@
    -17.7,
    -17.5,
    -16.4
-  ]
+  ],
+  "notes": "Night owls: _1-_3 scops owl 'toink' series (close cousin of Thai oriental/collared scops owls), _4-_6 boobook/hawk-owl 'boo-book' double hoots (Ninox, same genus as Thailand's brown boobook)."
  },
  "night_bird": {
   "files": [
@@ -145,11 +161,15 @@
     "title": "Unidentified night bird call"
    }
   ],
-  "notes": "Unidentified South-Asian night bird (India), sharp repeated calls; use sparingly in the deep-night forest.",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -18.3,
    -25.0
-  ]
+  ],
+  "notes": "Unidentified South-Asian night bird (India), sharp repeated calls; use sparingly in the deep-night forest."
  },
  "koel": {
   "files": [
@@ -178,12 +198,17 @@
     "title": "Asian Koel in Nature – Smartphone Recording (Wind & Traffic Background)"
    }
   ],
-  "notes": "Koel 'ko-el' rising calls (pre-dawn/dawn, 04-06). _1 Pacific koel (clean), _2/_3 Asian koel recorded in Thailand on a smartphone (high-passed to remove traffic rumble).",
+  "fileCredit": [
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -16.2,
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Koel 'ko-el' rising calls (pre-dawn/dawn, 04-06). _1 Pacific koel (clean), _2/_3 Asian koel recorded in Thailand on a smartphone (high-passed to remove traffic rumble)."
  },
  "rooster": {
   "files": [
@@ -214,14 +239,21 @@
     "title": "rooster crows in the village"
    }
   ],
-  "notes": "Rooster crows for dawn (05-06). _1 close, _2-_5 village rooster at distance.",
+  "fileCredit": [
+   0,
+   1,
+   1,
+   1,
+   1
+  ],
   "lufs": [
    -16.0,
    -16.0,
    -16.0,
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Rooster crows for dawn (05-06). _1 close, _2-_5 village rooster at distance."
  },
  "dog_bark": {
   "files": [
@@ -260,14 +292,21 @@
     "title": "single dog barking medium sized dog sound effect"
    }
   ],
-  "notes": "Single close dog barks (medium soi dog). Chain with random gaps for bark bursts.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -18.2,
    -18.0,
    -18.9,
    -17.8,
    -17.8
-  ]
+  ],
+  "notes": "Single close dog barks (medium soi dog). Chain with random gaps for bark bursts."
  },
  "dog_bark_far": {
   "files": [
@@ -296,12 +335,17 @@
     "title": "Dog barks to other dogs by night"
    }
   ],
-  "notes": "Distant village dogs barking at night with natural echo (already distant: no extra low-pass needed).",
+  "fileCredit": [
+   0,
+   0,
+   1
+  ],
   "lufs": [
    -16.2,
    -16.9,
    -19.4
-  ]
+  ],
+  "notes": "Distant village dogs barking at night with natural echo (already distant: no extra low-pass needed)."
  },
  "dog_howl": {
   "files": [
@@ -323,13 +367,19 @@
     "title": "Dog singing during the night (Brazil)"
    }
   ],
-  "notes": "Night dog 'singing'/howling. _4 is softer and more distant.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -16.0,
    -16.0,
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Night dog 'singing'/howling. _4 is softer and more distant."
  },
  "dog_whine": {
   "files": [
@@ -366,12 +416,17 @@
     "title": "Dog Scared Whining/grunt"
    }
   ],
-  "notes": "Dog whimper/whine (scared dog near the taxi).",
+  "fileCredit": [
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -16.2,
    -16.0,
    -15.9
-  ]
+  ],
+  "notes": "Dog whimper/whine (scared dog near the taxi)."
  },
  "elephant_trumpet": {
   "files": [
@@ -408,12 +463,17 @@
     "title": "Elephant sound"
    }
   ],
-  "notes": "Elephant trumpets/growls (elephant family crossing at 04:00).",
+  "fileCredit": [
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -15.9,
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Elephant trumpets/growls (elephant family crossing at 04:00)."
  },
  "elephant_rumble": {
   "files": [
@@ -432,10 +492,13 @@
     "title": "Night in the Serengeti with elephant rumble"
    }
   ],
-  "notes": "Low elephant rumble in a night savanna bed (low-passed 1.2 kHz). Felt more than heard.",
+  "fileCredit": [
+   0
+  ],
   "lufs": [
    -16.2
-  ]
+  ],
+  "notes": "Low elephant rumble in a night savanna bed (low-passed 1.2 kHz). Felt more than heard."
  },
  "frog_croak": {
   "files": [
@@ -466,14 +529,21 @@
     "title": "asian frog"
    }
   ],
-  "notes": "Single croaks: _1-_3 Thai toad (Thailand), _4/_5 Asian frog (Thailand).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -16.0,
    -16.0,
    -16.0,
    -20.9,
    -20.9
-  ]
+  ],
+  "notes": "Single croaks: _1-_3 Thai toad (Thailand), _4/_5 Asian frog (Thailand)."
  },
  "cicada_burst": {
   "files": [
@@ -493,11 +563,15 @@
     "title": "Thai cicada (Chiang Rai, Thailand)"
    }
   ],
-  "notes": "Thai cicada (Chiang Rai) swelling up then cutting off. One-shot, 10-21 s.",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Thai cicada (Chiang Rai) swelling up then cutting off. One-shot, 10-21 s."
  },
  "mosquito_buzz": {
   "files": [
@@ -516,13 +590,16 @@
     "title": "Single Mosquito Buzz"
    }
   ],
-  "notes": "Single mosquito whine near the ear, slow auto-pan baked in (stereo). Seamless 8 s loop.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    352800
   ],
   "lufs": [
    -20.0
-  ]
+  ],
+  "notes": "Single mosquito whine near the ear, slow auto-pan baked in (stereo). Seamless 8 s loop."
  },
  "footstep_asphalt": {
   "files": [
@@ -555,7 +632,15 @@
     "title": "Walking asphalt.wav"
    }
   ],
-  "notes": "Shoe steps on hard asphalt road. Pick a random variant per step; vary rate +-5%.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -31.7,
    -31.4,
@@ -564,7 +649,8 @@
    -26.8,
    -26.1,
    -24.2
-  ]
+  ],
+  "notes": "Shoe steps on hard asphalt road. Pick a random variant per step; vary rate +-5%."
  },
  "footstep_gravel": {
   "files": [
@@ -606,7 +692,16 @@
     "title": "Footsteps Dirt Gravel"
    }
   ],
-  "notes": "Steps on gravel / dirt shoulder.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   2,
+   2
+  ],
   "lufs": [
    -21.1,
    -22.8,
@@ -616,7 +711,8 @@
    -23.4,
    -20.0,
    -27.3
-  ]
+  ],
+  "notes": "Steps on gravel / dirt shoulder."
  },
  "footstep_grass": {
   "files": [
@@ -649,7 +745,15 @@
     "title": "Stomping Footsteps on Grass"
    }
   ],
-  "notes": "Steps through dry leaves and grass (forest floor).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   1
+  ],
   "lufs": [
    -26.9,
    -26.9,
@@ -658,7 +762,8 @@
    -22.7,
    -21.0,
    -21.7
-  ]
+  ],
+  "notes": "Steps through dry leaves and grass (forest floor)."
  },
  "footstep_wood": {
   "files": [
@@ -691,7 +796,15 @@
     "title": "Footsteps on hollow wood"
    }
   ],
-  "notes": "Steps on wooden floor / hollow wooden sala deck.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   1
+  ],
   "lufs": [
    -20.0,
    -20.7,
@@ -700,7 +813,8 @@
    -23.5,
    -22.8,
    -21.7
-  ]
+  ],
+  "notes": "Steps on wooden floor / hollow wooden sala deck."
  },
  "footstep_concrete": {
   "files": [
@@ -733,7 +847,15 @@
     "title": "Footsteps - Stone, Rock, Concrete, Cement"
    }
   ],
-  "notes": "Steps on concrete (garage, temple yard).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -25.2,
    -25.0,
@@ -742,7 +864,8 @@
    -23.6,
    -23.6,
    -26.4
-  ]
+  ],
+  "notes": "Steps on concrete (garage, temple yard)."
  },
  "footstep_puddle": {
   "files": [
@@ -775,7 +898,15 @@
     "title": "Walking through puddle"
    }
   ],
-  "notes": "Wet steps / splashing through puddles.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1,
+   1
+  ],
   "lufs": [
    -30.1,
    -29.3,
@@ -784,7 +915,8 @@
    -30.5,
    -25.6,
    -28.1
-  ]
+  ],
+  "notes": "Wet steps / splashing through puddles."
  },
  "knock": {
   "files": [
@@ -816,7 +948,14 @@
     "title": "Car window knocking (inside).wav"
    }
   ],
-  "notes": "Single knuckle knocks on a car side window (_5/_6 recorded from inside the car). Use count/interval for knock patterns.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -22.4,
    -23.4,
@@ -824,7 +963,8 @@
    -23.0,
    -26.4,
    -24.9
-  ]
+  ],
+  "notes": "Single knuckle knocks on a car side window (_5/_6 recorded from inside the car). Use count/interval for knock patterns."
  },
  "knock_window_seq": {
   "files": [
@@ -853,12 +993,17 @@
     "title": "Car window knocking (outside).wav"
    }
   ],
-  "notes": "Natural rapid knocking sequences on a car window; _1/_2 heard from inside, _3 from outside.",
+  "fileCredit": [
+   0,
+   0,
+   1
+  ],
   "lufs": [
    -21.6,
    -22.2,
    -27.1
-  ]
+  ],
+  "notes": "Natural rapid knocking sequences on a car window; _1/_2 heard from inside, _3 from outside."
  },
  "knock_trunk": {
   "files": [
@@ -880,13 +1025,19 @@
     "title": "Knock on door metal"
    }
   ],
-  "notes": "Knuckle knocks on a thin metal panel (car boot / trunk lid). _4 has the longest ring.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -22.4,
    -23.4,
    -24.6,
    -24.4
-  ]
+  ],
+  "notes": "Knuckle knocks on a thin metal panel (car boot / trunk lid). _4 has the longest ring."
  },
  "thump_roof": {
   "files": [
@@ -907,12 +1058,17 @@
     "title": "Soft Impact Foley on Roof of 1990 Volvo 240 Sedan"
    }
   ],
-  "notes": "Soft heavy impact on the roof of an old sedan (Volvo 240). Play muffled from inside the cabin.",
+  "fileCredit": [
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -24.5,
    -24.4,
    -26.1
-  ]
+  ],
+  "notes": "Soft heavy impact on the roof of an old sedan (Volvo 240). Play muffled from inside the cabin."
  },
  "scratch_glass": {
   "files": [
@@ -933,12 +1089,17 @@
     "title": "Scratching Window with Nails"
    }
   ],
-  "notes": "Fingernails scratching a window pane.",
+  "fileCredit": [
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -16.1,
    -17.3,
    -17.1
-  ]
+  ],
+  "notes": "Fingernails scratching a window pane."
  },
  "paper_rustle": {
   "files": [
@@ -966,11 +1127,15 @@
     "title": "Paper drawn with rustle"
    }
   ],
-  "notes": "Paper rustling / handling.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -20.9,
    -22.5
-  ]
+  ],
+  "notes": "Paper rustling / handling."
  },
  "paper_unfold": {
   "files": [
@@ -990,11 +1155,15 @@
     "title": "Paper Unfolding Quickly"
    }
   ],
-  "notes": "Unfolding a sheet of paper (the handwritten rules).",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -25.0,
    -26.2
-  ]
+  ],
+  "notes": "Unfolding a sheet of paper (the handwritten rules)."
  },
  "coins": {
   "files": [
@@ -1033,14 +1202,21 @@
     "title": "Handing someone a small pile of coins."
    }
   ],
-  "notes": "Coins: dropped into a pile, change put on a table, a small pile handed over (fare payment).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -26.4,
    -27.8,
    -30.2,
    -18.1,
    -16.0
-  ]
+  ],
+  "notes": "Coins: dropped into a pile, change put on a table, a small pile handed over (fare payment)."
  },
  "lighter": {
   "files": [
@@ -1070,13 +1246,19 @@
     "title": "Disposable Lighter 1"
    }
   ],
-  "notes": "Cheap disposable flint lighter flicks / ignition.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   1
+  ],
   "lufs": [
    -31.4,
    -28.8,
    -27.1,
    -24.2
-  ]
+  ],
+  "notes": "Cheap disposable flint lighter flicks / ignition."
  },
  "branch_crack": {
   "files": [
@@ -1104,11 +1286,15 @@
     "title": "branch break snap crunch nice.wav"
    }
   ],
-  "notes": "Twig/branch snapping in the forest.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -19.4,
    -23.8
-  ]
+  ],
+  "notes": "Twig/branch snapping in the forest."
  },
  "splash": {
   "files": [
@@ -1130,13 +1316,19 @@
     "title": "Water Splash in Lake 05.wav"
    }
   ],
-  "notes": "Object/foot splashing into water (pond, flooded ditch).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -25.1,
    -24.1,
    -17.9,
    -23.4
-  ]
+  ],
+  "notes": "Object/foot splashing into water (pond, flooded ditch)."
  },
  "bush_scrape": {
   "files": [
@@ -1173,12 +1365,17 @@
     "title": "Rustling Foliage in Forest"
    }
   ],
-  "notes": "Something moving through bushes / foliage rustle.",
+  "fileCredit": [
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -22.9,
    -16.3,
    -18.2
-  ]
+  ],
+  "notes": "Something moving through bushes / foliage rustle."
  },
  "door_open": {
   "files": [
@@ -1215,12 +1412,17 @@
     "title": "Open & Close Car Door in Large Shed.wav"
    }
   ],
-  "notes": "Car door opening (latch + hinge). _1 from inside.",
+  "fileCredit": [
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -24.7,
    -23.5,
    -17.7
-  ]
+  ],
+  "notes": "Car door opening (latch + hinge). _1 from inside."
  },
  "door_close": {
   "files": [
@@ -1251,14 +1453,21 @@
     "title": "Car door open & close from inside"
    }
   ],
-  "notes": "_1-_4 old station-wagon door slams with rattle (exterior); _5 door closed from inside the cabin.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0,
+   1
+  ],
   "lufs": [
    -18.1,
    -19.5,
    -18.0,
    -18.9,
    -23.6
-  ]
+  ],
+  "notes": "_1-_4 old station-wagon door slams with rattle (exterior); _5 door closed from inside the cabin."
  },
  "key_insert": {
   "files": [
@@ -1286,11 +1495,15 @@
     "title": "Keys in the ignition"
    }
   ],
-  "notes": "Key slid into the ignition barrel (keyring jingle).",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -20.5,
    -23.7
-  ]
+  ],
+  "notes": "Key slid into the ignition barrel (keyring jingle)."
  },
  "key_remove": {
   "files": [
@@ -1309,10 +1522,13 @@
     "title": "keys_pulled_from_ignition.wav"
    }
   ],
-  "notes": "Keys pulled out of the ignition.",
+  "fileCredit": [
+   0
+  ],
   "lufs": [
    -22.5
-  ]
+  ],
+  "notes": "Keys pulled out of the ignition."
  },
  "ignition": {
   "files": [
@@ -1332,11 +1548,15 @@
     "title": "failed_car_start.wav"
    }
   ],
-  "notes": "Starter motor cranking (short burst) before the engine catches.",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -16.0,
    -16.2
-  ]
+  ],
+  "notes": "Starter motor cranking (short burst) before the engine catches."
  },
  "engine_start": {
   "files": [
@@ -1391,14 +1611,21 @@
     "title": "Keys in the ignition"
    }
   ],
-  "notes": "Crank + catch + settle. _1 1976 Mini (old 4-cylinder), _2 old car, _3 old car, _4 Toyota from inside, _5 key turn + start from inside.",
+  "fileCredit": [
+   0,
+   1,
+   2,
+   3,
+   4
+  ],
   "lufs": [
    -16.6,
    -16.0,
    -18.5,
    -17.4,
    -18.8
-  ]
+  ],
+  "notes": "Crank + catch + settle. _1 1976 Mini (old 4-cylinder), _2 old car, _3 old car, _4 Toyota from inside, _5 key turn + start from inside."
  },
  "engine_crank_fail": {
   "files": [
@@ -1418,11 +1645,15 @@
     "title": "failed_car_start.wav"
    }
   ],
-  "notes": "Starter cranks but the engine won't catch (horror beat: the taxi won't start).",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Starter cranks but the engine won't catch (horror beat: the taxi won't start)."
  },
  "engine_off": {
   "files": [
@@ -1441,10 +1672,13 @@
     "title": "old car engine start and stop"
    }
   ],
-  "notes": "Engine switched off / dies (usable for engine_stall pitched down).",
+  "fileCredit": [
+   0
+  ],
   "lufs": [
    -17.9
-  ]
+  ],
+  "notes": "Engine switched off / dies (usable for engine_stall pitched down)."
  },
  "engine_idle": {
   "files": [
@@ -1472,7 +1706,10 @@
     "title": "Old car start idle revs pulls away rumble 180607.wav"
    }
   ],
-  "notes": "Old small 4-cylinder idling (exterior). Seamless loops; setRate ~0.9-1.3 for rough RPM changes.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    330750,
    352800
@@ -1480,7 +1717,8 @@
   "lufs": [
    -20.0,
    -20.0
-  ]
+  ],
+  "notes": "Old small 4-cylinder idling (exterior). Seamless loops; setRate ~0.9-1.3 for rough RPM changes."
  },
  "engine_rev": {
   "files": [
@@ -1508,11 +1746,15 @@
     "title": "Old car start idle revs pulls away rumble 180607.wav"
    }
   ],
-  "notes": "Old car revving (stationary).",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -17.0,
    -16.0
-  ]
+  ],
+  "notes": "Old car revving (stationary)."
  },
  "car_interior_cruise": {
   "files": [
@@ -1531,13 +1773,16 @@
     "title": "Car Driving Interior"
    }
   ],
-  "notes": "Interior road/tyre/wind noise of a car cruising (no music). Bed under the procedural engine.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1323000
   ],
   "lufs": [
    -23.0
-  ]
+  ],
+  "notes": "Interior road/tyre/wind noise of a car cruising (no music). Bed under the procedural engine."
  },
  "handbrake_pull": {
   "files": [
@@ -1575,14 +1820,20 @@
     "title": "Rover 216 GSi handbrake moving up and down.aif"
    }
   ],
-  "notes": "Handbrake pulled up (ratchet). Replaces handbrake variant 0.",
-  "replaces": "handbrake:0",
+  "fileCredit": [
+   0,
+   1,
+   2,
+   2
+  ],
   "lufs": [
    -18.3,
    -16.2,
    -18.5,
    -20.6
-  ]
+  ],
+  "replaces": "handbrake:0",
+  "notes": "Handbrake pulled up (ratchet). Replaces handbrake variant 0."
  },
  "handbrake_release": {
   "files": [
@@ -1611,13 +1862,18 @@
     "title": "Rover 216 GSi handbrake moving up and down.aif"
    }
   ],
-  "notes": "Handbrake released. Replaces handbrake variant 1.",
-  "replaces": "handbrake:1",
+  "fileCredit": [
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -30.9,
    -26.9,
    -26.1
-  ]
+  ],
+  "replaces": "handbrake:1",
+  "notes": "Handbrake released. Replaces handbrake variant 1."
  },
  "indicator_tick": {
   "files": [
@@ -1637,11 +1893,15 @@
     "title": "VEHCar_NISSAN SENTRA-TURNING SIGNAL_MP.wav"
    }
   ],
-  "notes": "Indicator relay: _1 tick, _2 tock (variant 0/1).",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -23.4,
    -24.1
-  ]
+  ],
+  "notes": "Indicator relay: _1 tick, _2 tock (variant 0/1)."
  },
  "indicator_loop": {
   "files": [
@@ -1660,13 +1920,16 @@
     "title": "VEHCar_NISSAN SENTRA-TURNING SIGNAL_MP.wav"
    }
   ],
-  "notes": "Flasher running: 8 clicks at 0.348 s (tick/tock), seamless.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    122774
   ],
   "lufs": [
    -34.5
-  ]
+  ],
+  "notes": "Flasher running: 8 clicks at 0.348 s (tick/tock), seamless."
  },
  "wiper": {
   "files": [
@@ -1685,13 +1948,16 @@
     "title": "Windshield Wipers On.wav"
    }
   ],
-  "notes": "Wipers sweeping (motor + blade), 6 sweeps of 1.7 s, seamless loop.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    449820
   ],
   "lufs": [
    -24.6
-  ]
+  ],
+  "notes": "Wipers sweeping (motor + blade), 6 sweeps of 1.7 s, seamless loop."
  },
  "window_crank": {
   "files": [
@@ -1712,12 +1978,17 @@
     "title": "car - manual window lift"
    }
   ],
-  "notes": "Manual window winder cranked (old car).",
+  "fileCredit": [
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -23.8,
    -20.2,
    -19.3
-  ]
+  ],
+  "notes": "Manual window winder cranked (old car)."
  },
  "horn": {
   "files": [
@@ -1754,12 +2025,17 @@
     "title": "car horn.aif"
    }
   ],
-  "notes": "Short horn honks (_1 1964 Chrysler). No sustained recording: keep the synth for held horn.",
+  "fileCredit": [
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -16.3,
    -15.9,
    -16.0
-  ]
+  ],
+  "notes": "Short horn honks (_1 1964 Chrysler). No sustained recording: keep the synth for held horn."
  },
  "gear_shift": {
   "files": [
@@ -1790,14 +2066,21 @@
     "title": "Gear Shifts.mp3"
    }
   ],
-  "notes": "Manual gear stick shifts (classic car).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -18.0,
    -17.1,
    -25.9,
    -20.8,
    -20.5
-  ]
+  ],
+  "notes": "Manual gear stick shifts (classic car)."
  },
  "glovebox": {
   "files": [
@@ -1817,11 +2100,15 @@
     "title": "Glove Box Open and Close.mp3"
    }
   ],
-  "notes": "Glove compartment: _1 opening (latch + lid), _2 snapped shut.",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -25.1,
    -23.4
-  ]
+  ],
+  "notes": "Glove compartment: _1 opening (latch + lid), _2 snapped shut."
  },
  "tyres_gravel": {
   "files": [
@@ -1840,13 +2127,16 @@
     "title": "Tires on Gravel Road 2"
    }
   ],
-  "notes": "Tyres rolling on gravel road (exterior). Scale volume/rate with speed.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    740592
   ],
   "lufs": [
    -20.0
-  ]
+  ],
+  "notes": "Tyres rolling on gravel road (exterior). Scale volume/rate with speed."
  },
  "tyres_gravel_roll": {
   "files": [
@@ -1866,11 +2156,15 @@
     "title": "Car Tires Start and Stop on Gravel Shoulder.wav"
    }
   ],
-  "notes": "Car rolling onto a gravel shoulder and stopping.",
+  "fileCredit": [
+   0,
+   0
+  ],
   "lufs": [
    -17.1,
    -21.6
-  ]
+  ],
+  "notes": "Car rolling onto a gravel shoulder and stopping."
  },
  "motorbike_pass": {
   "files": [
@@ -1899,12 +2193,17 @@
     "title": "Small Motorbike Passing By"
    }
   ],
-  "notes": "Small motorbike passing by on a tropical rural road (_1/_2 Vietnam).",
+  "fileCredit": [
+   0,
+   0,
+   1
+  ],
   "lufs": [
    -18.3,
    -18.9,
    -16.1
-  ]
+  ],
+  "notes": "Small motorbike passing by on a tropical rural road (_1/_2 Vietnam)."
  },
  "bike_idle": {
   "files": [
@@ -1932,7 +2231,10 @@
     "title": "honda-monkey-sound-9"
    }
   ],
-  "notes": "Small motorcycle idling (_2 Honda Monkey), seamless loops.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    441000,
    192041
@@ -1940,7 +2242,8 @@
   "lufs": [
    -23.7,
    -19.8
-  ]
+  ],
+  "notes": "Small motorcycle idling (_2 Honda Monkey), seamless loops."
  },
  "bike_ride_away": {
   "files": [
@@ -1968,11 +2271,15 @@
     "title": "Jerry Honda 125 slow follow & ride off.wav"
    }
   ],
-  "notes": "_1 small motorcycle revs and rides away; _2 Honda 125 approaches slowly and rides off.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -16.9,
    -16.9
-  ]
+  ],
+  "notes": "_1 small motorcycle revs and rides away; _2 Honda 125 approaches slowly and rides off."
  },
  "bell_temple": {
   "files": [
@@ -2001,12 +2308,17 @@
     "title": "Thailand bells.wav"
    }
   ],
-  "notes": "Thai temple bells struck once: _1 Sukhothai (large bell), _2/_3 Thailand.",
+  "fileCredit": [
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -16.7,
    -17.6,
    -17.1
-  ]
+  ],
+  "notes": "Thai temple bells struck once: _1 Sukhothai (large bell), _2/_3 Thailand."
  },
  "gong": {
   "files": [
@@ -2037,14 +2349,21 @@
     "title": "Buddhist Golden Temple Gong"
    }
   ],
-  "notes": "Temple gong strikes with long resonance.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -17.1,
    -16.0,
    -16.0,
    -16.1,
    -15.9
-  ]
+  ],
+  "notes": "Temple gong strikes with long resonance."
  },
  "alms_bowl": {
   "files": [
@@ -2074,13 +2393,19 @@
     "title": "metal bowl wooden spoon"
    }
   ],
-  "notes": "Wooden spoon / ladle tapping a steel bowl (monk's alms bowl, บาตร).",
+  "fileCredit": [
+   0,
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -16.0,
    -16.5,
    -16.6,
    -16.5
-  ]
+  ],
+  "notes": "Wooden spoon / ladle tapping a steel bowl (monk's alms bowl, บาตร)."
  },
  "wind_chime": {
   "files": [
@@ -2109,12 +2434,17 @@
     "title": "Wind chimes 1"
    }
   ],
-  "notes": "Wind chimes (shrine eaves).",
+  "fileCredit": [
+   0,
+   1,
+   1
+  ],
   "lufs": [
    -17.5,
    -16.2,
    -16.0
-  ]
+  ],
+  "notes": "Wind chimes (shrine eaves)."
  },
  "wind_chime_loop": {
   "files": [
@@ -2133,13 +2463,16 @@
     "title": "Wind chimes 1"
    }
   ],
-  "notes": "Wind chimes in a light breeze, seamless.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1323000
   ],
   "lufs": [
    -23.0
-  ]
+  ],
+  "notes": "Wind chimes in a light breeze, seamless."
  },
  "monk_chant": {
   "files": [
@@ -2167,7 +2500,10 @@
     "title": "Thai_Buddhist_Monk_Chant.wav"
    }
   ],
-  "notes": "Thai Buddhist monks chanting (_1 small temple in Thailand, _2 Thai monk chant, pseudo-stereo). Seamless loops.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    1984500,
    1323000
@@ -2175,7 +2511,8 @@
   "lufs": [
    -23.0,
    -23.0
-  ]
+  ],
+  "notes": "Thai Buddhist monks chanting (_1 small temple in Thailand, _2 Thai monk chant, pseudo-stereo). Seamless loops."
  },
  "fluorescent_hum": {
   "files": [
@@ -2203,7 +2540,10 @@
     "title": "neon tube fluorescent light hum cu2.flac"
    }
   ],
-  "notes": "Fluorescent tube hum/buzz at 50 Hz mains (100 Hz buzz). _2 pitched from 60 Hz to 50 Hz.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    529200,
    529199
@@ -2211,7 +2551,8 @@
   "lufs": [
    -22.0,
    -22.0
-  ]
+  ],
+  "notes": "Fluorescent tube hum/buzz at 50 Hz mains (100 Hz buzz). _2 pitched from 60 Hz to 50 Hz."
  },
  "fluorescent_flicker": {
   "files": [
@@ -2250,14 +2591,21 @@
     "title": "fluorescent light flickering 1.wav"
    }
   ],
-  "notes": "Faulty tube starter clicks / flicker bursts (pair with the cabin-light-dies and streetlight events).",
+  "fileCredit": [
+   0,
+   1,
+   1,
+   1,
+   2
+  ],
   "lufs": [
    -16.0,
    -24.4,
    -27.5,
    -23.4,
    -21.7
-  ]
+  ],
+  "notes": "Faulty tube starter clicks / flicker bursts (pair with the cabin-light-dies and streetlight events)."
  },
  "transformer_hum": {
   "files": [
@@ -2285,7 +2633,10 @@
     "title": "hum electric transformer in large room2.flac"
    }
   ],
-  "notes": "Pole transformer hum (50 Hz family). _2 pitched from 60 Hz.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    661500,
    661499
@@ -2293,7 +2644,8 @@
   "lufs": [
    -22.0,
    -22.0
-  ]
+  ],
+  "notes": "Pole transformer hum (50 Hz family). _2 pitched from 60 Hz."
  },
  "electric_buzz": {
   "files": [
@@ -2312,13 +2664,16 @@
     "title": "transformer at night.wav"
    }
   ],
-  "notes": "Harsh electrical buzz (transformer at night) pitched to 50 Hz mains.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    661499
   ],
   "lufs": [
    -22.0
-  ]
+  ],
+  "notes": "Harsh electrical buzz (transformer at night) pitched to 50 Hz mains."
  },
  "electric_arc": {
   "files": [
@@ -2337,13 +2692,16 @@
     "title": "Electricity, Arcs, Sparks, long"
    }
   ],
-  "notes": "Continuous arcing / sparking wire (damaged line).",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    661500
   ],
   "lufs": [
    -20.0
-  ]
+  ],
+  "notes": "Continuous arcing / sparking wire (damaged line)."
  },
  "spark": {
   "files": [
@@ -2373,13 +2731,19 @@
     "title": "Spark Electric SFX 200927_0054.wav"
    }
   ],
-  "notes": "Electric spark / short discharge.",
+  "fileCredit": [
+   0,
+   1,
+   1,
+   1
+  ],
   "lufs": [
    -22.2,
    -16.5,
    -16.2,
    -16.2
-  ]
+  ],
+  "notes": "Electric spark / short discharge."
  },
  "breath_neck": {
   "files": [
@@ -2407,7 +2771,10 @@
     "title": "R15-47-Heavy Breathing.wav"
    }
   ],
-  "notes": "Slow creepy breathing close to the ear (rule 8). Seamless loops; play near the head, low-passed slightly.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    705600,
    299880
@@ -2415,7 +2782,8 @@
   "lufs": [
    -20.9,
    -20.2
-  ]
+  ],
+  "notes": "Slow creepy breathing close to the ear (rule 8). Seamless loops; play near the head, low-passed slightly."
  },
  "breath": {
   "files": [
@@ -2437,13 +2805,19 @@
     "title": "breath"
    }
   ],
-  "notes": "Single close breaths (inhale/exhale).",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -17.1,
    -17.3,
    -18.5,
    -19.1
-  ]
+  ],
+  "notes": "Single close breaths (inhale/exhale)."
  },
  "whisper": {
   "files": [
@@ -2499,7 +2873,14 @@
     "title": "Whisper3"
    }
   ],
-  "notes": "Whispers played REVERSED so no words are recognisable (ghostly, breathy). Short _4-_6 for quick hisses.",
+  "fileCredit": [
+   0,
+   1,
+   1,
+   2,
+   3,
+   4
+  ],
   "lufs": [
    -16.1,
    -17.1,
@@ -2507,7 +2888,8 @@
    -32.0,
    -24.9,
    -23.2
-  ]
+  ],
+  "notes": "Whispers played REVERSED so no words are recognisable (ghostly, breathy). Short _4-_6 for quick hisses."
  },
  "heartbeat": {
   "files": [
@@ -2535,7 +2917,10 @@
     "title": "heartbeat-80bpm.wav"
    }
   ],
-  "notes": "Real heartbeat loops of exactly 8 beats: _1 = 60 bpm, _2 = 80 bpm. playbackRate = bpm/60 (_1) or bpm/80 (_2).",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    353682,
    265482
@@ -2543,7 +2928,8 @@
   "lufs": [
    -24.0,
    -26.2
-  ]
+  ],
+  "notes": "Real heartbeat loops of exactly 8 beats: _1 = 60 bpm, _2 = 80 bpm. playbackRate = bpm/60 (_1) or bpm/80 (_2)."
  },
  "bone_crack": {
   "files": [
@@ -2580,12 +2966,17 @@
     "title": "S_Bone_Break.wav"
    }
   ],
-  "notes": "Bone cracks / breaks (twisted-neck reflection, Yai Speed's turning head).",
+  "fileCredit": [
+   0,
+   1,
+   2
+  ],
   "lufs": [
    -34.2,
    -26.8,
    -34.3
-  ]
+  ],
+  "notes": "Bone cracks / breaks (twisted-neck reflection, Yai Speed's turning head)."
  },
  "scream_far": {
   "files": [
@@ -2631,13 +3022,19 @@
     "title": "WomanScream.wav"
    }
   ],
-  "notes": "Female screams processed to sound far away in the forest (band-limited + forest echo).",
+  "fileCredit": [
+   0,
+   1,
+   2,
+   3
+  ],
   "lufs": [
    -16.0,
    -16.0,
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Female screams processed to sound far away in the forest (band-limited + forest echo)."
  },
  "scream_close": {
   "files": [
@@ -2665,11 +3062,15 @@
     "title": "Girl_Scream.wav"
    }
   ],
-  "notes": "Close female scream of fear (unprocessed).",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -16.0,
    -16.0
-  ]
+  ],
+  "notes": "Close female scream of fear (unprocessed)."
  },
  "giggle": {
   "files": [
@@ -2688,10 +3089,13 @@
     "title": "Ghostly Cackle Laugh 1"
    }
   ],
-  "notes": "Ghostly female cackle/laugh.",
+  "fileCredit": [
+   0
+  ],
   "lufs": [
    -16.0
-  ]
+  ],
+  "notes": "Ghostly female cackle/laugh."
  },
  "giant_hand_rumble": {
   "files": [
@@ -2710,13 +3114,16 @@
     "title": "Low Rumble - loopable ambiance"
    }
   ],
-  "notes": "Deep loopable rumble for the giant hand / something enormous moving. Seamless.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1764000
   ],
   "lufs": [
    -20.0
-  ]
+  ],
+  "notes": "Deep loopable rumble for the giant hand / something enormous moving. Seamless."
  },
  "rumble_rise": {
   "files": [
@@ -2735,10 +3142,13 @@
     "title": "20190530_low_noise_rumble.wav"
    }
   ],
-  "notes": "Low noise rumble swelling up over 26 s (giant hand rising).",
+  "fileCredit": [
+   0
+  ],
   "lufs": [
    -19.4
-  ]
+  ],
+  "notes": "Low noise rumble swelling up over 26 s (giant hand rising)."
  },
  "drone_low": {
   "files": [
@@ -2757,13 +3167,16 @@
     "title": "Deep Bass Drone.wav"
    }
   ],
-  "notes": "Deep bass drone bed (dread).",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    661500
   ],
   "lufs": [
    -22.0
-  ]
+  ],
+  "notes": "Deep bass drone bed (dread)."
  },
  "rumble_sub": {
   "files": [
@@ -2782,10 +3195,13 @@
     "title": "Low-frequency Drone, Deep Sub Bass Rumble, Slowly Shifting Metallic Resonance"
    }
   ],
-  "notes": "Slowly shifting sub-bass rumble (feel it on headphones).",
+  "fileCredit": [
+   0
+  ],
   "lufs": [
    -16.0
-  ]
+  ],
+  "notes": "Slowly shifting sub-bass rumble (feel it on headphones)."
  },
  "radio_static": {
   "files": [
@@ -2813,7 +3229,10 @@
     "title": "Radio static.aif"
    }
   ],
-  "notes": "Radio static between stations (no broadcast content). Seamless loops.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    882000,
    65749
@@ -2821,7 +3240,8 @@
   "lufs": [
    -22.0,
    -22.0
-  ]
+  ],
+  "notes": "Radio static between stations (no broadcast content). Seamless loops."
  },
  "ranat_note": {
   "files": [
@@ -2849,11 +3269,15 @@
     "title": "TOONMx-Blue Snowball Microphone, CU_Xylophone, Teakwood, Thai, Eye Blink_Nicholas Judy_TDC"
    }
   ],
-  "notes": "Thai teak xylophone (ranat-like) single strikes; repitch for melodies.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -21.1,
    -26.2
-  ]
+  ],
+  "notes": "Thai teak xylophone (ranat-like) single strikes; repitch for melodies."
  },
  "khim_phrase": {
   "files": [
@@ -2875,13 +3299,19 @@
     "title": "Khim (Thai Stringed Instrument)"
    }
   ],
-  "notes": "Khim (Thai hammered dulcimer) short note groups.",
+  "fileCredit": [
+   0,
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -16.2,
    -17.9,
    -17.1,
    -16.3
-  ]
+  ],
+  "notes": "Khim (Thai hammered dulcimer) short note groups."
  },
  "khaen_phrase": {
   "files": [
@@ -2902,12 +3332,17 @@
     "title": "Khaen Symphony 2.wav"
    }
   ],
-  "notes": "Khaen (Isan bamboo mouth organ) phrases.",
+  "fileCredit": [
+   0,
+   0,
+   0
+  ],
   "lufs": [
    -16.0,
    -16.1,
    -16.0
-  ]
+  ],
+  "notes": "Khaen (Isan bamboo mouth organ) phrases."
  },
  "ching": {
   "files": [
@@ -2935,11 +3370,15 @@
     "title": "Chhỉng01.wav"
    }
   ],
-  "notes": "Small hand cymbals (ching/chhing, Khmer-Thai) strikes.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "lufs": [
    -16.3,
    -18.9
-  ]
+  ],
+  "notes": "Small hand cymbals (ching/chhing, Khmer-Thai) strikes."
  },
  "amb_forest_dense": {
   "files": [
@@ -2967,16 +3406,20 @@
     "title": "Borneo Jungle - Night"
    }
   ],
-  "notes": "Dense tropical night forest: katydids/crickets/cicadas. _1 Nan, Thailand; _2 Borneo.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    1984500,
    1984500
   ],
-  "replaces": "bed:cicadas+katydids",
   "lufs": [
    -22.9,
    -22.9
-  ]
+  ],
+  "replaces": "bed:cicadas+katydids",
+  "notes": "Dense tropical night forest: katydids/crickets/cicadas. _1 Nan, Thailand; _2 Borneo."
  },
  "amb_forest_sparse": {
   "files": [
@@ -3004,16 +3447,20 @@
     "title": "Night/Evening Ambience in Chiang Dao, Thailand"
    }
   ],
-  "notes": "Sparse night forest crickets. _1 Chiang Rai mountains ~midnight; _2 Chiang Dao evening (mono source, pseudo-stereo).",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    1764000,
    1323000
   ],
-  "replaces": "bed:crickets",
   "lufs": [
    -24.8,
    -22.9
-  ]
+  ],
+  "replaces": "bed:crickets",
+  "notes": "Sparse night forest crickets. _1 Chiang Rai mountains ~midnight; _2 Chiang Dao evening (mono source, pseudo-stereo)."
  },
  "amb_forest_distant": {
   "files": [
@@ -3032,14 +3479,17 @@
     "title": "Jungle Night Ambience Southern Thailand"
    }
   ],
-  "notes": "Quiet, distant jungle night (Southern Thailand), soft rhythmic katydids.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1764000
   ],
-  "replaces": "bed:night_tone",
   "lufs": [
    -22.8
-  ]
+  ],
+  "replaces": "bed:night_tone",
+  "notes": "Quiet, distant jungle night (Southern Thailand), soft rhythmic katydids."
  },
  "amb_dusk_cicadas": {
   "files": [
@@ -3058,14 +3508,17 @@
     "title": "AMBRurl_18 30hrs ORTF Thailand Countryside Cicadas Frogs Wind Trees_Alex Boyesen.wav"
    }
   ],
-  "notes": "Thai countryside at 18:30: cicada chorus + frogs (good for 21:00 start).",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1764000
   ],
-  "replaces": "bed:cicadas",
   "lufs": [
    -23.0
-  ]
+  ],
+  "replaces": "bed:cicadas",
+  "notes": "Thai countryside at 18:30: cicada chorus + frogs (good for 21:00 start)."
  },
  "amb_insects_close": {
   "files": [
@@ -3084,13 +3537,16 @@
     "title": "Thailand jungle night heavy crickets1.flac"
    }
   ],
-  "notes": "Loud close crickets/katydids in Thai jungle (window down / standing on the roadside).",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1323000
   ],
   "lufs": [
    -23.0
-  ]
+  ],
+  "notes": "Loud close crickets/katydids in Thai jungle (window down / standing on the roadside)."
  },
  "amb_frogs": {
   "files": [
@@ -3109,14 +3565,17 @@
     "title": "Toads and frogs during night in Thailand"
    }
   ],
-  "notes": "Toads and frogs chorus at night in Thailand (pond/rice field).",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1984500
   ],
-  "replaces": "bed:frogs",
   "lufs": [
    -23.0
-  ]
+  ],
+  "replaces": "bed:frogs",
+  "notes": "Toads and frogs chorus at night in Thailand (pond/rice field)."
  },
  "amb_rain_light": {
   "files": [
@@ -3135,14 +3594,17 @@
     "title": "Tropical Rain - light in a forest with drop hitting the leaves"
    }
   ],
-  "notes": "Light tropical rain dripping on leaves.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1764000
   ],
-  "replaces": "bed:rain_leaves (light)",
   "lufs": [
    -35.1
-  ]
+  ],
+  "replaces": "bed:rain_leaves (light)",
+  "notes": "Light tropical rain dripping on leaves."
  },
  "amb_rain_heavy": {
   "files": [
@@ -3161,14 +3623,17 @@
     "title": "20180616 - Tropical rain Thailand 01.wav"
    }
   ],
-  "notes": "Heavy tropical rain, Thailand.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1764000
   ],
-  "replaces": "bed:rain_leaves (heavy)",
   "lufs": [
    -22.9
-  ]
+  ],
+  "replaces": "bed:rain_leaves (heavy)",
+  "notes": "Heavy tropical rain, Thailand."
  },
  "amb_rain_roof": {
   "files": [
@@ -3196,16 +3661,20 @@
     "title": "Heavy rain on car roof - close"
    }
   ],
-  "notes": "Rain on the car roof heard from inside: _1 moderate, _2 heavy and close.",
+  "fileCredit": [
+   0,
+   1
+  ],
   "loopSamples": [
    1764000,
    1764000
   ],
-  "replaces": "bed:rain_roof",
   "lufs": [
    -23.0,
    -22.9
-  ]
+  ],
+  "replaces": "bed:rain_roof",
+  "notes": "Rain on the car roof heard from inside: _1 moderate, _2 heavy and close."
  },
  "amb_wind_trees": {
   "files": [
@@ -3224,14 +3693,17 @@
     "title": "Wind Through Trees 3b"
    }
   ],
-  "notes": "Wind through tree leaves.",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    1764000
   ],
-  "replaces": "bed:wind_leaves",
   "lufs": [
    -24.0
-  ]
+  ],
+  "replaces": "bed:wind_leaves",
+  "notes": "Wind through tree leaves."
  },
  "birds_dawn": {
   "files": [
@@ -3250,12 +3722,15 @@
     "title": "20140212 - Chiang Rai early morning mountains.wav"
    }
   ],
-  "notes": "Early morning in the Chiang Rai mountains: birds waking, frogs/insects fading (05:00-06:00).",
+  "fileCredit": [
+   0
+  ],
   "loopSamples": [
    2205000
   ],
   "lufs": [
    -23.0
-  ]
+  ],
+  "notes": "Early morning in the Chiang Rai mountains: birds waking, frogs/insects fading (05:00-06:00)."
  }
 }

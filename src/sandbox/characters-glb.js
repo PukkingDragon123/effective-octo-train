@@ -9,6 +9,11 @@ import * as THREE from 'three';
 import { paintedMaterial, sky, GLOBAL_UNIFORMS } from '../render/index.js';
 import { loadCharacterAssets, createHumanoidGLB, PlayerBodyGLB, PRESETS, PASSENGERS } from '../characters/glb/index.js';
 import { LAYERS } from '../core/layers.js';
+import { CHARACTERS } from '../game/data/characters.js';
+
+// narrative appearance specs (the game's truth) with the contract presets as fallback
+const SPEC = (id) => (CHARACTERS[id]?.appearance ? { ...CHARACTERS[id].appearance, id } : PRESETS[id] || { id });
+const CAST = ['sri', 'womanWhite', 'piak', 'boyM', 'nuan', 'monk', 'saman', 'bua', 'somchai', 'ahKong', 'player'];
 
 export default async function ({ engine, cameraRig, params }) {
   const t0 = performance.now();
@@ -56,7 +61,7 @@ export default async function ({ engine, cameraRig, params }) {
   }
   const chars = [];
   const add = (id, x, z = 0, faceYaw = Math.PI) => {
-    const h = createHumanoidGLB(PRESETS[id] || { id });
+    const h = createHumanoidGLB(SPEC(id));
     h.root.position.set(x, 0, z);
     h.root.rotation.y = faceYaw; // face +Z (the camera)
     scene.add(h.root);
@@ -70,15 +75,26 @@ export default async function ({ engine, cameraRig, params }) {
   let focus = null;
 
   if (view === 'lineup') {
-    const ids = (params.get('ids') || [...PASSENGERS, 'ahKong', 'ton'].join(',')).split(',');
+    const ids = (params.get('ids') || CAST.join(',')).split(',');
     const n = ids.length;
     ids.forEach((id, i) => {
       const x = (i - (n - 1) / 2) * 0.72;
       const h = add(id, x, -Math.abs(i - (n - 1) / 2) * 0.08, Math.PI - x * 0.06);
       h.lookAt(eyeT, { weight: 0.6 });
     });
+  } else if (view === 'faces') {
+    // portraits: heads aligned at 1.5 m
+    const ids = (params.get('ids') || 'womanWhite,bua,boyM,ahKong').split(',');
+    ids.forEach((id, i) => {
+      const x = (i - (ids.length - 1) / 2) * 0.42;
+      const h = add(id, x, 0);
+      h.root.position.y = 1.5 - (h.look.height - 0.11);
+      h.lookAt(eyeT, { weight: 0.9 });
+      if (params.get('talk') === '1' && i % 2) h.setTalking(true);
+      if (params.get('expr')) h.setExpression({ [params.get('expr')]: +(params.get('amt') || 1) });
+    });
   } else if (view === 'single') {
-    const h = add(params.get('who') || 'auntieSri', 0);
+    const h = add(params.get('who') || 'sri', 0);
     focus = h;
     if (params.get('mode')) h.setMode(params.get('mode'));
     if (params.get('act')) h.play(params.get('act'), { loop: true, side: params.get('side') || undefined });
@@ -87,32 +103,34 @@ export default async function ({ engine, cameraRig, params }) {
     if (params.get('look') !== '0') h.lookAt(eyeT, { weight: 0.8 });
   } else if (view === 'actions') {
     // hail · wai · smoke · sitCar · drive
-    const sri = add('auntieSri', -1.6, 0); sri.play('hail', { side: 'R' });
+    const sri = add('sri', -1.6, 0); sri.play('hail', { side: 'R' });
     const m = add('boyM', -0.8, 0.1); m.play('wai', { loop: true });
     const kong = add('ahKong', 0.0, 0.1); kong.play('smoke', { loop: true });
     const seat = new THREE.Object3D(); seat.position.set(0.85, 0.5, 0); seat.rotation.y = Math.PI; scene.add(seat);
-    const w = createHumanoidGLB(PRESETS.womanInWhite); w.sitAt(seat, { pose: 'sitCar' }); w.lookAt(eyeT, { weight: 0.7 }); chars.push(w);
+    const w = createHumanoidGLB(SPEC('womanWhite')); w.sitAt(seat, { pose: 'sitCar' }); w.lookAt(eyeT, { weight: 0.7 }); chars.push(w);
     const seat2 = new THREE.Object3D(); seat2.position.set(1.75, 0.5, 0); seat2.rotation.y = Math.PI; scene.add(seat2);
     const wheel = testWheel(); wheel.root.position.set(0, 0.34, -0.4); seat2.add(wheel.root);
-    const s = createHumanoidGLB(PRESETS.somchai); s.sitAt(seat2, { pose: 'drive' });
+    const s = createHumanoidGLB(SPEC('somchai')); s.sitAt(seat2, { pose: 'drive' });
     s.setHandTarget('L', wheel.gripL, { grip: 1 }); s.setHandTarget('R', wheel.gripR, { grip: 1 });
     chars.push(s);
     for (const b of [seat, seat2]) { const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), paintedMaterial({ color: 0x3a2e28 })); box.position.y = -0.06; b.add(box); const back = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.08), paintedMaterial({ color: 0x3a2e28 })); back.position.set(0, 0.3, 0.27); back.rotation.x = -0.15; b.add(back); }
   } else if (view === 'ghost') {
-    const h = add(params.get('who') || 'womanInWhite', 0);
-    focus = h;
-    const st = +(params.get('stage') || 0);
+    const stages = (params.get('stages') || params.get('stage') || '1,2,3,4,5,7').split(',').map(Number);
     const G = [
       {}, { neckTwist: 2.2 }, { headRoll: 1.45, jitter: 0.3 }, { backbend: 1.1, headPitch: -0.6 }, { levitate: 0.35 },
       { limbBreak: 1, jitter: 0.6, armTwist: 0.8 }, { mouthStretch: 1, headPitch: -0.2 }, { neckTwist: 1.4, backbend: 0.6, levitate: 0.25, mouthStretch: 0.8, jitter: 0.4, stretch: 0.6 },
-    ][st] || {};
-    h.setGhost({ ...G, stare: 1 }, 100);
-    if (st === 6) h.setExpression({ creepy: 1 });
-    if (params.get('act')) h.play(params.get('act'), { loop: true });
-    h.lookAt(eyeT, { weight: 1, unlimited: true });
+    ];
+    stages.forEach((st, i) => {
+      const h = add(params.get('who') || 'womanWhite', (i - (stages.length - 1) / 2) * 0.85, 0);
+      focus = focus || h;
+      h.setGhost({ ...(G[st] || {}), stare: 1 }, 100);
+      if (st === 6 || st === 7) h.setExpression({ creepy: 1 });
+      if (params.get('act')) h.play(params.get('act'), { loop: true });
+      h.lookAt(eyeT, { weight: 1, unlimited: true });
+    });
   } else if (view === 'mirror') {
     // reflection double: normal direct view, twisted neck only in the "mirror" (shown side by side)
-    const h = add(params.get('who') || 'womanInWhite', -0.45);
+    const h = add(params.get('who') || 'womanWhite', -0.45);
     const d = h.createReflectionDouble({ neckTwist: 1.6, headRoll: 0.3 });
     scene.add(d.root);
     d.root.position.set(0.45, 0, 0);
@@ -135,7 +153,7 @@ export default async function ({ engine, cameraRig, params }) {
     seat.add(dash);
     const pedT = new THREE.Object3D(); pedT.position.set(0.1, -0.3, -0.78); seat.add(pedT);
     const pedC = new THREE.Object3D(); pedC.position.set(-0.16, -0.28, -0.78); seat.add(pedC);
-    player = new PlayerBodyGLB();
+    player = new PlayerBodyGLB(SPEC('player'));
     scene.add(player.root);
     player.enterVehicle({ kind: 'taxi', anchors: { driverSeat: seat, steeringWheel: wheel.anchor, pedalThrottle: pedT, pedalClutch: pedC }, parts: { steering: { spin: wheel.spin } }, steeringRadius: 0.19 });
     if (params.get('hold')) player.hold(params.get('hold'));
@@ -145,7 +163,7 @@ export default async function ({ engine, cameraRig, params }) {
   console.log(`[characters-glb] built ${chars.length} in ${ms.toFixed(0)} ms`, chars.map((h) => `${h.look?.id}:${h.body?.geometry?.userData?.tris ?? '?'}`).join(' '));
 
   // ---- cameras (characters face +Z)
-  const camName = params.get('cam') || (view === 'lineup' ? 'lineup' : view === 'actions' ? 'actions' : view === 'fp' ? 'fp' : 'front');
+  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost'].includes(view) ? view : 'front');
   const H = focus ? focus.look.height : 1.65;
   const hy = focus ? focus.headPosition.y : 1.5;
   const n = chars.length;
@@ -159,7 +177,9 @@ export default async function ({ engine, cameraRig, params }) {
     closeSide: [[0.55, hy, 0.18], [0, hy - 0.03, 0], -32],
     torso: [[0, H * 0.72, 1.3], [0, H * 0.68, 0], -20],
     hands: [[0.25, H * 0.55, 0.75], [0.15, H * 0.5, 0], -20],
-    lineup: [[0, 1.25, n * 0.6 + 1.6], [0, 0.95, 0], -8],
+    lineup: [[0, 1.2, n * 0.55 + 1.0], [0, 0.92, 0], -14],
+    faces: [[0, 1.5, 1.6], [0, 1.49, 0], -40],
+    ghost: [[0.3, 1.25, n * 0.6 + 1.9], [0, 0.95, 0], -12],
     lineupClose: [[0, 1.45, 2.6], [0, 1.38, 0], -12],
     actions: [[0.2, 1.3, 4.6], [0.05, 0.9, 0], -10],
     fp: null,

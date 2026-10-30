@@ -10,6 +10,7 @@ import { settings } from '../core/Settings.js';
 import { LAYERS } from '../core/layers.js';
 import { clamp, damp, lerp, easeInOut } from '../core/math.js';
 import { audio, STATION_NAMES } from '../audio/index.js';
+import { cameraRig } from '../core/CameraRig.js';
 import { GLOBAL_UNIFORMS } from '../render/index.js';
 import { FONTS } from '../ui/fonts.js';
 
@@ -52,6 +53,7 @@ const LABELS = {
   glovebox: ['ช่องเก็บของ', 'Glovebox'],
   visor: ['ที่บังแดด', 'Sun visor'],
   wipe: ['เช็ดฝ้า', 'Wipe the fog'],
+  sticker: ['ดูสติกเกอร์', 'Look at the sticker'],
 };
 
 export class TaxiControls {
@@ -373,6 +375,16 @@ export class TaxiControls {
       this.items.push(it);
       return it;
     };
+    // invisible INTERACT-layer pick boxes for small or shared parts
+    this._proxies = this._proxies || [];
+    const proxy = (parent, size, pos) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial());
+      m.layers.set(LAYERS.INTERACT);
+      m.position.set(...pos);
+      parent.add(m);
+      this._proxies.push(m);
+      return m;
+    };
     this.keyItem = add({
       id: 'taxi.key', object: P.keySlot, icon: 'key', ...L('key_insert'), enabled: inCar,
       onUse: () => {
@@ -392,15 +404,6 @@ export class TaxiControls {
       },
     });
     // light stalk: twist the knob for the headlights, flick the arm for the indicator
-    const proxy = (parent, size, pos) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial());
-      m.layers.set(LAYERS.INTERACT);
-      m.position.set(...pos);
-      parent.add(m);
-      this._proxies.push(m);
-      return m;
-    };
-    this._proxies = this._proxies || [];
     const knob = proxy(P.stalkLights, [0.05, 0.036, 0.036], [0.145, -0.011, 0.022]);
     const arm = proxy(P.stalkLights, [0.1, 0.03, 0.03], [0.065, -0.005, 0.01]);
     add({ id: 'taxi.headlights', object: knob, ...L('headlights'), enabled: inCar, onUse: () => this.set('headlights', 'cycle', { source: 'interact' }) });
@@ -418,6 +421,11 @@ export class TaxiControls {
     });
     add({ id: 'taxi.glovebox', object: P.glovebox, ...L('glovebox'), reach: 1.4, enabled: inCar, onUse: () => this.set('glovebox', 'toggle', { source: 'interact' }) });
     add({ id: 'taxi.sunVisor', object: P.visors.driver, ...L('visor'), enabled: inCar, onUse: () => this.set('visor', 'toggle', { source: 'interact' }) });
+    // the faded little blue elephant sticker on the dash (memory m_sticker listens to interact:use 'taxi.sticker')
+    if (P.stickerAnchor) {
+      const st = proxy(P.stickerAnchor, [0.13, 0.13, 0.03], [0, 0, 0.01]);
+      add({ id: 'taxi.sticker', object: st, icon: 'eye', ...L('sticker'), reach: 1.45, enabled: inCar, onUse: () => this.inspect('sticker', P.stickerAnchor) });
+    }
     // window cranks (hold to wind; tap = full travel)
     for (const id of ['fr', 'fl', 'rr', 'rl']) {
       add({
@@ -468,6 +476,35 @@ export class TaxiControls {
         },
       });
     }
+  }
+
+  /**
+   * Look closely at a detail (lean in: a short camera focus pull, the hand reaches to touch it).
+   * Emits 'taxi:inspect' {what}. Gameplay listens to interact:use for memories.
+   */
+  async inspect(what, object) {
+    const t = this.taxi;
+    bus.emit('taxi:inspect', { what });
+    const fp = this._inspectPos || (this._inspectPos = new THREE.Vector3());
+    if (!cameraRig.focusTarget || cameraRig.focusTarget === fp) {
+      // focus is a world point: animate() keeps it on the object while the car moves
+      this._inspectObj = object;
+      object.getWorldPosition(fp);
+      cameraRig.setFocus?.(fp, 0.4);
+      clearTimeout(this._inspectT);
+      this._inspectT = setTimeout(() => {
+        this._inspectObj = null;
+        if (cameraRig.focusTarget === fp) cameraRig.setFocus(null);
+      }, 1800);
+    }
+    if (t.onReach) {
+      try {
+        await t.onReach(object, { control: 'inspect', value: what, source: 'interact' });
+      } catch (e) {
+        /* cosmetic */
+      }
+    }
+    audio.play('paper_rustle', { object, volume: 0.18, rate: 1.4 });
   }
 
   paneFoggy(p) {
@@ -557,6 +594,7 @@ export class TaxiControls {
     const P = t.parts;
     const ph = t.physicsSim;
     const A = this.anim;
+    if (this._inspectObj) this._inspectObj.getWorldPosition(this._inspectPos);
     if (s.horn) A.hornT = (A.hornT || 0) + dt;
     // key
     P.key.visible = s.keyInserted;
@@ -823,6 +861,7 @@ export class TaxiControls {
   }
 
   dispose() {
+    clearTimeout(this._inspectT);
     this.unregister();
     this._busOff?.();
     this.anim.hornHandle?.stop?.(0.05);
