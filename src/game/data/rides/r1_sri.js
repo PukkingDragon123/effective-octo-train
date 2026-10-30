@@ -84,7 +84,7 @@ export const RIDE_SRI = {
         trigger: { type: 'progress', at: 0.38 },
         lines: [
           P('มาลัยมะลิพวกนี้ ป้าร้อยเองทั้งคืนเลยนะ', 'I strung all these jasmine garlands myself. All night.', { emotion: 'smile' }),
-          P('เช้าเอาไปขายตลาด พวงละยี่สิบ', "In the morning they go to market. Twenty baht each."),
+          P('พรุ่งนี้เช้าเอาไปขายที่ตลาด พวงละยี่สิบ', "Tomorrow morning they go to market. Twenty baht each."),
         ],
       },
       {

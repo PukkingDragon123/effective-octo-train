@@ -44,7 +44,7 @@ export const RIDE_BOY_M = {
     ],
     destination: [
       P('ไปบ้านผมครับ เลยศาลเจ้าไปนิดเดียว', "To my house, please. Just past the shrine."),
-      P('แม่รอกินข้าวอยู่ วันนี้แม่ทำไข่เจียว', "Mum's waiting with dinner. She's making omelette tonight.", { emotion: 'smile' }),
+      P('แม่รอกินข้าวอยู่ครับ วันนี้แม่ทำไข่เจียว', "Mum's waiting with dinner. She's making omelette tonight.", { emotion: 'smile' }),
     ],
     beats: [
       {

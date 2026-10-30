@@ -12,6 +12,7 @@ import { dancerGeo } from './lib/figures.js';
 import { hangingFluorescent } from './sala.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const sagCurveG = (a, b) => { const pts = []; for (let i = 0; i <= 10; i++) { const t = i / 10; const p = new THREE.Vector3().lerpVectors(a, b, t); p.y -= 4 * t * (1 - t) * 0.12; pts.push(p); } return pts; };
 function anchor(parent, name, x, y, z, yaw = 0) {
   const a = new THREE.Object3D();
   a.name = name;
@@ -103,10 +104,18 @@ export function createGarage(opts = {}) {
   for (let i = 0; i < 3; i++) k.add(cr, G('crq', () => quad(1.5, 1.5)), { p: [(rng() - 0.5) * 6, 0.023, (rng() - 0.5) * 5], r: [-Math.PI / 2, 0, rng() * 6], color: 0xffffff, uv: 'keep', w: false });
 
   // ---- walls ---------------------------------------------------------------------------------
-  const wallMat = mat('plaster');
+  const wallMat = mat('concrete');
   const wallW = { grime: 0.75, grimeH: 1.1, streak: 0.8, streakColor: 0x3a3020, mossLow: 0.4, mossH: 0.5 };
-  k.add(wallMat, bbox(W, HB + 0.1, 0.2, 0.02, 0.4), { p: [0, 0, zB], color: 0xb8b4a0, w: wallW, colorFn: (p, n, c) => { if (p.y < 1.0 && n.z > 0.5) c.lerp(_teal, 0.55); } });
-  k.add(wallMat, bbox(D, HB + 0.1, 0.2, 0.02, 0.4), { p: [xL, 0, 0], r: Math.PI / 2, color: 0xb8b4a0, w: wallW, deform: (p) => { p.y *= 1 + ((p.x + D / 2) / D) * ((HF - HB) / HB) * 1.0; }, colorFn: (p, n, c) => { if (p.y < 1.0 && n.x > 0.5) c.lerp(_teal, 0.55); } });
+  const paintFn = (axis) => (p, n, c) => {
+    if ((axis === 'z' ? n.z : n.x) > 0.5) {
+      c.lerp(p.y < 1.05 ? _teal : _cream, 0.75);
+      if (Math.abs(p.y - 1.05) < 0.025) c.multiplyScalar(0.6);
+      const pn = noise.noise3D(p.x * 2.5, p.y * 2.5, p.z * 2.5);
+      if (pn > 0.45) c.lerp(_bare, (pn - 0.45) * 2.5);
+    }
+  };
+  k.add(wallMat, bbox(W, HB + 0.1, 0.2, 0.02, 0.3), { p: [0, 0, zB], color: 0xb8b4a0, w: wallW, colorFn: paintFn('z') });
+  k.add(wallMat, bbox(D, HB + 0.1, 0.2, 0.02, 0.3), { p: [xL, 0, 0], r: Math.PI / 2, color: 0xb8b4a0, w: wallW, deform: (p) => { p.y *= 1 + ((p.x + D / 2) / D) * ((HF - HB) / HB) * 1.0; }, colorFn: paintFn('x') });
   // right side: half block wall + rusty corrugated sheet above
   k.add(wallMat, bbox(D, 1.3, 0.2, 0.02, 0.4), { p: [xR, 0, 0], r: Math.PI / 2, color: 0xa8a490, w: wallW });
   k.add(mat('corrugated'), bevelBox(D - 0.3, HB - 1.3, 0.02, 0.005, 0.15), {
@@ -343,6 +352,32 @@ export function createGarage(opts = {}) {
   });
   out.colliders.push({ x: xR - 0.6, z: zB + 0.9, hx: 0.6, hz: 0.6, yaw: 0 }, { x: xR - 0.5, z: 0.95, hx: 0.35, hz: 0.7, yaw: 0 }, { x: -0.2, z: zB + 1.5, hx: 0.45, hz: 0.4, yaw: 0 }, { x: bx, z: bz, hx: 1.3, hz: 0.38, yaw: 0 });
 
+  // ---- extra clutter: wall shelf of bottles over the bench, steel cabinet, boxes, hubcaps,
+  //      fan belts, buckets, a creeper board, cardboard on the floor -----------------------------
+  k.add(mat('wood'), bbox(2.2, 0.04, 0.28, 0.006, 0.3), { p: [bx, 2.25 - 0.55, zB + 0.24], color: 0x6a5038, w: { dust: 0.7 } });
+  for (const sx of [-1, 1]) k.add(mat('metal'), G('wsbr', () => bbox(0.03, 0.2, 0.22, 0.004, 0.1)), { p: [bx + sx * 1.0, 1.5, zB + 0.21], color: 0x3a3a38, w: false });
+  k.details(() => {
+    fillShelf(k, bx - 1.05, 1.74, zB + 0.24, 1.0, 0.24, rng, 'mixed');
+    k.add(mat('plastic'), G('basket', () => bbox(0.36, 0.14, 0.24, 0.02, 0.08)), { p: [bx + 0.25, 1.74, zB + 0.24], color: 0xc02a1a, w: { dust: 0.6 }, colorFn: (p, n, c, lp) => { if (Math.abs(n.y) < 0.5 && Math.sin(lp.x * 120) * Math.sin(lp.y * 120) > 0.5) c.multiplyScalar(0.3); } });
+    for (let i = 0; i < 4; i++) bottle(k, { p: [bx + 0.55 + i * 0.1, 1.74, zB + 0.24], kind: i % 2 ? 'whisky' : 'small', color: [0x7a4a1a, 0x2a5a2a, 0xa83a1a, 0xc8c0a0][i] });
+    // steel cabinet back-right + boxes on top
+    k.add(mat('metal'), bbox(0.9, 1.85, 0.45, 0.01, 0.3), { p: [1.6, 0, zB + 0.33], color: 0x6a7a7a, w: { grime: 0.6, streak: 0.7, dust: 0.6 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(lp.x) < 0.012) c.multiplyScalar(0.25); } });
+    for (let i = 0; i < 3; i++) k.add(mat('paper'), G('cbox' + i, () => bbox(0.5 - i * 0.08, 0.28, 0.38, 0.01, 0.15)), { p: [1.6 + (rng() - 0.5) * 0.1, 1.85 + i * 0.28, zB + 0.33], r: (rng() - 0.5) * 0.3, color: 0xa8845a, w: { dust: 0.8 } });
+    // hubcaps + fan belts on the back wall
+    for (let i = 0; i < 3; i++) k.add(mat('galv'), G('hubcap', () => lathe([[0, 0.03], [0.1, 0.025], [0.17, 0.01], [0.18, 0]], 18).rotateX(Math.PI / 2)), { p: [2.5 + i * 0.4, 1.4 + (i % 2) * 0.35, zB + 0.11], color: 0xb0b0a8, w: { grime: 0, dust: 0.4, streak: 0.4 } });
+    for (let i = 0; i < 4; i++) k.add(mat('rubber'), G('belt' + i, () => torus(0.12 + i * 0.03, 0.008, 3, 20).scale(0.6, 1.3, 1)), { p: [3.55, 1.95 - i * 0.03, zB + 0.13], color: 0x1a1a1a, w: false });
+    // buckets + broom + creeper board + cardboard on the floor
+    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [0.6, 0, zB + 0.45], color: 0x2a5a9a, w: { grime: 0.5 } });
+    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [0.9, 0, zB + 0.5], color: 0xd8b030, w: { grime: 0.5 } });
+    k.add(mat('wood'), tube([V(0, 0.02, 0), V(0.02, 1.25, -0.25)], 0.012, 5), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a6a40, w: false });
+    k.add(mat('flower'), G('broomhead', () => cyl(0.02, 0.12, 0.35, 8, 0, 1, true)), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a7a50, w: false });
+    k.add(mat('paper'), G('cardboardfloor', () => bbox(0.9, 0.01, 1.6, 0.002, 0.3)), { p: [1.3, 0.0, 2.3], r: 0.35, color: 0x9a7a52, w: { grime: 0.8, grimeH: 0.05 } });
+    k.add(mat('wood'), G('creeper', () => bbox(0.4, 0.04, 0.95, 0.01, 0.2)), { p: [2.5, 0.07, 2.1], r: -0.5, color: 0x6a4a30, w: { grime: 0.5 } });
+    // clothesline with rags across the back-left corner
+    k.add(mat('dark'), tube(sagCurveG(V(xL + 0.15, 2.5, zB + 0.8), V(xL + 2.2, 2.5, zB + 0.15)), 0.004, 3), { color: 0x2a2a2a, w: false });
+    for (let i = 0; i < 3; i++) k.add(mat('cloth_static'), G('ragh' + i, () => quad(0.3, 0.42, 2, 3).translate(0, -0.21, 0)), { p: [xL + 0.55 + i * 0.6, 2.44 - i * 0.02, zB + 0.68 - i * 0.2], r: [0, 0.32, 0], color: [0x6a7a8a, 0xb8a888, 0x8a3a2a][i], uv: 'keep', w: { vary: 0.3 }, deform: (p) => { p.z += Math.sin(p.x * 12) * 0.02; } });
+  });
+
   group.add(k.build({ name: 'garage', detailDistance: 45 }));
   // ---- gameplay anchors -------------------------------------------------------------------------
   out.taxiSpot = anchor(group, 'taxiSpot', 1.25, 0, 0.3, Math.PI); // taxi faces the road (+Z)
@@ -353,5 +388,7 @@ export function createGarage(opts = {}) {
   return out;
 }
 const _teal = new THREE.Color(0x4a7a74);
+const _cream = new THREE.Color(0xd8d0b0);
+const _bare = new THREE.Color(0x8a8478);
 const _rust = new THREE.Color(0x6a3418);
 const _fibre = new THREE.Color(0xc8c8a0);
