@@ -984,6 +984,7 @@ MAT_DEFS = {
     'plastic_black': dict(color=(0.03, 0.03, 0.032), rough=0.6, metal=0.0, atlas='ext_parts'),
     'metal_steel': dict(color=(0.55, 0.56, 0.58), rough=0.45, metal=1.0, atlas='ext_parts'),
     'plastic_dash': dict(color=(0.07, 0.072, 0.078), rough=0.7, metal=0.0, atlas='int_hard'),
+    'plastic_trim': dict(color=(0.30, 0.28, 0.24), rough=0.7, metal=0.0, atlas='int_hard'),
     'carpet': dict(color=(0.05, 0.05, 0.055), rough=1.0, metal=0.0, atlas='int_hard'),
     'fabric_headliner': dict(color=(0.55, 0.53, 0.48), rough=0.95, metal=0.0, atlas='int_hard'),
     'vinyl_seat': dict(color=(0.16, 0.16, 0.17), rough=0.75, metal=0.0, atlas='int_soft'),

@@ -99,6 +99,7 @@ class Interior:
         self.seats()
         self.door_cards()
         self.cabin_trim()
+        self.inner_trim()
         self.floor_console_pedals()
         self.mirror_visors_belts()
         return self.objs
@@ -620,7 +621,8 @@ class Interior:
             self.objs[frame.name] = frame
         self.anchor['driverSeat'] = (0.372, -0.14, 0.50)
         self.anchor['frontPassengerSeat'] = (-0.372, -0.14, 0.50)
-        self.anchor['driverEye'] = (0.372, -0.24, 1.15)
+        # seated eye ~0.72 m above the cushion, 10.5 cm under the headliner (1.32 m)
+        self.anchor['driverEye'] = (0.372, -0.24, 1.215)
         # ---- wooden bead cover on the driver seat ----
         seat, frame, Mb, sx = seat_objs['driver']
         bvh = vlib.bvh_of(seat)
@@ -845,7 +847,7 @@ class Interior:
             x = lerp(-0.60, 0.60, i / nx)
             for j in range(ny + 1):
                 y = lerp(-0.935, 0.045, j / ny)
-                z = tb.T_roof(x, y) - 0.034
+                z = tb.T_roof(x, y) - 0.026
                 edge = smoothstep(0.48, 0.60, abs(x))
                 z -= 0.030 * edge
                 ey = max(smoothstep(-0.02, 0.045, y), smoothstep(-0.86, -0.935, y))
@@ -858,7 +860,7 @@ class Interior:
         assign_mat(hl, 'fabric_headliner')
         self.objs['headliner'] = hl
         # dome light
-        dz = tb.T_roof(0, -0.25) - 0.036
+        dz = tb.T_roof(0, -0.25) - 0.028
         dl = extrude_outline('dome', rounded_rect_2d(-0.065, -0.30, 0.065, -0.20, 0.012, 4), dz - 0.012, dz, plane='XY')
         add_bevel(dl, 0.003, 2, angle=30)
         apply_modifiers(dl)
@@ -892,7 +894,7 @@ class Interior:
                                 side * 0.715, plane='YZ')
             parts.append(k)
         trim = join(parts, name='pillar_trims')
-        assign_mat(trim, 'plastic_dash')
+        assign_mat(trim, 'plastic_trim')
         self.objs['pillar_trims'] = trim
         # parcel shelf with speaker grilles
         shelf = extrude_outline('parcel', rounded_rect_2d(-0.66, -1.62, 0.66, -1.36, 0.04, 4), 0.955, 0.968,
@@ -906,6 +908,56 @@ class Interior:
         sh = join([shelf], name='parcel_shelf')
         assign_mat(sh, 'carpet')
         self.objs['parcel_shelf'] = join([sh] + spk, name='parcel_shelf')
+
+    def inner_trim(self):
+        """Interior skin of the greenhouse: every pillar, the windshield header, the roof rails
+        and the rear header get a trim shell offset 12 mm inside the body sheet (tan plastic on
+        the pillars, headliner cloth where it faces down), so no bare paint shows from the cabin.
+        It follows the window cut-outs exactly and wraps the pinch-weld flanges."""
+        shell = self.E.objs['body']
+        o = duplicate(shell, 'roof_trim')
+        for vg in list(o.vertex_groups):
+            o.vertex_groups.remove(vg)
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+
+        def keep(f):
+            c = f.calc_center_median()
+            return -1.12 < c.y < 0.86 and abs(c.x) < 0.87 and c.z > 0.885
+
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if not keep(f)], context='FACES')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+        bm.normal_update()
+
+        def outward(p):
+            d = Vector((p.x, 0.0, max(p.z - 0.75, 0.0) * 1.4))
+            return d.normalized() if d.length > 1e-6 else Vector((0, 0, 1))
+
+        roofish = {}
+        for f in bm.faces:
+            if f.normal.dot(outward(f.calc_center_median())) < 0:
+                f.normal_flip()
+        bm.normal_update()
+        for f in bm.faces:
+            roofish[f.index] = f.normal.z > 0.8
+        for v in bm.verts:
+            n = v.normal
+            if n.dot(outward(v.co)) < 0:
+                n = -n
+            v.co -= n * 0.012
+        for f in bm.faces:
+            f.normal_flip()
+        idx = [1 if roofish[f.index] else 0 for f in bm.faces]
+        bm.to_mesh(o.data)
+        bm.free()
+        if o.data.has_custom_normals:
+            with bpy.context.temp_override(object=o, active_object=o, selected_objects=[o]):
+                bpy.ops.mesh.customdata_custom_splitnormals_clear()
+        vlib.set_mats(o, ['plastic_trim', 'fabric_headliner'], idx)
+        o.data.shade_smooth()
+        set_sharp_by_angle(o, 40)
+        self.objs['roof_trim'] = o
+        log('inner trim', len(o.data.polygons), 'faces')
 
     # ---------------------------------------------------------------------------------
     def floor_console_pedals(self):

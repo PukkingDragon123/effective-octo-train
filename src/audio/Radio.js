@@ -98,6 +98,23 @@ export class Radio {
     this._emit();
   }
 
+  /**
+   * Programme clock for the taxi's dashboard screen (vehicle/HeadUnit.js), null until the audio runs.
+   * -> one reused { plan (programItem plan: kind idx title bpm barDur sections melA melB text voice father) | null,
+   *    time (s into the item; < 0 = it starts in -time s), tuning, ghost }.
+   */
+  clock() {
+    if (!this.core) return null;
+    const c = this._clock || (this._clock = { plan: null, time: 0, tuning: false, ghost: 0 });
+    const p = this.on ? this._prog : null;
+    const ch = p ? p.plan.chunks[p.ci] : null;
+    c.plan = p ? p.plan : null;
+    c.time = p ? (ch ? ch.start : p.plan.duration) - (p.nextAt - this.core.ctx.currentTime) : 0;
+    c.tuning = this._tuning > 0 || !this.station;
+    c.ghost = this.ghost;
+    return c;
+  }
+
   // ---- internals ----
   _emit() {
     const memory = this.on && this.station === 3 && this.song === 'father_song' ? 'm_song' : undefined;

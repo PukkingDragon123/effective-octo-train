@@ -402,7 +402,14 @@ export function buildTaxiFromGLB(gltf, anchorDefaults) {
   skin('plate_front', plate);
   skin('plate_rear', plate);
   if (meterQuad) derived.meter = boxOf(meterQuad).getCenter(new THREE.Vector3());
-  if (radioQuad) derived.radioKnob = boxOf(radioQuad).getCenter(new THREE.Vector3());
+  if (radioQuad) {
+    derived.radioKnob = boxOf(radioQuad).getCenter(new THREE.Vector3());
+    // where the dashboard monitor (HeadUnit.js) sits: on the faceplate's top edge, in front of the stack
+    const rb = boxOf(radioQuad);
+    parts.radioFace = { top: (rb.min.y + rb.max.y) / 2 + 0.017, front: rb.max.z, stack: rb.max.z - 0.016 };
+  }
+  // optional head-unit screen node (uv 0..1); HeadUnit.js puts the screen material on it
+  parts.headUnitScreen = ['head_unit_screen', 'headunit_screen', 'head_unit_display', 'screen_display', 'monitor_screen', 'monitor_display'].map(N).find(Boolean) || null;
   const dome = skin('dome_light', parts.im.dome) || skin('light_dome', parts.im.dome);
   if (dome) derived.cabinLight = boxOf(dome).getCenter(new THREE.Vector3());
   parts.domeLens = dome || stand('domeLens', at('cabinLight'));

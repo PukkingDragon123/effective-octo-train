@@ -1,7 +1,9 @@
 // Driver POV inside the taxi at night: dashboard lit, rain on the windshield, wipers
 // mid-sweep, condensation partly wiped, mirrors showing things behind the car.
 // Params: cam=driver|passenger|rear|mirror|dash, yaw, pitch, cabin=0|1, rain, fog (weather),
-//         condense=0..1, wipers=0|1|2, hour, lights=off|low|high, drive=1 (autopilot), marks=1
+//         condense=0..1, wipers=0|1|2, hour, lights=off|low|high, drive=1 (autopilot), marks=1,
+//         body=1 (Ton seated at the wheel, camera on his eye: hands on the rim, head clearance)
+//         cam=screen (the dashboard monitor), screen=karaoke|album|glitch|static, station=1..4, item, songt (s into the item)
 import * as THREE from 'three';
 import { Taxi, loadVehicleAssets } from '../vehicle/index.js';
 import { buildTestSet, addStreetlight, applyEnv } from './vehicle-common.js';
@@ -84,8 +86,8 @@ export default async function ({ engine, cameraRig, params, interact }) {
   const cam = params.get('cam') || 'driver';
   const yaw = Number(params.get('yaw') ?? 0) * (Math.PI / 180);
   const pitch = Number(params.get('pitch') ?? -6) * (Math.PI / 180);
-  if (cam === 'driver' || cam === 'mirror' || cam === 'dash') {
-    const presets = { driver: [yaw, pitch], mirror: [0.55, 0.05], dash: [0.08, -0.38] };
+  if (cam === 'driver' || cam === 'mirror' || cam === 'dash' || cam === 'screen') {
+    const presets = { driver: [yaw, pitch], mirror: [0.55, 0.05], dash: [0.08, -0.38], screen: [0.4, -0.33] };
     const [y, p] = params.get('yaw') ? [yaw, pitch] : presets[cam];
     cameraRig.attach(taxi.anchors.driverEye, taxi.bodyInner, { yaw: y, pitch: p });
   } else {
@@ -102,8 +104,26 @@ export default async function ({ engine, cameraRig, params, interact }) {
     const look = new THREE.Vector3(...t).sub(new THREE.Vector3(...p));
     cameraRig.attach(eye, taxi.bodyInner, { yaw: Math.atan2(-look.x, -look.z), pitch: Math.atan2(look.y, Math.hypot(look.x, look.z)) });
   }
+  if (params.get('body') === '1') {
+    const { loadCharacterAssets, PlayerBody } = await import('../characters/index.js');
+    await loadCharacterAssets();
+    const pb = new PlayerBody({});
+    engine.scene.add(pb.root);
+    pb.enterVehicle(taxi);
+    window.__player = pb;
+    if (cam === 'driver') cameraRig.attach(pb.eye, pb.base, { yaw, pitch });
+  }
   cameraRig.fovBase = Number(params.get('fov') ?? 72);
   // warm-up: let wipers sweep and masks settle
   const warm = Number(params.get('warm') ?? 40);
+  // dashboard monitor: force a programme / mode (the screen runs its own copy without audio)
+  const scr = params.get('screen');
+  if (scr || params.get('songt')) {
+    const hu = taxi.headUnit;
+    hu.debug({ station: Number(params.get('station') ?? (scr === 'static' ? 0 : 1)), item: Number(params.get('item') ?? 0), time: Number(params.get('songt') ?? 24) });
+    if (scr === 'album') hu.debug({ album: true });
+  }
   for (let i = 0; i < warm; i++) engine.step(1 / 30);
+  if (scr === 'glitch') taxi.headUnit.debug({ glitch: 3 });
+  window.__headUnit = taxi.headUnit;
 }

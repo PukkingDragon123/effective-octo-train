@@ -25,6 +25,7 @@ import { buildTaxiFromGLB } from './TaxiGLB.js';
 import { collectRefs, mergeStaticMeshes, DetailCuller, measureRimRadius } from './optimize.js';
 import { Garland, AmuletCluster, GARLAND_UNIFORMS } from './Garland.js';
 import { TaxiBlood } from './Blood.js';
+import { HeadUnit } from './HeadUnit.js';
 
 // Taxi-local frame: +X right, +Y up, -Z forward. Right-hand drive (Thailand): driver sits at +X.
 export const TAXI_ANCHORS = {
@@ -221,6 +222,8 @@ export class Taxi {
       this.dashGarlands = [];
     }
     this.blood = new TaxiBlood(this);
+    // Somchai's dashboard monitor: karaoke VCD + cat album while the radio is on
+    this.headUnit = new HeadUnit(this);
     this.physics = { speed: 0, rpm: 0, steer: 0, wheelAngle: 0, onRoad: true, roadRef: null, frozen: false, sim: this.physicsSim };
     Object.defineProperty(this.physics, 'frozen', {
       get: () => this.physicsSim.frozen,
@@ -578,6 +581,7 @@ export class Taxi {
     // ---- controls / lights / glass ----
     this.controls.animate(dt);
     this.lights.update(dt, s, sim);
+    this.headUnit.update(dt);
     const cab = this.lights.domeLevel;
     this.glass.uniforms.uCabin.value.setRGB(0.9, 0.72, 0.48).multiplyScalar(cab * 0.6 + this.lights.dashLevel * 0.02);
     this.glass.setFlow(sim.v);
@@ -810,6 +814,7 @@ export class Taxi {
     this.controls.dispose();
     this.garland?.dispose();
     this.blood?.dispose();
+    this.headUnit?.dispose();
     this.amulets?.dispose();
     for (const g of [...(this.dashGarlands || [])]) g.dispose();
     this.lights.dispose();

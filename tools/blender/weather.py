@@ -32,7 +32,7 @@ EXPORT = {
     'rubber_black': dict(src=['rubber', 'plastic_black', 'paint_black']),
     'lens': dict(src=['lens_clear', 'lens_red', 'lens_amber'], alpha=0.82),
     'sign_lamp': dict(src=['sign_panel', 'sign_text']),
-    'plastic_dash': dict(src=['plastic_dash']),
+    'plastic_dash': dict(src=['plastic_dash', 'plastic_trim']),
     'fabric_carpet': dict(src=['fabric_headliner', 'carpet']),
     'vinyl_seat': dict(src=['vinyl_seat', 'wood_beads']),
     'glass': dict(src=['glass'], plain=((0.62, 0.70, 0.68), 0.05, 0.0), alpha=0.25),
@@ -492,12 +492,17 @@ class Painter:
         col = mix(col, DIRT, sstep(0.55, 0.85, streak) * 0.35 + (1 - C) * 0.5)
         return col * (0.85 + 0.15 * AO)[:, None], np.full(n, 0.45, np.float32), np.zeros(n, np.float32)
 
-    def dash(self, P, N, M):
+    def dash(self, P, N, M, trim=False):
         AO, E, C, z, up = self.common(P, N, M)
         n = len(P)
         T = tri(self.t_dash, P, N, 0.35)
         lt = np.clip(lum(T) / max(float(lum(T).mean()), 1e-3), 0.6, 1.5)
-        col = np.tile(np.array([0.105, 0.10, 0.093], np.float32), (n, 1)) * (0.82 + 0.18 * lt)[:, None]
+        base = [0.40, 0.375, 0.33] if trim else [0.105, 0.10, 0.093]
+        col = np.tile(np.array(base, np.float32), (n, 1)) * (0.82 + 0.18 * lt)[:, None]
+        if trim:  # tan trim: nicotine-yellowed, greasy where hands grab the pillars
+            col = mix(col, col * np.array([0.92, 0.84, 0.66], np.float32), 0.3 + 0.4 * fbm(P, 3, 3, seed=66))
+            grab = sstep(0.55, 0.75, fbm(P, (6, 2, 6), 3, seed=67)) * sstep(1.0, 1.15, z)
+            col = mix(col, col * 0.6, grab * 0.6)
         rough = 0.68 + 0.06 * lt
         # sun-bleached, dusty dash top and parcel-shelf-facing surfaces
         sun = sstep(0.4, 0.85, up) * sstep(0.62, 0.8, z) * (0.55 + 0.45 * fbm(P, 5, 3, seed=61))
@@ -618,6 +623,8 @@ class Painter:
             return self.sign(P, N, M, name == 'sign_text')
         if name == 'plastic_dash':
             return self.dash(P, N, M)
+        if name == 'plastic_trim':
+            return self.dash(P, N, M, trim=True)
         if name == 'fabric_headliner':
             return self.fabric(P, N, M, 'headliner')
         if name == 'carpet':

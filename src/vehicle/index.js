@@ -6,6 +6,7 @@
 //   TaxiModel.js      exterior assembly: doors, trunk, bumpers, lights, wipers, roof sign, wheels
 //   TaxiInterior.js   dashboard, gauges, meter, radio, wheel, pedals, seats, amulets, door cards
 //   VehicleTextures.js taxi paint atlas + gauges / meter / radio / signs / stickers / photo
+//   HeadUnit*.js      dashboard monitor: model (bezel, hood, bracket), canvas player (karaoke, cat album), data
 //   Glass.js          refraction glass, rain, wipers, condensation, marks, gaze-gated reflections
 //   Mirrors.js        portal-camera planar mirrors (rearview + convex side mirrors)
 //   CarPhysics.js     RWD sedan physics, road corridor, suspension
@@ -24,6 +25,8 @@
 //     setMeterGlitch · startEngine · isCameraInside · rayGlass · isAudioOwner · physics.frozen (freeze)
 //     addDashGarland(opts) · garlandWilt (0..1) · setInteriorBlood(seat, amount) · bleedRoof(amount) · clearBlood
 //     addGlassMark kinds also: blood_handprint blood_smear blood_drip blood_splatter clear_blood
+//     headUnit (dashboard monitor, HeadUnit.js): on with the radio; karaoke VCD + cat album; glitches on
+//       'encounter:start' / 'rule:event'; .glitch(frames) .showAlbum() .debug({station,item,time,album,glitch})
 //   await loadVehicleAssets()  (before new Taxi / Motorcycle) builds them from public/assets/vehicle/
 //     taxi.glb / moto.glb when present (node contract: TaxiGLB.js); taxi.model = 'glb'|'procedural'
 //   new Motorcycle({ world })  .root .anchors{seat handleL handleR footL footR eye headlight} .state .physics

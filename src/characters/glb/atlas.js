@@ -318,15 +318,19 @@ function paintTop(c) {
       break;
     case 'tank': {
       neckline(torsoT(1.37), torsoT(1.44), skin);
-      // armholes (cut the shell, paint skin)
+      // armholes (cut the shell, paint skin): from the armpit (y ≈ 1.29) up to just under the top of the
+      // shoulder (y ≈ 1.44), so a singlet strap stays over each shoulder. (The torso band is mapped
+      // around the body: the strap on the shoulder slope and the shoulder tip share s = 0.25 / 0.75 and
+      // differ only in height, so the hole must stop below the slope, or the top turns strapless.)
+      const AH = { t: torsoT(1.365), rx: 0.08, ry: (torsoT(1.29) - torsoT(1.44)) / 2 };
       for (const s of [0.25, 0.75]) {
-        const ell = (pp, cc) => { pp.g.save(); pp.clip(T); pp.g.fillStyle = cc; const [cx, cy] = pp.pt(T, s, 0.1); pp.g.beginPath(); pp.g.ellipse(cx, cy, pp.sx(T, 0.085), pp.sy(T, 0.2), 0, 0, Math.PI * 2); pp.g.fill(); pp.g.restore(); };
+        const ell = (pp, cc) => { pp.g.save(); pp.clip(T); pp.g.fillStyle = cc; const [cx, cy] = pp.pt(T, s, AH.t); pp.g.beginPath(); pp.g.ellipse(cx, cy, pp.sx(T, AH.rx), pp.sy(T, AH.ry), 0, 0, Math.PI * 2); pp.g.fill(); pp.g.restore(); };
         ell(P, skin);
         cutout(c, T, (m, cc) => ell(m, cc));
-        P.blob(T, s, 0.32, 0.07, 0.03, shadeHex(col, 0.75), 0.4);
+        P.blob(T, s, AH.t + AH.ry + 0.04, 0.07, 0.03, shadeHex(col, 0.75), 0.4);
       }
       // ribbed edge
-      for (const s of [0.25, 0.75]) { const [cx, cy] = P.pt(T, s, 0.1); P.g.save(); P.clip(T); P.g.strokeStyle = shade(col, 0.88); P.g.lineWidth = 3; P.g.beginPath(); P.g.ellipse(cx, cy, P.sx(T, 0.085), P.sy(T, 0.2), 0, 0, Math.PI * 2); P.g.stroke(); P.g.restore(); }
+      for (const s of [0.25, 0.75]) { const [cx, cy] = P.pt(T, s, AH.t); P.g.save(); P.clip(T); P.g.strokeStyle = shade(col, 0.88); P.g.lineWidth = 3; P.g.beginPath(); P.g.ellipse(cx, cy, P.sx(T, AH.rx), P.sy(T, AH.ry), 0, 0, Math.PI * 2); P.g.stroke(); P.g.restore(); }
       break;
     }
     case 'hood': {

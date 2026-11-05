@@ -144,7 +144,7 @@ B = metalness; `occlusionTexture` + `metallicRoughnessTexture`). Export material
 | `rubber_black` | rubber, plastic_black, paint_black | ext_parts |
 | `lens` (blend 0.82) | lens_clear, lens_red, lens_amber | ext_parts |
 | `sign_lamp` | sign_panel, sign_text (roof sign) | ext_parts |
-| `plastic_dash` | plastic_dash | int_hard (2048) |
+| `plastic_dash` | plastic_dash, plastic_trim (tan pillar / header trim) | int_hard (2048) |
 | `fabric_carpet` | fabric_headliner, carpet | int_hard |
 | `vinyl_seat` | vinyl_seat (seat fabric), wood_beads | int_soft (1024) |
 | `glass` | glass (removed / rebuilt by the game) | - |
@@ -161,6 +161,15 @@ the painted colours. The bike uses `paint_moto`, `chrome`, `rubber_black`, `lens
 door cards, seats...) after modelling; panels, glass, lamps, displays, dash and cluster keep their
 full meshes. The bead cover uses ~380 low dome beads. The LOD (`taxi_lod.glb`, exterior + a crude
 cabin) is a decimated copy with 512 px atlases.
+
+## Cabin skin and eye point
+
+`taxi_interior.inner_trim()` duplicates every greenhouse face of the body sheet (pillars, windshield
+header, roof rails, rear header; above the belt line, between the windshield base and the rear
+window) 12 mm inside the sheet: tan worn `plastic_trim` on the pillars, headliner cloth where it
+faces down. It follows the window cut-outs and wraps the pinch-weld flanges, so no bare paint is
+visible from the cabin. The headliner sits 26 mm under the roof skin (1.32 m above the driver's
+head point); `driverEye` is at 1.215 m (seated eye, 10.5 cm headliner clearance).
 
 ## Weathering in geometry
 

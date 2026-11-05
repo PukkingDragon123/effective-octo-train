@@ -772,6 +772,8 @@ export function buildTaxiInterior(ext) {
     parts.radioKnobTune = knob(0.0675);
     group.add(radio);
     parts.radio = radio;
+    // the dashboard monitor (HeadUnit.js) stands on the surround's top edge
+    parts.radioFace = { top: INT.radio.y + 0.0375, front: INT.radio.z + 0.0075, stack: INT.radio.z + 0.006 };
   }
 
   // ---- gear lever ------------------------------------------------------------------------------

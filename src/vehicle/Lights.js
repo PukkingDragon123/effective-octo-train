@@ -168,6 +168,11 @@ export class TaxiLights {
     fill.position.set(0.0, 1.18, -0.2);
     body.add(fill);
     this.fill = fill;
+    // the dashboard monitor's glow (HeadUnit.js moves it in front of the screen and sets colour + level)
+    const screen = new THREE.PointLight(0xffffff, 0, 1.2, 2);
+    screen.position.copy(taxi.anchorLocal('radioKnob')).add(new THREE.Vector3(0.07, 0.1, 0.16));
+    body.add(screen);
+    this.screen = screen;
     this.fillLevel = 0;
     this.domeLevel = 0;
     this.dashLevel = 0;
@@ -279,6 +284,7 @@ export class TaxiLights {
     this.dome.removeFromParent();
     this.dash.removeFromParent();
     this.fill.removeFromParent();
+    this.screen.removeFromParent();
     for (const b of this.beams) {
       b.low.removeFromParent();
       b.high.removeFromParent();

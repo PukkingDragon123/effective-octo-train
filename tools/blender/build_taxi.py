@@ -110,7 +110,7 @@ DECIMATE = {
     'rear_bench': 0.6, 'doorcard_fl': 0.5, 'doorcard_fr': 0.5, 'doorcard_rl': 0.5, 'doorcard_rr': 0.5,
     'pillar_trims': 0.55, 'glovebox_lid': 0.7, 'console': 0.7, 'seat_belts': 0.55, 'light_head_l': 0.7,
     'light_head_r': 0.7, 'headlamp_unit_l': 0.55, 'headlamp_unit_r': 0.55, 'tail_unit_l': 0.55,
-    'tail_unit_r': 0.55, 'body': 0.8,
+    'tail_unit_r': 0.55, 'body': 0.76, 'roof_trim': 0.45,
 }
 KEEP = {'door_fl', 'door_fr', 'door_rl', 'door_rr', 'hood', 'trunk', 'dash', 'cluster', 'meter_box',
         'headliner', 'bead_cover', 'roof_sign', 'vacant_lamp', 'meter_display', 'radio_display', 'cluster_glass',

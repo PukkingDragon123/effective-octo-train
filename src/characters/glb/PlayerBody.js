@@ -40,9 +40,29 @@ function splitHead(geo, t) {
   return geo.userData.headSplit;
 }
 
+/** Height (seat-local y) of the cabin ceiling above a seat: the first cabin surface straight above it. */
+function cabinCeiling(vehicle, seat) {
+  try {
+    seat.updateWorldMatrix(true, false);
+    const o = seat.localToWorld(new THREE.Vector3(0, 0.45, 0));
+    const up = new THREE.Vector3(0, 1, 0).transformDirection(seat.matrixWorld);
+    const meshes = vehicle.cabinSurfaces ? vehicle.cabinSurfaces() : [];
+    const hit = meshes.length ? new THREE.Raycaster(o, up, 0.15, 1.2).intersectObjects(meshes, false)[0] : null;
+    if (hit) return seat.worldToLocal(hit.point.clone()).y;
+    const roof = vehicle.anchors?.roofTop;
+    if (roof) return seat.worldToLocal(roof.getWorldPosition(new THREE.Vector3())).y - 0.08; // outer roof - roof + headliner
+  } catch (e) {
+    /* no ceiling: no adjustment */
+  }
+  return null;
+}
+
 export class PlayerBodyGLB {
   constructor(spec = {}) {
-    this.humanoid = new HumanoidGLB({ ...PRESETS.ton, id: 'player', ...spec });
+    // Ton is an average Thai man (about 1.70 m): taller bodies put his hair through the taxi's roof
+    const look = { ...PRESETS.ton, id: 'player', ...spec };
+    look.height = Math.min(look.height ?? 1.7, 1.7);
+    this.humanoid = new HumanoidGLB(look);
     const h = this.humanoid;
     this.root = h.root;
     this.base = new THREE.Object3D();
@@ -126,16 +146,22 @@ export class PlayerBodyGLB {
       // steering grips at ~9:15, children of the spinning wheel so the hands turn it
       const anchor = A.steeringWheel;
       const spin = vehicle.parts?.steering?.spin || A.hornPad?.parent || anchor;
-      const R = vehicle.steeringRadius ?? 0.19;
+      const R = vehicle.steeringRadius ?? 0.19; // the taxi measures its modelled rim
+      // wheel frame: XY = rim plane. Which way +Z faces differs between models (the GLB binder points
+      // it into the dash), so take the driver's side from the eye / seat position, not a convention
+      spin.updateWorldMatrix(true, false);
+      const eyeW = A.driverEye ? A.driverEye.getWorldPosition(new THREE.Vector3()) : seat.localToWorld(new THREE.Vector3(0, 0.7, 0));
+      const toDriver = Math.sign(spin.worldToLocal(eyeW).z) || 1; // +1: +Z faces the driver
       for (const [side, ang] of [['L', Math.PI + 0.32], ['R', -0.32]]) {
         const g = new THREE.Object3D();
         g.name = 'grip' + side;
         spin.add(g);
-        // wheel frame: XY = rim plane, +Z toward the driver
-        g.position.set(Math.cos(ang) * R, Math.sin(ang) * R, 0.012);
+        // the grip point is the rim's centreline: the palm closes on it, the fingers wrap over the top
+        // of the rim toward the dash
+        g.position.set(Math.cos(ang) * R, Math.sin(ang) * R, 0);
         const radial = new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0);
-        const along = new THREE.Vector3(0, 0, -1).addScaledVector(radial, -0.25).add(new THREE.Vector3(0, 0.55, 0)).normalize(); // fingers wrap forward/up
-        const palm = radial.clone().multiplyScalar(-1).add(new THREE.Vector3(0, 0, -0.35)).normalize(); // palm toward the rim/centre
+        const along = new THREE.Vector3(0, 0, -toDriver).addScaledVector(radial, -0.25).add(new THREE.Vector3(0, 0.55, 0)).normalize(); // fingers wrap forward/up
+        const palm = radial.clone().multiplyScalar(-1).add(new THREE.Vector3(0, 0, -0.35 * toDriver)).normalize(); // palm toward the rim/centre
         const z = along.clone().negate(), y = palm.clone().negate();
         const x = new THREE.Vector3().crossVectors(y, z).normalize();
         y.crossVectors(z, x);
@@ -145,6 +171,9 @@ export class PlayerBodyGLB {
       }
       if (A.pedalThrottle) h.setFootTarget('R', A.pedalThrottle, { blend: 0.4, orient: false });
       if (A.pedalClutch) h.setFootTarget('L', A.pedalClutch, { blend: 0.4, orient: false });
+      // head clearance: measure the headliner above the seat; once seated, the hips settle into the
+      // cushion until his hair clears it by 5 cm (see _seatClearance)
+      this._seatFit = { base: h.root.position.y, drop: 0, target: 0, t: 0, ceil: cabinCeiling(vehicle, seat) };
     } else {
       for (const [side, k] of [['L', 'handleL'], ['R', 'handleR']]) {
         if (!A[k]) continue;
@@ -168,6 +197,7 @@ export class PlayerBodyGLB {
   exitVehicle() {
     const h = this.humanoid;
     if (!this.vehicle) return;
+    this._seatFit = null;
     for (const g of this._grips || []) g.removeFromParent();
     this._grips = [];
     for (const s of ['L', 'R']) { h.setHandTarget(s, null); h.setFootTarget(s, null); }
@@ -211,8 +241,11 @@ export class PlayerBodyGLB {
   // ---------------------------------------------------------------- update (order 15, before the humanoid)
   update(dt) {
     const h = this.humanoid;
-    if (this.mode === 'foot') this._footController(dt);
-    else this._vehicleReactions(dt);
+    if (this.mode === 'foot') {
+      this._footController(dt);
+      this._footLookDown(dt);
+    } else this._vehicleReactions(dt);
+    if (this.mode === 'taxi') this._seatClearance(dt);
     this._actionsUpdate(dt);
     // head follows the camera look (the body follows the camera on foot)
     const lookPt = _v.copy(cameraRig.lookDirection || _v2.set(0, 0, -1)).multiplyScalar(3);
@@ -228,14 +261,46 @@ export class PlayerBodyGLB {
       this.base.position.copy(this.root.position);
       this.base.quaternion.identity();
     }
-    // eye: the head bone's eye point, smoothed (no clip head bob in the camera)
+    // eye: the head bone's eye point, smoothed IN THE BASE (seat) FRAME, so only the head's own motion
+    // is filtered (no clip head bob in the camera) and a moving vehicle never makes the eye lag behind
     const hb = h.rig.bone('Head');
     hb.updateWorldMatrix(true, false);
-    _v.copy(this._eyeLocal).applyMatrix4(hb.matrixWorld);
+    this.base.updateWorldMatrix(true, false);
+    _v.copy(this._eyeLocal).applyMatrix4(hb.matrixWorld).applyMatrix4(_m.copy(this.base.matrixWorld).invert());
     if (!this._eyeInit) { this._eyeS.copy(_v); this._eyeInit = true; }
     this._eyeS.lerp(_v, this.mode === 'foot' ? 0.25 : 0.5);
-    this.base.updateWorldMatrix(true, false);
-    this.eye.position.copy(this._eyeS).applyMatrix4(_m.copy(this.base.matrixWorld).invert());
+    this.eye.position.copy(this._eyeS);
+  }
+
+  /** Seated in the taxi: settle the hips into the cushion until the hair clears the headliner by 5 cm. */
+  _seatClearance(dt) {
+    const S = this._seatFit, h = this.humanoid;
+    const seat = h.root.parent;
+    if (!S || S.ceil == null || !seat || dt <= 0) return;
+    S.t += dt;
+    if (S.t > 0.9) {
+      // the sitting blend has settled: head top (skin + ~3 cm of hair) along the head's up axis
+      const t = h.t;
+      h.boneFrame(t.index.Head, _q);
+      _v.set(0, 1, 0).applyQuaternion(_q);
+      h.rig.bone('Head').getWorldPosition(_v2).addScaledVector(_v, (t.headTop + 0.03) * h.scale);
+      seat.worldToLocal(_v2);
+      const need = _v2.y + 0.05 - S.ceil;
+      if (need > 0.002) S.target = Math.min(0.14, S.target + need);
+    }
+    S.drop = damp(S.drop, S.target, 6, dt);
+    h.root.position.y = S.base - S.drop;
+  }
+
+  /** On foot, looking down bends the upper back forward (head over the chest) so the legs and feet show. */
+  _footLookDown(dt) {
+    const h = this.humanoid;
+    const dy = (cameraRig.lookDirection || _v2.set(0, 0, -1)).y;
+    const target = clamp((-dy - 0.4) * 0.6, 0, 0.33);
+    const L = this._footLean || (this._footLean = new THREE.Vector2());
+    L.x = 0;
+    L.y = damp(L.y, target, 8, dt);
+    h.bodyLean = L;
   }
 
   _footController(dt) {
