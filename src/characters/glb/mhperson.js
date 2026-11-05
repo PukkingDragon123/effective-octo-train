@@ -363,14 +363,49 @@ export function buildPerson(recipe) {
   if (eyeFit) {
     const px = eyeFit.px, fp = eyeFit.p;
     const n = px.nv;
-    // eyeball centres = bounding-box centres of each eyeball (the iris side is denser)
+    // eyeball centres: the MakeHuman eyeball is a front cap (about 30 mm wide, 22 mm deep), so its
+    // bounding-box centre sits ~4.5 mm IN FRONT of the true centre; rotating about it swung the cornea
+    // on a lever (sclera sliding out of the lids, eyes poking or sinking). Fit the sphere instead, on
+    // the back of the ball (the cornea bulge excluded), and turn about its real centre.
     const bl = new THREE.Box3(), br = new THREE.Box3(), _p = new THREE.Vector3();
     for (let i = 0; i < n; i++) {
       _p.set(fp[i * 3], fp[i * 3 + 1], fp[i * 3 + 2]);
       (_p.x >= 0 ? bl : br).expandByPoint(_p);
     }
-    eyeCenters = [bl.isEmpty() ? new THREE.Vector3(0.032, 0, 0) : bl.getCenter(new THREE.Vector3()), br.isEmpty() ? new THREE.Vector3(-0.032, 0, 0) : br.getCenter(new THREE.Vector3())];
-    if (!bl.isEmpty()) eyeRadius = (bl.max.x - bl.min.x) / 2;
+    const fitSphere = (box, side) => {
+      if (box.isEmpty()) return null;
+      const r0 = (box.max.x - box.min.x) / 2;
+      const c = new THREE.Vector3((box.min.x + box.max.x) / 2, (box.min.y + box.max.y) / 2, box.min.z + r0);
+      const zCut = (box.min.z + box.max.z) / 2 + r0 * 0.4;
+      const idx = [];
+      for (let i = 0; i < n; i++) if (Math.sign(fp[i * 3]) === side && fp[i * 3 + 2] < zCut) idx.push(i);
+      if (idx.length < 16) return { c, r: r0 };
+      let R = r0;
+      for (let it = 0; it < 24; it++) {
+        let sr = 0;
+        for (const i of idx) sr += Math.hypot(fp[i * 3] - c.x, fp[i * 3 + 1] - c.y, fp[i * 3 + 2] - c.z);
+        R = sr / idx.length;
+        let sx = 0, sy = 0, sz = 0;
+        for (const i of idx) {
+          const dx = fp[i * 3] - c.x, dy = fp[i * 3 + 1] - c.y, dz = fp[i * 3 + 2] - c.z;
+          const d = Math.hypot(dx, dy, dz) || 1;
+          sx += fp[i * 3] - (dx / d) * R; sy += fp[i * 3 + 1] - (dy / d) * R; sz += fp[i * 3 + 2] - (dz / d) * R;
+        }
+        c.set(sx / idx.length, sy / idx.length, sz / idx.length);
+      }
+      return { c, r: R };
+    };
+    const sl = fitSphere(bl, 1), sr = fitSphere(br, -1);
+    eyeCenters = [sl ? sl.c : new THREE.Vector3(0.032, 0, 0), sr ? sr.c : new THREE.Vector3(-0.032, 0, 0)];
+    if (sl) eyeRadius = sl.r;
+    // shrink each ball 1.5 % about its centre: the cornea sits a hair behind the lid skin (no z-fighting
+    // with the lids, no white rim poking through a closed blink)
+    for (let i = 0; i < n; i++) {
+      const c = fp[i * 3] >= 0 ? eyeCenters[0] : eyeCenters[1];
+      fp[i * 3] = c.x + (fp[i * 3] - c.x) * 0.985;
+      fp[i * 3 + 1] = c.y + (fp[i * 3 + 1] - c.y) * 0.985;
+      fp[i * 3 + 2] = c.z + (fp[i * 3 + 2] - c.z) * 0.985;
+    }
     eyeGeo = new THREE.BufferGeometry();
     const uvE = new Float32Array(n * 2);
     for (let i = 0; i < n * 2; i++) uvE[i] = px.uvd[i];

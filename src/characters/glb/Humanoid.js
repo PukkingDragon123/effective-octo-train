@@ -977,15 +977,20 @@ export class HumanoidGLB {
 
   _eyes(dt) {
     const L = this.lookS, rig = this.rig, t = this.t, I = t.index;
-    let ty = 0, tp = 0;
+    let ty = 0, tp = 0, verg = 0;
     if (L.has && L.w > 0.01) {
       rig.worldPos(I.eye_l, _v).add(rig.worldPos(I.eye_r, _v2)).multiplyScalar(0.5);
       _v2.copy(L.pos).sub(_v);
       this.boneFrame(I.Head, _q).invert();
       _v2.applyQuaternion(_q);
+      // human eye rotation limits (about 35° sideways, 25° up / 30° down); ghosts may roll further
       const lim = this.ghostLayer.unlimitedLook ? 0.9 : 0.6;
       ty = clamp(Math.atan2(_v2.x, _v2.z), -lim, lim) * L.w;
       tp = clamp(Math.atan2(_v2.y, Math.hypot(_v2.x, _v2.z)), -0.5, 0.42) * L.w;
+      // vergence: both eyes converge on a near target (half the inter-eye angle each), never crossing
+      // more than a near-focus 6° and never diverging
+      const dist = Math.max(0.05, _v2.length());
+      verg = clamp(Math.atan2((t.iod * this.scale) / 2, dist), 0, 0.1) * L.w;
     } else {
       // idle saccades: fixations with quick jumps
       L.sacT -= dt;
@@ -996,9 +1001,11 @@ export class HumanoidGLB {
     const k = 1 - Math.exp(-30 * dt);
     L.eyeYaw += (ty - L.eyeYaw) * k;
     L.eyePitch += (tp - L.eyePitch) * k;
-    _e.set(-L.eyePitch, L.eyeYaw, 0, 'YXZ');
-    _q.setFromEuler(_e);
-    for (const n of ['eye_l', 'eye_r']) {
+    L.verg = (L.verg || 0) + (verg - (L.verg || 0)) * k;
+    // eye_l sits at model +X: converging turns it toward -X (negative yaw), the right eye toward +X
+    for (const [n, sgn] of [['eye_l', -1], ['eye_r', 1]]) {
+      _e.set(-L.eyePitch, L.eyeYaw + sgn * L.verg, 0, 'YXZ');
+      _q.setFromEuler(_e);
       const b = rig.bones[I[n]];
       b.quaternion.copy(t.restQuat[I[n]]).multiply(_q);
     }
