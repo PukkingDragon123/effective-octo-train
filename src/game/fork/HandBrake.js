@@ -67,7 +67,7 @@ export async function giantHandBrake(ride) {
     slowmo: 0.42,
     dread: 1,
     onTick: () => {
-      held = g.qte.state?.engaged && (g.input.axis.brake > 0.5 || g.input.down('back') || g.input.down('handbrake') || g.qte._touch.down);
+      held = !!g.qte.state?.held;
     },
     fail: () => t.root.position.distanceTo(at) < 5.2,
   });

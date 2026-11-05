@@ -103,15 +103,16 @@ def dent(ob, center, radius, depth):
 # Triangle budget (~80-120k for the hero model): parts that are seen small or never up close are
 # collapsed; panels, glass, lamps, displays and the dash keep their full meshes.
 DECIMATE = {
-    'wheel_fl': 0.42, 'wheel_fr': 0.42, 'wheel_rl': 0.42, 'wheel_rr': 0.42, 'grille': 0.45,
-    'roof_sign_base': 0.45, 'bumper_inserts': 0.5, 'underbody': 0.35, 'exhaust': 0.5, 'wiper_l': 0.55,
-    'wiper_r': 0.55, 'seal_ws': 0.55, 'seal_rw': 0.55, 'drip_l': 0.5, 'drip_r': 0.5, 'parcel_shelf': 0.45,
-    'floor': 0.6, 'steering_wheel': 0.8, 'centre_stack': 0.8, 'seat_driver': 0.7, 'seat_pass': 0.7,
-    'rear_bench': 0.7, 'doorcard_fl': 0.62, 'doorcard_fr': 0.62, 'doorcard_rl': 0.62, 'doorcard_rr': 0.62,
-    'pillar_trims': 0.7, 'glovebox_lid': 0.75, 'console': 0.8, 'seat_belts': 0.7, 'light_head_l': 0.7,
-    'light_head_r': 0.7, 'headlamp_unit_l': 0.6, 'headlamp_unit_r': 0.6, 'tail_unit_l': 0.6, 'tail_unit_r': 0.6,
+    'wheel_fl': 0.34, 'wheel_fr': 0.34, 'wheel_rl': 0.34, 'wheel_rr': 0.34, 'grille': 0.42,
+    'roof_sign_base': 0.42, 'bumper_inserts': 0.45, 'underbody': 0.3, 'exhaust': 0.45, 'wiper_l': 0.5,
+    'wiper_r': 0.5, 'seal_ws': 0.5, 'seal_rw': 0.5, 'drip_l': 0.45, 'drip_r': 0.45, 'parcel_shelf': 0.4,
+    'floor': 0.5, 'steering_wheel': 0.72, 'centre_stack': 0.7, 'seat_driver': 0.6, 'seat_pass': 0.6,
+    'rear_bench': 0.6, 'doorcard_fl': 0.5, 'doorcard_fr': 0.5, 'doorcard_rl': 0.5, 'doorcard_rr': 0.5,
+    'pillar_trims': 0.55, 'glovebox_lid': 0.7, 'console': 0.7, 'seat_belts': 0.55, 'light_head_l': 0.7,
+    'light_head_r': 0.7, 'headlamp_unit_l': 0.55, 'headlamp_unit_r': 0.55, 'tail_unit_l': 0.55,
+    'tail_unit_r': 0.55, 'body': 0.8,
 }
-KEEP = {'body', 'door_fl', 'door_fr', 'door_rl', 'door_rr', 'hood', 'trunk', 'dash', 'cluster', 'meter_box',
+KEEP = {'door_fl', 'door_fr', 'door_rl', 'door_rr', 'hood', 'trunk', 'dash', 'cluster', 'meter_box',
         'headliner', 'bead_cover', 'roof_sign', 'vacant_lamp', 'meter_display', 'radio_display', 'cluster_glass',
         'dome_light'}
 
@@ -140,7 +141,7 @@ def apply_budget(parts):
         n = vlib.tri_count(o)
         r = DECIMATE.get(name)
         if r is None:
-            r = 0.6 if n > 700 else None
+            r = 0.5 if n > 700 else (0.6 if n > 400 else None)
         if r is None or r >= 1:
             continue
         saved += decimate_part(o, r)
@@ -335,7 +336,8 @@ def main():
             heel=(0.40, 0.62), dash=(0.40, 0.95, 0.78), length=4.27)
         files, lod_files = weather.bake_all([o for o in meshes if o not in glass_like], ATLASES, ctx,
                                             size=opt['size'], samples=opt['samples'], ao_samples=opt['ao'],
-                                            out_dir=tex_dir, sizes={'int_soft': opt['size'] // 2})
+                                            out_dir=tex_dir, sizes={'int_soft': opt['size'] // 2,
+                                                                           'ext_parts': opt['size'] * 3 // 4})
         for o in glass_like:
             o.hide_render = False
         log('baked', round(time.time() - t0, 1))

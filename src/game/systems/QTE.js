@@ -14,6 +14,8 @@
 //     time:   real seconds before it fails      slowmo: engine.timeScale while it runs (eased; 1 = none)
 //     dread:  0..1 extra FOV push / horror tint while it runs (camera feel)
 //     onTick(state, dt) · onPress() · ok(): extra condition for 'still' / 'hold' · fail(state): true ends it as failed
+//     consume: keep the button from the world while it runs (default: true for 'interact')
+//   state (g.qte.state): { t, progress, held, engaged, fail, step, presses }
 //   }
 //   g.qte.active (the running spec or null) · g.qte.cancel() · bus 'qte:start' {kind} / 'qte:end' {ok, reason}
 // QTEs run in real time (slow motion does not stretch the window) and freeze while the game is paused.
@@ -139,6 +141,15 @@ export class QTE {
     const dt = Math.min(rawDt, 0.1);
     st.t += dt;
     const ui = this.ui;
+    // read the button once, then keep it from the world: F mashed at a door handle must not open
+    // the door (the amulet and the brake still do their own job: they ARE the action)
+    const D = s.kind === 'steer' ? false : this._down(s.action);
+    const P = s.kind === 'steer' ? false : this._pressed(s.action);
+    st.held = D;
+    if (s.consume ?? (s.action === 'interact')) {
+      input.consume(s.action);
+      input.consume('confirm');
+    }
     // the world can end it early (the car reached the hand, the arm got a grip...)
     try {
       if (s.fail?.(st)) return this._finish(false, 'failed');
@@ -147,7 +158,7 @@ export class QTE {
     }
     switch (s.kind) {
       case 'hold': {
-        const held = this._down(s.action) && (!s.ok || s.ok());
+        const held = D && (!s.ok || s.ok());
         if (held) {
           st.engaged = true;
           st.progress += dt / Math.max(0.05, s.hold);
@@ -157,7 +168,7 @@ export class QTE {
         break;
       }
       case 'mash': {
-        if (this._pressed(s.action)) {
+        if (P) {
           st.presses++;
           st.progress += 1 / Math.max(1, s.count);
           ui?.pulse();
@@ -171,7 +182,7 @@ export class QTE {
       case 'press': {
         const k = clamp(st.t / Math.max(0.05, s.time), 0, 1);
         ui?.set(1 - k, { ring: true, open: st.t >= s.open });
-        if (st.t >= s.open && this._pressed(s.action)) {
+        if (st.t >= s.open && P) {
           ui?.pulse();
           return this._finish(true, 'done');
         }
@@ -204,7 +215,7 @@ export class QTE {
         return;
       }
       case 'still': {
-        const held = this._down(s.action);
+        const held = D;
         const lookSpeed = (Math.abs(input.look.dx) + Math.abs(input.look.dy)) / Math.max(1e-3, rawDt);
         st.look = damp(st.look || 0, lookSpeed, 12, dt);
         const still = st.look < s.tolerance;

@@ -4,7 +4,7 @@
 // is composited afterwards (tools/itch/compose.py), so the render has no text.
 // window.__itch.frames = number of camera views; frame(i) renders view i (tools/itch/render.mjs).
 //   ?sandbox=itch-cover&views=px,py,pz;lx,ly,lz;fov|...  (taxi body space)  &seat=rearLeft|rearCenter
-//   &twist=0.85 (Ton's torso turn) &hour=23.6 &fog=0.6 &dome=0.55 (cabin light level) &key / &wkey / &rim
+//   &twist=1.5 (Ton's torso turn) &hour=23.6 &fog=0.6 &exp=0.75 &dome=0.6 (lamp glow) &key / &tkey (face cones) &horn=0.13
 //   (face fills) &clip=x0,y0,z0;x1,y1,z1 (body-space box cut from the cabin, 0 = none) &wlook=cam|ton
 import * as THREE from 'three';
 import { sky, postfx, lightPool, paintedMaterial, foliageMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
@@ -59,7 +59,7 @@ export default async function ({ engine, cameraRig, params }) {
   // the cabin has a roof: keep the sky's flat ambient low so the dome lamp does the lighting
   sky.overrides.ambI = num('ambI', 0.05);
   sky.overrides.hemiI = num('hemiI', 0.1);
-  postfx.params.exposure = num('exp', 0.6);
+  postfx.params.exposure = num('exp', 0.75);
   postfx.params.grain = 0;
 
   // ---------------------------------------------------------------- road + forest
@@ -253,7 +253,7 @@ export default async function ({ engine, cameraRig, params }) {
     return sp;
   };
   faceSpot(0xffc78c, num('tkey', 1.6), V(num('tkx', 0.24), num('tky', 1.0), num('tkz', 0.16)), num('tcone', 0.45));
-  faceSpot(0xf2f4ff, num('key', 4), V(num('kx', -0.12), num('ky', 0.96), num('kz', 0.9)), num('cone', 0.42));
+  faceSpot(0xffecd8, num('key', 4), V(num('kx', -0.12), num('ky', 0.96), num('kz', 0.9)), num('cone', 0.42));
   // a faint warm bounce from the dress / seat onto her face (from below)
   const wkey = new THREE.PointLight(0xffe6c8, num('wkey', 0.22), 1.0, 2);
   wkey.position.set(num('wkx', -0.05), num('wky', 0.85), num('wkz', 0.75));

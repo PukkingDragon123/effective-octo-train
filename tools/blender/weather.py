@@ -36,7 +36,10 @@ EXPORT = {
     'fabric_carpet': dict(src=['fabric_headliner', 'carpet']),
     'vinyl_seat': dict(src=['vinyl_seat', 'wood_beads']),
     'glass': dict(src=['glass'], plain=((0.62, 0.70, 0.68), 0.05, 0.0), alpha=0.25),
-    'display': dict(src=['emissive_meter', 'emissive_gauge', 'plate'], plain=((0.06, 0.06, 0.06), 0.4, 0.0)),
+    # keep_uv: a white 8 px occlusion texture keeps TEXCOORD_0 through gltfpack (the game paints
+    # these quads with its own canvas textures; lens() still sees map = null for the vacant lamp)
+    'display': dict(src=['emissive_meter', 'emissive_gauge', 'plate'], plain=((0.06, 0.06, 0.06), 0.4, 0.0),
+                    keep_uv=True),
     'mirror': dict(src=['mirror'], plain=((0.9, 0.9, 0.9), 0.04, 1.0)),
 }
 SRC_TO_EXPORT = {s: k for k, d in EXPORT.items() for s in d['src']}
@@ -291,8 +294,8 @@ class Ctx:
         self.half_len = length / 2
 
 
-YELLOW = np.array([0.84, 0.66, 0.26], np.float32)
-GREEN = np.array([0.15, 0.39, 0.26], np.float32)
+YELLOW = np.array([0.87, 0.65, 0.17], np.float32)
+GREEN = np.array([0.12, 0.40, 0.25], np.float32)
 PRIMER = np.array([0.56, 0.55, 0.51], np.float32)
 BARE = np.array([0.36, 0.36, 0.37], np.float32)
 DIRT = np.array([0.33, 0.28, 0.22], np.float32)
@@ -372,8 +375,8 @@ class Painter:
         metal = np.zeros(n, np.float32)
         # faded clearcoat on roof, bonnet, boot lid (and the tank / seat cowl tops of the bike)
         topf = sstep(0.45, 0.9, up) * (0.45 + 0.55 * fbm(P, 2.2, 4, seed=2))
-        chalk = mix(col, lum(col)[:, None] * 0.9 + 0.13 + col * 0.25, 0.65)
-        col = mix(col, chalk, topf * 0.7)
+        chalk = mix(col, lum(col)[:, None] * 0.75 + 0.1 + col * 0.35, 0.55)
+        col = mix(col, chalk, topf * 0.6)
         peel = topf * sstep(0.64, 0.70, fbm(P, 5.5, 4, seed=4))
         col = mix(col, chalk * 1.06 + 0.03, peel * 0.8)
         rough = rough + 0.32 * topf + 0.25 * peel
@@ -386,7 +389,8 @@ class Painter:
         endz = sstep(self.ctx.half_len - 0.32, self.ctx.half_len - 0.05, np.abs(P[:, 1])) * sstep(0.75, 0.55, z)
         nchip = fbm(P, 38, 3, seed=5)
         chipv = convex * 1.25 + (nchip - 0.5) * 1.1 + hz * 0.55 + endz * 0.25 * sstep(0.4, 0.7, nchip)
-        stone = sstep(0.83, 0.86, fbm(P, 95, 2, seed=6)) * np.maximum(sstep(0.55, 0.3, z), sstep(1.6, 2.05, P[:, 1]))
+        stone = sstep(0.91, 0.935, fbm(P, 95, 2, seed=6)) * np.maximum(sstep(0.45, 0.28, z),
+                                                                     sstep(1.75, 2.05, P[:, 1]) * sstep(0.85, 0.6, z))
         chip_p = np.maximum(sstep(0.58, 0.63, chipv), stone)
         chip_m = sstep(0.76, 0.80, chipv)
         lowr = sstep(0.75, 0.3, z)
@@ -403,7 +407,7 @@ class Painter:
         # rust bleed out of seams and gaps, running down in streaks; rust at the wheel arches
         streak = fbm(P, (55, 55, 2.5), 3, seed=7)
         rb = cav_seam * (0.35 + 0.9 * sstep(0.45, 0.75, streak)) * (0.55 + 0.45 * lowr)
-        rb = sstep(0.18, 0.55, rb)
+        rb = sstep(0.25, 0.65, rb)
         arch = self.arch(P) * sstep(0.5, 0.65, np.abs(P[:, 0]))
         ar = arch * sstep(0.42, 0.62, fbm(P, 22, 3, seed=8) + arch * 0.25)
         rust = np.clip(np.maximum(rb * 0.75, np.maximum(ar, rust_t)), 0, 1)
@@ -413,7 +417,7 @@ class Painter:
         # road grime and dust low on the body, mud around the arches, dust in every cavity
         g = np.clip(self.grime_low(P, z) * 0.85 + arch * 0.45, 0, 0.92)
         col = mix(col, self.dirt_col(P, N), g * 0.8)
-        col = mix(col, DUST, (1 - C) * 0.45 + sstep(0.85, 0.3, AO) * 0.2)
+        col = mix(col, DUST, np.clip((1 - C) * 0.35 + sstep(0.8, 0.3, AO) * 0.15, 0, 0.6))
         rough = rough + g * 0.35
         col *= (0.78 + 0.22 * AO)[:, None]
         return col, np.clip(rough, 0.05, 1), np.clip(metal, 0, 1)
@@ -635,6 +639,7 @@ def compose(data, ctx, size):
     M = data['mask'].copy()
     # soften bake noise a touch more on AO / cavity
     M[:, :, 0] = box_blur(M[:, :, 0], 1)
+    M[:, :, 2] = np.minimum(M[:, :, 2], box_blur(M[:, :, 2], 1) + 0.04)
     covered = mid > 0
     cav = 1.0 - M[:, :, 2]
     cav_seam = np.clip(box_blur(cav * covered, max(2, size // 400)) * 3.0, 0, 1)
@@ -767,6 +772,20 @@ def inject_textures(path, atlas_files, export_atlas, extras=None):
             js['textures'].append({'name': f'{a}_{kind}', 'sampler': 0, 'source': len(js['images']) - 1})
             idx.append(len(js['textures']) - 1)
         tex_of[a] = idx
+    white = None
+    if any(EXPORT.get(m['name'], {}).get('keep_uv') for m in js.get('materials', [])):
+        fp = save_rgb(np.ones((8, 8, 3), np.float32), os.path.join(REPO, '.shots', 'blender-bake', 'white8.jpg'),
+                      quality=90, srgb=False)
+        with open(fp, 'rb') as f:
+            img = f.read()
+        while len(binc) % 4:
+            binc.append(0)
+        off = len(binc)
+        binc.extend(img)
+        js['bufferViews'].append({'buffer': 0, 'byteOffset': off, 'byteLength': len(img)})
+        js['images'].append({'name': 'white', 'bufferView': len(js['bufferViews']) - 1, 'mimeType': 'image/jpeg'})
+        js['textures'].append({'name': 'white', 'sampler': 0, 'source': len(js['images']) - 1})
+        white = len(js['textures']) - 1
     for m in js.get('materials', []):
         d = EXPORT.get(m['name'])
         if d is None:
@@ -783,6 +802,8 @@ def inject_textures(path, atlas_files, export_atlas, extras=None):
             c, r, mt = d.get('plain', ((0.8, 0.8, 0.8), 0.6, 0.0))
             pbr = {'baseColorFactor': [c[0], c[1], c[2], alpha], 'metallicFactor': mt, 'roughnessFactor': r}
             m.pop('occlusionTexture', None)
+            if d.get('keep_uv') and white is not None:
+                m['occlusionTexture'] = {'index': white, 'strength': 0.0}
         m['pbrMetallicRoughness'] = pbr
         m.pop('extensions', None)
         m.pop('emissiveFactor', None)
@@ -808,7 +829,7 @@ def inject_textures(path, atlas_files, export_atlas, extras=None):
     vlib.write_glb(path, js, binc)
 
 
-def bake_all(objs, atlases, ctx, size=2048, samples=4, ao_samples=8, out_dir=None, sizes=None, quality=86,
+def bake_all(objs, atlases, ctx, size=2048, samples=4, ao_samples=8, out_dir=None, sizes=None, quality=80,
              lod_size=512):
     """Bake + paint every atlas. Returns {atlas: (albedo.jpg, orm.jpg)} and LOD copies."""
     data = bake_inputs(objs, atlases, size=size, samples=samples, ao_samples=ao_samples, out_dir=out_dir)
@@ -817,7 +838,9 @@ def bake_all(objs, atlases, ctx, size=2048, samples=4, ao_samples=8, out_dir=Non
         alb, orm = compose(data[a], ctx, size)
         out_sz = (sizes or {}).get(a, size)
         pa = save_rgb(alb, os.path.join(out_dir, f'{a}_albedo.jpg'), quality=quality, size=out_sz)
-        po = save_rgb(orm, os.path.join(out_dir, f'{a}_orm.jpg'), quality=90, size=max(512, out_sz // 2), srgb=False)
+        np.save(os.path.join(out_dir, f'{a}_albedo.npy'), (np.clip(alb, 0, 1) * 255).astype(np.uint8))
+        np.save(os.path.join(out_dir, f'{a}_orm.npy'), (np.clip(orm, 0, 1) * 255).astype(np.uint8))
+        po = save_rgb(orm, os.path.join(out_dir, f'{a}_orm.jpg'), quality=84, size=max(512, out_sz // 4), srgb=False)
         files[a] = (pa, po)
         lod[a] = (save_rgb(alb, os.path.join(out_dir, f'{a}_albedo_lod.jpg'), quality=82, size=lod_size),
                   save_rgb(orm, os.path.join(out_dir, f'{a}_orm_lod.jpg'), quality=82, size=lod_size // 2, srgb=False))

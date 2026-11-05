@@ -644,6 +644,46 @@ const peakOf = (a) => {
 };
 const dB = (x) => Math.pow(10, x / 20);
 
+/** Gated K-weighted loudness (BS.1770 style, mono; dB re full scale) — sets dialogue levels by what ears hear. */
+function kLoud(a, sr) {
+  // K-weighting: high shelf (+4 dB above ~1.7 kHz) then RLB high-pass (~38 Hz)
+  let K = Math.tan((Math.PI * 1681.97) / sr);
+  const Vh = Math.pow(10, 4 / 20), Vb = Math.pow(Vh, 0.4997), Q1 = 0.7072;
+  let a0 = 1 + K / Q1 + K * K;
+  const b = [(Vh + (Vb * K) / Q1 + K * K) / a0, (2 * (K * K - Vh)) / a0, (Vh - (Vb * K) / Q1 + K * K) / a0];
+  const c = [(2 * (K * K - 1)) / a0, (1 - K / Q1 + K * K) / a0];
+  K = Math.tan((Math.PI * 38.135) / sr);
+  const Q2 = 0.5003;
+  a0 = 1 + K / Q2 + K * K;
+  const d = [(2 * (K * K - 1)) / a0, (1 - K / Q2 + K * K) / a0];
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0, u1 = 0, u2 = 0, z1 = 0, z2 = 0;
+  const blk = Math.floor(0.4 * sr), hop = Math.floor(0.1 * sr);
+  const sq = new Float64Array(Math.ceil(a.length / hop) + 1);
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[0] * x + b[1] * x1 + b[2] * x2 - c[0] * y1 - c[1] * y2;
+    x2 = x1; x1 = x; y2 = y1; y1 = y;
+    const z = y - 2 * u1 + u2 - d[0] * z1 - d[1] * z2;
+    u2 = u1; u1 = y; z2 = z1; z1 = z;
+    sq[Math.floor(i / hop)] += z * z;
+  }
+  const blocks = [];
+  const per = blk / hop;
+  for (let k = 0; k + per <= sq.length; k++) {
+    let e = 0;
+    for (let j = 0; j < per; j++) e += sq[k + j];
+    blocks.push(e / blk);
+  }
+  if (!blocks.length) return -99;
+  const L = (z) => -0.691 + 10 * Math.log10(z + 1e-20);
+  const abs = blocks.filter((z) => L(z) > -70);
+  if (!abs.length) return -99;
+  const mean = (arr) => arr.reduce((p, q) => p + q, 0) / arr.length;
+  const rel = L(mean(abs)) - 10;
+  const g = abs.filter((z) => L(z) > rel);
+  return L(mean(g.length ? g : abs));
+}
+
 function voxOpts(preset, rng, extra = {}) {
   return {
     rng,
@@ -782,11 +822,11 @@ export function renderVoiceLine(sr, a = {}) {
     // tame plosive spikes so the loudness can come up
     const T = loud50(main, sr) * 2.8;
     for (let i = 0; i < n; i++) main[i] = Math.tanh(main[i] / T) * T;
-    ref = loud50(main, sr);
-    const tgt = dB(preset.whisper ? -19 : preset.shout ? -11.5 : -14);
-    gain = Math.min(tgt / Math.max(ref, 1e-9), 0.95 / Math.max(peakOf(main), 1e-9));
+    // level by gated K-weighted loudness (a low, creaky old voice and a bright child read equally loud)
+    const tgtL = preset.whisper ? -23.5 : preset.shout ? -15 : -18;
+    gain = Math.min(dB(tgtL - kLoud(main, sr)), 0.95 / Math.max(peakOf(main), 1e-9));
     for (let i = 0; i < n; i++) main[i] *= gain;
-    ref = tgt;
+    ref = loud50(main, sr);
     fadeIn(main, sr, 0.005);
     fadeOut(main, sr, 0.05);
     channels.push(main);

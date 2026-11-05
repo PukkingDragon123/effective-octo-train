@@ -151,7 +151,7 @@ export class VoiceRack {
     // ---- placement ----
     this.spat = G(1);
     this.self = G(0); // the player's own voice: centred, no panner
-    this.panner = P(1, 1.1);
+    this.panner = P(1, 0.75); // dialogue stays readable at a few metres (a gentler rolloff than SFX)
     this.outDirect = G(1);
     this.outOutside = G(0);
     this.out.connect(this.spat);
@@ -259,7 +259,8 @@ export class VoiceRack {
       set(this.lp.frequency, phone ? 3300 : 4300);
       set(this.lp.Q, 0.9);
       this.drive.curve = phone ? this.fx.phoneCurve : this.fx.radioCurve;
-      set(this.out.gain, vol * (phone ? 0.62 : 0.7));
+      // the drive curve's small-signal gain is k / tanh(k): take it back out (band-limiting loses a little more)
+      set(this.out.gain, vol * (phone ? Math.tanh(3.2) / 3.2 : Math.tanh(2.2) / 2.2) * 1.15);
     } else {
       set(this.hp.frequency, o.child ? 120 : 75);
       set(this.hp.Q, 0.7);

@@ -626,20 +626,20 @@ class Interior:
         bvh = vlib.bvh_of(seat)
         sphere = self._bead_proto()
         beads = []
-        pitch = 0.0255
+        pitch = 0.030
         # backrest: rays toward the backrest front face
         bdir = Mb.to_3x3() @ Vector((0, 0, -1))
         bup = Mb.to_3x3() @ Vector((0, 1, 0))
         borg = Mb @ Vector((0, 0, 0.30))
-        for i in range(-7, 8):
-            for j in range(0, 20):
+        for i in range(-6, 7):
+            for j in range(0, 17):
                 o = borg + Vector((i * pitch, 0, 0)) + bup * (-0.22 + j * pitch)
                 hit = bvh.ray_cast(o, bdir, 0.6)
                 if hit[0] is not None:
                     beads.append((hit[0], hit[1]))
         corg = Vector((sx, -0.12, 0.70))
-        for i in range(-7, 8):
-            for j in range(-8, 8):
+        for i in range(-6, 7):
+            for j in range(-7, 7):
                 o = corg + Vector((i * pitch, j * pitch, 0))
                 hit = bvh.ray_cast(o, Vector((0, 0, -1)), 0.6)
                 if hit[0] is not None and hit[0].z > 0.42:
@@ -651,7 +651,7 @@ class Interior:
         for loc, nrm in beads:
             q = Vector((0, 0, 1)).rotation_difference(nrm)
             s = 1.0 + rng.uniform(-0.06, 0.06)
-            M = Matrix.Translation(loc + nrm * 0.0085) @ q.to_matrix().to_4x4() @ \
+            M = Matrix.Translation(loc + nrm * 0.0100) @ q.to_matrix().to_4x4() @ \
                 Matrix.Rotation(rng.uniform(0, 3.14), 4, 'Z') @ Matrix.Diagonal((s, s, s * 0.78, 1))
             base = len(verts)
             verts += [tuple(M @ v) for v in pv]
@@ -685,7 +685,7 @@ class Interior:
         verts = []
         # dome bead (the lower half sits in the cover's cord mesh and is never seen): 3 rings of 8
         segs = 7
-        r = 0.0098
+        r = 0.0115
         rings_z = [(-0.80, 0.60), (0.22, 0.975)]
         for zf, rf in rings_z:
             for j in range(segs):

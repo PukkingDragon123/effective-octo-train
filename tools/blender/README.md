@@ -10,7 +10,9 @@ run in Blender 4.2 LTS. Nothing is hand-edited, so every model can be rebuilt fr
 | `taxi_exterior.py` | cuts the surface into real panels (4 doors, hood, trunk lid, bumpers, fuel flap) with true gaps, rolled edges, arch lips, lamp openings; glass, sashes, seals, drip and belt mouldings |
 | `taxi_parts.py` | lamps (housing, reflector bowl, bulb, fluted lens), grille + original badge, bumper inserts, plates, mirrors, handles, keyholes, mouldings, fuel filler, wipers, wheels (tread, steel rim, vented hubcap), TAXI-METER sign on a gutter rack, antenna, mud flaps, exhaust, underbody |
 | `taxi_interior.py` | right-hand-drive interior: dashboard with binnacle hood, cluster (gauge faces + needles), centre stack, glovebox, 4-spoke wheel, stalks, ignition, meter box, vacant lamp, seats (bolsters, piping, stitched channels, wooden-bead cover on the driver seat), rear bench, door cards, pillars, sagging headliner, visors, mirror, belts, carpet, console, levers, pedals |
-| `build_taxi.py` | assembles nodes / pivots / anchors, unwraps atlases, bakes masks, exports `taxi.glb` and `taxi_lod.glb` |
+| `build_taxi.py` | assembles nodes / pivots / anchors, applies the triangle budget, unwraps atlases, bakes + paints them, exports `taxi.glb` and `taxi_lod.glb` (gltfpack) |
+| `weather.py` | texture painter: bakes AO / curvature / cavity + position / normal / material-id maps, then paints the weathered albedo + ORM atlases (CC0 photo detail, chips, rust, grime, fading) and swaps in the export materials |
+| `render_glb.py` | review renders of an exported GLB (`.shots/blender-<name>-<cam>.png`), exterior and cabin cameras |
 | `build_moto.py` | intro step-through motorbike, exports `moto.glb` |
 | `review.py` | studio lights + standard cameras for optional review renders (`.shots/blender-*.png`) |
 | `check_glb.py` | node-free contract check of the exported GLBs (parses the JSON chunk) |
@@ -23,15 +25,18 @@ curl -LO https://download.blender.org/release/Blender4.2/blender-4.2.23-linux-x6
 tar -xf blender-4.2.23-linux-x64.tar.xz
 B=./blender-4.2.23-linux-x64/blender
 
-$B -b --factory-startup -P tools/blender/build_taxi.py -- [--nobake] [--size 2048] [--samples 8] [--blend out.blend]
-$B -b --factory-startup -P tools/blender/build_moto.py -- [--nobake] [--size 2048] [--samples 8]
+$B -b --factory-startup -P tools/blender/build_taxi.py -- [--nobake] [--size 2048] [--samples 4] [--ao 8] [--nopack] [--out dir] [--blend out.blend]
+$B -b --factory-startup -P tools/blender/build_moto.py -- [--nobake] [--size 2048] [--samples 4] [--ao 8] [--nopack]
+$B -b --factory-startup -P tools/blender/render_glb.py -- --glb public/assets/vehicle/taxi.glb --cams front34,pov,back
 python3 tools/blender/check_glb.py public/assets/vehicle/taxi.glb public/assets/vehicle/taxi_lod.glb public/assets/vehicle/moto.glb
 ```
 
-Cycles CPU bakes the masks (about 25 min for the taxi, 3 min for the bike on 4 shared cores);
-copies of the atlases land in `.shots/blender-bake/` (ignored by git). `--nobake` is for quick
-geometry iterations and exports without masks (UV packing differs slightly from run to run, so
-old masks are never reused). Outputs go to `public/assets/vehicle/`.
+Cycles CPU bakes the masks, numpy paints the atlases; copies land in `.shots/blender-bake/`
+(ignored by git). `--nobake` is for quick geometry iterations (flat export materials). The
+exports are post-processed with `npx gltfpack@0.21.0 -kn -km -ke -vpf -vtf` (vertex-cache order,
+8-bit normals via KHR_mesh_quantization; positions and UVs stay float because the game rebuilds
+glass and mirror geometry in place; no meshopt / Draco: the vehicle loader has no decoder).
+Outputs go to `public/assets/vehicle/`.
 
 ## Frames and units
 
@@ -68,7 +73,7 @@ the rear doors, glass ids `ql` / `qr`).
   | `trunk` | (-1, 0, 0) | 0..65 | hinge behind the rear window, rear edge rises |
   | `wheel_*` | (-1, 0, 0) | - | origin at the wheel centre, + = rolling forward |
   | `steering_wheel` | column axis toward the driver | -540..540 | + = turning left (CCW seen by the driver) |
-  | `needle_*` | into the dash | 0..270 (fuel/temp 0..90) | rest points at 12 o'clock, + = clockwise as the driver sees it |
+  | `needle_*` | into the dash | 0..270 (fuel/temp 0..72) | rest on the zero mark, + = clockwise as the driver sees it |
   | `gear_lever` | (1, 0, 0) | -12..12 | pivot at the ball under the boot (tilt about local Z for the gate) |
   | `handbrake_lever` | (1, 0, 0) | 0..22 | + = pulled up |
   | `pedal_*` | (1, 0, 0) | 0..18 | hanging pedals, pivot under the dash, + = pressed |
@@ -86,10 +91,12 @@ the rear doors, glass ids `ql` / `qr`).
   `vacant_lamp` (two faces: front and back of the dash sign, 0..1 UVs each; write "ว่าง").
   Housings, reflectors and bulbs are static geometry in `body`; corner (parking) lamps are clear
   lenses inside the headlamp housings (static).
-* Display quads (clean 0..1 UVs, u to the viewer's right, v up): `meter_display`,
-  `radio_display`, `gauge_speedo_face`, `gauge_tacho_face`, `gauge_small_face` (fuel dial upper
-  half, temperature dial lower half; needles pivot on the left of each half), `plate_front`,
-  `plate_rear` (340 x 150 mm). Gauge quads are square: paint the area outside each dial black.
+* Display quads (clean 0..1 UVs, u to the viewer's right, v up; `display` material, the game
+  skins them): `meter_display`, `radio_display`, `gauge_speedo`, `gauge_tacho`, `gauge_fuel`,
+  `gauge_temp` (square, dial centre = quad centre = needle pivot, laid out for
+  `VehicleTextures.gaugeTex`), `dome_light` (cabin lamp lens), `plate_front`, `plate_rear`
+  (340 x 150 mm). Needles rest on the gauge's zero mark (7:30 o'clock on the big dials, E / C on
+  the small ones) and sweep clockwise.
 * Anchors: one empty per `TAXI_ANCHORS` key, named exactly like the key and tagged
   `userData.anchor = key`. `hood` and `trunk` exist both as the pivot meshes and as anchor
   empties (children of those meshes), so look anchors up by `userData.anchor`. Anchors that
@@ -108,28 +115,52 @@ range -38..38, + = turning left), `wheel_r`, `light_tail`; under `handlebar`: `w
 `light_head` and the empties `handleL`, `handleR`, `headlight`. Root empties: `seat`, `footL`,
 `footR`, `eye`. Wheels spin about local (-1, 0, 0) (+ = rolling forward).
 
-## Materials and mask atlases
+## Materials and painted atlases
 
-Material slots are named semantically and shared by name across nodes: `paint_green`,
-`paint_yellow` (livery split on the shoulder crease: yellow above, green below, bumpers green),
-`chrome`, `rubber`, `plastic_black`, `metal_steel`, `plastic_dash`, `vinyl_seat`,
-`fabric_headliner`, `carpet`, `glass`, `mirror`, `lens_clear`, `lens_red`, `lens_amber`,
-`wood_beads`, `emissive_meter`, `emissive_gauge`; extras: `paint_black` (housings, wiper arms,
-steel wheels, underbody), `plate`, `sign_panel`, `sign_text` (raised TAXI-METER letters), and
-`paint_moto` on the bike. The PBR values in the GLB are neutral placeholders for the game's
-painterly materials.
+The build uses semantic materials (`paint_green`, `paint_yellow`, `chrome`, `rubber`, `plastic_dash`,
+`vinyl_seat`, ...; `vlib.MAT_DEFS`). Each atlas is unwrapped (smart projection, uniform texel
+density, concave packing), then `weather.py` bakes R = AO (0.45 m), G = edge / curvature, B = cavity,
+plus world position / normal / material id, and paints per texel:
 
-Every face is unwrapped (per-part smart projection, uniform texel density, packed) into the
-atlas of its material, and Cycles bakes one RGB mask per atlas, embedded as the material's
-`occlusionTexture` (three.js `aoMap`, UV0; the R channel is used as AO out of the box):
+* **paint**: two-tone livery (yellow above the shoulder crease, green below) with CC0 photo
+  streaks and water spots, faded chalky clearcoat on roof / bonnet / boot lid, chips to primer and
+  bare metal on edges, fingernail scratches and chips in the door-handle cups, stone chips low and
+  on the nose, scuffed bumper ends, rust bleeding out of seams in streaks, rust at the wheel arches
+  and sills, road grime and mud low on the body, dust in every cavity;
+* **trim**: pitted chrome, sun-faded black plastic, browned tyre sidewalls with dusty grooves,
+  chipped and rusty black steel wheels, yellowed headlamp lenses;
+* **cabin**: sun-bleached, cracked dash top, hand-polished edges and kick scuffs on the plastics,
+  stained headliner (nicotine, water rings, sagging corner), worn and stained grey-blue seat
+  fabric (pale bolsters and cushion centres), a bald carpet patch under the driver's heel, varnished
+  beads.
 
-* **R** = ambient occlusion (0.45 m), **G** = edge / curvature (bevel-normal difference: worn
-  edges, chips, rust starts), **B** = cavity (short-range AO: grime, dust in seams).
-* Atlases: `ext_paint` (paint_green, paint_yellow), `ext_parts` (chrome, rubber,
-  plastic_black, metal_steel, lenses, sign, paint_black), `int_hard` (plastic_dash, carpet,
-  fabric_headliner), `int_soft` (vinyl_seat, wood_beads); `moto` on the bike. 2048² JPEG in the
-  full models, 512² in the LOD. `material.extras.maskAtlas` names the atlas.
-* `glass`, `mirror`, `plate`, `emissive_*` are not baked and keep clean planar 0..1 UVs.
+Output per atlas: **albedo** (sRGB JPEG, `baseColorTexture`) and **ORM** (R = AO, G = roughness,
+B = metalness; `occlusionTexture` + `metallicRoughnessTexture`). Export materials (11):
+
+| export material | from | atlas |
+|---|---|---|
+| `paint` | paint_green, paint_yellow | ext_paint (2048) |
+| `chrome` | chrome, metal_steel | ext_parts (2048) |
+| `rubber_black` | rubber, plastic_black, paint_black | ext_parts |
+| `lens` (blend 0.82) | lens_clear, lens_red, lens_amber | ext_parts |
+| `sign_lamp` | sign_panel, sign_text (roof sign) | ext_parts |
+| `plastic_dash` | plastic_dash | int_hard (2048) |
+| `fabric_carpet` | fabric_headliner, carpet | int_hard |
+| `vinyl_seat` | vinyl_seat (seat fabric), wood_beads | int_soft (1024) |
+| `glass` | glass (removed / rebuilt by the game) | - |
+| `display` | gauge / meter / radio / plate quads, dome lens (skinned by the game) | - |
+| `mirror` | mirror surfaces (replaced by the game's mirrors) | - |
+
+Lens and roof-sign nodes keep the atlas as `map`, so the game's emissive lens materials glow in
+the painted colours. The bike uses `paint_moto`, `chrome`, `rubber_black`, `lens`, `vinyl_seat`
+(cracked black vinyl), `glass`, `mirror` on one `moto` atlas.
+
+## Triangle budget
+
+`build_taxi.DECIMATE` collapses parts that are small on screen (wheels, grille, underbody, seals,
+door cards, seats...) after modelling; panels, glass, lamps, displays, dash and cluster keep their
+full meshes. The bead cover uses ~380 low dome beads. The LOD (`taxi_lod.glb`, exterior + a crude
+cabin) is a decimated copy with 512 px atlases.
 
 ## Weathering in geometry
 

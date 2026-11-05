@@ -54,7 +54,7 @@ export async function run(E) {
     dread: 0.9,
     onTick: (st, dt) => {
       rattle -= dt;
-      const held = qte._down('interact');
+      const held = !!st.held;
       // the door gives a little whenever the lock is not held
       crack += ((held ? 0 : 0.06) - crack) * Math.min(1, dt * (held ? 10 : 3));
       t.state.doors.fr = Math.max(0, crack);

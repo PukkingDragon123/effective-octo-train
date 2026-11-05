@@ -20,7 +20,7 @@ TAXI_NODES = [
     'light_head_l', 'light_head_r', 'light_tail_l', 'light_tail_r', 'light_ind_fl', 'light_ind_fr', 'light_ind_rl',
     'light_ind_rr', 'light_brake', 'light_reverse', 'roof_sign', 'vacant_lamp',
     'meter_display', 'radio_display', 'gauge_speedo', 'gauge_tacho', 'gauge_fuel', 'gauge_temp', 'plate_front',
-    'plate_rear',
+    'plate_rear', 'dome_light',
 ]
 TAXI_PIVOTS = ['door_fl', 'door_fr', 'door_rl', 'door_rr', 'hood', 'trunk', 'wheel_fl', 'wheel_fr', 'wheel_rl',
                'wheel_rr', 'steering_wheel', 'needle_speedo', 'needle_tacho', 'needle_fuel', 'needle_temp', 'gear_lever',
@@ -138,6 +138,8 @@ def check(path):
                     max(us) - min(us) < 0.99 or max(vs) - min(vs) < 0.99:
                 errors.append(f'display {d} UVs not clean 0..1: u[{min(us):.3f},{max(us):.3f}] v[{min(vs):.3f},{max(vs):.3f}]')
     mats = sorted(m.get('name') for m in js.get('materials', []))
+    if len(mats) > 12:
+        errors.append(f'{len(mats)} materials (budget 12)')
     imgs = [(i.get('name'), i.get('mimeType')) for i in js.get('images', [])]
     print(f'== {name}: {os.path.getsize(path) / 1e6:.2f} MB, {len(nodes)} nodes, {tris} triangles')
     print('   materials:', ', '.join(mats))

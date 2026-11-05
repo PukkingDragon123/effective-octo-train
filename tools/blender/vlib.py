@@ -1107,11 +1107,13 @@ def atlas_unwrap(objs, atlas, margin=0.004, angle=66, island_margin=0.006):
     _select_only(use)
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_mode(type='FACE')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=island_margin,
+    bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=0.0,
                              area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
     bpy.ops.uv.select_all(action='SELECT')
     bpy.ops.uv.average_islands_scale()
-    bpy.ops.uv.pack_islands(udim_source='CLOSEST_UDIM', rotate=True, margin_method='FRACTION', margin=margin)
+    # concave-hull packing, any rotation: ~4x the texel density of the AABB default on the body
+    bpy.ops.uv.pack_islands(udim_source='CLOSEST_UDIM', rotate=True, rotate_method='ANY', margin_method='FRACTION',
+                            margin=margin, shape_method='CONCAVE')
     bpy.ops.object.mode_set(mode='OBJECT')
     return use
 

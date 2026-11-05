@@ -6,6 +6,7 @@
 //   node tools/itch/render.mjs --sandbox=itch-banner --size=960x360 --out=.shots/itch/banner/f.png
 //        [--params="k=v&..."] [--frames=N] [--from=0] [--every=1] [--timeout=900000]
 // Frame files are <out without .png>-NNN.png (a single frame keeps the plain name with --single).
+// A sandbox without window.__itch is stepped --steps=2 frames and captured once (use --single).
 // See tools/itch/make.sh for the full pipeline (frames -> GIF / cover PNGs).
 import { createServer } from 'vite';
 import { createRequire } from 'node:module';
@@ -70,6 +71,22 @@ try {
   const bootErr = await page.evaluate(() => window.__bootError || null);
   if (bootErr) throw new Error('boot: ' + bootErr);
   console.log(`boot ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  // any other sandbox (e.g. the world for the page background): step --steps frames, then one capture
+  const generic = await page.evaluate(() => !window.__itch);
+  if (generic) {
+    await page.evaluate(async (n) => {
+      window.__itch = {
+        frames: 1,
+        prepare: async () => {
+          for (let i = 0; i < n; i++) {
+            window.__game.step(1, 1 / 30);
+            await new Promise((r) => setTimeout(r, 0));
+          }
+        },
+        frame: async () => {},
+      };
+    }, Number(args.steps ?? 2));
+  }
   const total = await page.evaluate(async () => {
     await window.__itch.prepare();
     return window.__itch.frames;

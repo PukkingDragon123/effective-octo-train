@@ -5,7 +5,7 @@
       RAW is the 1260x1000 itch-cover render (no text). Writes OUTDIR/cover@2x.png (1260x1000) and
       OUTDIR/cover.png (630x500): the title in plain bone-white Srisakdi, "Pukking Dragon" small.
   python3 tools/itch/compose.py icon   COVER2X.png OUTDIR  --box=x,y,size   (512x512 crop -> icon.png)
-  python3 tools/itch/compose.py bg     RAW.png  OUTDIR  [--dark=0.8]      (background.png, 1920x1080, no text)
+  python3 tools/itch/compose.py bg     RAW.png  OUTDIR  [--dark=0.6]      (background.png, 1920x1080, no text)
   python3 tools/itch/compose.py gif    FRAMEDIR OUTDIR  [--fps=15] [--width=960] [--colors=128]
       FRAMEDIR holds f-000.png ... (one seamless loop). Two-pass ffmpeg palette (palettegen/paletteuse).
 """
@@ -94,6 +94,9 @@ def bg(raw, outdir, o):
     im = Image.open(raw).convert('RGB')
     if im.size != (1920, 1080):
         im = im.resize((1920, 1080), Image.LANCZOS)
+    # darker so the page text on top stays readable (a plain exposure change, no filters)
+    k = float(o.get('dark', 0.6))
+    im = im.point(lambda v: round(255 * ((v / 255) ** 2.2 * k) ** (1 / 2.2)))
     im.save(os.path.join(outdir, 'background.png'), optimize=True)
     print('background', im.size, '->', outdir)
 
