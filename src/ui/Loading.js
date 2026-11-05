@@ -1,10 +1,12 @@
-// Loading screen: title lockup, an incense stick burning down as the progress bar,
-// and slowly rotating proverb-like lines.
-import { h, enter, leave, clamp01 } from './dom.js';
-import { screen, titleLockup } from './common.js';
-import * as NARRATIVE from '../game/data/index.js';
+// Loading screen: no words at all. A single joss stick burns in Ah Kong's urn in the dark (the
+// 3D IncenseScene); its burning front is the progress. When loading is done a pale hand comes out
+// of the dark and takes the stick by itself, then the menu comes up. If WebGL is unavailable a
+// thin 2D stick burns instead.
+import { h, enter, leave, clamp01, sleep } from './dom.js';
+import { screen } from './common.js';
 import { IncenseScene } from './IncenseScene.js';
 
+/** Proverb-like lines (kept for other modules; the loading screen itself shows no text). */
 export const LOADING_LINES = [
   { th: 'ไม่ว่าจะได้ยินอะไรจากเบาะหลัง อย่าหันไปมอง', en: 'Whatever you hear from the back seat, don’t look.' },
   { th: 'ทุกเส้นทางไปจบที่ศาลเจ้า', en: 'Every road ends at the shrine.' },
@@ -17,33 +19,21 @@ export const LOADING_LINES = [
   { th: 'กระจกไม่เคยโกหก', en: 'The mirror never lies.' },
 ];
 
+/** Longest the hand sequence may take before the game moves on regardless (ms). */
+const INTRO_CAP_MS = 4200;
+
 export class Loading {
   constructor(ui) {
     this.ui = ui;
     this.el = null;
     this.progress = 0;
-    this._lineIdx = 0;
-    this._timer = 0;
   }
 
   _build() {
-    this.ember = h('span', { class: 'dlb-incense__ember' });
-    this.ash = h('span', { class: 'dlb-incense__ash' });
-    this.burn = h('span', { class: 'dlb-incense__burn' }, this.ash, this.ember,
-      h('span', { class: 'dlb-smoke' }), h('span', { class: 'dlb-smoke' }), h('span', { class: 'dlb-smoke' }));
-    this.statusTh = h('span', { class: 'th', attrs: { lang: 'th' } });
-    this.statusEn = h('span', { class: 'en' });
-    this.pct = h('span', { class: 'dlb-loading__pct' }, '0%');
-    this.lineTh = h('span', { class: 'th', attrs: { lang: 'th' } });
-    this.lineEn = h('span', { class: 'en' });
-    this.line = h('div', { class: 'dlb-loading__line is-out' }, this.lineTh, this.lineEn);
-    this.el = screen('dlb-loading',
-      h('div', { class: 'dlb-loading__inner' },
-        titleLockup({ presents: true, align: 'center' }),
-        h('div', { class: 'dlb-incense', attrs: { role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100 } },
-          h('span', { class: 'dlb-incense__stick' }), this.burn),
-        h('div', { class: 'dlb-loading__status' }, this.statusTh, this.statusEn, this.pct)),
-      this.line);
+    this.burn = h('span', { class: 'dlb-incense__burn' }, h('span', { class: 'dlb-incense__ember' }));
+    this.stick = h('div', { class: 'dlb-incense', attrs: { role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': 'loading' } },
+      h('span', { class: 'dlb-incense__stick' }), this.burn);
+    this.el = screen('dlb-loading', this.stick, h('div', { class: 'dlb-loading__vignette' }));
     this.ui.layer.appendChild(this.el);
     // the real thing: a 3D stick burning in Ah Kong's urn (the 2D stick stays as the fallback)
     try {
@@ -58,104 +48,54 @@ export class Loading {
     }
   }
 
-  show(progress = 0, th = '', en = '') {
+  /** th / en status strings are accepted for the contract but never shown. */
+  show(progress = 0) {
     if (!this.el) this._build();
-    if (this.el.hidden || this.el.classList.contains('is-leaving')) {
-      enter(this.el);
-      this.ui._grain(+1, 'loading');
-      this._startLines();
-    }
-    this.set(progress, th, en);
+    if (this.el.hidden || this.el.classList.contains('is-leaving')) enter(this.el);
+    this.set(progress);
     this.ui._refreshXhair?.();
   }
 
-  set(progress, th, en) {
+  set(progress) {
     const p = clamp01(Number(progress) || 0);
     this.progress = p;
-    const w = (p * 100).toFixed(2) + '%';
-    // the stick burns from its tip (right) toward the red base (left); ash trails behind
-    this.burn.style.width = w;
-    this.pct.textContent = Math.round(p * 100) + '%';
+    this.burn.style.width = (p * 100).toFixed(2) + '%';
     this.scene3d?.setProgress(p);
-    this.el.querySelector('.dlb-incense').setAttribute('aria-valuenow', Math.round(p * 100));
-    if (th !== undefined) this.statusTh.textContent = th || '';
-    if (en !== undefined) this.statusEn.textContent = en || '';
-  }
-
-  _startLines() {
-    clearInterval(this._timer);
-    const lines = Array.isArray(NARRATIVE.LOADING_LINES) && NARRATIVE.LOADING_LINES.length ? NARRATIVE.LOADING_LINES.concat(LOADING_LINES.slice(0, 4)) : LOADING_LINES;
-    const show = () => {
-      const l = lines[this._lineIdx % lines.length];
-      this._lineIdx++;
-      this.line.classList.add('is-out');
-      setTimeout(() => {
-        this.lineTh.textContent = l.th;
-        this.lineEn.textContent = l.en;
-        this.line.classList.remove('is-out');
-      }, this._lineIdx === 1 ? 2600 : 1500);
-    };
-    // owner: almost no text. The burning stick is the progress; no rotating lines.
-    void show;
+    this.stick.setAttribute('aria-valuenow', Math.round(p * 100));
   }
 
   /**
-   * Hold on the burnt-down stick until the player presses something (this is also the gesture
-   * that unlocks audio), then play the hand taking the incense. cue(name) fires on
-   * 'start' | 'reach' | 'grab' | 'pull' so the game can add sound.
+   * The intro, automatic (no click gate): the burnt-down stick is taken by a pale hand. Audio is
+   * unlocked later by the first gesture in the menu. cue(name) fires on 'start' | 'reach' |
+   * 'grab' | 'pull' so the game can add sound. Never takes longer than INTRO_CAP_MS, whatever the
+   * render loop does (a stalled GPU, a hidden tab).
    */
-  async waitForStart(cue = () => {}) {
+  async playIntro(cue = () => {}) {
     if (!this.el) return;
-    this.el.classList.add('is-ready');
-    this.statusTh.textContent = '';
-    this.statusEn.textContent = '';
-    this.pct.textContent = '';
-    this.start = h('div', { class: 'dlb-loading__start' },
-      h('span', { class: 'th', attrs: { lang: 'th' } }, 'แตะเพื่อเริ่ม'), h('span', { class: 'en' }, 'press any key'));
-    this.el.appendChild(this.start);
-    await new Promise((resolve) => {
-      let raf = 0;
-      const t0 = performance.now();
-      const done = (e) => {
-        if (performance.now() - t0 < 350) return;
-        if (e?.type === 'keydown' && (e.key === '`' || e.repeat)) return;
-        window.removeEventListener('pointerdown', done, true);
-        window.removeEventListener('keydown', done, true);
-        cancelAnimationFrame(raf);
-        resolve();
-      };
-      window.addEventListener('pointerdown', done, true);
-      window.addEventListener('keydown', done, true);
-      const poll = () => {
-        for (const pad of navigator.getGamepads?.() || []) if (pad?.buttons?.some((b) => b.pressed)) return done();
-        raf = requestAnimationFrame(poll);
-      };
-      raf = requestAnimationFrame(poll);
-    });
-    this.start.classList.add('is-gone');
-    try {
-      cue('start');
-    } catch (e) {
-      /* sound is optional */
-    }
-    if (this.scene3d) await this.scene3d.playGrab((n) => {
+    const safeCue = (n) => {
       try {
         cue(n);
       } catch (e) {
         /* sound is optional */
       }
-    });
+    };
+    this.el.classList.add('is-ready');
+    safeCue('start');
+    const grab = this.scene3d ? this.scene3d.playGrab(safeCue) : sleep(700);
+    await Promise.race([Promise.resolve(grab).catch(() => {}), sleep(INTRO_CAP_MS)]);
+  }
+
+  /** Kept for the old call site: there is no gate any more, it just plays the intro. */
+  waitForStart(cue) {
+    return this.playIntro(cue);
   }
 
   async hide() {
     if (!this.el || this.el.hidden) return;
-    clearInterval(this._timer);
-    this.ui._grain(-1, 'loading');
-    await leave(this.el, 1700);
+    await leave(this.el, 900);
     this.scene3d?.dispose();
     this.scene3d = null;
     this.stage?.remove();
-    this.start?.remove();
     this.el.classList.remove('has-3d', 'is-ready');
     this.ui._refreshXhair?.();
   }

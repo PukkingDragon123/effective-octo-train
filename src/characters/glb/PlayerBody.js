@@ -16,7 +16,7 @@ import { HumanoidGLB } from './Humanoid.js';
 import { PRESETS } from '../Presets.js';
 import { noMouthView } from './mhperson.js';
 
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _e = new THREE.Euler();
 
 /** split a skinned look geometry into head (Head/neck dominated + hair) and body index ranges */
 function splitHead(geo, t) {
@@ -24,12 +24,26 @@ function splitHead(geo, t) {
   const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, part = geo.attributes.apart;
   const head = new Set([t.index.Head, t.index.neck_01, t.index.eye_l, t.index.eye_r, ...['hair_1', 'hair_2', 'hair_3', 'hairL_1', 'hairL_2', 'hairR_1', 'hairR_2'].map((n) => t.index[n])]);
   const hw = (i) => { let w = 0; for (let k = 0; k < 4; k++) if (head.has(si.getComponent(i, k))) w += sw.getComponent(i, k); return w; };
+  // shoulder caps (clavicle / upper-arm skin and sleeve within ~11 cm of the shoulder joint) bulge up
+  // beside the eye when the hands reach forward: they go with the head (mirrors only, never in view)
+  const shoulderBones = new Set(['clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r'].map((n) => t.index[n]).filter((i) => i !== undefined));
+  const joints = ['upperarm_l', 'upperarm_r'].map((n) => t.Gp[t.index[n]]).filter(Boolean);
+  const pos = geo.attributes.position;
+  const sh = (i) => {
+    let w = 0;
+    for (let k = 0; k < 4; k++) if (shoulderBones.has(si.getComponent(i, k))) w += sw.getComponent(i, k);
+    if (w < 0.45) return 0;
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    let d = Infinity;
+    for (const j of joints) d = Math.min(d, Math.hypot(x - j.x, y - j.y, z - j.z));
+    return d < 0.11 && y > (joints[0]?.y ?? 0) - 0.03 ? 1 : 0;
+  };
   const idx = geo.index.array;
   const A = [], B = [], M = [];
   for (let i = 0; i < idx.length; i += 3) {
     const a = idx[i], b = idx[i + 1], c = idx[i + 2];
     const pa = part ? part.getX(a) : 0;
-    const isHead = (part && pa > 1.5) || (hw(a) + hw(b) + hw(c)) / 3 > 0.5;
+    const isHead = (part && pa > 1.5) || (hw(a) + hw(b) + hw(c)) / 3 > 0.5 || sh(a) + sh(b) + sh(c) >= 2;
     // teeth (5) / tongue (6) last in the head, so a closed mouth draws less
     (isHead ? (pa > 4.5 && pa < 6.5 ? M : A) : B).push(a, b, c);
   }
@@ -113,6 +127,9 @@ export class PlayerBodyGLB {
       const mid = t.eyeCenters[0].clone().add(t.eyeCenters[1]).multiplyScalar(0.5);
       mid.z += 0.012;
       this._eyeLocal.copy(mid).sub(t.Gp[hb]).applyQuaternion(t.Gq[hb].clone().invert()).multiplyScalar(1 / h.headScale);
+      // the same offset in the body's look frame (x right, y up, -z forward; model space faces +Z)
+      const o = mid.clone().sub(t.Gp[hb]).multiplyScalar(h.scale);
+      this._eyeOff = new THREE.Vector3(-o.x, o.y, -o.z);
     }
     this._placeBase();
   }
@@ -173,7 +190,7 @@ export class PlayerBodyGLB {
       if (A.pedalClutch) h.setFootTarget('L', A.pedalClutch, { blend: 0.4, orient: false });
       // head clearance: measure the headliner above the seat; once seated, the hips settle into the
       // cushion until his hair clears it by 5 cm (see _seatClearance)
-      this._seatFit = { base: h.root.position.y, drop: 0, target: 0, t: 0, ceil: cabinCeiling(vehicle, seat) };
+      this._seatFit = { base: h.root.position.y, baseZ: h.root.position.z, drop: 0, target: 0, t: 0, slide: 0, slideT: 0, ceil: cabinCeiling(vehicle, seat) };
     } else {
       for (const [side, k] of [['L', 'handleL'], ['R', 'handleR']]) {
         if (!A[k]) continue;
@@ -241,6 +258,7 @@ export class PlayerBodyGLB {
   // ---------------------------------------------------------------- update (order 15, before the humanoid)
   update(dt) {
     const h = this.humanoid;
+    this._dt = dt;
     if (this.mode === 'foot') {
       this._footController(dt);
       this._footLookDown(dt);
@@ -261,15 +279,31 @@ export class PlayerBodyGLB {
       this.base.position.copy(this.root.position);
       this.base.quaternion.identity();
     }
-    // eye: the head bone's eye point, smoothed IN THE BASE (seat) FRAME, so only the head's own motion
-    // is filtered (no clip head bob in the camera) and a moving vehicle never makes the eye lag behind
+    // eye = smoothed head PIVOT + the eye offset turned by the LOOK direction, all in the base (seat)
+    // frame. Turning the offset with the camera rather than the head bone breaks the feedback loop
+    // camera -> look-at -> head -> eye -> camera (micro-jitter); the pivot follows the neck and spine
+    // (breathing, lean, bumps) through a time-based filter, and a moving vehicle never makes it lag.
     const hb = h.rig.bone('Head');
     hb.updateWorldMatrix(true, false);
     this.base.updateWorldMatrix(true, false);
-    _v.copy(this._eyeLocal).applyMatrix4(hb.matrixWorld).applyMatrix4(_m.copy(this.base.matrixWorld).invert());
+    _m.copy(this.base.matrixWorld).invert();
+    const dt = this._dt || 1 / 60;
+    _v.setFromMatrixPosition(hb.matrixWorld).applyMatrix4(_m);
     if (!this._eyeInit) { this._eyeS.copy(_v); this._eyeInit = true; }
-    this._eyeS.lerp(_v, this.mode === 'foot' ? 0.25 : 0.5);
-    this.eye.position.copy(this._eyeS);
+    this._eyeS.lerp(_v, 1 - Math.exp(-(this.mode === 'foot' ? 14 : 18) * dt));
+    const look = cameraRig.lookDirection;
+    if (look && this._eyeOff) {
+      // look direction in the base frame -> yaw / pitch (base forward = -Z)
+      this.base.getWorldQuaternion(_q).invert();
+      _v2.copy(look).applyQuaternion(_q).normalize();
+      const yaw = Math.atan2(-_v2.x, -_v2.z), pitch = Math.asin(clamp(_v2.y, -1, 1));
+      _q.setFromEuler(_e.set(pitch, yaw, 0, 'YXZ'));
+      _v2.copy(this._eyeOff).applyQuaternion(_q);
+      this.eye.position.copy(this._eyeS).add(_v2);
+    } else {
+      _v2.copy(this._eyeLocal).applyMatrix4(hb.matrixWorld).applyMatrix4(_m);
+      this.eye.position.copy(_v2);
+    }
   }
 
   /** Seated in the taxi: settle the hips into the cushion until the hair clears the headliner by 5 cm. */
@@ -290,6 +324,25 @@ export class PlayerBodyGLB {
     }
     S.drop = damp(S.drop, S.target, 6, dt);
     h.root.position.y = S.base - S.drop;
+    // reach: a straight arm at full stretch makes the two-bone IK snap and jitter (and the hands stop
+    // short of the rim). Slide the seat forward until both elbows keep a comfortable bend (≤ 84 % reach),
+    // back again if the hands are cramped against the chest.
+    if (S.t > 0.9 && this._grips?.length === 2) {
+      let r = 0, rMin = 9;
+      for (const [k, g] of [['L', this._grips[0]], ['R', this._grips[1]]]) {
+        const ch = h.chains[k];
+        if (!ch) continue;
+        h.rig.worldPos(ch.ia, _v);
+        g.getWorldPosition(_v2);
+        const q = _v.distanceTo(_v2) / Math.max(0.1, (ch.lenA + ch.lenB) * h.scale);
+        r = Math.max(r, q);
+        rMin = Math.min(rMin, q);
+      }
+      if (r > 0.86) S.slideT = Math.min(0.16, (S.slideT || 0) + (r - 0.84) * 0.5);
+      else if (rMin < 0.62) S.slideT = Math.max(0, (S.slideT || 0) - (0.64 - rMin) * 0.5);
+    }
+    S.slide = damp(S.slide || 0, S.slideT || 0, 4, dt);
+    h.root.position.z = S.baseZ - S.slide;
   }
 
   /** On foot, looking down bends the upper back forward (head over the chest) so the legs and feet show. */

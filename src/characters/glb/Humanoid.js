@@ -1098,10 +1098,39 @@ export class HumanoidGLB {
           pole = _v3;
         }
         solveTwoBone(rig, ch, _v, pole, w, this.scale);
-        if (along && palm) setEndRotation(rig, this.handBasis[s], along, palm, w);
+        if (along && palm) {
+          setEndRotation(rig, this.handBasis[s], along, palm, w);
+          this._spreadTwist(s, w);
+        }
       }
       if (grip > 0.01 || fingers) this._fingers(s, fingers || 'grip', grip || (req?.w ?? 1), req?.phase || 0);
     }
+  }
+
+  /**
+   * Forearm roll: an IK hand orientation twists only the wrist, which wrings the skin like a candy
+   * wrapper. Half of the hand's twist about the forearm axis goes to the forearm (rotating about its own
+   * axis keeps the elbow and wrist in place) and the wrist keeps at most ±80° of it.
+   */
+  _spreadTwist(s, w) {
+    const t = this.t, rig = this.rig, I = t.index;
+    const ia = I[s === 'L' ? 'lowerarm_l' : 'lowerarm_r'], ih = I[s === 'L' ? 'hand_l' : 'hand_r'];
+    if (ia === undefined || ih === undefined) return;
+    const F = rig.bones[ia], H = rig.bones[ih];
+    const ax = _v4.copy(t.restPos[ih]).normalize(); // forearm local: elbow -> wrist
+    // the hand's deviation from its rest pose, expressed in the forearm frame
+    _q.copy(H.quaternion).multiply(_q2.copy(t.restQuat[ih]).invert());
+    const d = _q.x * ax.x + _q.y * ax.y + _q.z * ax.z;
+    let ang = 2 * Math.atan2(d, _q.w);
+    if (ang > Math.PI) ang -= Math.PI * 2;
+    if (ang < -Math.PI) ang += Math.PI * 2;
+    if (Math.abs(ang) < 1e-3) return;
+    const keep = clamp(ang * 0.5, -1.4, 1.4);
+    const share = (ang - keep) * w;
+    _q3.setFromAxisAngle(ax, share);
+    F.quaternion.multiply(_q3);
+    H.quaternion.premultiply(_q3.invert());
+    F.updateMatrixWorld(true);
   }
 
   /** finger poses (additive local curls). preset: grip | point | flat | wai | cig | beckon | spread | claw */

@@ -21,6 +21,14 @@ import { EDGE_SPECIES } from './RoadEdge.js';
 const CELL = W.forestCell;
 const _pm = new THREE.Matrix4(), _pq = new THREE.Quaternion(), _pq2 = new THREE.Quaternion(), _pe = new THREE.Euler();
 const _pa = new THREE.Vector3(), _pp = new THREE.Vector3(), _ps = new THREE.Vector3();
+// road clearance (owner: keep the view along the roads open)
+const CLEAR_STRIP = 1.5; // no undergrowth / low foliage within this beyond the asphalt edge (m)
+const CLEAR_LOW = 2.5; // ... below this height
+const CLEAR_HEIGHT = 4.5; // nothing below this hangs over the asphalt (m above the road)
+const CLEAR_THIN_E = 6; // undergrowth within this of the asphalt edge is thinned ...
+const CLEAR_THIN = 0.45; // ... by this fraction
+const CLEAR_KNEE_E = 5; // grass this close to the road is knee high
+const UNDERGROWTH = new Set(['fern', 'grass', 'shrub', 'elephantEar', 'banana', 'treeFern', 'understory', 'bamboo', 'palm']);
 const cellKey = (ix, iz) => (ix + 4096) * 8192 + (iz + 4096);
 
 /** Undo three's back-face normal flip so crown-bent normals light both card sides alike. */
@@ -623,21 +631,121 @@ export class Forest {
     return d;
   }
 
+  /**
+   * Plant one instance. o: {y, dy, lean, tiltX, tiltZ, sy, ground:'road', clear, push}.
+   * o.clear applies the road clearance (CLEAR_*): undergrowth is thinned near the road, nothing
+   * low reaches into the 1.5 m strip beyond the asphalt edge and nothing below 4.5 m hangs over
+   * the asphalt; a tree that would is turned (yaw tries), pushed back (o.push metres) or dropped.
+   * Returns the planted position {x, z} or null.
+   */
   _place(name, variantIdx, x, z, yaw, scale, rng, o = {}) {
     const recs = this.byName[name];
-    if (!recs) return;
-    const rec = recs[variantIdx % recs.length];
+    if (!recs) return null;
+    let rec = recs[variantIdx % recs.length];
     const rnd = rng();
     const T = this.world.terrain;
+    if (o.clear && T.nearestRoad) {
+      const nr = T.nearestRoad(x, z);
+      if (nr.sp && nr.exact) {
+        const e = nr.e, side = nr.side, hr = nr.hr, tg = nr.sp.tangents[nr.i];
+        if (UNDERGROWTH.has(name)) {
+          if (e < CLEAR_THIN_E && rng() < CLEAR_THIN) return null; // thinner undergrowth near the road
+          if (name === 'grass' && e < CLEAR_KNEE_E) {
+            // knee-high grass on the shoulders: short looks only, cut down
+            if (variantIdx % recs.length === 2) rec = recs[0];
+            o = { ...o, sy: Math.min(o.sy ?? 1, 0.5) };
+          }
+        }
+        const prof = this._profile(rec);
+        if (e < prof.reach * scale * 1.2 + CLEAR_STRIP + 0.5) {
+          const theta = Math.atan2(-side * tg.x, side * tg.z);
+          const dh = prof.tall ? (o.y ?? T.sample(x, z)) + (o.dy ?? 0) - hr : 0;
+          const a = o.lean?.a ?? 0;
+          let ok = false;
+          for (let t = 0; t < (o.turn === false ? 1 : 4) && !ok; t++) {
+            const yw = yaw + t * (Math.PI / 2);
+            const need = this._clearNeed(prof, scale, o.sy ?? 1, yw, theta, a, dh);
+            if (e >= need) {
+              yaw = yw;
+              ok = true;
+            } else if (o.push && need - e <= o.push) {
+              // move it back from the road just enough
+              const d = need - e + 0.2;
+              x -= ((side * tg.z) * d);
+              z -= ((-side * tg.x) * d);
+              yaw = yw;
+              ok = true;
+            }
+          }
+          if (!ok) return null;
+        }
+      }
+    }
     // the height (and so the matrix) waits until the terrain tile under it is built
     if (o.y == null && T.isPending?.(x, z)) {
       const k = T.tileKeyAt(x, z);
       let l = this._deferred.get(k);
       if (!l) this._deferred.set(k, (l = []));
       l.push([rec, x, z, yaw, scale, rnd, o]);
-      return;
+      return { x, z };
     }
     this._emit(rec, x, z, yaw, scale, rnd, o);
+    return { x, z };
+  }
+
+  /**
+   * Lowest geometry per (direction sector, radius ring) of a variant, every LOD: what could
+   * reach over the road. -> {cells: Float32Array [sectorAngle, outerRadius, minY]..., reach, tall}
+   */
+  _profile(rec) {
+    if (rec._prof) return rec._prof;
+    const NS = 8, BIN = 0.5, NB = 90;
+    const ymin = new Float32Array(NS * NB).fill(Infinity);
+    let reach = 0, top = 0;
+    for (const parts of rec.built.lods) {
+      for (const geo of Object.values(parts)) {
+        const pa = geo?.attributes?.position;
+        if (!pa) continue;
+        for (let i = 0; i < pa.count; i++) {
+          const px = pa.getX(i), py = pa.getY(i), pz = pa.getZ(i);
+          const r = Math.hypot(px, pz);
+          const b = Math.min(NB - 1, Math.floor(r / BIN));
+          let ang = Math.atan2(pz, px);
+          if (ang < 0) ang += Math.PI * 2;
+          const sct = Math.min(NS - 1, Math.floor(ang / ((Math.PI * 2) / NS)));
+          const k = sct * NB + b;
+          if (py < ymin[k]) ymin[k] = py;
+          if (r > reach) reach = r;
+          if (py > top) top = py;
+        }
+      }
+    }
+    const cells = [];
+    for (let sct = 0; sct < NS; sct++) for (let b = 0; b < NB; b++) {
+      const y = ymin[sct * NB + b];
+      if (y < CLEAR_HEIGHT / 0.5) cells.push((sct + 0.5) * ((Math.PI * 2) / NS), (b + 1) * BIN, y);
+    }
+    rec._prof = { cells: Float32Array.from(cells), reach, tall: top > 2.2, half: Math.PI / NS };
+    return rec._prof;
+  }
+
+  /** Minimum asphalt-edge distance for this instance to keep the road clear (see _place). */
+  _clearNeed(prof, sc, sy, yaw, theta, lean, dh) {
+    const c = prof.cells, half = prof.half;
+    let need = 0;
+    for (let i = 0; i < c.length; i += 3) {
+      const y = c[i + 2] * sc * sy;
+      const h = y + dh;
+      if (h >= CLEAR_HEIGHT) continue;
+      let d = c[i] - yaw - theta;
+      d = Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
+      d = Math.max(0, d - half);
+      if (d >= Math.PI / 2) continue;
+      const reach = c[i + 1] * sc * Math.cos(d) + Math.max(0, y) * lean;
+      const n = h < CLEAR_LOW ? reach + CLEAR_STRIP : reach;
+      if (n > need) need = n;
+    }
+    return need;
   }
 
   _emit(rec, x, z, yaw, scale, rnd, o) {
@@ -705,7 +813,9 @@ export class Forest {
     const nz = this.noise;
     const lm = world.landmarks;
     // clearings: landmarks + elephant trail + market tracks + sacred trees
-    this._clear = (world.plan?.clearings || []).map((c) => ({ ...c }));
+    // the garage forecourt / entrance and the shrine fork get the road-edge clearance as well
+    const WIDE = new Set(['garage', 'shrineMaRuay', 'shrineNose']);
+    this._clear = (world.plan?.clearings || []).map((c) => ({ ...c, r: c.r + (WIDE.has(c.key) ? CLEAR_STRIP : 0) }));
     const strip = (key, halfW, len, stepLen = 3) => {
       const L = lm[key];
       if (!L) return;
@@ -742,12 +852,14 @@ export class Forest {
           const tg = sp.tangents[Math.min(sp.points.length - 1, Math.max(0, Math.round(s)))];
           const tx = side * tg.z, tz = -side * tg.x; // toward the road
           const yaw = Math.atan2(-tz, tx) + (rng() - 0.5) * 0.8;
-          this._place('reachTree', Math.floor(rng() * 5), p.x, p.z, yaw, 0.78 + rng() * 0.4, rng, { dy: -0.05, lean: { x: tx, z: tz, a: 0.03 + rng() * 0.1 } });
+          // the crown still arches over the road, but above the clearance height (pushed back if needed)
+          const at = this._place('reachTree', Math.floor(rng() * 5), p.x, p.z, yaw, 0.78 + rng() * 0.4, rng, { dy: -0.05, lean: { x: tx, z: tz, a: 0.03 + rng() * 0.1 }, clear: true, push: 4, turn: false });
+          if (!at) continue;
           if (e < 5.2 && rng() < 0.75) {
-            if (this.ph.roots.length && rng() < 0.12) this._place('ph_roots', 0, p.x, p.z, rng() * 6.28, 0.9 + rng() * 0.3, rng, { dy: -0.05 });
-            else this._place('roots', Math.floor(rng() * 3), p.x, p.z, yaw + (rng() - 0.5) * 0.5, 0.8 + rng() * 0.4, rng, { dy: 0 });
+            if (this.ph.roots.length && rng() < 0.12) this._place('ph_roots', 0, at.x, at.z, rng() * 6.28, 0.9 + rng() * 0.3, rng, { dy: -0.05 });
+            else this._place('roots', Math.floor(rng() * 3), at.x, at.z, yaw + (rng() - 0.5) * 0.5, 0.8 + rng() * 0.4, rng, { dy: 0 });
           }
-          this.colliders.push({ x: p.x, z: p.z, r: 0.4 });
+          this.colliders.push({ x: at.x, z: at.z, r: 0.4 });
         }
       }
     }
@@ -766,9 +878,9 @@ export class Forest {
           const p = sp.pointAt(s, lat);
           if (this._blocked(p.x, p.z, 1.5)) continue;
           const top = sp.heightAt(s) + 6.5 + rng() * 4;
-          // over asphalt keep the lowest strand > 3.4 m above the road
+          // over the asphalt and the 1.5 m strip beside it the lowest strand stays above 4.5 m
           const len = 4 + 4; // approximate curtain extent (built 4..8 m)
-          const maxDrop = top - (sp.heightAt(s) + (Math.abs(lat) < W.halfWidth + 0.5 ? 3.4 : 1.2));
+          const maxDrop = top - (sp.heightAt(s) + (Math.abs(lat) < W.halfWidth + CLEAR_STRIP + 0.5 ? CLEAR_HEIGHT : 1.2));
           const sc = Math.min(1, maxDrop / len);
           if (sc < 0.35) continue;
           this._place('vine', Math.floor(rng() * 3), p.x, p.z, rng() * 6.28, sc, rng, { y: top });
@@ -871,8 +983,9 @@ export class Forest {
             const a = (name === 'dipterocarp' ? 0.05 : 0.1) + rng() * (name === 'dipterocarp' ? 0.07 : 0.16);
             lean = { x: -nr.side * -tg.z, z: -nr.side * tg.x, a: a * (1 - nr.e / 18) };
           }
-          this._place(name, v, x, z, rng() * Math.PI * 2, sc, rng, { dy: -0.05, lean });
-          if (nr.e < 16) this.colliders.push({ x, z, r: name === 'dipterocarp' ? 1.2 : name === 'banyan' ? 1.6 : 0.9 });
+          const e0 = nr.e;
+          const at = this._place(name, v, x, z, rng() * Math.PI * 2, sc, rng, { dy: -0.05, lean, clear: true });
+          if (at && e0 < 16) this.colliders.push({ x, z, r: name === 'dipterocarp' ? 1.2 : name === 'banyan' ? 1.6 : 0.9 });
         }
       }
       // ---------------- mid layer: 4.2 m grid -----------------------------------------
@@ -899,25 +1012,25 @@ export class Forest {
             const nc = 1 + Math.floor(rng() * 3.5);
             for (let c = 0; c < nc; c++) {
               const a = rng() * 6.28, d = c ? 0.5 + rng() * 0.9 : 0;
-              this._place('banana', Math.floor(rng() * 4), x + Math.cos(a) * d, z + Math.sin(a) * d, rng() * 6.28, (c ? 0.55 + rng() * 0.35 : 0.95 + rng() * 0.45), rng, { lean: { x: Math.cos(a), z: Math.sin(a), a: c ? 0.08 + rng() * 0.12 : 0.03 } });
+              this._place('banana', Math.floor(rng() * 4), x + Math.cos(a) * d, z + Math.sin(a) * d, rng() * 6.28, (c ? 0.55 + rng() * 0.35 : 0.95 + rng() * 0.45), rng, { lean: { x: Math.cos(a), z: Math.sin(a), a: c ? 0.08 + rng() * 0.12 : 0.03 }, clear: true });
             }
             continue;
           }
           if (zb > 0.35 && r < (nr.e < 9 ? 0.16 : 0.4) && nr.e > 2.6) {
-            this._place('bamboo', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng, { dy: -0.1 });
+            this._place('bamboo', Math.floor(rng() * 3), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng, { dy: -0.1, clear: true });
             continue;
           }
           if (zbn > 0.5 && r < 0.35 && nr.e > 2.6) {
-            this._place('banana', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.8 + rng() * 0.4, rng);
-            if (rng() < 0.5) this._place('banana', Math.floor(rng() * 4), x + 0.7, z - 0.4, rng() * 6.28, 0.55 + rng() * 0.3, rng, { lean: { x: 1, z: -0.5, a: 0.12 } });
+            this._place('banana', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.8 + rng() * 0.4, rng, { clear: true });
+            if (rng() < 0.5) this._place('banana', Math.floor(rng() * 4), x + 0.7, z - 0.4, rng() * 6.28, 0.55 + rng() * 0.3, rng, { lean: { x: 1, z: -0.5, a: 0.12 }, clear: true });
             continue;
           }
           if ((wat < 14 || zb < -0.55) && r < 0.2 && nr.e > 3.6) { // fronds must not hang into the lane
-            this._place('treeFern', Math.floor(rng() * 2), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng);
+            this._place('treeFern', Math.floor(rng() * 2), x, z, rng() * 6.28, 0.85 + rng() * 0.35, rng, { clear: true });
             continue;
           }
           if (r < (nearLm(x, z, palmKeys, 26) ? 0.12 : 0.008) && nr.e > 2.2) {
-            this._place('palm', Math.floor(rng() * 2), x, z, rng() * 6.28, 0.85 + rng() * 0.3, rng);
+            this._place('palm', Math.floor(rng() * 2), x, z, rng() * 6.28, 0.85 + rng() * 0.3, rng, { clear: true });
             continue;
           }
           if (r < 0.06 + (nr.e < 9 ? 0.04 : 0)) {
@@ -939,7 +1052,7 @@ export class Forest {
               const tg = nr.sp.tangents[nr.i];
               lean = { x: nr.side * tg.z, z: -nr.side * tg.x, a: 0.12 + rng() * 0.2 };
             }
-            this._place('understory', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.75 + rng() * 0.5, rng, { lean });
+            this._place('understory', Math.floor(rng() * 4), x, z, rng() * 6.28, 0.75 + rng() * 0.5, rng, { lean, clear: true });
             continue;
           }
         }
@@ -981,10 +1094,10 @@ export class Forest {
           }
           const k = r / dens;
           const yaw = rng() * 6.28;
-          if (k < pg) this._place('grass', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng, { tiltX: (rng() - 0.5) * 0.2 });
-          else if (k < pg + pf) this._place('fern', Math.floor(rng() * 3), x, z, yaw, 0.7 + rng() * 0.6, rng);
-          else if (k < pg + pf + ps) this._place('shrub', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng);
-          else if (k < pg + pf + ps + pe) this._place('elephantEar', Math.floor(rng() * 2), x, z, yaw, 0.8 + rng() * 0.5, rng);
+          if (k < pg) this._place('grass', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng, { tiltX: (rng() - 0.5) * 0.2, clear: true });
+          else if (k < pg + pf) this._place('fern', Math.floor(rng() * 3), x, z, yaw, 0.7 + rng() * 0.6, rng, { clear: true });
+          else if (k < pg + pf + ps) this._place('shrub', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng, { clear: true });
+          else if (k < pg + pf + ps + pe) this._place('elephantEar', Math.floor(rng() * 2), x, z, yaw, 0.8 + rng() * 0.5, rng, { clear: true });
         }
       }
     }
