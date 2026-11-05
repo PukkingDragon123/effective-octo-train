@@ -35,7 +35,12 @@ export async function run(E) {
     /* cosmetic */
   }
   S.sfx('scratch_glass', { ...at(0.95, 1.2, -0.05), volume: 0.5, rate: 0.8 });
-  if (!(await E.wait(0.5))) return;
+  // the eyes are pulled to the hand on the glass, then let go
+  const rig = E.g.cameraRig;
+  rig.setFocus(S.fromTaxi(1.0, 1.15, -0.1), 0.7);
+  E.cleanup(() => rig.focusTarget && rig.setFocus(null));
+  if (!(await E.wait(0.9))) return;
+  rig.setFocus(null);
   const qte = E.g.qte;
   if (!qte) {
     await E.wait(E.duration);

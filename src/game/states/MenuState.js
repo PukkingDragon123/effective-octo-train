@@ -340,8 +340,8 @@ export const MenuState = {
       }
       case 'chase': {
         return cam.play((tt, k, dt) => {
-          local(-1.35, 1.0 + k * 0.25, 7.8 - k * 1.2, _a);
-          local(0.2, 0.85, -9, _b);
+          local(0.6, 1.25 + k * 0.2, 6.8 - k * 1.0, _a);
+          local(0.1, 0.9, -9, _b);
           if (!init) {
             sm.copy(_a);
             smL.copy(_b);
@@ -369,8 +369,8 @@ export const MenuState = {
       case 'flyby': {
         // a static roadside camera the taxi passes: the beams sweep the fog and the trunks
         const s0 = (t.physicsSim.roadRef?.s ?? 0) + Math.min(70, dur * 9.2 * 0.62);
-        const p = roadPoint('main', s0, 4.0);
-        p.y += 1.15;
+        const p = roadPoint('main', s0, 2.5);
+        p.y += 1.25;
         return cam.play((tt, k) => {
           cam.pos.copy(p);
           local(0, 0.7, -1.2, _a);
@@ -385,7 +385,7 @@ export const MenuState = {
       }
       case 'crane': {
         return cam.play((tt, k, dt) => {
-          local(3.5 - k * 2, 7.5 - k * 2.5, -9 + k * 6, _a);
+          local(2.4 - k * 1.2, 5.0 - k * 1.6, -8 + k * 5, _a);
           local(0, 0.6, -2, _b);
           if (!init) {
             sm.copy(_a);

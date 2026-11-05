@@ -43,6 +43,8 @@ export function resetNightWorld() {
     p.temperature = 0;
     p.tint?.setRGB?.(1, 1, 1);
   }
+  g.postfx?.bloodSplash?.(0); // the lens splatter of the death is gone at 21:00
+  g.qte?.cancel?.();
   g.sky?.setFogBoost?.(1, 0);
   g.sky?.setGroundMist?.(1, 0);
   g.cameraRig?.setFocus(null);

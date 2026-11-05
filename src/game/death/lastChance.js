@@ -40,8 +40,11 @@ registerLastChance('windowArm', async (ctx) => {
     t.physicsSim.input.throttle = 0;
     t.physicsSim.input.brake = 0.35;
   }, 11);
+  let track = null;
   const done = (ok) => {
     coast();
+    track?.();
+    g.cameraRig.setFocus(null);
     if (ok && ctrl) t.setControlsEnabled(true);
     g.camfx && g.camfx.tug.set(0, 0, 0);
     if (g.camfx) g.camfx.tugYaw = 0;
@@ -55,9 +58,15 @@ registerLastChance('windowArm', async (ctx) => {
   const collar = eyeL.clone().addScaledVector(inward, -0.16).add(_v.set(0, -0.2, 0.04));
   hand.setCurl(-0.25, 20);
   hand.spreadT = 1;
+  // the eyes snap to it as it comes in, and keep being pulled to it while it holds on
+  const focus = new THREE.Vector3();
+  track = g.engine.onUpdate(() => hand.mesh.getWorldPosition(focus), 47);
+  hand.mesh.getWorldPosition(focus);
+  g.cameraRig.setFocus(focus, 0.9);
   await during(0.42, (dt, tt, k) => {
     hand.mesh.position.lerpVectors(start, collar, ease(k));
   });
+  g.cameraRig.setFocus(focus, 0.35);
   hand.setCurl(1, 14);
   hand.spreadT = 0;
   g.audio?.play?.('bone_crack', { volume: 0.55, rate: 1.3 });

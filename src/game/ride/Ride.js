@@ -107,6 +107,10 @@ export class Ride {
       }
     });
     on('taxi:collision', () => this.passenger.aboard && this.emit('collision'));
+    // a struggle cuts the small talk (it resumes where it stopped afterwards); the breath may be talked through
+    on('qte:start', (e) => {
+      if (e?.kind !== 'still' && this.playing && this.playing.kind !== 'block') g.dialogue.interrupt();
+    });
     on('amulet:hold', (d) => {
       if (!d?.active || !this.passenger.aboard) return;
       this.emit('amulet'); // the warmth / hum itself is A's PlayerActions (setAmuletWarmth, see ShiftState)
@@ -216,6 +220,7 @@ export class Ride {
 
   _pump() {
     if (this.playing || !this.queue.length || !g.dialogue.idle) return;
+    if (g.qte?.active && g.qte.active.kind !== 'still') return; // nobody chats through a struggle
     const item = this.queue.shift();
     this.playing = item;
     this._silence = 0;

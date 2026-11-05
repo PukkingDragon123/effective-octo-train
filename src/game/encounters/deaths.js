@@ -158,7 +158,16 @@ export const DEATHS = {
     // the palm comes from the driver's side, fingers over the roof
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(t.root.quaternion).setY(0).normalize();
     const grabP = hand.grab(t.root, { height: 1.55, from: right.clone().negate(), lift: false, sink: false, attach: false, gore: false });
-    povShot(() => (hand.hand.b.m3 ? hand.hand.b.m3.getWorldPosition(new THREE.Vector3()) : eyeWorld().add(right)), { blend: 0.35 });
+    // follow the fingers, but never below the window line: while the hand ducks under the fog and
+    // bursts up beside the door the view goes out of the driver's window, not down at his knees
+    const lookHand = () => {
+      const e = eyeWorld();
+      const p = hand.hand.b.m3 ? hand.hand.b.m3.getWorldPosition(new THREE.Vector3()) : e.clone().add(right);
+      p.y = Math.max(p.y, e.y - 0.25);
+      if (Math.hypot(p.x - e.x, p.z - e.z) < 0.9) p.addScaledVector(right, 0.9);
+      return p;
+    };
+    povShot(lookHand, { blend: 0.35 });
     await grabP;
     shake(1);
     S.sfx('collision_thud', { object: t.root, volume: 1, rate: 0.6 });

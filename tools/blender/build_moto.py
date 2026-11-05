@@ -535,7 +535,7 @@ def main():
     weather.inject_textures(glb, files, export_atlas, extras={'generator': 'tools/blender/build_moto.py',
                                                               'tris': int(tot)})
     vlib.rename_anchor_nodes(glb)
-    if '--nopack' not in a:
+    if '--nopack' not in sys.argv:
         import build_taxi
         build_taxi.pack_glb(glb)
     log('exported', glb, os.path.getsize(glb) // 1024, 'KB', round(time.time() - t0, 1), 's')

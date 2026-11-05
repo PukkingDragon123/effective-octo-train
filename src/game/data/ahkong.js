@@ -385,6 +385,8 @@ export const DEATH_HINTS = {
   radio: [K('เด็กขอให้ปิด ก็ปิดสิ', 'The kid asked you to turn it off. So turn it off.')],
   breath: [K('กำพระให้แน่น มองถนน', 'Grip the amulet. Eyes on the road.')],
   yaiSpeed: [K('อย่าแข่งกับยายสปีด', 'Never race Yai Speed.')],
+  faceRat: [K('ไอ้หนูหน้าคนน่ะ เห็นมันกระโดดเมื่อไหร่ ปัดมันออกไปเลย', 'That rat with a man\'s face: the moment it jumps, swat it away.')],
+  doorRattle: [K('มีอะไรมาดึงประตู ก็จับล็อกไว้ อย่าปล่อยมือ', 'If something pulls at the door, hold the lock. Don\'t let go.')],
   crash: [K('ถนนมันลื่น ขับช้า ๆ ก็ถึง', "The road's slick. Drive slow, you still get there.")],
   roadFigure: [K('ยืนเฉย ๆ ไม่โบก... ไม่ใช่ผู้โดยสาร', "Standing, not waving... that's no fare.")],
   roofHanger: [K('เลือดก็ปล่อยให้ไหลไป อย่าไปปัด', "Blood, you let it run. Don't wipe.")],

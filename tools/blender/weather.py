@@ -388,11 +388,11 @@ class Painter:
             hz = np.maximum(hz, np.exp(-d2))
         endz = sstep(self.ctx.half_len - 0.32, self.ctx.half_len - 0.05, np.abs(P[:, 1])) * sstep(0.75, 0.55, z)
         nchip = fbm(P, 38, 3, seed=5)
-        chipv = convex * 1.25 + (nchip - 0.5) * 1.1 + hz * 0.55 + endz * 0.25 * sstep(0.4, 0.7, nchip)
-        stone = sstep(0.91, 0.935, fbm(P, 95, 2, seed=6)) * np.maximum(sstep(0.45, 0.28, z),
+        chipv = convex * 1.25 + (nchip - 0.5) * 0.55 + hz * 0.6 + endz * 0.3 * sstep(0.4, 0.7, nchip)
+        stone = sstep(0.935, 0.955, fbm(P, 95, 2, seed=6)) * np.maximum(sstep(0.45, 0.28, z),
                                                                      sstep(1.75, 2.05, P[:, 1]) * sstep(0.85, 0.6, z))
-        chip_p = np.maximum(sstep(0.58, 0.63, chipv), stone)
-        chip_m = sstep(0.76, 0.80, chipv)
+        chip_p = np.maximum(sstep(0.6, 0.66, chipv), stone)
+        chip_m = sstep(0.8, 0.84, chipv)
         lowr = sstep(0.75, 0.3, z)
         core = mix(np.tile(BARE, (n, 1)), self.rust_col(P, N), np.clip(0.35 + lowr, 0, 1))
         col = mix(col, PRIMER * (0.9 + 0.2 * nchip)[:, None], chip_p)
@@ -426,10 +426,10 @@ class Painter:
         AO, E, C, z, up = self.common(P, N, M)
         n = len(P)
         base = np.tile(np.array([0.80, 0.80, 0.78] if chrome else [0.56, 0.56, 0.57], np.float32), (n, 1))
-        pits = sstep(0.6, 0.7, fbm(P, 70, 3, seed=21)) * np.clip(0.25 + (1 - C) * 0.9 + sstep(0.6, 0.25, z) * 0.5, 0, 1)
+        pits = sstep(0.7, 0.78, fbm(P, 70, 3, seed=21)) * np.clip(0.15 + (1 - C) * 0.7 + sstep(0.6, 0.25, z) * 0.35, 0, 1)
         haze = fbm(P, 9, 3, seed=22)
         col = base * (0.85 + 0.2 * haze)[:, None]
-        col = mix(col, self.rust_col(P, N), pits * 0.85)
+        col = mix(col, self.rust_col(P, N), pits * 0.7)
         g = np.clip(self.grime_low(P, z, 0.55) + (1 - C) * 0.8, 0, 1)
         col = mix(col, self.dirt_col(P, N) * 0.7, g * 0.7)
         rough = (0.2 if chrome else 0.42) + 0.25 * haze + pits * 0.5 + g * 0.4 + \
