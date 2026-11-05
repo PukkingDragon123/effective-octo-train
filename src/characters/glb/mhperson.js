@@ -68,13 +68,35 @@ function proxyData(key) {
   const uvq = arr(p.uv), bwq = arr(p.bw), offq = arr(p.off);
   const uv = new Float32Array(uvq.length);
   for (let i = 0; i < uv.length; i++) uv[i] = (uvq[i] / 65535) * 1.5 - 0.25;
-  const bw = new Float32Array(bwq.length);
-  for (let i = 0; i < bw.length; i++) bw[i] = bwq[i] / 65535;
+  const bw = decodeBindWeights(bwq);
   const off = new Float32Array(offq.length);
   for (let i = 0; i < off.length; i++) off[i] = offq[i] * p.offs;
   d.proxies[key] = { ...p, uvd: uv, bi: arr(p.bi), bwd: bw, offd: off, si: arr(p.si), sw: arr(p.sw), weld: arr(p.weld), trisA: arr(p.tris), hideA: p.hide ? arr(p.hide) : null };
   return d.proxies[key];
 }
+/**
+ * Proxy binding weights (3 per vertex, u16). MakeHuman mhclo weights may be negative or above 1 (the
+ * proxy vertex lies outside its reference triangle), but the pack stores them clipped to [0, 1] while
+ * its offsets were computed with the true weights; every clipped vertex then lands (1 - Σw) × its
+ * absolute position away: hair cards standing up off the crown like horns, teeth / tongue / eye /
+ * brow spikes (also through the expression morphs, which use the same weights). Σw = 1 is restored on
+ * the clipped entries (raw 0 or 65535): one clipped weight is recovered exactly, otherwise the error
+ * shrinks to the size of the reference triangle (millimetres).
+ */
+export function decodeBindWeights(raw) {
+  const w = new Float32Array(raw.length);
+  for (let i = 0; i < w.length; i++) w[i] = raw[i] / 65535;
+  for (let v = 0; v + 2 < w.length; v += 3) {
+    const s = w[v] + w[v + 1] + w[v + 2];
+    if (Math.abs(s - 1) < 2e-4) continue;
+    let n = 0;
+    for (let k = 0; k < 3; k++) if (raw[v + k] === 0 || raw[v + k] === 65535) n++;
+    const d = (1 - s) / (n || 3);
+    for (let k = 0; k < 3; k++) if (!n || raw[v + k] === 0 || raw[v + k] === 65535) w[v + k] += d;
+  }
+  return w;
+}
+
 /** dense per-channel deltas over the base vertices (built once) */
 function channels() {
   const d = dec();

@@ -823,7 +823,7 @@ export function renderVoiceLine(sr, a = {}) {
     const T = loud50(main, sr) * 2.8;
     for (let i = 0; i < n; i++) main[i] = Math.tanh(main[i] / T) * T;
     // level by gated K-weighted loudness (a low, creaky old voice and a bright child read equally loud)
-    const tgtL = preset.whisper ? -23.5 : preset.shout ? -15 : -18;
+    const tgtL = preset.whisper ? -23.5 : preset.shout ? -16.5 : -18.5;
     gain = Math.min(dB(tgtL - kLoud(main, sr)), 0.95 / Math.max(peakOf(main), 1e-9));
     for (let i = 0; i < n; i++) main[i] *= gain;
     ref = loud50(main, sr);

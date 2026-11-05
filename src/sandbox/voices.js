@@ -309,7 +309,7 @@ async function runQA(root, params) {
   const only = params.get('only');
   const list = only ? items.filter((i) => i.name.includes(only)) : items;
   const rows = [];
-  const head = 'line                       LUFS  stMax  pk dB  TP dB   dur  gen ms  flags';
+  const head = 'line                       LUFS  momMax  pk dB  TP dB   dur  gen ms  flags   (short lines: read momMax)';
   tbl.textContent = head + '\n';
   const offline = [];
   for (const it of list) {
@@ -322,7 +322,7 @@ async function runQA(root, params) {
       rows.push(row);
       offline.push({ name: it.name, buf: r.buf });
       const flags = `${pk.nan ? ' NaN' : ''}${pk.clip ? ' CLIP' + pk.clip : ''}${row.silent ? ' SILENT' : ''} ${row.layout}`;
-      tbl.textContent += `${it.name.padEnd(25)} ${String(lo.lufs).padStart(6)} ${String(lo.stMax).padStart(6)} ${String(pk.peakDb).padStart(6)} ${String(pk.truePeakDb).padStart(6)} ${String(row.dur).padStart(5)} ${String(row.genMs).padStart(6)} ${flags}\n`;
+      tbl.textContent += `${it.name.padEnd(25)} ${String(lo.lufs).padStart(6)} ${String(lo.momMax).padStart(7)} ${String(pk.peakDb).padStart(6)} ${String(pk.truePeakDb).padStart(6)} ${String(row.dur).padStart(5)} ${String(row.genMs).padStart(6)} ${flags}\n`;
       if (grid.children.length < 9) {
         const cv = el('canvas', 'width:100%;height:110px', grid);
         cv.width = 300;

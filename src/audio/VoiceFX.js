@@ -231,7 +231,8 @@ export class VoiceRack {
     for (const p of this._autos) p.cancelScheduledValues(now);
     // ---- per-line routing gains ----
     const set = (param, v) => param.setValueAtTime(v, now);
-    const vol = o.volume ?? 1;
+    // a ghost's layers (double, whisper, swell, hall, hum) add up: keep the sum's loudness and peaks in line
+    const vol = (o.volume ?? 1) * (1 - 0.3 * g);
     set(this.out.gain, vol);
     set(this.gate.gain, 1);
     set(this.inMain.gain, o.muteMain ? 0 : 1);
@@ -242,7 +243,7 @@ export class VoiceRack {
     set(this.breathBack.gain, ghostly ? 1 : 0);
     set(this.swellMain.gain, 0.45);
     set(this.swellBack.gain, 0.8);
-    set(this.backOut.gain, 1);
+    set(this.backOut.gain, 1 - 0.2 * g);
     this.whDelay.delayTime.setValueAtTime(0.09 + rnd() * 0.16, now);
     set(this.revHall.gain, ghostly ? 0.12 + 0.3 * g : 0);
     set(this.backHall.gain, ghostly ? 0.15 + 0.25 * g : 0);
