@@ -35,3 +35,20 @@ culturalibre and sonntag78 styles) are deliberately not used.
 Our own work (no third-party data): the clothing shells and their atlas UVs, the wet-hair veil, the hair bun, the body blends,
 face-detail choices per cast member, the T-pose conversion, all shaders and runtime code. Hair, brow and lash
 textures are converted to grey + alpha and tinted at runtime; skins are tinted to each character's skin tone.
+
+## Clothing fabric detail (`public/assets/characters/fabric/`)
+
+Photographed weave / fibre detail laid over the painted clothing atlas (`fabric_<name>.jpg`, greyscale, tileable).
+Borrowed from the owner's other game (`special-telegram/public/assets/textures/clothing/`); only files whose every
+row in that project's `CREDITS.md` is CC0 were taken (no unknown / web-photo / NC / ND material). Our processing:
+greyscale, high-pass with a wrap-around blur (stays seamless), contrast normalised around mid-grey.
+
+| file | source in special-telegram | original scan | author | licence |
+|---|---|---|---|---|
+| fabric_jersey.jpg | clothing/jersey_grey.jpg | https://polyhaven.com/a/cotton_jersey | Poly Haven | CC0 1.0 |
+| fabric_poplin.jpg | clothing/shirt_white_poplin.jpg | https://polyhaven.com/a/stretch_poplin | Poly Haven | CC0 1.0 |
+| fabric_linen.jpg | clothing/khakuay_indigo_cotton.jpg | https://polyhaven.com/a/rough_linen | Poly Haven | CC0 1.0 |
+| fabric_denim.jpg | clothing/denim_dark.jpg | https://polyhaven.com/a/denim_fabric_06 | Poly Haven | CC0 1.0 |
+| fabric_herringbone.jpg | clothing/suit_grey_wool.jpg | https://polyhaven.com/a/poly_wool_herringbone | Poly Haven | CC0 1.0 |
+| fabric_satin.jpg | clothing/casino_gold_satin.jpg | https://polyhaven.com/a/crepe_satin | Poly Haven | CC0 1.0 |
+| fabric_leather.jpg | clothing/sneaker_white_leather.jpg | https://polyhaven.com/a/leather_white | Poly Haven | CC0 1.0 |

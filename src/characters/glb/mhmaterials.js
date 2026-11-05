@@ -48,6 +48,11 @@ export function makeMHUniforms(t, P) {
     uCrush: { value: 0 },
     uFaceMap: { value: null },
     uMaskMap: { value: null },
+    // photographed fabric detail (CC0 scans, assets/characters/fabric): top / bottom / shoes, on 0|1
+    uFabTop: { value: null },
+    uFabBot: { value: null },
+    uFabShoe: { value: null },
+    uFabOn: { value: 0 },
     uTime: { value: 0 },
     uMorphTex: { value: P ? P.morphTex : null },
     uMorphW: { value: new Float32Array(NCH) },
@@ -125,6 +130,8 @@ vec3 glbTwistN(vec3 n, vec3 p) {
 
 const FRAG = /* glsl */ `
 uniform sampler2D uMaskMap;
+uniform sampler2D uFabTop, uFabBot, uFabShoe;
+uniform float uFabOn;
 uniform sampler2D uSkinMap;
 uniform sampler2D uHairMap;
 uniform sampler2D uPartsMap;
@@ -311,6 +318,24 @@ const FRAG_MAP = /* glsl */ `
     mhRough = max(0.06, mk.g);
     mhRough = mix(mhRough, 0.28, glbSeq);
     mhBumpH += (mhNoise(p * 700.0) - 0.5) * 0.00005;
+    // photographed fabric (CC0 scans: knit, poplin, linen, denim, herringbone, satin, leather) laid over
+    // the painted atlas: real weave and fibre in colour and relief. Atlas regions (layout.js) pick the
+    // top (torso, arms), bottom (legs, skirt) or shoe fabric; one tile is about 12 cm of cloth.
+    if (uFabOn > 0.5) {
+      vec2 fuv = uv * 15.0;
+      float dTop = texture2D(uFabTop, fuv).r, dBot = texture2D(uFabBot, fuv).r, dShoe = texture2D(uFabShoe, fuv * 0.7).r;
+      float isLeg = step(0.5, uv.x) * step(uv.x, 0.781) * step(uv.y, 0.5);
+      float isSkirt = step(0.703, uv.y) * step(uv.y, 0.9) * step(uv.x, 0.516);
+      float isFoot = step(0.5, uv.x) * step(uv.x, 0.6875) * step(0.5, uv.y) * step(uv.y, 0.656);
+      float bot = max(isLeg, isSkirt);
+      float d = mix(mix(dTop, dBot, bot), dShoe, isFoot) - 0.5;
+      c *= 1.0 + d * 0.6;
+      mhBumpH += d * 0.0004;
+      // wear: washed-out, sweated and grimy patches (low-frequency, in bind space, never flat colour)
+      float wear = mhNoise(p * 6.0) * 0.6 + mhNoise(p * 21.0) * 0.4 - 0.5;
+      c *= 1.0 + wear * 0.14;
+      mhRough = clamp(mhRough + wear * 0.08, 0.06, 1.0);
+    }
   } else if (part == 2 || part == 3 || part == 4) {
     // ---------------- hair cards / brows / lashes: grey + alpha, tinted
     vec4 t = part == 2 ? texture2D(uHairMap, uv) : texture2D(uPartsMap, uv);

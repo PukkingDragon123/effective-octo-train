@@ -216,6 +216,15 @@ export class HumanoidGLB {
     const akey = atlasKey(look);
     this._atlas = getAtlas(look, akey, look.quality >= 0.75 ? 2048 : 1024);
     U.uMaskMap.value = this._atlas.mask;
+    // photographed fabric detail per garment (knit tees / singlets / hoodies, poplin shirts, linen,
+    // denim jeans, herringbone slacks, satin; leather shoes)
+    const fab = tex.fabric || {};
+    const FAB = { jersey: 'jersey', knitL: 'jersey', rib: 'jersey', plain: 'poplin', linen: 'linen', twill: 'herringbone', sateen: 'satin' };
+    const o = look.outfit || {};
+    U.uFabTop.value = fab[FAB[o.topFab] || 'poplin'] || null;
+    U.uFabBot.value = fab[o.denim ? 'denim' : FAB[o.botFab] || 'herringbone'] || null;
+    U.uFabShoe.value = fab.leather || null;
+    U.uFabOn.value = U.uFabTop.value && U.uFabBot.value && U.uFabShoe.value ? 1 : 0;
     this.materials = { body: mhBodyMaterial(U, { map: this._atlas.map, wet: 0.1 + (gh?.wet || 0) * 0.5 }) };
     this.body = new THREE.SkinnedMesh(person.geo, this.materials.body);
     this.body.name = 'body';
@@ -555,7 +564,7 @@ export class HumanoidGLB {
     if (this.isMH) {
       this.person = null;
       this.U = makeMHUniforms(this.t, src.person);
-      for (const k of ['uFat', 'uFaceMap', 'uMaskMap', 'uSkinMap', 'uHairMap', 'uPartsMap', 'uSkinTint', 'uSkinCol', 'uHairCol', 'uLook', 'uLook2', 'uMarks', 'uStain', 'uMorphTex']) this.U[k] = src.U[k];
+      for (const k of ['uFat', 'uFaceMap', 'uMaskMap', 'uSkinMap', 'uHairMap', 'uPartsMap', 'uSkinTint', 'uSkinCol', 'uHairCol', 'uLook', 'uLook2', 'uMarks', 'uStain', 'uMorphTex', 'uFabTop', 'uFabBot', 'uFabShoe', 'uFabOn']) this.U[k] = src.U[k];
       this.materials = {
         body: mhBodyMaterial(this.U, { map: src._atlas.map, wet: src.materials.body.userData.uniforms?.dlbPaint?.value?.y ?? 0.1 }),
         eyes: src.person?.eyeGeo ? mhEyeMaterial(this.U, src.materials.eyes.map) : eyeMaterial(this.U, src.materials.eyes.map),

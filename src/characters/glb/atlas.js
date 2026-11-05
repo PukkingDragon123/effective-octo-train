@@ -317,7 +317,37 @@ function paintTop(c) {
       band(neckF + 0.004, neckB, shade(col, 0.75), 0.006);
       break;
     case 'tank': {
-      neckline(torsoT(1.37), torsoT(1.44), skin);
+      // singlet neck: a deep front scoop and a shallow back scoop that STOP short of the shoulders
+      // (the generic neckline cuts all the way round, which took the straps off: a strapless top)
+      {
+        const front = torsoT(1.37), back = torsoT(1.445), half = 0.19;
+        const depth = (sv) => {
+          const df = Math.abs(sv - 0.5);
+          if (df < half) return front * Math.pow(Math.cos((df / half) * Math.PI * 0.5), 0.7);
+          const db = Math.min(sv, 1 - sv);
+          if (db < half) return back * Math.pow(Math.cos((db / half) * Math.PI * 0.5), 0.7);
+          return 0;
+        };
+        const path = (g, pnt) => {
+          g.beginPath();
+          const [x0, y0] = pnt.pt(T, 0, 0);
+          g.moveTo(x0 - 10, y0 - 10);
+          for (let i = 0; i <= 96; i++) {
+            const sv = i / 96;
+            const [x, y] = pnt.pt(T, sv, Math.max(0.0001, depth(sv)));
+            g.lineTo(x, y);
+          }
+          const [x1] = pnt.pt(T, 1, 0);
+          g.lineTo(x1 + 10, y0 - 10);
+          g.closePath();
+        };
+        P.g.save(); P.clip(T, 0, 0, 1, 0.6); P.g.fillStyle = skin; path(P.g, P); P.g.fill(); P.g.restore();
+        cutout(c, T, (m, cc) => { m.g.save(); m.clip(T, 0, 0, 1, 0.6); m.g.fillStyle = cc; path(m.g, m); m.g.fill(); m.g.restore(); });
+        // ribbed binding along the neck edge and over the straps
+        const pts = [];
+        for (let i = 0; i <= 96; i++) { const sv = i / 96; pts.push([sv, depth(sv) + 0.008]); }
+        P.line(T, pts, shade(col, 0.88), P.sy(T, 0.012), 1);
+      }
       // armholes (cut the shell, paint skin): from the armpit (y ≈ 1.29) up to just under the top of the
       // shoulder (y ≈ 1.44), so a singlet strap stays over each shoulder. (The torso band is mapped
       // around the body: the strap on the shoulder slope and the shoulder tip share s = 0.25 / 0.75 and

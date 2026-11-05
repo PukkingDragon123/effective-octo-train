@@ -24,34 +24,36 @@ export function arr(d) {
 }
 
 const texCache = new Map();
+/** fabric detail maps in public/assets/characters/fabric (fabric_<name>.jpg) */
+export const FABRICS = ['jersey', 'poplin', 'linen', 'denim', 'herringbone', 'satin', 'leather'];
 // decode off the main thread (createImageBitmap: flipped, straight alpha, raw colours) so neither the
 // load nor the first GPU upload of a 2048 skin stalls a frame; <img> TextureLoader as the fallback
 const BITMAP_OK = typeof createImageBitmap === 'function' && typeof fetch === 'function' &&
   !(typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '') && !(Number((navigator.userAgent.match(/Version\/(\d+)/) || [])[1]) >= 17));
-function setupTex(t, srgb) {
+function setupTex(t, srgb, repeat = false) {
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.anisotropy = 8;
-  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.wrapS = t.wrapT = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
   t.generateMipmaps = true;
   t.minFilter = THREE.LinearMipmapLinearFilter;
   t.needsUpdate = true;
   return t;
 }
-function loadTexImg(url, srgb, file) {
+function loadTexImg(url, srgb, file, repeat = false) {
   return new Promise((resolve) => {
     new THREE.TextureLoader().load(
       url,
-      (t) => resolve(setupTex(t, srgb)),
+      (t) => resolve(setupTex(t, srgb, repeat)),
       undefined,
       () => { console.warn('[characters-mh] texture failed', file); resolve(null); },
     );
   });
 }
-function loadTex(file, srgb = true) {
-  const url = assetURL('assets/characters/mh/tex/' + file);
+function loadTex(file, srgb = true, dir = 'assets/characters/mh/tex/', repeat = false) {
+  const url = assetURL(dir + file);
   if (texCache.has(url)) return texCache.get(url);
   const p = !BITMAP_OK
-    ? loadTexImg(url, srgb, file)
+    ? loadTexImg(url, srgb, file, repeat)
     : fetch(url)
         .then((r) => (r.ok ? r.blob() : null))
         .then((b) => (b ? createImageBitmap(b, { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) : null))
@@ -60,9 +62,9 @@ function loadTex(file, srgb = true) {
           const t = new THREE.Texture(bmp);
           t.flipY = false; // flipped by createImageBitmap (same orientation as TextureLoader's flipY)
           t.premultiplyAlpha = false;
-          return setupTex(t, srgb);
+          return setupTex(t, srgb, repeat);
         })
-        .catch(() => loadTexImg(url, srgb, file));
+        .catch(() => loadTexImg(url, srgb, file, repeat));
   texCache.set(url, p);
   return p;
 }
@@ -87,6 +89,9 @@ export function loadMHPack() {
       for (const [k, f] of Object.entries(man.hair || {})) jobs.push(loadTex(f).then((t) => (tex.hair[k] = t)));
       jobs.push(loadTex(man.partsFile || 'parts.webp').then((t) => (tex.parts = t)));
       jobs.push(loadTex(man.eye || 'eye.jpg').then((t) => (tex.eye = t)));
+      // photographed fabric detail maps (greyscale, tileable; CC0 Poly Haven scans, see docs/credits)
+      tex.fabric = {};
+      for (const k of FABRICS) jobs.push(loadTex('fabric_' + k + '.jpg', false, 'assets/characters/fabric/', true).then((t) => (tex.fabric[k] = t)));
       await Promise.all(jobs);
       MH.tex = tex;
       MH.ready = true;
