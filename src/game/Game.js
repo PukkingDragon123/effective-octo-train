@@ -214,7 +214,7 @@ function waitForStartSafe(cue) {
     // the first gesture arms a hard limit on the grab animation (it lasts ~3.4 s)
     const armed = () => {
       if (timer) return;
-      timer = setTimeout(() => finish('the hand animation stalled'), 9000);
+      timer = setTimeout(() => finish("the hand animation stalled"), 12000);
     };
     window.addEventListener('pointerdown', armed, true);
     window.addEventListener('keydown', armed, true);

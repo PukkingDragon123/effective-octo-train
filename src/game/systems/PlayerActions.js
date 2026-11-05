@@ -34,8 +34,9 @@ const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const PAPER_W = 0.205;
-// between the eyes, in the head bone's frame (when the body does not say)
-const DEFAULT_EYE_LOCAL = new THREE.Vector3(0, 0.07, 0.094);
+// Ton's eyes relative to his head bone, in the carrier's frame (up, forward)
+const EYE_UP = 0.085;
+const EYE_FWD = 0.09;
 const PAPER_H = 0.282;
 const TEX_W = 896;
 const TEX_H = 1232;
@@ -624,24 +625,36 @@ export class PlayerActions {
     this._eyeMode = mode;
     this._eyeNominal = nominal || null;
     this._eyeInit = false;
+    this._roofY = undefined; // the headliner above the seat, measured on the first frame
     this._eyeUpdate(0);
     return e;
   }
 
   /**
-   * Every frame (order 48: after the body is animated, before the camera rig): the eye point of the
-   * head bone, expressed in the carrier's frame and smoothed THERE, so a moving taxi or bike never
-   * leaves the view behind. In the taxi it stays inside a box around the nominal driver's eye.
+   * Every frame (order 48: after the body is animated, before the camera rig): Ton's eye point
+   * (the head bone + a fixed eye offset), expressed in the carrier's frame and smoothed THERE, so a
+   * moving taxi or bike never leaves the view behind. In the cab it stays inside a box around the
+   * nominal driver's eye and under the headliner (a tall body never puts the view in the roof).
    */
   _eyeUpdate(dt) {
     const e = this.eyeObj;
     const carrier = e?.parent;
     if (!carrier || g.cameraRig.eye !== e) return;
-    const target = this._headEye(_v3);
     carrier.updateWorldMatrix(true, false);
+    const head = this._headPos(_v3);
     let local;
-    if (target) local = carrier.worldToLocal(target);
-    else if (this._eyeNominal) local = carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v3));
+    if (head && this._eyeMode === 'foot') {
+      // on foot the face turns with the view
+      const yaw = g.cameraRig.worldYaw || 0;
+      head.y += EYE_UP;
+      head.x += -Math.sin(yaw) * EYE_FWD;
+      head.z += -Math.cos(yaw) * EYE_FWD;
+      local = carrier.worldToLocal(head);
+    } else if (head) {
+      local = carrier.worldToLocal(head);
+      local.y += EYE_UP;
+      local.z -= EYE_FWD;
+    } else if (this._eyeNominal) local = carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v3));
     else return;
     if (this._eyeMode === 'taxi' && this._eyeNominal) {
       // a sane box around the cab's nominal eye (a broken rig never puts the view in the back seat)
@@ -649,6 +662,8 @@ export class PlayerActions {
       local.x = clamp(local.x, n.x - 0.16, n.x + 0.16);
       local.y = clamp(local.y, n.y - 0.06, n.y + 0.3);
       local.z = clamp(local.z, n.z - 0.32, n.z + 0.12);
+      if (this._roofY === undefined) this._roofY = this._measureRoof(carrier, n);
+      if (this._roofY !== null) local.y = Math.min(local.y, this._roofY - 0.1);
     }
     if (!Number.isFinite(local.x + local.y + local.z)) return;
     if (!this._eyeInit || !(dt > 0)) {
@@ -660,15 +675,38 @@ export class PlayerActions {
     e.position.set(damp(e.position.x, local.x, k, dt), damp(e.position.y, local.y, k, dt), damp(e.position.z, local.z, k, dt));
   }
 
-  /** World position between Ton's eyes (head bone + the body's eye offset), or null. */
-  _headEye(out) {
-    const p = g.player;
-    const hb = p?.humanoid?.rig?.bone?.('Head');
+  /** World position of Ton's head bone, or null. */
+  _headPos(out) {
+    const hb = g.player?.humanoid?.rig?.bone?.('Head');
     if (!hb) return null;
     hb.updateWorldMatrix(true, false);
-    const el = p._eyeLocal && p._eyeLocal.lengthSq() > 1e-6 ? p._eyeLocal : DEFAULT_EYE_LOCAL;
-    out.copy(el).applyMatrix4(hb.matrixWorld);
+    out.setFromMatrixPosition(hb.matrixWorld);
     return Number.isFinite(out.x + out.y + out.z) ? out : null;
+  }
+
+  /** Carrier-local Y of the cab's ceiling right above `nominal` (one ray, cached per seating). */
+  _measureRoof(carrier, nominalLocal) {
+    try {
+      g.taxi.root.updateMatrixWorld(true); // the cab's meshes may not have been rendered yet
+      const from = carrier.localToWorld(nominalLocal.clone());
+      const up = new THREE.Vector3(0, 1, 0).transformDirection(carrier.matrixWorld);
+      const rc = new THREE.Raycaster(from, up, 0.02, 0.9);
+      rc.layers.set(LAYERS.DEFAULT);
+      const isPlayer = (o) => {
+        for (let p = o; p; p = p.parent) if (p === g.player?.root) return true;
+        return false;
+      };
+      const hit = rc.intersectObject(g.taxi.root, true).find((h) => h.object.visible !== false && !isPlayer(h.object));
+      if (!hit) return null;
+      const y = carrier.worldToLocal(hit.point.clone()).y;
+      if (!this._roofLogged) {
+        this._roofLogged = true;
+        console.info(`[actions] cab ceiling ${y.toFixed(3)} m above the cab origin (nominal eye ${nominalLocal.y.toFixed(3)})`);
+      }
+      return y;
+    } catch (e) {
+      return null;
+    }
   }
 
   _addTaxiColliders() {

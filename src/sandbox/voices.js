@@ -306,6 +306,7 @@ async function runQA(root, params) {
   const som = { voice: C.somchai.voice, spot: 'backRight' };
   for (const g of [0, 0.35, 0.7, 1]) add(`somchai ghost ${g}`, som, sl, { voice: { ghost: g } });
   add('somchai shout', som, { th: 'ต้น! อย่าหันมา!', tone: 'shout' }, { voice: { ghost: 0 } });
+  add('somchai whisper', som, { th: 'ไม่ต้องหันมานะลูก ขับไปเถอะ', tone: 'whisper' }, { voice: { ghost: 0 } });
   const only = params.get('only');
   const list = only ? items.filter((i) => i.name.includes(only)) : items;
   const rows = [];

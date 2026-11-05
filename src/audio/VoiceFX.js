@@ -261,7 +261,7 @@ export class VoiceRack {
       set(this.lp.Q, 0.9);
       this.drive.curve = phone ? this.fx.phoneCurve : this.fx.radioCurve;
       // the drive curve's small-signal gain is k / tanh(k): take it back out (band-limiting loses a little more)
-      set(this.out.gain, vol * (phone ? Math.tanh(3.2) / 3.2 : Math.tanh(2.2) / 2.2) * 1.15);
+      set(this.out.gain, vol * (phone ? (Math.tanh(3.2) / 3.2) * 0.95 : (Math.tanh(2.2) / 2.2) * 1.15));
     } else {
       set(this.hp.frequency, o.child ? 120 : 75);
       set(this.hp.Q, 0.7);
