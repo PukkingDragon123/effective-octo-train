@@ -472,7 +472,8 @@ export function createGarage(opts = {}) {
     k.add(mat('plastic'), G('basket', () => bbox(0.36, 0.14, 0.24, 0.02, 0.08)), { p: [bx + 0.25, 1.74, zB + 0.24], color: 0xc02a1a, w: { dust: 0.6 }, colorFn: (p, n, c, lp) => { if (Math.abs(n.y) < 0.5 && Math.sin(lp.x * 120) * Math.sin(lp.y * 120) > 0.5) c.multiplyScalar(0.3); } });
     for (let i = 0; i < 4; i++) bottle(k, { p: [bx + 0.55 + i * 0.1, 1.74, zB + 0.24], kind: i % 2 ? 'whisky' : 'small', color: [0x7a4a1a, 0x2a5a2a, 0xa83a1a, 0xc8c0a0][i] });
     // steel cabinet back-right + boxes on top
-    k.add(mat('metal'), bbox(0.9, 1.85, 0.45, 0.01, 0.3), { p: [1.6, 0, zB + 0.33], color: 0x6a7a7a, w: { grime: 0.6, streak: 0.7, dust: 0.6 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(lp.x) < 0.012) c.multiplyScalar(0.25); } });
+    // dense enough that the baked rust streaks read as streaks (coarse vertices turned them into blotches)
+    k.add(mat('metal'), bbox(0.9, 1.85, 0.45, 0.01, 0.06), { p: [1.6, 0, zB + 0.33], color: 0x6a7a7a, w: { grime: 0.6, streak: 0.35, dust: 0.6 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(lp.x) < 0.012) c.multiplyScalar(0.25); } });
     if (hasAsset('cardboard_box_01')) {
       const bs = assetSize('cardboard_box_01');
       for (let i = 0; i < 2; i++) addAsset(k, 'cardboard_box_01', { p: [1.6 + (rng() - 0.5) * 0.12, 1.85 + i * bs.y * 0.82, zB + 0.33], r: Math.PI / 2 + (rng() - 0.5) * 0.3, s: 0.82, w: { dust: 0.8, grime: 0.1 } });

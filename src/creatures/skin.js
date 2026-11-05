@@ -5,6 +5,7 @@
 // for derivative bump mapping (sharp wrinkles, pores, fur streaks without a normal map).
 import * as THREE from 'three';
 import { paintedMaterial } from '../render/index.js';
+import { tex, hasPhotoTexture } from '../textures/index.js';
 import { nextSlice } from './sculpt.js';
 
 const CACHE = new Map();
@@ -95,7 +96,11 @@ const W = [0, 0];
 export function detailTexture(kind) {
   if (CACHE.has(kind)) return CACHE.get(kind);
   let t;
-  if (kind === 'hide') {
+  if (kind === 'hide' && hasPhotoTexture('creature_hide')) {
+    // photobashed hide (leather grain + scanned rock crevices as wrinkles): same RGBA layout,
+    // RGB = mean-0.5 colour modulation, A = height (public/assets/textures/nature/creature_hide.webp)
+    t = tex('creature_hide');
+  } else if (kind === 'hide') {
     // deep criss-crossed wrinkle grooves (cell edges at two scales) + pores + dried-mud blotches
     t = makeTex(512, (u, v, o) => {
       worley(u * 9, v * 9, 9, 11, W);

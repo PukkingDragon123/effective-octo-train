@@ -257,7 +257,7 @@ export class HeadUnit {
     this.lightCol.g = damp(this.lightCol.g, g / m, 6, dt);
     this.lightCol.b = damp(this.lightCol.b, b / m, 6, dt);
     L.color.copy(this.lightCol);
-    L.intensity = this.lightLevel * 0.3;
+    L.intensity = this.lightLevel * 0.16;
   }
 
   dispose() {

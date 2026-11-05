@@ -20,6 +20,9 @@ const MAXW = 470;
 const KB_SEG = 12, KB_FADE = 1.6;
 const SLIDE_DUR = 3.8, SLIDE_TRANS = 0.55;
 
+// Every canvas of the screen is CPU-rastered: the picture is small, and the GPU-canvas -> WebGL
+// texture path stalls on some drivers (and in SwiftShader) when it is redrawn many times a second.
+const CPU = { willReadFrequently: true };
 const hash = (n) => {
   const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
   return s - Math.floor(s);
@@ -41,7 +44,7 @@ function loadImage(url) {
 function averageColour(img) {
   try {
     const c = makeCanvas(6, 6);
-    const g = c.getContext('2d', { willReadFrequently: true });
+    const g = c.getContext('2d', CPU);
     g.drawImage(img, 0, 0, 6, 6);
     const d = g.getImageData(0, 0, 6, 6).data;
     let r = 0, gg = 0, b = 0;
@@ -116,7 +119,7 @@ function phraseProgress(notes, b0, b1, beat) {
 export class ScreenPlayer {
   constructor() {
     this.canvas = makeCanvas(W, H);
-    this.g = this.canvas.getContext('2d');
+    this.g = this.canvas.getContext('2d', CPU);
     this.texture = toTexture(this.canvas, { anisotropy: 4 });
     this.lib = screenLibrary();
     this.t = 0;
@@ -156,7 +159,7 @@ export class ScreenPlayer {
     // scanlines + soft vignette, one overlay
     {
       const c = (this.overlay = makeCanvas(W, H));
-      const g = c.getContext('2d');
+      const g = c.getContext('2d', CPU);
       g.fillStyle = 'rgba(0,0,0,0.13)';
       for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
       const vg = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.62);
@@ -169,7 +172,7 @@ export class ScreenPlayer {
     this.noise = [];
     for (let k = 0; k < 3; k++) {
       const c = makeCanvas(128, 72);
-      const g = c.getContext('2d');
+      const g = c.getContext('2d', CPU);
       const im = g.createImageData(128, 72);
       for (let y = 0; y < 72; y++) {
         const row = rng.range(0.6, 1.25);
@@ -188,7 +191,7 @@ export class ScreenPlayer {
     // the cat album's tacky pastel backdrop: hearts and sparkles
     {
       const c = (this.albumBg = makeCanvas(W, H));
-      const g = c.getContext('2d');
+      const g = c.getContext('2d', CPU);
       const grd = g.createLinearGradient(0, 0, W, H);
       grd.addColorStop(0, '#f6b8cf');
       grd.addColorStop(0.55, '#e8c4ee');
@@ -214,7 +217,7 @@ export class ScreenPlayer {
     // the pale face for the scare (painted, not a photo): long black hair, hollow eyes
     {
       const c = (this.face = makeCanvas(256, 256));
-      const g = c.getContext('2d');
+      const g = c.getContext('2d', CPU);
       g.fillStyle = '#050505';
       g.fillRect(0, 0, 256, 256);
       const skin = g.createRadialGradient(128, 118, 10, 128, 130, 98);
@@ -265,7 +268,7 @@ export class ScreenPlayer {
       g.fillRect(0, 0, 256, 256);
     }
     // countdown dot + tmp context for measuring
-    this._measure = makeCanvas(8, 8).getContext('2d');
+    this._measure = makeCanvas(8, 8).getContext('2d', CPU);
     this.titleCan = makeCanvas(W, H);
     this.titleAvg = [0.8, 0.5, 0.3];
     this.clockCan = makeCanvas(96, 26);
@@ -278,7 +281,7 @@ export class ScreenPlayer {
       const m = this._measure;
       m.font = `700 15px ${FONTS.sign}`;
       const c = (this.wmCan = makeCanvas(Math.ceil(m.measureText(VCD.series).width + 8), 24));
-      const g = c.getContext('2d');
+      const g = c.getContext('2d', CPU);
       g.font = m.font;
       g.textBaseline = 'middle';
       g.lineJoin = 'round';
@@ -304,7 +307,7 @@ export class ScreenPlayer {
     const w = Math.ceil(m.measureText(text).width + pad * 2), h = 62;
     const mk = (fillCol, outCol) => {
       const c = makeCanvas(w, h);
-      const g = c.getContext('2d');
+      const g = c.getContext('2d', CPU);
       g.font = font;
       g.textBaseline = 'middle';
       g.lineJoin = 'round';
@@ -325,7 +328,7 @@ export class ScreenPlayer {
 
   _title(plan, entry) {
     const c = this.titleCan;
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', CPU);
     g.clearRect(0, 0, W, H);
     const th = plan.title?.th || '';
     const quiet = !!entry.quiet;
@@ -415,7 +418,7 @@ export class ScreenPlayer {
   /** Compose cat slide `idx` into slide canvas `slot` (runs once per slide). */
   _composeSlide(slot, idx, intro) {
     const c = this.slideCan[slot];
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', CPU);
     const rect = this.slideRect[slot];
     g.clearRect(0, 0, W, H);
     const cats = this.lib.cats;
@@ -560,7 +563,7 @@ export class ScreenPlayer {
     if (key === this._textKey) return;
     this._textKey = key;
     const c = this.textCan;
-    const g = c.getContext('2d');
+    const g = c.getContext('2d', CPU);
     g.clearRect(0, 0, W, 96);
     g.textAlign = 'center';
     g.textBaseline = 'middle';
@@ -597,7 +600,7 @@ export class ScreenPlayer {
   _osd(text) {
     if (text === this._osdKey) return;
     this._osdKey = text;
-    const g = this.osdCan.getContext('2d');
+    const g = this.osdCan.getContext('2d', CPU);
     g.clearRect(0, 0, 200, 40);
     g.fillStyle = 'rgba(16,40,170,0.82)';
     g.fillRect(0, 4, 200, 30);
@@ -611,7 +614,7 @@ export class ScreenPlayer {
     const mins = Math.floor((((hour % 24) + 24) % 24) * 60);
     if (mins === this.clockKey) return;
     this.clockKey = mins;
-    const g = this.clockCan.getContext('2d');
+    const g = this.clockCan.getContext('2d', CPU);
     g.clearRect(0, 0, 96, 26);
     const s = String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
     drawSegments(g, s, 5, 5, 17, { color: 'rgba(0,0,0,0.6)', skew: 0.08 });
@@ -627,7 +630,7 @@ export class ScreenPlayer {
   /** Radio just switched on: blue AV1 screen for a moment, volume bar. */
   boot() {
     this.bootT = 0.75;
-    this.volT = 2.2;
+    this.volT = 1.6;
   }
   startSlideshow(intro = true) {
     const S = this.show;

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { sky, postfx, paintedMaterial } from '../render/index.js';
 import { Forest } from '../world/Forest.js';
 import { SPECIES } from '../world/TreeFactory.js';
+import { preloadTextures } from '../textures/index.js';
 
 export default async function (ctx) {
   const { engine, cameraRig, params } = ctx;
@@ -14,6 +15,8 @@ export default async function (ctx) {
   sky.setHour(hour);
   if (params.get('paint') != null) postfx.params.painterly = num('paint', 1);
   const names = (params.get('species') || 'rainTree,dipterocarp,banyan,understory,deadTree,palm,bamboo').split(',');
+  // photobashed library (leaf atlas, bark, culms, stems) as in the game; preload=0 = procedural fallbacks
+  if (params.get('preload') !== '0') await preloadTextures();
   const fake = { road: null, drawDistance: 150, terrain: null, landmarks: {}, plan: { clearings: [] } };
   const forest = new Forest(fake, {});
   forest._materials();

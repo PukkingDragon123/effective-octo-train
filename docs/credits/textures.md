@@ -1,13 +1,21 @@
 # Texture credits (photobashed library)
 
 Every photographic source used by `tools/photobash/` to build `public/assets/textures/` is listed
-below. All of them are **CC0 1.0 / public domain** (no attribution required; credited anyway).
+below. Almost all of them are **CC0 1.0 / public domain** (no attribution required; credited anyway).
 Licence checked on each source page: Poly Haven (https://polyhaven.com/license: CC0 for all
 assets), ambientCG (https://docs.ambientcg.com/license/: CC0 for all assets), Wikimedia Commons
 files marked CC0 1.0 on their file page.
 
-Rejected / not used: anything NC, ND, BY-SA or with unknown licence; Flickr results (rate limited,
-not needed); photos showing brands, logos or identifiable people. All printed matter, packaging,
+**Borrowed from the owner's other game เฮียผัด** (provider "เฮียผัด (owner)"): processed PBR sets from
+its `public/assets/textures/pbr/` folder. Only sets whose rows in its `CREDITS.md` are CC0, Public
+Domain Mark or CC BY were taken (its unverified web photos were not). The original photo / scan each
+set was made from is named in the asset column. **CC BY 2.0 rows require this attribution** (keep it
+in the shipped credits): "Texture - Galvanized metal" by Andrew Beeston and "water ripples texture 1
+of 3" by JunCTionS, both on Flickr, licensed CC BY 2.0 (https://creativecommons.org/licenses/by/2.0/),
+modified (tiled, recoloured, combined with other scans).
+
+Rejected / not used: anything NC, ND, BY-SA or with unknown licence; Flickr results other than the two
+CC BY photos above; photos showing brands, logos or identifiable people. All printed matter, packaging,
 signage and labels are ORIGINAL fictional designs (no real brands); text is set in Srisakdi
 (SIL OFL 1.1, Cadson Demak, bundled via @fontsource/srisakdi). Poster portraits are painted,
 generic and not of real people.
@@ -24,14 +32,14 @@ Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 | dirty_concrete | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/dirty_concrete> | concrete* |
 | concrete_moss | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/concrete_moss> | concrete_moss* |
 | worn_mossy_plasterwall | Poly Haven | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/worn_mossy_plasterwall> | concrete_moss* |
-| Moss002 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Moss002> | moss*, concrete_moss*, rock*, bark* |
+| Moss002 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Moss002> | moss*, concrete_moss*, rock*, bark*, brick* (moss in the joints) |
 | Moss003 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Moss003> | moss* |
 | red_laterite_soil_stones | Poly Haven | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/red_laterite_soil_stones> | soil* |
 | forest_ground_04 | Poly Haven | Rob Tuytel, Rico Cilliers | CC0 1.0 | <https://polyhaven.com/a/forest_ground_04> | soil* |
 | rocky_gravel | Poly Haven | Dario Barresi, Dimitrios Savva | CC0 1.0 | <https://polyhaven.com/a/rocky_gravel> | gravel* |
-| forest_leaves_04 | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/forest_leaves_04> | leaf_litter* |
-| dry_decay_leaves | Poly Haven | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/dry_decay_leaves> | leaf_litter* |
-| mossy_rock | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/mossy_rock> | rock* |
+| forest_leaves_04 | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/forest_leaves_04> | leaf_litter*, water_surface* (floating leaves) |
+| dry_decay_leaves | Poly Haven | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/dry_decay_leaves> | leaf_litter*, water_surface* (floating leaves) |
+| mossy_rock | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/mossy_rock> | rock*, creature_hide (wrinkles) |
 | bark_willow_02 | Poly Haven | Charlotte Baglioni | CC0 1.0 | <https://polyhaven.com/a/bark_willow_02> | bark* |
 | chinese_hackberry_bark | Poly Haven | Charlotte Baglioni | CC0 1.0 | <https://polyhaven.com/a/chinese_hackberry_bark> | bark_banyan* |
 | weathered_planks | Poly Haven | Dario Barresi, Dimitrios Savva | CC0 1.0 | <https://polyhaven.com/a/weathered_planks> | wood_planks* |
@@ -40,20 +48,20 @@ Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 | rust_coarse_01 | Poly Haven | Dimitrios Savva, Rico Cilliers | CC0 1.0 | <https://polyhaven.com/a/rust_coarse_01> | rust* |
 | Rust004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Rust004> | rust*, taxi_paint* (sill rust), roof_corrugated* |
 | PaintedMetal014 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=PaintedMetal014> | metal_painted* |
-| peeling_painted_wall | Poly Haven | Dimitrios Savva | CC0 1.0 | <https://polyhaven.com/a/peeling_painted_wall> | paint_peel_white*, paint_peel_red*, red_lacquer* (crackle) |
+| peeling_painted_wall | Poly Haven | Dimitrios Savva | CC0 1.0 | <https://polyhaven.com/a/peeling_painted_wall> | paint_peel_white*, paint_peel_red*, red_lacquer* (crackle), ceramic* (crazing) |
 | worn_plaster_wall | Poly Haven | Dimitrios Savva | CC0 1.0 | <https://polyhaven.com/a/worn_plaster_wall> | paint_peel_white* |
 | red_plaster_weathered | Poly Haven | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/red_plaster_weathered> | paint_peel_red* |
 | clay_roof_tiles_02 | Poly Haven | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/clay_roof_tiles_02> | roof_tiles* |
 | worn_corrugated_iron | Poly Haven | Jenelle van Heerden, Dimitrios Savva | CC0 1.0 | <https://polyhaven.com/a/worn_corrugated_iron> | roof_corrugated* |
 | rusty_corrugated_iron | Poly Haven | Charlotte Baglioni | CC0 1.0 | <https://polyhaven.com/a/rusty_corrugated_iron> | roof_corrugated* (rust bleed) |
 | Foil002 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Foil002> | gold_leaf* |
-| Scratches001 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Scratches001> | taxi_paint*, dash_plastic* |
-| Scratches004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Scratches004> | taxi_paint* |
+| Scratches001 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Scratches001> | taxi_paint*, dash_plastic*, plastic_worn* |
+| Scratches004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Scratches004> | taxi_paint*, plastic_worn*, rubber_worn*, ceramic* |
 | SurfaceImperfections006 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=SurfaceImperfections006> | taxi_paint* (water spots) |
-| Leaking004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking004> | taxi_paint*, concrete* (water streaks) |
-| Leaking006 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking006> | paint_peel_*, metal_painted* (water streaks) |
+| Leaking004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking004> | taxi_paint*, concrete* (water streaks), brick* (streaks) |
+| Leaking006 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking006> | paint_peel_*, metal_painted* (water streaks), galv*, stem_fibre* (streaks) |
 | Plastic012A | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Plastic012A> | dash_plastic* |
-| brown_leather | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/brown_leather> | leather_seat* |
+| brown_leather | Poly Haven | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/brown_leather> | leather_seat*, creature_hide (grain) |
 | Fabric012 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Fabric012> | fabric_seat* |
 | Fabric062 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Fabric062> | headliner* |
 | dirty_carpet | Poly Haven | Rohit Seervi | CC0 1.0 | <https://polyhaven.com/a/dirty_carpet> | carpet* |
@@ -63,12 +71,12 @@ Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 | rough_linen | Poly Haven | colormass, Rico Cilliers | CC0 1.0 | <https://polyhaven.com/a/rough_linen> | monk_robe* |
 | Paper001 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Paper001> | 2D printed matter (white paper) |
 | Paper002 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Paper002> | 2D printed matter (cream paper) |
-| Paper003 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Paper003> | 2D printed matter (crumpled paper) |
+| Paper003 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Paper003> | 2D printed matter (crumpled paper), paper_worn* |
 | Paper005 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Paper005> | lantern_paper*, 2D printed matter (crinkled kraft) |
-| Cardboard001 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Cardboard001> | 2D packaging (cardboard) |
+| Cardboard001 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Cardboard001> | 2D packaging (cardboard), paper_worn* |
 | Cardboard003 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Cardboard003> | 2D packaging (corrugated board) |
 | Tape004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Tape004> | 2D posters (packing tape) |
-| Leaking012A | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking012A> | 2D water damage, blood_drip* |
+| Leaking012A | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking012A> | 2D water damage, blood_drip*, paper_worn* (tide-lines) |
 | Leaking017A | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Leaking017A> | blood_drip*, 2D water damage |
 | Smear002 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Smear002> | blood_smear* |
 | Smear005 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Smear005> | blood_smear* |
@@ -102,3 +110,13 @@ Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 | rainforest_trail | Poly Haven | Dimitrios Savva, Jarod Guest | CC0 1.0 | <https://polyhaven.com/a/rainforest_trail> | 2D posters (forest backdrop) |
 | narrow_moonlit_road | Poly Haven | Greg Zaal | CC0 1.0 | <https://polyhaven.com/a/narrow_moonlit_road> | 2D posters (night road backdrop) |
 | Banana_plant_garden.jpg | Wikimedia Commons | Sankuba Damasus Erasong | CC0 1.0 | <https://commons.wikimedia.org/w/index.php?curid=170745660> | leaf_banana*, foliage_world banana / bananaDead slots (lamina photo; dried leaves on the pseudostem) |
+| SurfaceImperfections010 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=SurfaceImperfections010> | ceramic* (glaze runs), blood_drip* (runs), 2D water streaks |
+| Rubber004 | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Rubber004> | rubber_worn* (tyres, hoses, cables, black plastic) |
+| Bamboo001A | ambientCG | Lennart Demes | CC0 1.0 | <https://ambientcg.com/view?id=Bamboo001A> | bamboo_culm*, stem_fibre* (longitudinal fibres) |
+| pbr/galvanized_steel (from Flickr photo 'Texture - Galvanized metal') | เฮียผัด (owner) | Andrew Beeston | CC BY 2.0 | <https://www.flickr.com/photos/94018078@N00/6846270808> | galv* (zinc spangle) |
+| pbr/aluminium_scratched (from Flickr photo 'Galvanized sheet') | เฮียผัด (owner) | walmarc04 | Public Domain Mark 1.0 | <https://www.flickr.com/photos/30924550@N04/35399953944> | galv* (white-rust mottling) |
+| pbr/steel_rusty (from Poly Haven 'Rusty Metal 02') | เฮียผัด (owner) | Rob Tuytel | CC0 1.0 | <https://polyhaven.com/a/rusty_metal_02> | galv* (rust spots, bleed) |
+| pbr/plastic_rough (from ambientCG Plastic001) | เฮียผัด (owner) | Lennart Demes (ambientCG) | CC0 1.0 | <https://ambientcg.com/a/Plastic001> | plastic_worn* (scuffed PP plastic) |
+| pbr/bamboo_woven (from Poly Haven 'Bamboo Wall 03') | เฮียผัด (owner) | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/bamboo_wall_03> | bamboo_weave* (woven bamboo strips: winnowing trays, baskets) |
+| pbr/water_canal_calm (from Flickr photo 'water ripples texture 1 of 3') | เฮียผัด (owner) | JunCTionS | CC BY 2.0 | <https://www.flickr.com/photos/17333088@N00/2937691081> | water_surface* (ripple normals) |
+| pbr/brick_exposed_red (from ambientCG Bricks090) | เฮียผัด (owner) | Lennart Demes (ambientCG) | CC0 1.0 | <https://ambientcg.com/a/Bricks090> | brick* |

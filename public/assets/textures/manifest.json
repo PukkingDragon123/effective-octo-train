@@ -1460,6 +1460,60 @@
    ],
    "srgb": false
   },
+  "bamboo_culm": {
+   "bytes": 21598,
+   "file": "nature/bamboo_culm.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": true
+  },
+  "bamboo_culm_normal": {
+   "bytes": 14900,
+   "file": "nature/bamboo_culm_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "bamboo_culm_rough": {
+   "bytes": 8252,
+   "file": "nature/bamboo_culm_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "bamboo_weave": {
+   "bytes": 164334,
+   "file": "built/bamboo_weave.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "bamboo_weave_normal": {
+   "bytes": 172704,
+   "file": "built/bamboo_weave_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "bamboo_weave_rough": {
+   "bytes": 9860,
+   "file": "built/bamboo_weave_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
   "bark": {
    "bytes": 371354,
    "file": "nature/bark.webp",
@@ -1514,6 +1568,33 @@
    ],
    "srgb": false
   },
+  "brick": {
+   "bytes": 155138,
+   "file": "built/brick.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "brick_normal": {
+   "bytes": 120744,
+   "file": "built/brick_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "brick_rough": {
+   "bytes": 25320,
+   "file": "built/brick_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
   "carpet": {
    "bytes": 372478,
    "file": "vehicle/carpet.webp",
@@ -1529,6 +1610,33 @@
    "size": [
     1024,
     1024
+   ],
+   "srgb": false
+  },
+  "ceramic": {
+   "bytes": 391344,
+   "file": "built/ceramic.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "ceramic_normal": {
+   "bytes": 268660,
+   "file": "built/ceramic_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "ceramic_rough": {
+   "bytes": 77914,
+   "file": "built/ceramic_rough.webp",
+   "size": [
+    512,
+    512
    ],
    "srgb": false
   },
@@ -1616,6 +1724,16 @@
   "concrete_rough": {
    "bytes": 13168,
    "file": "ground/concrete_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "creature_hide": {
+   "alpha": true,
+   "bytes": 191298,
+   "file": "nature/creature_hide.webp",
    "size": [
     512,
     512
@@ -1820,6 +1938,33 @@
    ],
    "srgb": false,
    "wrap": "clamp"
+  },
+  "galv": {
+   "bytes": 148498,
+   "file": "built/galv.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "galv_normal": {
+   "bytes": 255482,
+   "file": "built/galv_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "galv_rough": {
+   "bytes": 37402,
+   "file": "built/galv_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
   },
   "gold_leaf": {
    "bytes": 195052,
@@ -2208,6 +2353,60 @@
    ],
    "srgb": false
   },
+  "paper_worn": {
+   "bytes": 68140,
+   "file": "built/paper_worn.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "paper_worn_normal": {
+   "bytes": 68560,
+   "file": "built/paper_worn_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "paper_worn_rough": {
+   "bytes": 682,
+   "file": "built/paper_worn_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "plastic_worn": {
+   "bytes": 67936,
+   "file": "built/plastic_worn.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "plastic_worn_normal": {
+   "bytes": 352126,
+   "file": "built/plastic_worn_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "plastic_worn_rough": {
+   "bytes": 29762,
+   "file": "built/plastic_worn_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
   "red_lacquer": {
    "bytes": 391400,
    "file": "built/red_lacquer.webp",
@@ -2316,6 +2515,33 @@
    ],
    "srgb": false
   },
+  "rubber_worn": {
+   "bytes": 96882,
+   "file": "built/rubber_worn.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": true
+  },
+  "rubber_worn_normal": {
+   "bytes": 126014,
+   "file": "built/rubber_worn_normal.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "rubber_worn_rough": {
+   "bytes": 40120,
+   "file": "built/rubber_worn_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
   "rust": {
    "bytes": 329042,
    "file": "built/rust.webp",
@@ -2364,6 +2590,24 @@
   "soil_rough": {
    "bytes": 34106,
    "file": "ground/soil_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
+  "stem_fibre": {
+   "bytes": 34920,
+   "file": "nature/stem_fibre.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": true
+  },
+  "stem_fibre_normal": {
+   "bytes": 10202,
+   "file": "nature/stem_fibre_normal.webp",
    "size": [
     512,
     512
@@ -2436,6 +2680,33 @@
    "srgb": false,
    "wrap": "clamp"
   },
+  "water_surface": {
+   "bytes": 60902,
+   "file": "nature/water_surface.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": true
+  },
+  "water_surface_normal": {
+   "bytes": 329982,
+   "file": "nature/water_surface_normal.webp",
+   "size": [
+    1024,
+    1024
+   ],
+   "srgb": false
+  },
+  "water_surface_rough": {
+   "bytes": 31872,
+   "file": "nature/water_surface_rough.webp",
+   "size": [
+    512,
+    512
+   ],
+   "srgb": false
+  },
   "wood_old": {
    "bytes": 367528,
    "file": "built/wood_old.webp",
@@ -2491,6 +2762,6 @@
    "srgb": false
   }
  },
- "totalBytes": 36794156,
+ "totalBytes": 40861746,
  "version": 1
 }

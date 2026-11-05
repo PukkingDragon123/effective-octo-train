@@ -3,7 +3,7 @@
 // All start from render's paintedMaterial and chain a world patch on top.
 import * as THREE from 'three';
 import { paintedMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
-import { tex } from '../textures/index.js';
+import { tex, hasPhotoTexture } from '../textures/index.js';
 import { chainPatch, inject, worldNoiseTexture, GLSL_HASH } from './shaderUtil.js';
 import { W } from './constants.js';
 
@@ -352,8 +352,17 @@ export function createTerrainMaterial() {
 // WATER (creek / pond): dark, glossy, slowly flowing ripples
 // ---------------------------------------------------------------------------
 export function createWaterMaterial() {
-  const nrm = texOr('water_ripple', null, { repeat: [0.35, 0.18] });
-  const m = paintedMaterial({ name: 'water', color: 0x0b0e10, roughness: 0.06, metalness: 0.0, normalMap: nrm, brush: 0.15, wet: 1, puddles: 0 });
+  // photo surface (ripple normals from a real water photo, floating leaf litter and pollen scum,
+  // glossy water / matte debris roughness) when the library has it; procedural ripples otherwise
+  const photo = hasPhotoTexture('water_surface');
+  const nrm = photo ? texOr('water_surface_normal', null, { repeat: [0.3, 0.16] }) : texOr('water_ripple', null, { repeat: [0.35, 0.18] });
+  const m = photo
+    ? paintedMaterial({
+        name: 'water', color: 0xffffff, map: texOr('water_surface', null, { repeat: [0.22, 0.12] }),
+        roughnessMap: texOr('water_surface_rough', null, { repeat: [0.22, 0.12] }), roughness: 1, metalness: 0.0,
+        normalMap: nrm, brush: 0.15, wet: 1, puddles: 0,
+      })
+    : paintedMaterial({ name: 'water', color: 0x0b0e10, roughness: 0.06, metalness: 0.0, normalMap: nrm, brush: 0.15, wet: 1, puddles: 0 });
   if (m.normalScale) m.normalScale.set(0.35, 0.35);
   chainPatch(m, 'worldWater', (shader) => {
     shader.uniforms.wFogColor = U.uFogColor;

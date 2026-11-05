@@ -112,12 +112,36 @@ def fetch_url(s, dest):
     return {'photo': 'photo.jpg'}, {'authors': [s['author']]}
 
 
+HIAPHAT = os.environ.get('HIAPHAT_REPO', os.path.join(os.path.dirname(__file__), '..', '..', '..', '..',
+                                                       'pukkingdragon123', 'special-telegram'))
+
+
+def fetch_hiaphat(s, dest):
+    """Copy a borrowed PBR set from a local clone of เฮียผัด (no network)."""
+    import shutil
+    src = os.path.join(HIAPHAT, s['path'])
+    got = {}
+    for m in s['maps']:
+        fn = m + '.jpg'
+        p = os.path.join(src, fn)
+        with open(p, 'rb') as f:
+            if not looks_like_image(f.read(16)):
+                raise RuntimeError('not an image: ' + p)
+        shutil.copyfile(p, os.path.join(dest, fn))
+        got[m] = fn
+    return got, {'authors': [s['author']], 'origin': s.get('origin', '')}
+
+
 def main():
+    global HIAPHAT
     ap = argparse.ArgumentParser()
     ap.add_argument('--raw', required=True)
+    ap.add_argument('--hiaphat', default='', help='local clone of the เฮียผัด repo (borrowed PBR sets)')
     ap.add_argument('--only', default='')
     ap.add_argument('--force', action='store_true')
     a = ap.parse_args()
+    if a.hiaphat:
+        HIAPHAT = a.hiaphat
     only = set(x for x in a.only.split(',') if x)
     os.makedirs(a.raw, exist_ok=True)
     for s in SOURCES:
@@ -130,7 +154,8 @@ def main():
         os.makedirs(dest, exist_ok=True)
         print('fetch', s['id'], flush=True)
         try:
-            fn = {'polyhaven': fetch_polyhaven, 'ambientcg': fetch_ambientcg, 'url': fetch_url}[s['provider']]
+            fn = {'polyhaven': fetch_polyhaven, 'ambientcg': fetch_ambientcg, 'url': fetch_url,
+                  'hiaphat': fetch_hiaphat}[s['provider']]
             got, extra = fn(s, dest)
         except Exception as e:  # noqa: BLE001
             print('  FAILED', e, flush=True)

@@ -108,7 +108,30 @@ export const ALBUM_NOTE = 'ห้ามลบ!!';
  * caption (Thai), date stamp (old-camera style 'YY M D), frame style.
  * Filled in from the credited downloads; the screen skips any file that fails to load.
  */
-export const CAT_PHOTOS = [];
-export const SCENERY_PHOTOS = [];
+export const CAT_PHOTOS = [
+  { file: 'cat_car.webp', caption: 'เจ้าลายขอนั่งหน้า ไม่จ่ายค่ารถ', date: '19 3 08', frame: 'sticker' },
+  { file: 'cat_fat_orange.webp', caption: 'เจ้าส้ม อ้วนขึ้นอีกแล้ว', date: '21 7 14', frame: 'polaroid' },
+  { file: 'cat_sleepy.webp', caption: 'นอนทั้งวัน ไม่ช่วยหาเงินเลย', date: '20 11 02', frame: 'tape' },
+  { file: 'cat_box.webp', caption: 'ซื้อของเล่นให้ เล่นแต่กล่อง', date: '22 1 30', frame: 'sticker' },
+  { file: 'cat_yawn.webp', caption: 'หาวเหมือนคนขับกะดึก', date: '18 6 21', frame: 'polaroid' },
+  { file: 'cat_motorbike_yawn.webp', caption: 'ยึดเบาะมอไซค์ทั้งซอย', frame: 'tape' }, // the photo has its own date stamp
+  { file: 'cat_curled.webp', caption: 'นอนขดเป็นซาลาเปา', date: '20 12 25', frame: 'sticker' },
+  { file: 'cat_sofa.webp', caption: 'ยึดโซฟาแล้ว ห้ามใครนั่ง', date: '21 4 13', frame: 'polaroid' },
+  { file: 'cat_stare.webp', caption: 'หน้าแบบนี้ แปลว่าหิว', date: '22 8 09', frame: 'tape' },
+  { file: 'cat_carton_kitten.webp', caption: 'ซ่อนเก่ง หาทั้งวัน', date: '19 9 17', frame: 'sticker' },
+  { file: 'cat_calico_yawn.webp', caption: 'ร้องลูกทุ่งเสียงดังมาก', date: '23 2 14', frame: 'polaroid' },
+  { file: 'cat_kittens_chair.webp', caption: 'สองพี่น้อง นอนกองกัน', date: '20 5 05', frame: 'tape' },
+  { file: 'cat_window.webp', caption: 'รอใครกลับบ้าน', date: '23 6 01', frame: 'sticker' },
+];
+export const SCENERY_PHOTOS = [
+  { file: 'rice_bridge.webp' },
+  { file: 'temple_sunset.webp' },
+  { file: 'waterfall.webp' },
+  { file: 'beach_sunrise.webp' },
+  { file: 'rice_field.webp' },
+  { file: 'sunset_trees.webp' },
+  { file: 'temple_sukhothai.webp' },
+  { file: 'beach_cha_am.webp' },
+];
 
 export const SCREEN_PATH = 'assets/textures/screens/';

@@ -4,7 +4,7 @@
 // at human eye height (1.6 m). yaw = degrees around the target (0 = in front, +Z side).
 import * as THREE from 'three';
 import { sky, lightPool, paintedMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
-import { tex } from '../textures/index.js';
+import { tex, preloadTextures } from '../textures/index.js';
 import * as P from '../props/index.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -116,6 +116,8 @@ const ITEMS = {
 export default async function ({ engine, cameraRig, params }) {
   const scene = engine.scene;
   const itemName = params.get('item') || 'all';
+  // photobashed texture library (the game preloads it at boot); preload=0 shows the procedural fallbacks
+  if (params.get('preload') !== '0') await preloadTextures();
   // CC0 models (the game calls this at boot before world.build()); assets=0 shows the fallbacks
   if (params.get('assets') !== '0') {
     const st = await P.loadPropAssets();

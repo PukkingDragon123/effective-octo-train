@@ -7,7 +7,7 @@
 // real trees at build time) or culled. Road-edge litter (RoadEdge.js) is near field only.
 import * as THREE from 'three';
 import { paintedMaterial, foliageMaterial } from '../render/index.js';
-import { tex } from '../textures/index.js';
+import { tex, hasPhotoTexture, DETAIL_MEAN } from '../textures/index.js';
 import { engine } from '../core/Engine.js';
 import { makeRng, SimplexNoise, smoothstep } from '../core/math.js';
 import { SPECIES, buildVariant, rockGeometry, bambooTexture } from './TreeFactory.js';
@@ -60,6 +60,72 @@ function texSafe(key, opts) {
   }
 }
 
+// Leaves / grass / vines / ferns: the photobashed world atlas (real leaf scans, same 5x5 slot layout
+// as foliageAtlas.js, with a normal map) when the library has it; the painted canvas atlas otherwise.
+const PHOTO_FOLIAGE = true;
+let _leafAtlas = null;
+function worldLeafAtlas() {
+  if (_leafAtlas) return _leafAtlas;
+  if (PHOTO_FOLIAGE && hasPhotoTexture('foliage_world')) {
+    const map = texSafe('foliage_world');
+    if (map) {
+      map.wrapS = map.wrapT = THREE.ClampToEdgeWrapping;
+      const nrm = texSafe('foliage_world_normal');
+      if (nrm) nrm.wrapS = nrm.wrapT = THREE.ClampToEdgeWrapping;
+      return (_leafAtlas = { map, normalMap: nrm });
+    }
+  }
+  return (_leafAtlas = { map: foliageAtlas(), normalMap: null });
+}
+
+/** Bamboo culm map: the photobashed culm (single canes of a bamboo scan, node ring at v ~ 0.03) or the canvas fallback. */
+function bambooMap() {
+  return hasPhotoTexture('bamboo_culm') ? texSafe('bamboo_culm') : bambooTexture();
+}
+
+/**
+ * World-space triplanar photo normal + roughness on top of a painted material (rocks: their
+ * sculpted geometry has no usable UVs). Whiteout blend of the three projections, applied in view space.
+ */
+function triplanarDetail(m, key, normalTex, roughTex, scale = 0.45, strength = 1, roughMean = 0.8) {
+  if (!normalTex) return m;
+  return chainPatch(m, key, (shader) => {
+    shader.uniforms.wTriN = { value: normalTex };
+    shader.uniforms.wTriR = { value: roughTex || normalTex };
+    shader.uniforms.wTriS = { value: new THREE.Vector3(scale, strength, roughTex ? 1 / roughMean : 0) };
+    let f = shader.fragmentShader;
+    f = inject(f, '#include <common>', 'uniform sampler2D wTriN;\nuniform sampler2D wTriR;\nuniform vec3 wTriS;');
+    f = inject(f, '#include <roughnessmap_fragment>', `
+{
+  vec3 tN = normalize(vDlbWN);
+  vec3 tw = pow(abs(tN), vec3(4.0));
+  tw /= max(tw.x + tw.y + tw.z, 1e-4);
+  vec3 tp = vDlbWP * wTriS.x;
+  if (wTriS.z > 0.0) {
+    float tr = texture2D(wTriR, tp.zy).g * tw.x + texture2D(wTriR, tp.xz).g * tw.y + texture2D(wTriR, tp.xy).g * tw.z;
+    roughnessFactor = clamp(roughnessFactor * tr * wTriS.z, 0.04, 1.0);
+  }
+}`);
+    f = inject(f, '#include <normal_fragment_maps>', `
+{
+  vec3 tN = normalize(vDlbWN) * (gl_FrontFacing ? 1.0 : -1.0);
+  vec3 tw = pow(abs(tN), vec3(4.0));
+  tw /= max(tw.x + tw.y + tw.z, 1e-4);
+  vec3 tp = vDlbWP * wTriS.x;
+  vec3 nx = texture2D(wTriN, tp.zy).xyz * 2.0 - 1.0;
+  vec3 ny = texture2D(wTriN, tp.xz).xyz * 2.0 - 1.0;
+  vec3 nz = texture2D(wTriN, tp.xy).xyz * 2.0 - 1.0;
+  nx.xy *= wTriS.y; ny.xy *= wTriS.y; nz.xy *= wTriS.y;
+  nx = vec3(nx.xy + tN.zy, abs(nx.z) * tN.x);
+  ny = vec3(ny.xy + tN.xz, abs(ny.z) * tN.y);
+  nz = vec3(nz.xy + tN.xy, abs(nz.z) * tN.z);
+  vec3 tWorld = normalize(nx.zyx * tw.x + ny.xzy * tw.y + nz.xyz * tw.z);
+  normal = normalize((viewMatrix * vec4(tWorld, 0.0)).xyz);
+}`);
+    shader.fragmentShader = f;
+  });
+}
+
 // species groups used by the scatter + LOD rules
 const KIND_LOD = {
   big: { lod0: W.lod.big0, lod1: W.lod.big1, impostor: true, keepMin: 0.7 },
@@ -102,21 +168,34 @@ export class Forest {
 
   // ---------------------------------------------------------------------------------
   _materials() {
-    const atlas = foliageAtlas();
+    const leafAtlas = worldLeafAtlas();
+    const atlas = leafAtlas.map;
+    // (no normal map on the cards: the double-sided crown-bent normals are un-flipped for back faces,
+    // which a tangent-space normal map would undo; the photo albedo carries the leaf detail)
     const barkMap = texSafe('bark', { repeat: [1, 1] });
     const barkN = texSafe('bark_normal', { repeat: [1, 1] });
     const banyanMap = texSafe('bark_banyan', { repeat: [1, 1] }) || barkMap;
+    const banyanN = texSafe('bark_banyan_normal', { repeat: [1, 1] }) || barkN;
+    // photo roughness: factor = wanted mean / map mean (bark 0.72, banyan 0.92)
+    const barkR = texSafe('bark_rough', { repeat: [1, 1] });
+    const banyanR = texSafe('bark_banyan_rough', { repeat: [1, 1] });
+    const bambooPhoto = hasPhotoTexture('bamboo_culm');
     this.mats = {
-      bark: paintedMaterial({ name: 'bark', map: barkMap, normalMap: barkN, vertexColors: true, roughness: 0.92, wind: 'trunk', moss: 0.45, brush: 0.6, wet: 0.5 }),
-      banyanBark: paintedMaterial({ name: 'barkBanyan', map: banyanMap, normalMap: barkN, vertexColors: true, roughness: 0.9, wind: 'trunk', moss: 0.35, brush: 0.6, wet: 0.5 }),
-      stem: paintedMaterial({ name: 'plantStem', color: 0xffffff, vertexColors: true, roughness: 0.75, wind: 'leaf', brush: 0.5, wet: 0.6 }),
-      bamboo: paintedMaterial({ name: 'bambooCulm', map: bambooTexture(), vertexColors: true, roughness: 0.55, wind: 'leaf', brush: 0.4, wet: 0.6 }),
+      bark: paintedMaterial({ name: 'bark', map: barkMap, normalMap: barkN, roughnessMap: barkR, vertexColors: true, roughness: barkR ? 0.92 / 0.72 : 0.92, wind: 'trunk', moss: 0.45, brush: 0.6, wet: 0.5 }),
+      banyanBark: paintedMaterial({ name: 'barkBanyan', map: banyanMap, normalMap: banyanN, roughnessMap: banyanR, vertexColors: true, roughness: banyanR ? 0.9 / 0.92 : 0.9, wind: 'trunk', moss: 0.35, brush: 0.6, wet: 0.5 }),
+      // banana pseudostems, petioles, peduncles, flower stalks: plant-fibre photo (vertex colours carry the hue)
+      stem: paintedMaterial({ name: 'plantStem', color: 0xffffff, map: texSafe('stem_fibre'), normalMap: texSafe('stem_fibre_normal'), vertexColors: true, roughness: 0.75, wind: 'leaf', brush: 0.5, wet: 0.6, dirt: 0.35, dirtHeight: 0.6 }),
+      bamboo: paintedMaterial({ name: 'bambooCulm', map: bambooMap(), normalMap: bambooPhoto ? texSafe('bamboo_culm_normal') : null, roughnessMap: bambooPhoto ? texSafe('bamboo_culm_rough') : null, vertexColors: true, roughness: bambooPhoto ? 0.55 / 0.53 : 0.55, wind: 'leaf', brush: 0.4, wet: 0.6, dirt: 0.3, dirtHeight: 0.8 }),
       leaves: unflipNormals(foliageMaterial({ name: 'leaves', map: atlas, alphaTest: 0.45, vertexColors: true, wind: 'leaf', flutter: 1.7, translucency: 0.7, roughness: 0.72, brush: 0.45 }), 'unflip'),
       ground: unflipNormals(foliageMaterial({ name: 'groundLeaves', map: atlas, alphaTest: 0.42, vertexColors: true, wind: 'grass', translucency: 0.6, roughness: 0.75, brush: 0.5 }), 'unflip'),
       vine: unflipNormals(foliageMaterial({ name: 'vines', map: atlas, alphaTest: 0.42, vertexColors: true, wind: 'vine', translucency: 0.5, roughness: 0.8 }), 'unflip'),
       rock: paintedMaterial({ name: 'rock', color: 0xb8b4aa, vertexColors: true, triplanar: 'rock', triplanarScale: 0.45, roughness: 0.88, moss: 0.65, brush: 0.6, wet: 0.6 }),
     };
     for (const k of ['leaves', 'ground', 'vine']) crispAlpha(this.mats[k], 'crisp');
+    // the fibre map is a neutral detail map (linear mean DETAIL_MEAN.stem_fibre): keep the vertex-colour brightness
+    if (this.mats.stem.map) this.mats.stem.color.setScalar(1 / (DETAIL_MEAN.stem_fibre || 0.5));
+    // rocks / road-edge stones: photo normal + roughness, world-space triplanar (no usable UVs)
+    triplanarDetail(this.mats.rock, 'rockTri', texSafe('rock_normal'), texSafe('rock_rough'), 0.45, 1.0, 0.81);
     for (const m of Object.values(this.mats)) m.side = m.side ?? THREE.FrontSide;
     this.mats.stem.side = THREE.DoubleSide;
   }
@@ -315,12 +394,12 @@ export class Forest {
     const rt = new THREE.WebGLRenderTarget(W2, H2, { type: THREE.HalfFloatType, depthBuffer: true, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
     const scene = new THREE.Scene();
     const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
-    const atlas = foliageAtlas();
+    const atlas = worldLeafAtlas().map;
     const basicLeaf = new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide });
     const basicBark = new THREE.MeshBasicMaterial({ map: this.mats.bark.map, vertexColors: true });
     const basicBanyan = new THREE.MeshBasicMaterial({ map: this.mats.banyanBark.map, vertexColors: true });
-    const basicBamboo = new THREE.MeshBasicMaterial({ map: bambooTexture(), vertexColors: true });
-    const basicStem = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const basicBamboo = new THREE.MeshBasicMaterial({ map: this.mats.bamboo.map, vertexColors: true });
+    const basicStem = new THREE.MeshBasicMaterial({ map: this.mats.stem.map, color: this.mats.stem.color, vertexColors: true });
     const matFor = { leaves: basicLeaf, bark: basicBark, banyanBark: basicBanyan, bamboo: basicBamboo, stem: basicStem };
     const prevRT = renderer.getRenderTarget();
     const prevClear = renderer.getClearColor(new THREE.Color());

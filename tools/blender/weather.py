@@ -314,7 +314,8 @@ class Painter:
         self.t_dash = photo('vehicle/dash_plastic.webp', s)
         self.t_seat = photo('vehicle/fabric_seat.webp', s)
         self.t_vinyl = photo('vehicle/leather_seat.webp', s)
-        self.t_head = photo('vehicle/headliner.webp', 512)
+        # headliner: keep the stains / water rings, drop the weave (it aliases into big diamonds)
+        self.t_head = photo('vehicle/headliner.webp', 96)
         self.t_carpet = photo('vehicle/carpet.webp', s)
         up = self.t_paint_y[int(512 * 0.3):]
         self.paint_mean = float(lum(up.reshape(-1, 3)).mean())
@@ -531,7 +532,7 @@ class Painter:
         AO, E, C, z, up = self.common(P, N, M)
         n = len(P)
         if kind == 'headliner':
-            T = tri(self.t_head, P, N, 0.95)
+            T = tri(self.t_head, P, N, 1.15)
             col = T * np.array([0.92, 0.88, 0.80], np.float32)
             nic = 0.25 + 0.35 * sstep(-0.9, 0.1, P[:, 1]) + 0.2 * fbm(P, 3, 3, seed=71)
             col = mix(col, col * np.array([0.82, 0.72, 0.52], np.float32), np.clip(nic, 0, 1))

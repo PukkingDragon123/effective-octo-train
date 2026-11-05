@@ -65,4 +65,44 @@ export const FAMILIES = [
   { keys: ['fabric_sarong', 'fabric_sarong_normal'], gen: X.genSarong, size: 512 },
   { keys: ['flower_atlas', 'flower_atlas_normal'], gen: X.genFlowerAtlas, size: 1024 },
   { keys: ['foliage_world', 'foliage_world_normal'], gen: X.genFoliageWorld, size: 64, fixed: true },
+  // photo detail sets for props / world / creatures (tools/photobash/surfaces_props.py); tintable ones
+  // have the linear mean X.DETAIL_MEAN[key] (props scale their colour by 1 / mean)
+  { keys: ['galv', 'galv_normal', 'galv_rough'], gen: X.genGalv, size: 256 },
+  { keys: ['plastic_worn', 'plastic_worn_normal', 'plastic_worn_rough'], gen: X.genPlasticWorn, size: 256 },
+  { keys: ['rubber_worn', 'rubber_worn_normal', 'rubber_worn_rough'], gen: X.genRubberWorn, size: 256 },
+  { keys: ['ceramic', 'ceramic_normal', 'ceramic_rough'], gen: X.genCeramic, size: 256 },
+  { keys: ['paper_worn', 'paper_worn_normal', 'paper_worn_rough'], gen: X.genPaperWorn, size: 256 },
+  { keys: ['brick', 'brick_normal', 'brick_rough'], gen: X.genBrick, size: 256 },
+  { keys: ['bamboo_culm', 'bamboo_culm_normal', 'bamboo_culm_rough'], gen: X.genBambooCulm, size: 256 },
+  { keys: ['stem_fibre', 'stem_fibre_normal'], gen: X.genStemFibre, size: 256 },
+  { keys: ['creature_hide'], gen: X.genCreatureHide, size: 8, fixed: true },
+  { keys: ['water_surface', 'water_surface_normal', 'water_surface_rough'], gen: X.genWaterSurface, size: 256 },
+  { keys: ['bamboo_weave', 'bamboo_weave_normal', 'bamboo_weave_rough'], gen: X.genBambooWeave, size: 256 },
 ];
+
+// Photo roughness maps that only exist in the photobashed library (public/assets/textures): listed
+// with their family so preloadTextures() loads them together with the colour / normal maps. Without
+// the photos the family's generator hands out a flat map at the photo's mean roughness.
+const PHOTO_ROUGH = {
+  bark: 0.72, bark_banyan: 0.92, gravel: 0.9, leaf_litter: 0.85, moss: 0.61, paint_peel_red: 0.88, paint_peel_white: 0.96,
+  rock: 0.81, roof_tiles: 0.92, soil: 0.82, wood_old: 0.84, wood_planks: 0.84, fabric_seat: 0.8,
+};
+const flatRough = (v) => {
+  const d = new Uint8Array(4 * 4 * 4);
+  for (let i = 0; i < 16; i++) d.set([v * 255, v * 255, v * 255, 255], i * 4);
+  return { w: 4, h: 4, data: d, srgb: false, alpha: false, wrap: 'repeat' };
+};
+for (const [base, mean] of Object.entries(PHOTO_ROUGH)) {
+  const f = FAMILIES.find((fam) => fam.keys.includes(base));
+  if (!f || f.keys.includes(base + '_rough')) continue;
+  f.keys.push(base + '_rough');
+  if (!f._roughWrapped) {
+    const gen = f.gen;
+    f.gen = (size) => {
+      const r = gen(size);
+      for (const k of f.keys) if (!r[k] && k.endsWith('_rough')) r[k] = flatRough(PHOTO_ROUGH[k.slice(0, -6)] ?? 0.8);
+      return r;
+    };
+    f._roughWrapped = true;
+  }
+}

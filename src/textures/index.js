@@ -29,6 +29,8 @@ import {
 } from './photo.js';
 
 export { FONTS, FOLIAGE_ATLAS, ROAD_MARKINGS, FLOWER_ATLAS, PRINTED_CATALOGUE, setPhotoTexturesEnabled };
+/** Linear mean of the tintable photo detail maps (galv, plastic_worn, rubber_worn, ceramic, paper_worn, stem_fibre). */
+export { DETAIL_MEAN } from './mat_extra.js';
 export const fontsReady = loadFonts;
 
 /**
@@ -306,8 +308,9 @@ export function disposeTextureWorkers() {
 
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
-// photo keys nothing in the game samples yet (opt-in: pass them to preloadTextures explicitly)
-const OPTIONAL_PHOTO_KEYS = new Set(['foliage_world', 'foliage_world_normal']);
+// photo keys nothing in the game samples yet (opt-in: pass them to preloadTextures explicitly).
+// foliage_world(_normal) is now the forest's leaf atlas (src/world/Forest.js), so it preloads by default.
+const OPTIONAL_PHOTO_KEYS = new Set([]);
 
 /**
  * Warm procedural families in the worker pool without blocking anyone. tex() never waits for it:

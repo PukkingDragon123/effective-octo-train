@@ -41,7 +41,8 @@ def main():
     t0 = time.time()
     if 'surfaces' in only:
         from surfaces import SURFACES
-        for fam, (fn, size) in SURFACES.items():
+        from surfaces_props import PROP_SURFACES
+        for fam, (fn, size) in {**SURFACES, **PROP_SURFACES}.items():
             if keys and not any(k in fam for k in keys):
                 continue
             t1 = time.time()

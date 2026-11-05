@@ -34,7 +34,9 @@ class Writer:
     def texture(self, key, rel, arr, kind, wrap='repeat', extra=None, alpha=False):
         if kind == 'normal':
             arr = encode_normal(arr)
-        nbytes = self._write(rel, arr, kind, alpha=alpha)
+        if kind == 'rgba_data':  # RGBA data map (e.g. creature detail: modulation + height in alpha)
+            alpha = True
+        nbytes = self._write(rel, arr, 'rgba' if kind == 'rgba_data' else kind, alpha=alpha)
         h, w = arr.shape[:2]
         e = {'file': rel, 'size': [w, h], 'srgb': kind in ('color', 'rgba'), 'bytes': nbytes}
         if alpha:

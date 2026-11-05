@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { audio } from '../audio/index.js';
 import { lightPool, paintedMaterial } from '../render/index.js';
+import { tex } from '../textures/index.js';
 import { cameraRig } from '../core/CameraRig.js';
 import { engine } from '../core/Engine.js';
 import { SPECS, human } from './humans.js';
@@ -24,7 +25,17 @@ export class ForestGiant extends Entity {
     this.h.setGhost({ stretch: 0.55, backbend: -0.25, headPitch: 0.35, armTwist: 0.2, noBlink: 1 }, 100);
     this.h.setMode('stand');
     // trailing moss / vine strands from the shoulders, elbows and wrists
-    this.vineMat = paintedMaterial({ color: 0x1c2414, roughness: 0.9, brush: 0.7, wet: 0.5, puddles: 0, side: THREE.DoubleSide });
+    // photo bark on the strands (colour divided by the bark map's linear mean so they stay this dark)
+    let barkMap = null, barkN = null;
+    try {
+      barkMap = tex('bark', { repeat: [1, 3] });
+      barkN = tex('bark_normal', { repeat: [1, 3] });
+    } catch (e) {
+      /* textures unavailable: flat strands */
+    }
+    const vc = new THREE.Color(0x1c2414);
+    if (barkMap) vc.setRGB(vc.r / 0.095, vc.g / 0.082, vc.b / 0.064);
+    this.vineMat = paintedMaterial({ map: barkMap, normalMap: barkN, color: vc, roughness: 0.9, brush: 0.7, wet: 0.5, puddles: 0, side: THREE.DoubleSide, moss: 0.4 });
     this.strands = [];
     const S = height / 1.7;
     const spots = [['clavicle_l', 7], ['clavicle_r', 7], ['lowerarm_l', 5], ['lowerarm_r', 5], ['hand_l', 6], ['hand_r', 6], ['spine_03', 9], ['Head', 8], ['Head', 10]];

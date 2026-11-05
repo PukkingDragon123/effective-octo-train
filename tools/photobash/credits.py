@@ -24,18 +24,28 @@ def main():
         meta_p = os.path.join(a.raw, s['id'], 'meta.json')
         meta = json.load(open(meta_p)) if os.path.exists(meta_p) else {}
         authors = ', '.join(meta.get('authors') or [s.get('author', '?')])
-        prov = {'polyhaven': 'Poly Haven', 'ambientcg': 'ambientCG', 'url': 'Wikimedia Commons'}[s['provider']]
-        rows.append(f"| {s['asset']} | {prov} | {authors} | {s['licence']} | <{s['page']}> | {s['used_by']} |")
+        prov = {'polyhaven': 'Poly Haven', 'ambientcg': 'ambientCG', 'url': 'Wikimedia Commons',
+                'hiaphat': 'เฮียผัด (owner)'}[s['provider']]
+        asset = s['asset'] if s['provider'] != 'hiaphat' else f"{s['asset']} (from {s.get('origin', '?')})"
+        rows.append(f"| {asset} | {prov} | {authors} | {s['licence']} | <{s['page']}> | {s['used_by']} |")
     md = """# Texture credits (photobashed library)
 
 Every photographic source used by `tools/photobash/` to build `public/assets/textures/` is listed
-below. All of them are **CC0 1.0 / public domain** (no attribution required; credited anyway).
+below. Almost all of them are **CC0 1.0 / public domain** (no attribution required; credited anyway).
 Licence checked on each source page: Poly Haven (https://polyhaven.com/license: CC0 for all
 assets), ambientCG (https://docs.ambientcg.com/license/: CC0 for all assets), Wikimedia Commons
 files marked CC0 1.0 on their file page.
 
-Rejected / not used: anything NC, ND, BY-SA or with unknown licence; Flickr results (rate limited,
-not needed); photos showing brands, logos or identifiable people. All printed matter, packaging,
+**Borrowed from the owner's other game เฮียผัด** (provider "เฮียผัด (owner)"): processed PBR sets from
+its `public/assets/textures/pbr/` folder. Only sets whose rows in its `CREDITS.md` are CC0, Public
+Domain Mark or CC BY were taken (its unverified web photos were not). The original photo / scan each
+set was made from is named in the asset column. **CC BY 2.0 rows require this attribution** (keep it
+in the shipped credits): "Texture - Galvanized metal" by Andrew Beeston and "water ripples texture 1
+of 3" by JunCTionS, both on Flickr, licensed CC BY 2.0 (https://creativecommons.org/licenses/by/2.0/),
+modified (tiled, recoloured, combined with other scans).
+
+Rejected / not used: anything NC, ND, BY-SA or with unknown licence; Flickr results other than the two
+CC BY photos above; photos showing brands, logos or identifiable people. All printed matter, packaging,
 signage and labels are ORIGINAL fictional designs (no real brands); text is set in Srisakdi
 (SIL OFL 1.1, Cadson Demak, bundled via @fontsource/srisakdi). Poster portraits are painted,
 generic and not of real people.

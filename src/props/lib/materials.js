@@ -4,7 +4,7 @@
 // weathering) multiplied by the painted texture from src/textures.
 import * as THREE from 'three';
 import { paintedMaterial, foliageMaterial } from '../../render/index.js';
-import { tex, signTex, canvasTexture, FONTS } from '../../textures/index.js';
+import { tex, signTex, canvasTexture, FONTS, DETAIL_MEAN } from '../../textures/index.js';
 import { makeRng } from '../../core/math.js';
 import { settings } from '../../core/Settings.js';
 
@@ -34,39 +34,61 @@ function safeTex(key, hi = false) {
   }
 }
 
-// key -> definition. uv = texture repeats per metre (box-projected UVs).
+// key -> definition. uv = texture repeats per metre (box-projected UVs). Every surface has a
+// photo map + normal (+ roughness where the surface varies): see docs/credits/textures.md.
+//   eff    = wanted mean brightness of the colour map (linear). The neutral photo detail sets
+//            (galv, plastic_worn, rubber_worn, ceramic, paper_worn, stem_fibre) have a fixed linear
+//            mean (DETAIL_MEAN); the material colour is scaled by eff / mean so vertex colours keep
+//            their tuning and the map only adds real surface detail.
+//   rough  = wanted mean roughness when a roughnessMap is used (factor = rough / map mean).
 const DEFS = {
   concrete: { map: 'concrete', normalMap: 'concrete_normal', roughnessMap: 'concrete_rough', hi: true, roughness: 1, uv: 0.55, moss: 0.25, dirt: 0.5 },
-  concrete_moss: { map: 'concrete_moss', normalMap: 'concrete_moss_normal', hi: true, roughness: 0.96, uv: 0.5, moss: 0.6, dirt: 0.5 },
-  plaster: { map: 'paint_peel_white', normalMap: 'paint_peel_white_normal', hi: true, roughness: 0.92, uv: 0.55, dirt: 0.5, moss: 0.2 },
-  paint_red: { map: 'paint_peel_red', normalMap: 'paint_peel_red_normal', hi: true, roughness: 0.8, uv: 0.7, dirt: 0.4 },
-  stone: { map: 'rock', normalMap: 'rock_normal', hi: true, roughness: 0.95, uv: 0.6, moss: 0.4, dirt: 0.4 },
-  brick: { map: 'concrete_moss', normalMap: 'rock_normal', roughness: 0.95, uv: 0.8, moss: 0.4, dirt: 0.5 },
-  metal: { map: 'metal_painted', normalMap: 'metal_painted_normal', roughnessMap: 'metal_painted_rough', hi: true, roughness: 1, metalness: 0.3, uv: 1.0, dirt: 0.4 },
+  concrete_moss: { map: 'concrete_moss', normalMap: 'concrete_moss_normal', roughnessMap: 'concrete_moss_rough', hi: true, rough: 0.96, uv: 0.5, moss: 0.6, dirt: 0.5 },
+  plaster: { map: 'paint_peel_white', normalMap: 'paint_peel_white_normal', roughnessMap: 'paint_peel_white_rough', hi: true, rough: 0.92, uv: 0.55, dirt: 0.5, moss: 0.2 },
+  paint_red: { map: 'paint_peel_red', normalMap: 'paint_peel_red_normal', roughnessMap: 'paint_peel_red_rough', hi: true, rough: 0.8, uv: 0.7, dirt: 0.4 },
+  stone: { map: 'rock', normalMap: 'rock_normal', roughnessMap: 'rock_rough', hi: true, rough: 0.95, uv: 0.6, moss: 0.4, dirt: 0.4 },
+  brick: { map: 'brick', normalMap: 'brick_normal', roughnessMap: 'brick_rough', hi: true, rough: 0.95, uv: 0.8, moss: 0.4, dirt: 0.5 },
+  // old painted steel: the paint is satin, not mirror (its glossy texels blew out white under close lamps)
+  metal: { map: 'metal_painted', normalMap: 'metal_painted_normal', roughnessMap: 'metal_painted_rough', hi: true, rough: 0.7, metalness: 0.2, uv: 1.0, dirt: 0.4 },
   rust: { map: 'rust', normalMap: 'rust_normal', roughnessMap: 'rust_rough', hi: true, roughness: 1, metalness: 0.35, uv: 1.2, dirt: 0.3 },
-  galv: { map: 'chrome_dirty', normalMap: 'chrome_dirty_normal', roughnessMap: 'chrome_dirty_rough', roughness: 0.85, metalness: 0.65, uv: 1.0, dirt: 0.3 },
-  wood: { map: 'wood_old', normalMap: 'wood_old_normal', hi: true, roughness: 0.9, uv: 0.9, dirt: 0.4, moss: 0.2 },
+  // galvanised steel (zinc spangle, white rust, rust spots + bleed, water streaks)
+  galv: { map: 'galv', normalMap: 'galv_normal', roughnessMap: 'galv_rough', hi: true, rough: 0.85, eff: 0.4, metalness: 0.6, uv: 1.0, dirt: 0.35 },
+  wood: { map: 'wood_old', normalMap: 'wood_old_normal', roughnessMap: 'wood_old_rough', hi: true, rough: 0.9, uv: 0.9, dirt: 0.4, moss: 0.2 },
   lacquer: { map: 'red_lacquer', normalMap: 'red_lacquer_normal', roughnessMap: 'red_lacquer_rough', hi: true, roughness: 0.75, uv: 0.8, dirt: 0.3 },
   gold: { map: 'gold_leaf', normalMap: 'gold_leaf_normal', hi: true, roughness: 0.42, metalness: 0.45, uv: 1.5, dirt: 0.2 }, // gold PAINT: reads gold at night without env light
-  bronze: { map: 'chrome_dirty', roughness: 0.55, metalness: 0.75, uv: 1.2, dirt: 0.3 },
-  tiles: { map: 'roof_tiles', normalMap: 'roof_tiles_normal', hi: true, roughness: 0.7, uv: 0.55, moss: 0.5, dirt: 0.3 },
+  // cast bronze / brass (bells, candle stands, burners): galvanised scan tinted by the vertex colours
+  bronze: { map: 'galv', normalMap: 'galv_normal', roughnessMap: 'galv_rough', rough: 0.55, eff: 0.4, metalness: 0.75, uv: 1.2, dirt: 0.3 },
+  tiles: { map: 'roof_tiles', normalMap: 'roof_tiles_normal', roughnessMap: 'roof_tiles_rough', hi: true, rough: 0.7, uv: 0.55, moss: 0.5, dirt: 0.3 },
   corrugated: { map: 'roof_corrugated', normalMap: 'roof_corrugated_normal', roughnessMap: 'roof_corrugated_rough', hi: true, roughness: 1, metalness: 0.35, uv: 0.5, dirt: 0.3 },
-  plastic: { map: 'brush_noise', roughness: 0.55, uv: 2.0, brush: 0.4 },
-  rubber: { map: 'rubber', normalMap: 'rubber_normal', roughness: 0.92, uv: 1.5 },
-  ceramic: { map: null, roughness: 0.28, uv: 1.0, brush: 0.3 },
-  statue: { map: 'brush_noise', roughness: 0.6, uv: 1.5, brush: 0.5 },
+  // scuffed, sun-chalked PP plastic (stools, buckets, crates, delineator bodies)
+  plastic: { map: 'plastic_worn', normalMap: 'plastic_worn_normal', roughnessMap: 'plastic_worn_rough', hi: true, rough: 0.55, eff: 0.5, uv: 2.0, dirt: 0.3, brush: 0.4 },
+  rubber: { map: 'rubber_worn', normalMap: 'rubber_worn_normal', roughnessMap: 'rubber_worn_rough', rough: 0.92, eff: 0.6, uv: 3.0, dirt: 0.2 },
+  // glazed ceramic: crazing, pinholes, glaze runs, grime
+  ceramic: { map: 'ceramic', normalMap: 'ceramic_normal', roughnessMap: 'ceramic_rough', hi: true, rough: 0.28, eff: 1.0, uv: 2.5, brush: 0.3 },
+  // painted plaster / resin figures: the ceramic set, matte
+  statue: { map: 'ceramic', normalMap: 'ceramic_normal', roughnessMap: 'ceramic_rough', hi: true, rough: 0.6, eff: 0.5, uv: 1.5, brush: 0.5 },
   cloth: { map: 'fabric_cotton', normalMap: 'fabric_cotton_normal', roughness: 1, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.6, shadows: false },
   cloth_static: { map: 'fabric_cotton', normalMap: 'fabric_cotton_normal', roughness: 1, uv: 1.5, side: THREE.DoubleSide },
-  silk: { map: 'fabric_silk', roughness: 0.55, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.4, shadows: false },
-  paper: { map: 'lantern_paper', roughness: 0.9, uv: 1.0, side: THREE.DoubleSide },
-  ash: { map: 'incense_ash', roughness: 1, uv: 3.0 },
-  soil: { map: 'soil', roughness: 1, uv: 0.5 },
-  moss: { map: 'moss', roughness: 1, uv: 1.2, shadows: false },
-  leather: { map: 'leather_seat', roughness: 0.6, uv: 1.5 },
-  flower: { map: null, roughness: 0.8, uv: 1.0, side: THREE.DoubleSide, translucency: 0.4, shadows: false },
+  silk: { map: 'fabric_silk', normalMap: 'fabric_silk_normal', roughnessMap: 'fabric_silk_rough', rough: 0.55, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.4, shadows: false },
+  // cardboard / newsprint / talismans: crumpled paper + corrugated board, tide-lines, mould freckles
+  paper: { map: 'paper_worn', normalMap: 'paper_worn_normal', roughnessMap: 'paper_worn_rough', rough: 0.9, eff: 0.6, uv: 1.5, side: THREE.DoubleSide },
+  ash: { map: 'incense_ash', normalMap: 'soil_normal', roughness: 1, uv: 3.0 },
+  soil: { map: 'soil', normalMap: 'soil_normal', roughnessMap: 'soil_rough', rough: 1, uv: 0.5 },
+  moss: { map: 'moss', normalMap: 'moss_normal', roughnessMap: 'moss_rough', rough: 1, uv: 1.2, shadows: false },
+  leather: { map: 'leather_seat', normalMap: 'leather_seat_normal', roughnessMap: 'leather_seat_rough', rough: 0.6, uv: 1.5 },
+  // leaf bits, vine stems, broom straw: plant-fibre scan (vertex colours carry the hue)
+  flower: { map: 'stem_fibre', normalMap: 'stem_fibre_normal', eff: 1.0, roughness: 0.8, uv: 2.0, side: THREE.DoubleSide, translucency: 0.4, shadows: false },
   glass: { map: null, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide, shadows: false, uvMode: 'keep' },
   glass_bottle: { map: null, roughness: 0.12, transparent: true, opacity: 0.78, uv: 1.0, shadows: false },
-  dark: { map: null, roughness: 0.9, uv: 1.0 }, // cables, black plastic, shadows inside
+  // cables, black plastic, dark insides: the rubber scan at full brightness (vertex colours make it dark)
+  dark: { map: 'rubber_worn', normalMap: 'rubber_worn_normal', roughnessMap: 'rubber_worn_rough', rough: 0.9, eff: 1.0, uv: 3.0 },
+};
+
+// mean of each roughness map (photo library; the procedural fallbacks are close enough)
+const ROUGH_MEAN = {
+  metal_painted_rough: 0.48, concrete_moss_rough: 0.88, paint_peel_white_rough: 0.96, paint_peel_red_rough: 0.88, rock_rough: 0.81, brick_rough: 0.57,
+  galv_rough: 0.47, wood_old_rough: 0.84, roof_tiles_rough: 0.92, plastic_worn_rough: 0.71, rubber_worn_rough: 0.77,
+  ceramic_rough: 0.3, fabric_silk_rough: 0.5, paper_worn_rough: 0.85, soil_rough: 0.82, moss_rough: 0.61, leather_seat_rough: 0.65,
 };
 
 /** Shared painted material by key (see DEFS). */
@@ -75,10 +97,11 @@ export function mat(key) {
   if (m) return m;
   const d = DEFS[key];
   if (!d) throw new Error('props: unknown material ' + key);
+  const roughness = d.rough !== undefined ? d.rough / (d.roughnessMap ? ROUGH_MEAN[d.roughnessMap] ?? 1 : 1) : d.roughness;
   const o = {
     color: 0xffffff,
     vertexColors: true,
-    roughness: d.roughness,
+    roughness,
     metalness: d.metalness ?? 0,
     side: d.side,
     transparent: d.transparent,
@@ -97,6 +120,7 @@ export function mat(key) {
   if (d.normalMap) o.normalMap = safeTex(d.normalMap, d.hi);
   if (d.roughnessMap) o.roughnessMap = safeTex(d.roughnessMap, d.hi);
   m = paintedMaterial(o);
+  if (d.eff !== undefined && DETAIL_MEAN[d.map]) m.color.setScalar(d.eff / DETAIL_MEAN[d.map]);
   m.userData.uvScale = d.uv ?? 1;
   m.userData.uvMode = d.uvMode ?? 'box';
   if (d.shadows === false) m.userData.shadows = false;

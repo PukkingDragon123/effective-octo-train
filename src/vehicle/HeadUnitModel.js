@@ -409,7 +409,8 @@ export function buildMonitor(opts) {
   mon.updateMatrixWorld(true);
   const center = new THREE.Vector3(0, 0, 0).applyMatrix4(M);
   const normal = new THREE.Vector3(0, 0, 1).transformDirection(M);
-  const lightPos = center.clone().addScaledVector(normal, 0.14);
+  // the glow sits a hand's width toward the driver, so it lights hands and face, not the bezel stickers
+  const lightPos = center.clone().addScaledVector(normal, 0.34).add(new THREE.Vector3(0, 0.04, 0));
   return { group, monitor: mon, screen, led, center, normal, lightPos };
 }
 
@@ -425,5 +426,5 @@ export function bindGLBScreen(node, eyeLocal) {
   const n = mesh.geometry.attributes.normal;
   const normal = n ? new THREE.Vector3().fromBufferAttribute(n, 0).transformDirection(mesh.matrixWorld) : new THREE.Vector3(0, 0, 1);
   if (eyeLocal && normal.dot(eyeLocal.clone().sub(center)) < 0) normal.negate();
-  return { screen: mesh, center, normal, lightPos: center.clone().addScaledVector(normal, 0.14) };
+  return { screen: mesh, center, normal, lightPos: center.clone().addScaledVector(normal, 0.34) };
 }

@@ -4,22 +4,29 @@ import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, sphere, quad, smoothPath, blob, makeRng, noise } from './lib/kit.js';
 import { mat, nightEnvTex } from './lib/materials.js';
 import { paintedMaterial, GLOBAL_UNIFORMS } from '../render/index.js';
-import { tex } from '../textures/index.js';
+import { tex, hasPhotoTexture } from '../textures/index.js';
 import { G } from './lib/small.js';
 import { flowerHead } from './lib/flowers.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 function waterMaterial(seed) {
-  let nm = null;
-  try {
-    nm = tex('water_ripple', { repeat: [3, 3] });
-  } catch (e) {
-    nm = null;
-  }
-  const m = paintedMaterial({
-    color: 0x0c1a1a, roughness: 0.06, metalness: 0.35, normalMap: nm, brush: 0.15, wet: 1, name: 'props_pondWater',
-  });
+  // photo water surface (real ripple normals, floating leaves, pollen scum) when the library has it
+  const photo = hasPhotoTexture('water_surface');
+  const t = (key, rep) => {
+    try {
+      return tex(key, { repeat: rep });
+    } catch (e) {
+      return null;
+    }
+  };
+  const nm = photo ? t('water_surface_normal', [3, 3]) : t('water_ripple', [3, 3]);
+  const m = photo
+    ? paintedMaterial({
+        color: 0xc8d0d0, map: t('water_surface', [1.6, 1.6]), roughnessMap: t('water_surface_rough', [1.6, 1.6]), roughness: 1,
+        metalness: 0.35, normalMap: nm, brush: 0.15, wet: 1, name: 'props_pondWater',
+      })
+    : paintedMaterial({ color: 0x0c1a1a, roughness: 0.06, metalness: 0.35, normalMap: nm, brush: 0.15, wet: 1, name: 'props_pondWater' });
   if (m.normalScale) m.normalScale.set(0.35, 0.35);
   m.envMap = nightEnvTex();
   m.envMapIntensity = 1.2;

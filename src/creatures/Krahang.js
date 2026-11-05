@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { audio } from '../audio/index.js';
 import { paintedMaterial } from '../render/index.js';
+import { tex, hasPhotoTexture, DETAIL_MEAN } from '../textures/index.js';
 import { SPECS, human } from './humans.js';
 import { Entity, TAU, damp, clamp, noise, worldPos, animate } from './util.js';
 
@@ -89,13 +90,29 @@ function shared() {
   }
   const pestle = new THREE.LatheGeometry(prof, 18);
   pestle.translate(0, -L * 0.5, 0);
-  const weave = weaveTexture();
+  // photo surfaces (woven bamboo scan, old wood, plant fibre) when the library has them; the
+  // material colour is divided by the map's mean so the tuned colours stay and only detail is added
+  const photo = hasPhotoTexture('bamboo_weave');
+  const T = (key, rep) => {
+    try {
+      return tex(key, rep ? { repeat: rep } : undefined);
+    } catch (e) {
+      return null;
+    }
+  };
+  const tinted = (hex, mean) => {
+    const c = new THREE.Color(hex);
+    return new THREE.Color(c.r / mean[0], c.g / mean[1], c.b / mean[2]);
+  };
+  const WOOD = [0.178, 0.15, 0.114]; // linear mean of wood_old
+  const FIB = DETAIL_MEAN.stem_fibre || 0.5;
+  const weave = photo ? T('bamboo_weave', [0.75, 0.75]) : weaveTexture();
   SHARED = {
     tray, rim, pestle,
-    trayMat: paintedMaterial({ map: weave, color: 0xffffff, roughness: 0.82, side: THREE.DoubleSide, brush: 0.35, wet: 0.25, puddles: 0 }),
-    rimMat: paintedMaterial({ color: 0x5a3f22, roughness: 0.7, brush: 0.4, wet: 0.2, puddles: 0 }),
-    wrapMat: paintedMaterial({ color: 0x8a6a3e, roughness: 0.75, brush: 0.5, wet: 0.2, puddles: 0 }),
-    woodMat: paintedMaterial({ color: 0x4a3322, roughness: 0.55, brush: 0.55, wet: 0.2, puddles: 0 }),
+    trayMat: paintedMaterial({ map: weave, normalMap: photo ? T('bamboo_weave_normal', [0.75, 0.75]) : null, color: 0xffffff, roughness: 0.82, side: THREE.DoubleSide, brush: 0.35, wet: 0.25, puddles: 0 }),
+    rimMat: paintedMaterial({ map: T('wood_old', [3, 0.25]), normalMap: T('wood_old_normal', [3, 0.25]), color: tinted(0x5a3f22, WOOD), roughness: 0.7, brush: 0.4, wet: 0.2, puddles: 0 }),
+    wrapMat: paintedMaterial({ map: T('stem_fibre', [1, 2]), normalMap: T('stem_fibre_normal', [1, 2]), color: tinted(0x8a6a3e, [FIB, FIB, FIB]), roughness: 0.75, brush: 0.5, wet: 0.2, puddles: 0 }),
+    woodMat: paintedMaterial({ map: T('wood_old', [0.4, 1.2]), normalMap: T('wood_old_normal', [0.4, 1.2]), color: tinted(0x4a3322, WOOD), roughness: 0.55, brush: 0.55, wet: 0.2, puddles: 0 }),
   };
   for (const m of [SHARED.trayMat, SHARED.rimMat, SHARED.wrapMat, SHARED.woodMat]) m.userData.shared = true;
   for (const g of [tray, rim, pestle]) g.userData.shared = true;
