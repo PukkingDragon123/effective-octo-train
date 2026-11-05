@@ -605,18 +605,23 @@ const EYE_MAP = /* glsl */ `
   diffuseColor.rgb = c;
 }
 `;
-const EYE_EMISSIVE = /* glsl */ `
+// wet catchlight: a LIT highlight (scaled by the light actually reaching the eye), never emissive,
+// so human eyes don't glow in the dark (only the 'glow' ghost style is emissive)
+const EYE_CATCHLIGHT = /* glsl */ `
 {
   vec3 n = normalize(normal);
   float cl = pow(max(dot(n, normalize(vec3(-0.35, 0.45, 1.0))), 0.0), 900.0);
-  totalEmissiveRadiance += vec3(1.0, 0.97, 0.92) * cl * 0.9 * (1.0 - uGhost.w);
+  vec3 lit = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+  float irr = dot(lit, vec3(0.333)) / max(dot(diffuseColor.rgb, vec3(0.333)), 0.05);
+  reflectedLight.directSpecular += vec3(1.0, 0.97, 0.92) * cl * 0.9 * clamp(irr, 0.0, 1.5) * (1.0 - uGhost.w);
 }
 `;
 
 export function mhEyeMaterial(U, map, opts = {}) {
   const glow = !!opts.glow;
-  const m = paintedMaterial({ map, roughness: 0.07, brush: 0.0, wet: 0, puddles: 0, envReflect: 1.6, emissive: glow ? 0xff4a2a : 0x000000, emissiveIntensity: glow ? 1.4 : 1, emissiveMap: glow ? map : null, name: 'mh-eye' });
-  return patch(m, 'mhEye2', (sh) => {
+  // glossy, but no fog / lamp rim and a modest environment reflection: human eyes must never glow
+  const m = paintedMaterial({ map, roughness: 0.07, brush: 0.0, wet: 0, puddles: 0, envReflect: 0.7, atmoRim: 0, emissive: glow ? 0xff4a2a : 0x000000, emissiveIntensity: glow ? 1.4 : 1, emissiveMap: glow ? map : null, name: 'mh-eye' });
+  return patch(m, 'mhEye3', (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nuniform vec4 uTwistO, uTwistD;\nvarying vec3 vBind;\nvarying vec2 vEyeUv;\n' + VERT.slice(VERT.indexOf('vec3 glbTwist(')))
@@ -626,7 +631,7 @@ export function mhEyeMaterial(U, map, opts = {}) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + EYE_FRAG_PARS)
       .replace('#include <map_fragment>', EYE_MAP)
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + EYE_EMISSIVE);
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n' + EYE_CATCHLIGHT);
   });
 }
 
