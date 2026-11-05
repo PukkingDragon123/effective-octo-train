@@ -54,7 +54,7 @@ void main() {
   float dist = max(-mv.z, 0.01);
   // fog: glows swell and soften in thick fog
   float T = dlbFogTransmittance(wp);
-  float size = aPosSize.w * (1.0 + (1.0 - T) * 1.2 + dlbGroundMist * 2.0);
+  float size = aPosSize.w * (1.0 + (1.0 - T) * 0.45 + dlbGroundMist * 0.6);
   // keep a minimum on-screen size so distant lamps read as points of light
   float pxPerM = projectionMatrix[1][1] * 0.5 * 1080.0 / dist;
   float minS = 5.0 / pxPerM;
@@ -76,8 +76,8 @@ void main() {
   float r2 = dot(p, p);
   if (r2 > 1.0) discard;
   float core = exp(-r2 * 28.0) * 2.4;
-  float mid = exp(-r2 * 7.0) * 0.55;
-  float halo = pow(1.0 - sqrt(r2), 2.0) * 0.26;
+  float mid = exp(-r2 * 9.0) * 0.3;
+  float halo = pow(1.0 - sqrt(r2), 3.0) * 0.08;
   // practical lamps: the hot filament / bulb reads warm-white, the halo keeps the lamp colour
   vec3 hot = vec3(max(vCol.r, max(vCol.g, vCol.b))) * vec3(1.0, 0.93, 0.8);
   vec3 coreCol = mix(vCol, hot, 0.5 * exp(-r2 * 40.0));

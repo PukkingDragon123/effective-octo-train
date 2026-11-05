@@ -58,13 +58,15 @@ void main() {
   vec3 rel = vWP - vApexW;
   vec3 rdir = rel / max(length(rel), 1e-3);
   float sh = dlbFogNoise3(rdir * 9.0 + vec3(0.0, dlbTime * 0.035, dlbTime * 0.02) - drift * 0.02);
-  float shafts = mix(1.0, 0.3 + 1.4 * sh * sh * (3.0 - 2.0 * sh), uNoise * 0.85);
+  float shafts = mix(1.0, 0.6 + 0.8 * sh, uNoise * 0.5);
   // hot, slightly whiter core near the lamp (bright light reads warm-white, the haze keeps its colour)
   float core = (1.0 - smoothstep(0.04, 0.3, ax)) * smoothstep(0.0, 0.05, ax);
   vec3 col = mix(uColor, vec3(max(uColor.r, max(uColor.g, uColor.b))) * vec3(1.0, 0.95, 0.86), core * 0.45);
   float fogK = 0.15 + dlbFogDensity * 14.0 + dlbFogHeightDensity * 1.5;
   float T = dlbFogTransmittance(vWP);
-  vec3 c = col * uIntensity * soft * fall * dust * shafts * fogK * T * (1.0 + core * 0.6);
+  // subtle: fades out near the viewer (never a milky wall in front of the windshield)
+  float nearK = smoothstep(2.0, 9.0, distance(cameraPosition, vWP));
+  vec3 c = col * uIntensity * soft * fall * dust * shafts * fogK * T * (1.0 + core * 0.3) * nearK * 0.45;
   gl_FragColor = vec4(c, 1.0);
 }
 `;

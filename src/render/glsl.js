@@ -163,14 +163,15 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
       vec3 l = lv / max(ld, 1e-3);
       float cone = smoothstep(dlbHeadlightCone.x, dlbHeadlightCone.y, dot(l, dlbHeadlightDir));
       if (cone <= 0.0) continue; // outside the beam: nothing to scatter
-      float att = 1.0 / (1.0 + 0.07 * ld * ld) * (1.0 - smoothstep(range * 0.55, range, ld)) * smoothstep(0.4, 2.5, ld);
+      // no glow wall right in front of the lamps / windshield: the haze builds up a few metres out
+      float att = 1.0 / (1.0 + 0.07 * ld * ld) * (1.0 - smoothstep(range * 0.55, range, ld)) * smoothstep(1.5, 8.0, ld) * smoothstep(2.5, 12.0, t);
       float ph = 0.06 + dlbPhaseHG(dot(l, -rd), 0.55) * 0.6;
-      // volumetric texture: mist density inside the beam (~2.5 m swirls drifting through the light)
+      // subtle volumetric texture: mist density inside the beam drifting through the light
       float m = dlbFogNoise3((ro + rd * t - drift) * 0.4);
-      float dens = 0.2 + 1.6 * m;
+      float dens = 0.5 + 1.0 * m;
       sum += cone * att * ph * dens * exp(-sigma * t);
     }
-    acc += dlbHeadlightColor * (sum * dt * dlbHeadlightOn * (sigma * 20.0 + 0.04));
+    acc += dlbHeadlightColor * (sum * dt * dlbHeadlightOn * (sigma * 20.0 + 0.04) * 0.45);
   }
   for (int i = 0; i < 4; i++) {
     vec4 lp = dlbLampPos[i];
@@ -182,14 +183,15 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
     float h2 = max(c - b * b, 0.09);
     float h = sqrt(h2);
     float tm = min(d, max(-b, 0.0) + lp.w);
+    float ts = min(tm, 3.0); // clear air around the viewer (no halo inside the cabin)
     // windowed 1/r^2 kernel: integral of 1/(h^2+t^2) - 1/(h^2+R^2+t^2), keeps the halo local
     float R = lp.w * 0.32;
     float H = sqrt(h2 + R * R);
-    float I = (atan((tm + b) / h) - atan(b / h)) / h - (atan((tm + b) / H) - atan(b / H)) / H;
+    float I = (atan((tm + b) / h) - atan((ts + b) / h)) / h - (atan((tm + b) / H) - atan((ts + b) / H)) / H;
     float dist = sqrt(c);
     // patchy halo: mist density where the view ray passes the lamp (drifts with the wind)
     float mh = dlbFogNoise3((ro + rd * clamp(-b, 0.0, d) - drift * 0.7) * 0.3);
-    acc += lc * (max(I, 0.0) * 0.0011 * (sigma * 16.0 + 0.012) * exp(-sigma * dist * 0.5) * (0.4 + 1.2 * mh));
+    acc += lc * (max(I, 0.0) * 0.00065 * (sigma * 16.0 + 0.012) * exp(-sigma * dist * 0.5) * (0.6 + 0.8 * mh));
   }
   return acc;
 }
@@ -226,6 +228,9 @@ vec3 dlbApplyFog(vec3 col, vec3 wp, vec2 fragXY) {
   // ground mist rolls in drifts: much stronger contrast than the fog above it
   float nmG = mix(1.0, 0.08 + 2.0 * nn * nn, min(dlbFogNoise * 1.3, 1.0));
   vec2 o2 = dlbFogOptical2(ro, rd, d);
+  // clearer air right around the viewer: the cabin, the hood and the first metres of road
+  // stay crisp; the fog builds up beyond ~8 m
+  o2 = max(o2 - dlbFogOptical2(ro, rd, min(d, 8.0)) * 0.8, vec2(0.0));
   float od = o2.x * nm + o2.y * nmG;
   float T = exp(-od);
 #ifdef DLB_FOG_ADDITIVE

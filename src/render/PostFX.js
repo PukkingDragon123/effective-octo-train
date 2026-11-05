@@ -449,7 +449,9 @@ class PostFX {
         const sx = _v3.x * 0.5 + 0.5, sy = _v3.y * 0.5 + 0.5;
         const onScreen = 1 - clamp((Math.max(Math.abs(sx - 0.5), Math.abs(sy - 0.5)) - 0.5) / 0.6, 0, 1);
         const fogK = 0.65 + clamp(GLOBAL_UNIFORMS.uFogDensity.value * 16, 0, 0.8);
-        shafts = (useSun ? sky.sunVisibility : sky.moonVisibility * 0.4 * this.moonShafts) * onScreen * clamp(facing * 2, 0, 1) * fogK * this.shaftStrength;
+        // subtle; no moon shafts over the cabin (glass in view = sitting in the taxi)
+        const moonK = doGlass ? 0 : 0.14;
+        shafts = (useSun ? sky.sunVisibility * 0.7 : sky.moonVisibility * moonK * this.moonShafts) * onScreen * clamp(facing * 2, 0, 1) * fogK * this.shaftStrength;
         if (shafts > 0.01) {
           this._ensureShaftRTs();
           const m = this.matShaftMask.uniforms;
@@ -503,7 +505,7 @@ class PostFX {
     const lb = Math.max(0, cfg.brightness - 1) * 0.02;
     fu.uLift.value.addScalar(lb);
     fu.uColorMul.value.copy(P.tint);
-    fu.uBloom.value = clamp(bloomAmt * 0.09, 0, 0.5);
+    fu.uBloom.value = clamp(bloomAmt * 0.04, 0, 0.3); // a touch of glow, no halos smearing the lamps
     fu.uShafts.value = shafts * 1.6;
     if (sky) fu.uShaftCol.value.copy(useSun ? sky.sunColor : sky.moonColor);
     fu.uVignette.value = cfg.vignette * P.vignette;

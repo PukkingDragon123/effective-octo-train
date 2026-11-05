@@ -741,7 +741,8 @@ export class Forest {
       d = Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
       d = Math.max(0, d - half);
       if (d >= Math.PI / 2) continue;
-      const reach = c[i + 1] * sc * Math.cos(d) + Math.max(0, y) * lean;
+      // margin for road curvature toward the crown and the lean's arc
+      const reach = c[i + 1] * sc * Math.cos(d) + Math.max(0, y) * lean * 1.6 + 0.6 + c[i + 1] * sc * 0.06;
       const n = h < CLEAR_LOW ? reach + CLEAR_STRIP : reach;
       if (n > need) need = n;
     }
