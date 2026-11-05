@@ -15,9 +15,14 @@ import { clamp, easeInOut } from '../../core/math.js';
 import { ensurePlayerActions } from '../systems/PlayerActions.js';
 import { LoopStaging } from '../systems/LoopStaging.js';
 import { setupGarage, ahKongFace, ahKongStand, walkAroundTaxi, retireAhKong } from '../opening/garageSet.js';
+import { createChips } from '../opening/chips.js';
+import { createVolumetricBeam, paintedMaterial } from '../../render/index.js';
+import { ensureOffRoad } from '../systems/OffRoad.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, runLines, resolve, music, sfx, ground, yawTo, roadPoint, roadYaw, roadLen, releaseSky, hidePlayer, waitFor, logic, taxiPoint, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
+const paintedMat = (color, metalness, roughness, emissive = 0x000000, emissiveIntensity = 0) =>
+  paintedMaterial({ color, metalness, roughness, emissive, emissiveIntensity, brush: 0.3, name: 'kongTorch' });
 
 export const GarageState = {
   name: 'garage',
@@ -81,7 +86,10 @@ export const GarageState = {
     LoopStaging.apply(this.restart ? loops : 0);
     const ak = LoopStaging.ahKongStaging || {};
     const where = this.restart ? ak.where || 'besideTaxi' : 'besideTaxi';
-    this.set = setupGarage(this.stage, { ahKong: where === 'stool' ? 'stool' : where === 'dark' ? 'none' : 'besideTaxi', interactions: true });
+    // first night: Ah Kong is not back yet (Ton waits under the tube; see _waitForKong)
+    this.kongAway = !this.restart && !params.skipTalk;
+    ensureOffRoad();
+    this.set = setupGarage(this.stage, { ahKong: this.kongAway ? 'none' : where === 'stool' ? 'stool' : where === 'dark' ? 'none' : 'besideTaxi', interactions: true });
     this.where = where;
     this._parkBike();
     this._talkItem();
@@ -163,6 +171,7 @@ export const GarageState = {
       g.fsm.go('tutorial', { fromGarage: true });
       return;
     }
+    if (this.kongAway) await this._waitForKong(S);
     // walk to the old man
     this.phase = 'walkToKong';
     this.walkT = 0;
@@ -190,6 +199,119 @@ export const GarageState = {
     this.phase = 'done';
     S.chk();
     g.fsm.go('tutorial', { fromGarage: true });
+  },
+
+  // ------------------------------------------------------------------ first night: the wait
+  /** Nobody here. The tube flickers, a bag of crisps on the table; after a while a torch up the road. */
+  async _waitForKong(S) {
+    this.phase = 'wait';
+    this.waitT = 0;
+    const G = lm('garage');
+    const A = G?.anchors || {};
+    if (A.tableAnchor) {
+      const tp = wpos(A.tableAnchor, new THREE.Vector3()).add(_v.set(0.3, 0, -0.17).applyAxisAngle(new THREE.Vector3(0, 1, 0), G.yaw ?? 0));
+      this.chips = createChips(this.stage, { position: tp, yaw: G.yaw ?? 0, enabled: () => this.phase === 'wait' || this.phase === 'arrive' });
+    }
+    S.wait(3.5)
+      .then(() => {
+        if (this.phase === 'wait') g.ui.subtitle({ speakerTH: 'ต้น', speakerEN: 'Ton', th: 'อากงไม่อยู่แฮะ… รอแป๊บนึงก็ได้', en: "Ah Kong's not here… I'll wait a bit.", tone: 'thought', duration: 4.5 });
+      })
+      .catch(() => {});
+    const startAt = 30 + Math.random() * 14; // he walks in ~25 s later: 55-70 s in all
+    const C = this.chips;
+    await S.step(waitFor(() => !this.active || this.waitT > startAt || (C && C.eaten >= 3 && g.engine.time - C.lastEatAt > 2.5) || this.waitT > 200));
+    this.phase = 'arrive';
+    await this._kongArrives(S);
+    this.chips?.putAway?.();
+  },
+
+  /** A torch bobbing up the road out of the fog, footsteps on the tarmac, then he walks in. */
+  async _kongArrives(S) {
+    const h = g.ahKong;
+    const G = lm('garage');
+    const A = G?.anchors || {};
+    const gS = G?.roadRef?.s ?? 0;
+    const start = roadPoint('main', gS + 19, -3.75);
+    ahKongStand(start, roadPoint('main', gS, -3.75));
+    h.setOpacity?.(1);
+    const torch = this._torch(h);
+    const prevStep = h.onFootstep;
+    h.onFootstep = () => {
+      const surf = g.world?.surfaceAt?.(h.root.position.x, h.root.position.z) || 'asphalt';
+      sfx(`footstep_${['gravel', 'concrete', 'grass', 'wood', 'puddle'].includes(surf) ? surf : 'asphalt'}`, { object: h.root, volume: 0.5, rate: 0.92 });
+    };
+    this.stage.add(() => (h.onFootstep = prevStep));
+    const near = () => waitFor(() => this._nearKong(2.3));
+    const leg = (to, secs, speed = 1.0) => S.step(Promise.race([h.walkTo(to, { speed }), wait(secs), near()]));
+    try {
+      await leg(roadPoint('main', gS + 3.2, -3.85), 26);
+      const front = A.playerArrive ? wpos(A.playerArrive, new THREE.Vector3()) : roadPoint('main', gS, -6.2);
+      if (!this._nearKong(2.3)) await leg(front, 10, 0.95);
+      torch.off();
+      if (!this._nearKong(2.3)) {
+        const p = g.player.root.position;
+        const dir = _v.copy(h.root.position).sub(p).setY(0).normalize();
+        h.lookAt(g.player.eye, { weight: 0.8, speed: 2 });
+        await leg(p.clone().addScaledVector(dir, 1.3), 10, 0.9);
+      }
+    } finally {
+      torch.off();
+      h.stopWalking?.();
+    }
+    ahKongFace(g.player.root.position);
+  },
+
+  /** Ah Kong's torch: a small lathed torch in his left hand, its beam, a pool of light ahead. */
+  _torch(h) {
+    const grp = new THREE.Group();
+    const mk = (pts, mat) => {
+      const geo = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 16);
+      geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, mat);
+      m.castShadow = true;
+      return m;
+    };
+    const body = paintedMat(0x34302a, 0.5, 0.55);
+    grp.add(mk([[0, -0.02], [0.015, -0.02], [0.016, 0.0], [0.016, 0.1], [0.021, 0.115], [0.025, 0.14], [0.025, 0.16], [0, 0.16]], body));
+    const lensMat = paintedMat(0xfff4dc, 0, 0.2, 0xfff0d0, 3);
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.022, 18), lensMat);
+    lens.position.z = -0.161;
+    lens.rotation.y = Math.PI;
+    grp.add(lens);
+    const beam = createVolumetricBeam?.({ color: 0xfff0d0, length: 9, angle: 0.2, intensity: 0.22, noise: 0.85 });
+    if (beam) {
+      beam.position.z = -0.17;
+      grp.add(beam);
+    }
+    this.stage.mesh(grp);
+    const aim = new THREE.Object3D();
+    aim.position.set(0, 0, -2.2);
+    grp.add(aim);
+    const light = this.stage.light({ object: aim, color: 0xfff0d8, intensity: 4.5, distance: 8, glow: false, pool: true, poolRadius: 1.4, priority: 6, name: 'kongTorch' });
+    let on = true;
+    const hand = h.rig?.bone?.('hand_l');
+    const off = this.stage.update(() => {
+      if (!on) return;
+      const yaw = h.root.rotation.y;
+      if (hand) hand.getWorldPosition(_v);
+      else _v.copy(h.root.position).add(new THREE.Vector3(-0.25, 0.9, -0.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
+      grp.position.copy(_v);
+      const t = g.engine.time;
+      const dir = new THREE.Vector3(-Math.sin(yaw + Math.sin(t * 1.3) * 0.12), -0.42 + Math.sin(t * 2.1) * 0.05, -Math.cos(yaw + Math.sin(t * 1.3) * 0.12));
+      grp.lookAt(_v.sub(dir));
+      beam?.userData?.setGroundY?.(ground(grp.position.x, grp.position.z) + 0.02);
+    }, 47);
+    return {
+      off() {
+        if (!on) return;
+        on = false;
+        off();
+        sfx('switch_click', { object: grp, volume: 0.35 });
+        light.setOn?.(false);
+        lensMat.emissiveIntensity = 0;
+        if (beam) beam.visible = false;
+      },
+    };
   },
 
   _nearKong(r) {
@@ -473,7 +595,9 @@ export const GarageState = {
   // ------------------------------------------------------------------ per frame
   _tick(dt) {
     if (this.phase !== 'talk' && this.phase !== 'setup') LoopStaging.update(dt);
-    if (this.phase === 'walkToKong') {
+    if (this.phase === 'wait' || this.phase === 'arrive') {
+      this.waitT = (this.waitT || 0) + dt;
+    } else if (this.phase === 'walkToKong') {
       this.walkT = (this.walkT || 0) + dt;
       if (this.walkT > 7 && !this._walkHint) {
         this._walkHint = true;

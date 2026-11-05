@@ -4,6 +4,8 @@
 //   extra: device=gamepad, tab=0..3 (settings), tone=whisper|ghost|shout|thought,
 //          icon=hand|grab|talk|eye|key|pray, stage=title|text|roll (ending),
 //          notes=1 & hidden=1 (paper), full=1 (paper at 1:1), progress=0..1
+//   ?screen=news (GAME OVER news report)  ?screen=tour&settle=0: window.__tour.next() steps
+//   menu -> subtitles + choice + crosshair target -> news report (one harness run, --shots=3)
 import { ui } from '../ui/index.js';
 import { loadFonts } from '../ui/fonts.js';
 import { makeRng, noise } from '../core/math.js';
@@ -129,6 +131,7 @@ function paintBackdrop(kind = 'night') {
   void noise;
   out.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:1;';
   document.body.insertBefore(out, document.getElementById('ui'));
+  return out;
 }
 
 function fakeSaves(saves) {
@@ -146,7 +149,7 @@ function fakeSaves(saves) {
 export default async function ({ params, saves }) {
   await loadFonts();
   const screen = params.get('screen') || 'menu';
-  if (params.get('bg') !== 'none') paintBackdrop(params.get('bg') || 'night');
+  const backdrop = params.get('bg') !== 'none' ? paintBackdrop(params.get('bg') || 'night') : null;
   ui.init(document.getElementById('ui'));
   if (params.get('device')) ui.setDevice(params.get('device'));
   const speed = Number(params.get('speed') || 1);
@@ -161,7 +164,37 @@ export default async function ({ params, saves }) {
     setTimeout(() => document.getElementById('ui').classList.add('dlb-still'), settle);
   }
 
+  const news = () => ui.newsReport({
+    th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง ทางหลวงสายป่า คนขับเสียชีวิตคาที่',
+    sub: 'เจ้าหน้าที่กู้ภัยเร่งค้นหาผู้โดยสารที่อาจติดอยู่ในรถ ญาติยังติดต่อคนขับไม่ได้ตั้งแต่ช่วงหัวค่ำ',
+    image: backdrop, hold: 999,
+  });
+  const playScene = () => {
+    ui.setCrosshair(true);
+    window.__game.bus.emit('interact:target', { id: 'taxi.door', labelTH: 'เปิดประตู', labelEN: 'Open the door', icon: 'hand' });
+    ui.subtitle({ th: 'ต้น... ต้นลูก... เปิดประตูให้แม่หน่อย', en: 'Ton... Ton, my boy... open the door for Mum.', speakerTH: 'เสียงจากข้างนอก', speakerEN: 'a voice outside', tone: 'normal', duration: 999 });
+    ui.choice({ options: [{ key: 'answer', th: 'แม่เหรอครับ', en: '“Mum?”' }, { key: 'silent', th: 'เงียบไว้', en: 'Stay silent' }], timeout: 12, defaultKey: 'silent' });
+  };
   switch (screen) {
+    case 'tour': {
+      const steps = [
+        () => ui.showMainMenu({ canResume: true }),
+        () => {
+          ui.menu._teardown(true);
+          ui.nav.stack.length = 0;
+          ui.nav._update?.();
+          playScene();
+        },
+        () => news(),
+      ];
+      let i = 0;
+      steps[0]();
+      window.__tour = { next: () => steps[++i]?.() };
+      break;
+    }
+    case 'news':
+      news();
+      break;
     case 'loading':
       ui.showLoading(Number(params.get('progress') ?? 0.62), 'กำลังปลูกป่า', 'growing the forest');
       break;

@@ -1,8 +1,9 @@
 // Playable motorbike intro (GAME_DESIGN §8): 20:50, the spur road through the forest, first-person
 // hands on the bars of an old rusty step-through. Insects in the headlight, an owl far off,
-// a spirit house slides past, fog. Up to the KM 9 garage: a flickering fluorescent tube and an old
-// man smoking beside a green-and-yellow taxi. Park, get off -> GarageState.
+// a spirit house slides past, fog. Up to the KM 9 garage: a flickering fluorescent tube and the
+// green-and-yellow taxi, nobody about (Ah Kong comes later). Park, get off -> GarageState.
 // The ride never strands anyone: after a while the bike rides itself the rest of the way.
+// Riding off the road edge at speed ends the game (systems/OffRoad.js: the crash, the TV news).
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { wait } from '../util.js';
@@ -11,6 +12,7 @@ import { input } from '../../core/Input.js';
 import { ensurePlayerActions } from '../systems/PlayerActions.js';
 import { LoopStaging } from '../systems/LoopStaging.js';
 import { setupGarage } from '../opening/garageSet.js';
+import { ensureOffRoad } from '../systems/OffRoad.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, roadPoint, roadYaw, roadLen, music, fogColor, sfx, runLines, resolve, hidePlayer, releaseSky, ground, yawTo, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
@@ -52,9 +54,10 @@ export const IntroState = {
     } catch (e) {
       /* audio optional */
     }
-    // the garage is waiting up ahead (first night: nothing has changed yet)
+    // the garage is waiting up ahead (first night: nothing has changed yet, and Ah Kong is out)
     LoopStaging.apply(0);
-    this.garage = setupGarage(this.stage, { ahKong: 'besideTaxi' });
+    this.garage = setupGarage(this.stage, { ahKong: 'none' });
+    ensureOffRoad(); // leaving the road at speed is a real death (the TV news, game over)
     // the bike, on the spur, engine running
     const s0 = 6;
     this.spurLen = roadLen('spur');
@@ -250,8 +253,9 @@ export const IntroState = {
       const look0 = eye0.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(g.engine.camera.quaternion));
       const standAt = bike.root.position.clone().add(new THREE.Vector3(Math.cos(bike.yaw) * -0.85, 0, -Math.sin(bike.yaw) * -0.85));
       standAt.y = ground(standAt.x, standAt.z);
-      const ak = g.ahKong.root.position;
-      const yawStand = yawTo(standAt, ak);
+      // nobody about: he looks into the empty garage, at the old man's table under the tube
+      const tA = G.anchors?.tableAnchor;
+      const yawStand = yawTo(standAt, tA ? wpos(tA, new THREE.Vector3()) : G.pos);
       const eye1 = standAt.clone();
       eye1.y += 1.6;
       const look1 = eye1.clone().add(new THREE.Vector3(-Math.sin(yawStand), -0.05, -Math.cos(yawStand)));

@@ -513,11 +513,12 @@ function smokeFace() {
         vec2 q = vUv + vec2(fbm(vUv * 3.0 + vec2(0.0, -uTime * 0.25)) - 0.5, fbm(vUv * 3.0 + 4.0 - uTime * 0.2) - 0.5) * (0.09 * (1.2 - uK));
         float face = texture2D(uFace, q).r;
         float smoke = fbm(vUv * vec2(4.0, 6.0) + vec2(sin(uTime * 0.3) * 0.4, -uTime * 0.35));
-        float a = face * smoothstep(0.25, 0.75, smoke + uK * 0.35) * uK;
-        gl_FragColor = vec4(vec3(0.62, 0.67, 0.72), a * 0.3);
+        float wisps = smoothstep(0.42, 0.78, smoke + uK * 0.12);
+        float a = face * face * wisps * uK;
+        gl_FragColor = vec4(vec3(0.6, 0.65, 0.7), a * 0.17);
       }`,
   });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.085, 0.106), m);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.062, 0.078), m);
   mesh.renderOrder = 2;
   mesh.visible = false;
   return mesh;
@@ -962,7 +963,7 @@ export class IncenseScene {
     const fk = this.grab ? 0 : smooth(B.face, B.face + 0.55, t) * (1 - smooth(B.face + 0.95, B.face + 1.5, t));
     this.face.visible = fk > 0.002;
     if (this.face.visible) {
-      this.stick.localToWorld(this.face.position.set(0.006, this.tip + 0.055, -0.006));
+      this.stick.localToWorld(this.face.position.set(0.004, this.tip + 0.036, -0.008));
       this.face.quaternion.copy(this.camera.quaternion);
       this.face.material.uniforms.uK.value = fk;
       this.face.material.uniforms.uTime.value = t;

@@ -490,7 +490,8 @@ const PHOTO_KIND = {
 // printed products: the photo always wins (custom labels / text options are ignored, unknown variants
 // get the nearest photographed one), so no flat-colour canvas label ever shows on a product
 const PRODUCT_KINDS = new Set(['snack_bag', 'noodle_cup', 'drink_label', 'cigarette_pack', 'betel_pack', 'incense_box', 'candle_pack',
-  'joss_paper', 'offering_label', 'amulet_card', 'sticker', 'poster', 'calendar', 'newspaper', 'lottery', 'receipt', 'fare_chart', 'noodle_menu']);
+  'joss_paper', 'offering_label', 'amulet_card', 'sticker', 'poster', 'calendar', 'newspaper', 'lottery', 'receipt', 'fare_chart', 'noodle_menu',
+  'picture']);
 /** a stable pick among the catalogue variants for an unknown variant name */
 function nearestVariant(cat, v) {
   const sv = v == null ? '' : String(v);
@@ -582,14 +583,12 @@ function photoPrinted(section, pk, kind, opts) {
   const size = (cat && cat.sizes && cat.sizes[variant]) || (e && e.size) || [0.5, 0.5];
   const aspect = e ? e.aspect || size[0] / size[1] : size[0] / size[1];
   const shape = (e && e.shape) || SHAPES[kind] || 'rect';
-  // transparent stand-in until the file arrives (swapped in place); the procedural design is only
-  // painted when the photo turns out to be missing
-  const fb = cat && cat.fallback && cat.fallback[variant];
-  const make = () => (fb && (PROC_SIGN_KINDS[fb[0]] || fb[0] === 'sticker' || fb[0] === 'poster') ? drawSign(fb[0], fb[1] || {}) : drawSign(kind, {}));
-  let t = photoOrPending(section, pk, make);
+  // transparent stand-in until the stock-photo print arrives (swapped in place). No canvas-drawn
+  // design is ever painted in its place: a missing file simply stays blank.
+  let t = photoOrPending(section, pk, null);
   if (!t) {
     t = placeholderTexture(e ? !!e.alpha : true);
-    fillWhenReady(section, pk, t, make);
+    fillWhenReady(section, pk, t, null);
   }
   t.userData = { ...(t.userData || {}), kind, variant, aspect, alpha: !!(e ? e.alpha : t.userData?.alpha), size, shape, photo: true };
   return t;

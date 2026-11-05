@@ -391,68 +391,15 @@ export function bugDiffuserTex(seed = 7) {
   }, CLAMP);
 }
 
-/** Ornate abstract "flames" painting (reference 5) for the garage. */
+/** Framed wall picture: a real CC0 photo print (printed catalogue 'picture'), never a canvas drawing. */
 export function paintingTex(seed = 11) {
-  return canvasTexture(256, 320, (g, w, h) => {
-    const rng = makeRng(seed);
-    const bg = g.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#0d0e12');
-    bg.addColorStop(1, '#1d1712');
-    g.fillStyle = bg;
-    g.fillRect(0, 0, w, h);
-    const cols = ['#d14a1c', '#e8a33a', '#6a8a3a', '#b22a1c', '#f0c860', '#3a6a8a'];
-    for (let i = 0; i < 42; i++) {
-      const x = 30 + rng() * (w - 60), y0 = h * (0.65 + rng() * 0.25), hh = 60 + rng() * 170;
-      g.strokeStyle = cols[Math.floor(rng() * cols.length)];
-      g.globalAlpha = 0.55 + rng() * 0.4;
-      g.lineWidth = 3 + rng() * 7;
-      g.lineCap = 'round';
-      g.beginPath();
-      g.moveTo(x, y0);
-      g.bezierCurveTo(x + (rng() - 0.5) * 60, y0 - hh * 0.4, x + (rng() - 0.5) * 60, y0 - hh * 0.7, x + (rng() - 0.5) * 30, y0 - hh);
-      g.stroke();
-    }
-    g.globalAlpha = 1;
-    // craquelure / varnish yellowing
-    g.fillStyle = 'rgba(120,90,30,0.18)';
-    g.fillRect(0, 0, w, h);
-  }, CLAMP);
+  return signTex('picture', { variant: seed % 2 ? 'temple' : 'waterfall' });
 }
 
-/** Faded small photo (portrait or landscape). variant picks pose and tint. */
+/** Small faded snapshot: a real CC0 photo print (old car, motorbike, lotus, rice field). No faces. */
+export const SNAPSHOT_VARIANTS = ['snapshot', 'motorbike', 'lotus', 'rice'];
 export function photoTex(variant = 0) {
-  return canvasTexture(128, 160, (g, w, h) => {
-    const rng = makeRng(variant * 31 + 7);
-    const warm = ['#c9b48a', '#b8a888', '#a8b0a0', '#c8a890'][variant % 4];
-    g.fillStyle = '#efe8d8';
-    g.fillRect(0, 0, w, h);
-    g.fillStyle = warm;
-    g.fillRect(8, 8, w - 16, h - 36);
-    // background gradient
-    const gr = g.createLinearGradient(0, 8, 0, h - 28);
-    gr.addColorStop(0, 'rgba(90,100,110,0.5)');
-    gr.addColorStop(1, 'rgba(60,50,40,0.4)');
-    g.fillStyle = gr;
-    g.fillRect(8, 8, w - 16, h - 36);
-    // figure: shoulders + head silhouette, blurred
-    g.filter = 'blur(1.5px)';
-    g.fillStyle = 'rgba(40,32,28,0.85)';
-    g.beginPath();
-    g.ellipse(w / 2, h - 34, 40, 34, 0, Math.PI, 0);
-    g.fill();
-    g.fillStyle = 'rgba(150,110,85,0.95)';
-    g.beginPath();
-    g.ellipse(w / 2 + (rng() - 0.5) * 6, 64, 19, 24, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = 'rgba(25,20,18,0.95)';
-    g.beginPath();
-    g.ellipse(w / 2, 50, 21, 14, 0, Math.PI, 0);
-    g.fill();
-    g.filter = 'none';
-    // fading
-    g.fillStyle = 'rgba(240,225,190,0.25)';
-    g.fillRect(0, 0, w, h);
-  }, CLAMP);
+  return signTex('picture', { variant: SNAPSHOT_VARIANTS[((variant % 4) + 4) % 4] });
 }
 
 /** Wall clock face (stopped at 3:00 — the hour of the dead). */
@@ -526,46 +473,9 @@ export function nightEnvTex() {
   return _env;
 }
 
-/** 2x2 atlas of four faded notices (one material for every pole). */
 // notices on walls / poles are real printed posters (photo catalogue), not canvas mock-ups
 export const NOTICE_VARIANTS = ['missing', 'lottery', 'election', 'temple_fair'];
-/** @deprecated canvas notices: kept for old callers; props use noticeTex / signMat('poster'). */
-export function noticeAtlasTex() {
-  return canvasTexture(256, 360, (g, W, H) => {
-    for (let v = 0; v < 4; v++) {
-      g.save();
-      g.translate((v % 2) * 128, (1 - Math.floor(v / 2)) * 180);
-      drawNotice(g, 128, 180, v);
-      g.restore();
-    }
-  }, CLAMP);
-}
 /** A4 notice on a wall: a real printed poster from the photo catalogue. */
 export function noticeTex(seed = 1) {
-  try {
-    const t = signTex('poster', { variant: NOTICE_VARIANTS[((seed % NOTICE_VARIANTS.length) + NOTICE_VARIANTS.length) % NOTICE_VARIANTS.length] });
-    if (t) return t;
-  } catch (e) {
-    /* library unavailable: fall through */
-  }
-  return canvasTexture(128, 180, (g, w, h) => drawNotice(g, w, h, seed), CLAMP);
-}
-function drawNotice(g, w, h, seed) {
-  {
-    const rng = makeRng(seed + 1);
-    g.fillStyle = ['#e6dcc4', '#d8d0b8', '#e0d4b0'][seed % 3];
-    g.fillRect(0, 0, w, h);
-    g.fillStyle = ['#8a2a20', '#2a4a7a', '#2a6a3a'][seed % 3];
-    g.fillRect(8, 10, w - 16, 26);
-    g.fillStyle = 'rgba(30,30,30,0.7)';
-    for (let i = 0; i < 12; i++) g.fillRect(10, 48 + i * 10, (w - 20) * (0.5 + rng() * 0.5), 3);
-    g.fillStyle = 'rgba(160,130,80,0.35)';
-    g.fillRect(0, h * 0.6, w, h * 0.4);
-    // a few Thai words (hand-lettered notice: buying scrap / room for rent / lost dog)
-    const words = ['รับซื้อของเก่า', 'ห้องว่างให้เช่า', 'สุนัขหาย', 'ประกาศ'];
-    g.fillStyle = '#f0e8d0';
-    g.font = `bold 15px ${FONTS.sign}`;
-    g.textAlign = 'center';
-    g.fillText(words[seed % 4], w / 2, 29);
-  }
+  return signTex('poster', { variant: NOTICE_VARIANTS[((seed % NOTICE_VARIANTS.length) + NOTICE_VARIANTS.length) % NOTICE_VARIANTS.length] });
 }
