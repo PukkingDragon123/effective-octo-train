@@ -77,6 +77,26 @@ export const DEATH_CARDS = {
   // QTE deaths (no rule broken: you were just too slow)
   faceRat: { th: 'มันกัดไม่ปล่อย', en: 'It would not let go.', rule: null },
   doorRattle: { th: 'คุณปล่อยมือ', en: 'You let go.', rule: null },
+  // off the road edge: a real death (GAME OVER on the TV news, the night does not loop)
+  offRoad: { th: 'ถนนสายนี้ไม่ปล่อยคนที่ออกนอกทาง', en: 'This road keeps whoever leaves it.', rule: null, gameOver: true },
+};
+
+/** The late-night TV news after an off-road death (ui.newsReport). Fictional; one per vehicle. */
+export const NEWS_REPORTS = {
+  bike: {
+    th: 'พบศพหนุ่มขี่จักรยานยนต์ตกข้างทาง กลางป่าทางไปศาลเจ้ามารวย',
+    en: 'Young motorcyclist found dead in a roadside ditch, deep in the forest on the road to the Ma Ruay shrine',
+    sub: 'ตำรวจคาดว่าเสียหลักในคืนที่หมอกลงจัด ไม่มีพยานเห็นเหตุการณ์',
+    subEN: 'Police believe he lost control in thick fog. There were no witnesses.',
+    place: 'ทางแยกเข้าศาลเจ้ามารวย',
+  },
+  taxi: {
+    th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง พบศพคนขับติดอยู่ในซากรถ กลางป่าทางไปศาลเจ้ามารวย',
+    en: 'Taxi plunges off the forest road to the Ma Ruay shrine; the driver found dead in the wreck',
+    sub: 'กู้ภัยใช้เวลากว่าชั่วโมงกว่าจะนำร่างออกมาได้ ชาวบ้านบอกว่าถนนสายนี้ไม่ควรขับตอนกลางคืน',
+    subEN: 'Rescuers took over an hour to free him. Locals say nobody should drive this road at night.',
+    place: 'ถนนป่า กม. ๙',
+  },
 };
 /** Under every death card: the loop. */
 export const DEATH_FOOTER = { th: 'สามทุ่ม… อีกครั้ง', en: "Nine o'clock… again" };

@@ -79,6 +79,8 @@ export const PROP_ASSETS = {
   wooden_cutting_board: { path: 'polyhaven/wooden_cutting_board.glb', shadows: false },
   pot_enamel_01: { path: 'polyhaven/pot_enamel_01.glb' },
   plastic_bottle_gallon: { path: 'polyhaven/plastic_bottle_gallon.glb' },
+  wall_clock: { path: 'polyhaven/wall_clock.glb', shadows: false },
+  portable_cassette_player: { path: 'polyhaven/portable_cassette_player.glb', shadows: false },
 };
 
 const ready = new Map(); // id -> { parts:[{geo, mat}], size: Vector3 }

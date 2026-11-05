@@ -413,7 +413,7 @@
    "dishes",
    "collection: project_lighthouse"
   ],
-  "author": "Aron \u0141yczek",
+  "author": "Aron Łyczek",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/ceramic_pot",
   "bytes": 172720
@@ -641,5 +641,33 @@
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/tree_stump_02",
   "bytes": 3153980
+ },
+ "wall_clock": {
+  "gltf": "assets/props/polyhaven/wall_clock.glb",
+  "group": "garage",
+  "name": "Wall Clock",
+  "categories": [
+   "collection: project_lighthouse",
+   "decorative",
+   "appliances"
+  ],
+  "author": "PierreB3D",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/wall_clock",
+  "bytes": 201320
+ },
+ "portable_cassette_player": {
+  "gltf": "assets/props/polyhaven/portable_cassette_player.glb",
+  "group": "garage",
+  "name": "Portable Cassette Player",
+  "categories": [
+   "collection: project_lighthouse",
+   "props",
+   "electronics"
+  ],
+  "author": "Mateusz Sadek",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/portable_cassette_player",
+  "bytes": 477480
  }
 }

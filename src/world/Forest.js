@@ -665,7 +665,7 @@ export class Forest {
           for (let t = 0; t < (o.turn === false ? 1 : 4) && !ok; t++) {
             const yw = yaw + t * (Math.PI / 2);
             const need = this._clearNeed(prof, scale, o.sy ?? 1, yw, theta, a, dh);
-            if (e >= need) {
+            if (e >= need && (!prof.tall || this._clearOther(prof, scale, o.sy ?? 1, yw, a, dh, x, z, hr))) {
               yaw = yw;
               ok = true;
             } else if (o.push && need - e <= o.push) {
@@ -729,20 +729,43 @@ export class Forest {
     return rec._prof;
   }
 
+  /**
+   * Junctions, the fork and hairpins: the low parts of a crown must not reach ANY road (not just
+   * the nearest one). Checks the profile's low cells at their world positions.
+   */
+  _clearOther(prof, sc, sy, yaw, lean, dh, x, z, hr) {
+    const c = prof.cells, road = this.world.road;
+    const hw = W.halfWidth;
+    const out = this._nb || (this._nb = { sp: null, i: 0, t: 0, d: 0 });
+    for (let i = 0; i < c.length; i += 3) {
+      const y = c[i + 2] * sc * sy;
+      const h = y + dh - c[i + 1] * sc * lean * 1.2;
+      if (h >= CLEAR_HEIGHT) continue;
+      const wa = c[i] - yaw; // world angle of the cell
+      const r = c[i + 1] * sc + Math.max(0, y) * lean;
+      const px = x + Math.cos(wa) * r, pz = z + Math.sin(wa) * r;
+      const lim = hw + (h < CLEAR_LOW ? CLEAR_STRIP : 0) + 0.6;
+      const b = road._nearest(px, pz, lim, null, out);
+      if (b && b.d < lim) return false;
+    }
+    return true;
+  }
+
   /** Minimum asphalt-edge distance for this instance to keep the road clear (see _place). */
   _clearNeed(prof, sc, sy, yaw, theta, lean, dh) {
     const c = prof.cells, half = prof.half;
     let need = 0;
     for (let i = 0; i < c.length; i += 3) {
       const y = c[i + 2] * sc * sy;
-      const h = y + dh;
-      if (h >= CLEAR_HEIGHT) continue;
       let d = c[i] - yaw - theta;
       d = Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
       d = Math.max(0, d - half);
       if (d >= Math.PI / 2) continue;
+      // leaning toward the road also lowers the crown edge on that side
+      const h = y + dh - c[i + 1] * sc * Math.cos(d) * lean * 1.2;
+      if (h >= CLEAR_HEIGHT) continue;
       // margin for road curvature toward the crown and the lean's arc
-      const reach = c[i + 1] * sc * Math.cos(d) + Math.max(0, y) * lean * 1.6 + 0.6 + c[i + 1] * sc * 0.06;
+      const reach = c[i + 1] * sc * Math.cos(d) + Math.max(0, y) * lean * 1.8 + 0.9 + c[i + 1] * sc * 0.08;
       const n = h < CLEAR_LOW ? reach + CLEAR_STRIP : reach;
       if (n > need) need = n;
     }
@@ -880,8 +903,8 @@ export class Forest {
           if (this._blocked(p.x, p.z, 1.5)) continue;
           const top = sp.heightAt(s) + 6.5 + rng() * 4;
           // over the asphalt and the 1.5 m strip beside it the lowest strand stays above 4.5 m
-          const len = 4 + 4; // approximate curtain extent (built 4..8 m)
-          const maxDrop = top - (sp.heightAt(s) + (Math.abs(lat) < W.halfWidth + CLEAR_STRIP + 0.5 ? CLEAR_HEIGHT : 1.2));
+          const len = 4 + 4 + 1.5; // curtain extent (built 4..8 m) + card overhang
+          const maxDrop = top - (sp.heightAt(s) + (Math.abs(lat) < W.halfWidth + CLEAR_STRIP + 2 ? CLEAR_HEIGHT : 1.2));
           const sc = Math.min(1, maxDrop / len);
           if (sc < 0.35) continue;
           this._place('vine', Math.floor(rng() * 3), p.x, p.z, rng() * 6.28, sc, rng, { y: top });

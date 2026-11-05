@@ -1,7 +1,6 @@
 // Dialogue choice: 2–3 options, keyboard (←/→, 1–3, Enter), gamepad (d-pad + A), mouse,
 // optional timeout ring. Non-modal by default: gameplay keeps running (WASD still drive).
 import { h, sleep } from './dom.js';
-import { ember } from './common.js';
 import { navItem } from './nav.js';
 
 export class Choice {
@@ -39,8 +38,8 @@ export class Choice {
         resolve(key);
       };
       const btns = options.map((o, i) => {
-        const b = h('button', { class: 'dlb-choice__opt' }, ember(),
-          h('span', { class: 'k' }, String(i + 1)),
+        const b = h('button', { class: 'dlb-choice__opt' },
+          h('span', { class: 'k', attrs: { 'aria-hidden': 'true' } }, String(i + 1)),
           o.th ? h('span', { class: 'th', attrs: { lang: 'th' } }, o.th) : null,
           o.en ? h('span', { class: 'en' }, o.en) : null);
         navItem(nav, b, { kind: 'choice', activate: () => finish(o.key, b) });
@@ -54,22 +53,19 @@ export class Choice {
       const row = h('div', { class: 'dlb-choice__row' }, rowKids);
       let timer = null;
       if (c.timeout > 0) {
-        const C = 2 * Math.PI * 15;
-        timer = h('div', {
-          class: 'dlb-choice__timer',
-          html: `<svg viewBox="0 0 34 34"><circle class="bg" cx="17" cy="17" r="15"/><circle class="fg" cx="17" cy="17" r="15" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="0"/></svg>`,
-        });
-        const fg = timer.querySelector('.fg');
+        // a hairline that closes in from both ends toward the centre
+        const fg = h('span', { class: 'fg' });
+        timer = h('div', { class: 'dlb-choice__timer', attrs: { 'aria-hidden': 'true' } }, fg);
         requestAnimationFrame(() => requestAnimationFrame(() => {
-          fg.style.transition = `stroke-dashoffset ${c.timeout}s linear`;
-          fg.style.strokeDashoffset = C.toFixed(2);
+          fg.style.transition = `transform ${c.timeout}s linear`;
+          fg.style.transform = 'scaleX(0)';
         }));
         lowTmr = setTimeout(() => timer.classList.add('is-low'), c.timeout * 700);
         tmr = setTimeout(() => finish(fallback, null), c.timeout * 1000);
       }
       const el = h('div', { class: 'dlb-choice', attrs: { role: 'dialog' } },
         c.th || c.en ? h('div', { class: 'dlb-choice__q' }, c.th ? h('span', { class: 'th', attrs: { lang: 'th' } }, c.th) : null, c.en ? h('span', { class: 'en' }, c.en) : null) : null,
-        row, timer);
+        row, timer || h('div', { class: 'dlb-choice__timer is-none' }));
       ui.layer.appendChild(el);
       void el.offsetWidth;
       requestAnimationFrame(() => el.classList.add('is-in'));

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, squareMoulding, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, graffitiTex, crackTex, stainTex, clockTex, noticeTex, bugDiffuserTex } from './lib/materials.js';
 import { lightSpec, attachFlicker } from './lib/lights.js';
-import { G, PAL, plasticChair, plasticStool, bottle, can, oilDrum, trashBag, crate, garland } from './lib/small.js';
+import { G, PAL, plasticChair, plasticStool, bottle, can, oilDrum, trashBag, crate, garland, useAsset } from './lib/small.js';
 import { chofa } from './shrines.js';
 import { posterStack, litter, card, findPrint, missingPoster, snackBag } from './lib/print.js';
 
@@ -255,7 +255,7 @@ export function createSala(opts = {}) {
   decal(k, texMat('graffiti' + seed, () => graffitiTex(seed + 40), { transparent: true, decal: true }), 1.9, 0.95, { p: [variant === 1 ? 0.1 : -0.6, FH + 0.62, wz + 0.002] });
   // wall clock (stopped) hanging on the wall or the beam
   const clockPos = variant === 1 ? [0.2, FH + 1.3, wz + 0.02] : [0, by - 0.36, pz - 0.11];
-  k.at(clockPos, variant === 1 ? 0 : Math.PI, null, () => {
+  if (!useAsset(k, 'wall_clock', { p: [clockPos[0], clockPos[1] - 0.16, clockPos[2] + (variant === 1 ? 0.004 : -0.004)], r: variant === 1 ? 0 : Math.PI }, { fit: { w: 0.32 }, w: { dust: 0.5, grime: 0.1 } })) k.at(clockPos, variant === 1 ? 0 : Math.PI, null, () => {
     k.add(mat('plastic'), G('clockRim', () => cyl(0.16, 0.16, 0.045, 20, 0.01).rotateX(Math.PI / 2)), { color: 0x7a2a22, w: { dust: 0.5, grime: 0 } });
     k.add(texMat('clock', () => clockTex(), {}), G('clockFace', () => new THREE.CircleGeometry(0.14, 20)), { p: [0, 0, 0.024], color: 0xd8d0b8, uv: 'keep', w: false });
   });

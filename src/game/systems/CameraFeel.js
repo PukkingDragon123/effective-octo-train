@@ -112,10 +112,10 @@ export class CameraFeel {
     this._dread = damp(this._dread, dread, dread > this._dread ? 1.6 : 0.5, dt);
     this._breath += dt * (1.55 + this._dread * 1.6) * (1 - this._relief * 0.45);
     const br = Math.sin(this._breath);
-    const brAmp = (0.0032 + this._dread * 0.0022) * (1 + this._relief * 1.8);
+    const brAmp = (0.0015 + this._dread * 0.001) * (1 + this._relief * 1.2);
     o.y += br * brAmp * bob;
     o.z += br * brAmp * 0.45 * bob;
-    pitch += br * 0.0018 * bob;
+    pitch += br * 0.0008 * bob;
 
     // ---- vehicles: engine tremor, road sway, look-lag into fast bends
     const veh = c.inTaxi ? g.taxi : c.onBike ? g.bike : null;
@@ -124,14 +124,14 @@ export class CameraFeel {
       const run = veh === g.taxi ? !!veh.state?.engineOn : true;
       const tt = this.t;
       if (run) {
-        const trem = (0.00035 + Math.min(kmh, 90) * 0.000006) * bob;
+        const trem = (0.00015 + Math.min(kmh, 90) * 0.0000025) * bob;
         o.x += noise.noise2D(tt * 23, 1.7) * trem;
         o.y += noise.noise2D(tt * 29, 5.3) * trem;
       }
       const sway = Math.min(kmh / 60, 1.2) * bob;
-      o.x += noise.noise2D(tt * 0.9, 11.1) * 0.006 * sway;
-      o.y += noise.noise2D(tt * 1.7, 2.9) * 0.004 * sway;
-      roll += noise.noise2D(tt * 0.6, 7.7) * 0.004 * sway;
+      o.x += noise.noise2D(tt * 0.9, 11.1) * 0.0028 * sway;
+      o.y += noise.noise2D(tt * 1.7, 2.9) * 0.0018 * sway;
+      roll += noise.noise2D(tt * 0.6, 7.7) * 0.0018 * sway;
       // yaw rate of the vehicle (rad/s), smoothed
       (veh.root || veh).getWorldQuaternion?.(_q);
       _e.setFromQuaternion(_q, 'YXZ');
@@ -145,18 +145,22 @@ export class CameraFeel {
       }
       this._lastYaw = y;
       // the head trails the turn (and the eyes look into it): small, never more than ~3°
-      const lagT = clamp(-this._yawRate * 0.045 * (kmh > 8 ? 1 : kmh / 8), -0.055, 0.055);
+      const lagT = clamp(-this._yawRate * 0.03 * (kmh > 8 ? 1 : kmh / 8), -0.035, 0.035);
       this._lag = damp(this._lag, lagT, 4, dt);
-      const leanT = clamp(this._yawRate * Math.min(kmh, 80) * 0.00045, -0.03, 0.03);
+      const leanT = clamp(this._yawRate * Math.min(kmh, 80) * 0.0003, -0.02, 0.02);
       this._lean = damp(this._lean, leanT, 3, dt);
       yaw += this._lag * fp;
       roll += this._lean * fp;
+      // on the bike the view follows a third of the lean (the head stays nearly level, no nausea)
+      this._bikeRoll = damp(this._bikeRoll || 0, veh === g.bike ? -(veh.lean || 0) * 0.3 : 0, 4, dt);
+      roll += this._bikeRoll * fp;
       o.x += -this._lean * 0.35 * fp;
     } else {
       this._lastYaw = null;
       this._yawRate = damp(this._yawRate, 0, 4, dt);
       this._lag = damp(this._lag, 0, 4, dt);
       this._lean = damp(this._lean, 0, 4, dt);
+      this._bikeRoll = damp(this._bikeRoll || 0, 0, 4, dt);
     }
 
     // ---- on foot: a soft step bob (the body's own bob is filtered out of the eye)
@@ -164,9 +168,9 @@ export class CameraFeel {
       const sp = clamp((g.player.speed || 0) / 1.35, 0, 2);
       this._walk += dt * (sp > 1.5 ? 2.9 : 1.9) * Math.PI * 2 * (sp > 0.05 ? 1 : 0);
       const a = Math.min(sp, 1.6) * bob;
-      o.y += (Math.abs(Math.sin(this._walk * 0.5)) - 0.5) * 0.022 * a;
-      o.x += Math.sin(this._walk * 0.5) * 0.008 * a;
-      roll += Math.sin(this._walk * 0.5) * 0.004 * a;
+      o.y += (Math.abs(Math.sin(this._walk * 0.5)) - 0.5) * 0.009 * a;
+      o.x += Math.sin(this._walk * 0.5) * 0.0035 * a;
+      roll += Math.sin(this._walk * 0.5) * 0.0015 * a;
     }
 
     // ---- startle flinch (critically damped spring): back and up, the view tightens
@@ -187,7 +191,11 @@ export class CameraFeel {
     this._relief = Math.max(0, this._relief - dt * 0.35);
     fov += this._relief * 1.2;
 
-    // apply (taken back in _post)
+    // apply (taken back in _post); never push the look past the rig's limits (the rig would clamp
+    // the sum and _post would then leave the look drifting off the stop: jitter at the limits)
+    const L = rig.limits;
+    yaw = clamp(rig.yaw + yaw, L.yawMin, L.yawMax) - rig.yaw;
+    pitch = clamp(rig.pitch + pitch, L.pitchMin, L.pitchMax) - rig.pitch;
     this.yaw = yaw;
     this.pitch = pitch;
     this.roll = roll;
@@ -205,8 +213,9 @@ export class CameraFeel {
     if (!this._applied) return;
     const rig = this._rig;
     rig.extraOffset.sub(this.offset);
-    rig.yaw -= this.yaw;
-    rig.pitch -= this.pitch;
+    const L = rig.limits;
+    rig.yaw = clamp(rig.yaw - this.yaw, L.yawMin, L.yawMax);
+    rig.pitch = clamp(rig.pitch - this.pitch, L.pitchMin, L.pitchMax);
     rig.roll -= this.roll;
     rig.fovOffset -= this.fov;
     this._applied = false;

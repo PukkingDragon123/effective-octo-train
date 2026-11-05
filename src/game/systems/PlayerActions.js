@@ -503,8 +503,8 @@ export class PlayerActions {
     const p = g.player;
     p.exitVehicle();
     p.setPosition(out, yawT);
-    this.footCamera(yawT);
-    g.cameraRig.release(0.25);
+    this.footCamera(yawT, -0.05); // the shot's own pitch: no snap when the rig takes over
+    g.cameraRig.release(0.4);
     p.setWalkEnabled(true);
     this._addTaxiColliders();
     this._cineOk = false;
@@ -558,8 +558,8 @@ export class PlayerActions {
     });
     this._removeTaxiColliders();
     g.player.enterVehicle(t);
-    this.seatCamera();
-    g.cameraRig.release(0.2);
+    this.seatCamera({ pitch: -0.08 });
+    g.cameraRig.release(0.4);
     this._cineOk = false;
     this.busy = false;
     if (this._ctrlBefore || opts.controls) t.setControlsEnabled(true);
@@ -602,15 +602,19 @@ export class PlayerActions {
     const t = g.taxi;
     const body = t.bodyInner || t.root;
     const eye = this._eyeOn('taxi', body, t.anchors.driverEye);
-    g.cameraRig.attach(eye, body, { yaw: opts.yaw ?? 0, pitch: opts.pitch ?? -0.04, limits: { yawMin: -2.6, yawMax: 2.6, pitchMin: -1.15, pitchMax: 1.0 } });
+    // ~122° each side (rule 3's look-back fires at 115°), never past straight up / down
+    g.cameraRig.attach(eye, body, { yaw: opts.yaw ?? 0, pitch: opts.pitch ?? -0.04, limits: { yawMin: -2.13, yawMax: 2.13, pitchMin: -1.05, pitchMax: 0.9 } });
+    g.cameraRig.leanAmount = { side: 0.18, forward: 0.05, down: 0.03 }; // the door glass is ~0.35 m away
   }
   footCamera(yaw = 0, pitch = 0) {
-    const eye = this._eyeOn('foot', g.player.root, g.player.eye);
-    g.cameraRig.attach(eye, null, { yaw, pitch, limits: { yawMin: -1e9, yawMax: 1e9, pitchMin: -1.25, pitchMax: 1.2 } });
+    const eye = this._eyeOn('foot', g.player.root, null);
+    g.cameraRig.attach(eye, null, { yaw, pitch, limits: { yawMin: -1e9, yawMax: 1e9, pitchMin: -1.2, pitchMax: 1.15 } });
+    g.cameraRig.leanAmount = { side: 0.22, forward: 0.06, down: 0.03 };
   }
   bikeCamera(opts = {}) {
-    const eye = this._eyeOn('bike', g.bike.root, g.player.eye);
-    g.cameraRig.attach(eye, g.bike.root, { yaw: 0, pitch: opts.pitch ?? -0.14, limits: { yawMin: -1.9, yawMax: 1.9, pitchMin: -1.0, pitchMax: 0.8 } });
+    const eye = this._eyeOn('bike', g.bike.root, g.bike.anchors?.eye || g.player.eye);
+    g.cameraRig.attach(eye, g.bike.root, { yaw: 0, pitch: opts.pitch ?? -0.14, limits: { yawMin: -1.75, yawMax: 1.75, pitchMin: -0.95, pitchMax: 0.75 } });
+    g.cameraRig.leanAmount = { side: 0.1, forward: 0.04, down: 0.02 };
   }
 
   /** The first-person eye object, re-parented to `carrier`; `nominal` is the fallback eye. */
@@ -625,6 +629,7 @@ export class PlayerActions {
     this._eyeMode = mode;
     this._eyeNominal = nominal || null;
     this._eyeInit = false;
+    this._settleT = 0; // the body settles into the new pose: the eye starts at the nominal point
     this._roofY = undefined; // the headliner above the seat, measured on the first frame
     this._eyeUpdate(0);
     return e;
@@ -641,9 +646,15 @@ export class PlayerActions {
     const carrier = e?.parent;
     if (!carrier || g.cameraRig.eye !== e) return;
     carrier.updateWorldMatrix(true, false);
+    this._settleT = (this._settleT || 0) + (dt > 0 ? dt : 0);
+    const mode = this._eyeMode;
+    // nominal eye: the cab's driver eye, the bike's eye anchor, or a standing eye above the feet
+    const nom = this._eyeNom || (this._eyeNom = new THREE.Vector3());
+    if (this._eyeNominal) nom.copy(carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v2)));
+    else nom.set(0, this._footEyeH || 1.56, -0.1);
     const head = this._headPos(_v3);
-    let local;
-    if (head && this._eyeMode === 'foot') {
+    let local = _v3;
+    if (head && mode === 'foot') {
       // on foot the face turns with the view
       const yaw = g.cameraRig.worldYaw || 0;
       head.y += EYE_UP;
@@ -654,25 +665,40 @@ export class PlayerActions {
       local = carrier.worldToLocal(head);
       local.y += EYE_UP;
       local.z -= EYE_FWD;
-    } else if (this._eyeNominal) local = carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v3));
-    else return;
-    if (this._eyeMode === 'taxi' && this._eyeNominal) {
+    } else local.copy(nom);
+    if (!Number.isFinite(local.x + local.y + local.z)) local.copy(nom);
+    // right after a seat change the body is still blending into its pose: start at the nominal eye
+    // (where the transition shots end) and hand over to the head over ~0.7 s
+    const w = smoothstep(0.3, 1.0, this._settleT);
+    local.lerpVectors(nom, local, w);
+    if (mode === 'taxi' && this._eyeNominal) {
       // a sane box around the cab's nominal eye (a broken rig never puts the view in the back seat)
-      const n = carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v2));
-      local.x = clamp(local.x, n.x - 0.16, n.x + 0.16);
-      local.y = clamp(local.y, n.y - 0.06, n.y + 0.3);
-      local.z = clamp(local.z, n.z - 0.32, n.z + 0.12);
-      if (this._roofY === undefined) this._roofY = this._measureRoof(carrier, n);
+      local.x = clamp(local.x, nom.x - 0.16, nom.x + 0.16);
+      local.y = clamp(local.y, nom.y - 0.06, nom.y + 0.3);
+      local.z = clamp(local.z, nom.z - 0.32, nom.z + 0.12);
+      if (this._roofY === undefined) this._roofY = this._measureRoof(carrier, nom);
       if (this._roofY !== null) local.y = Math.min(local.y, this._roofY - 0.1);
+    } else if (mode === 'bike') {
+      local.y = clamp(local.y, nom.y - 0.35, nom.y + 0.15);
+    } else if (mode === 'foot' && head && this._settleT > 1.5 && (g.player.speed || 0) < 0.08 && local.y > 1.2) {
+      this._footEyeH = damp(this._footEyeH || 1.56, local.y, 0.5, dt);
     }
-    if (!Number.isFinite(local.x + local.y + local.z)) return;
+    const A = this._eyeA || (this._eyeA = new THREE.Vector3());
     if (!this._eyeInit || !(dt > 0)) {
       e.position.copy(local);
+      A.copy(local);
       this._eyeInit = true;
       return;
     }
-    const k = this._eyeMode === 'foot' ? 16 : 12;
-    e.position.set(damp(e.position.x, local.x, k, dt), damp(e.position.y, local.y, k, dt), damp(e.position.z, local.z, k, dt));
+    // two cascaded low-passes in the carrier frame (animation jitter and the walk-cycle bob stay
+    // out of the view), then a cap on how far the eye may move in one frame
+    const kh = mode === 'foot' ? 9 : 10;
+    const kv = mode === 'foot' ? 5 : 10;
+    A.set(damp(A.x, local.x, kh, dt), damp(A.y, local.y, kv, dt), damp(A.z, local.z, kh, dt));
+    _v2.set(damp(e.position.x, A.x, kh, dt), damp(e.position.y, A.y, kv, dt), damp(e.position.z, A.z, kh, dt)).sub(e.position);
+    const maxStep = (this._settleT < 1.2 ? 2.5 : 0.9) * dt;
+    if (_v2.lengthSq() > maxStep * maxStep) _v2.setLength(maxStep);
+    e.position.add(_v2);
   }
 
   /** World position of Ton's head bone, or null. */

@@ -10,7 +10,8 @@ export const TITLE = { l1: 'HAUNTED', l2: 'to the last stop', th: NARRATIVE.GAME
 export function titleLockup({ presents = false, align = 'left' } = {}) {
   return h('div', { class: `dlb-name-block is-${align}` },
     presents ? h('div', { class: 'dlb-name-by' }, 'Pukking Dragon') : null,
-    h('h1', { class: 'dlb-name', attrs: { lang: 'th' } }, TITLE.th));
+    h('h1', { class: 'dlb-name', attrs: { lang: 'th' } }, TITLE.th),
+    h('div', { class: 'dlb-name-en en', attrs: { lang: 'en' } }, 'Haunted to the Last Stop'));
 }
 
 export const ember = () => h('span', { class: 'dlb-ember', attrs: { 'aria-hidden': 'true' } });
@@ -18,8 +19,8 @@ export const ember = () => h('span', { class: 'dlb-ember', attrs: { 'aria-hidden
 /** Menu entry: EN small caps + TH. spec { en, th, onSelect, disabled, danger } */
 export function menuItem(nav, { en, th, onSelect, disabled = false, danger = false, cls = '' }) {
   const el = h('button', { class: `dlb-item ${danger ? 'is-danger' : ''} ${cls}`, attrs: { 'aria-disabled': disabled ? 'true' : null } },
-    h('span', { class: 'en', attrs: { lang: 'en' } }, en),
-    th ? h('span', { class: 'th', attrs: { lang: 'th' } }, th) : null);
+    th ? h('span', { class: 'th', attrs: { lang: 'th' } }, th) : null,
+    h('span', { class: 'en', attrs: { lang: 'en' } }, en));
   navItem(nav, el, { kind: 'button', activate: () => onSelect?.() });
   return el;
 }

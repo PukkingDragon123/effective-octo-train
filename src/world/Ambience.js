@@ -5,8 +5,10 @@
 import * as THREE from 'three';
 import { particles } from '../render/index.js';
 import { makeRng } from '../core/math.js';
+import { engine } from '../core/Engine.js';
 
 const _p = new THREE.Vector3();
+const _d = new THREE.Vector3();
 
 export class Ambience {
   constructor(world) {
@@ -84,10 +86,22 @@ export class Ambience {
     if (!this._inited) this._init();
     if (!this._moths && this.world.complete) this._initMoths();
     // leaves fall around (and a little ahead of) the focus
-    _p.copy(focus);
-    _p.y = this.world.getHeight(focus.x, focus.z);
-    this.leaves?.setPosition(_p);
-    this.gust?.setPosition(_p);
+    // the falling-leaf boxes sit AHEAD of the camera and never contain it (no leaf inside the
+    // cab, between the eye and the windshield or the road)
+    const cam = engine.camera;
+    if (cam) cam.getWorldDirection(_d);
+    else _d.set(0, 0, -1);
+    _d.y = 0;
+    if (_d.lengthSq() < 1e-6) _d.set(0, 0, -1);
+    _d.normalize();
+    const ax = Math.max(Math.abs(_d.x), Math.abs(_d.z));
+    for (const [h, R] of [[this.leaves, 15], [this.gust, 9]]) {
+      if (!h) continue;
+      const k = (R + 3.5) / ax; // nearest face of the box 3.5 m ahead (+ sway margin)
+      _p.set(focus.x + _d.x * k, 0, focus.z + _d.z * k);
+      _p.y = this.world.getHeight(_p.x, _p.z);
+      h.setPosition(_p);
+    }
     this.gustT -= dt;
     this.nextGust -= dt;
     if (this.nextGust <= 0) {

@@ -138,7 +138,7 @@ export class SettingsPanel {
     const nav = ui.nav;
     this.rows = [];
     this.tabs = SETTINGS_TABS.map((t, i) => {
-      const b = h('button', { class: 'dlb-tab', attrs: { role: 'tab' } }, ember(), h('span', { class: 'en' }, t.en), h('span', { class: 'th', attrs: { lang: 'th' } }, t.th));
+      const b = h('button', { class: 'dlb-tab', attrs: { role: 'tab' } }, h('span', { class: 'th', attrs: { lang: 'th' } }, t.th), h('span', { class: 'en' }, t.en));
       b.type = 'button';
       b.tabIndex = -1;
       b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -152,11 +152,12 @@ export class SettingsPanel {
       return b;
     });
     this.body = h('div', { class: 'dlb-settings__body', attrs: { role: 'tabpanel' } });
-    const tabsEl = h('div', { class: 'dlb-tabs', attrs: { role: 'tablist' } }, this.tabs, h('div', { class: 'dlb-tabs__keys' }, glyph({ kb: 'KeyQ', pad: 'LB' }), ' ', glyph({ kb: 'KeyE', pad: 'RB' })));
+    const tabsEl = h('div', { class: 'dlb-tabs', attrs: { role: 'tablist' } },
+      h('span', { class: 'dlb-tabs__key' }, glyph({ kb: 'KeyQ', pad: 'LB' })), this.tabs, h('span', { class: 'dlb-tabs__key' }, glyph({ kb: 'KeyE', pad: 'RB' })));
     this.el = screen('dlb-settings',
       h('div', { class: 'dlb-backdrop' }),
       h('div', { class: 'dlb-settings__wrap' },
-        h('div', { class: 'dlb-settings__head' }, h('span', { class: 'en' }, 'Settings'), h('span', { class: 'th', attrs: { lang: 'th' } }, 'ตั้งค่า')),
+        h('div', { class: 'dlb-settings__head' }, h('span', { class: 'th', attrs: { lang: 'th' } }, 'ตั้งค่า'), h('span', { class: 'en' }, 'Settings')),
         tabsEl,
         this.body));
     ui.layer.appendChild(this.el);
@@ -199,7 +200,7 @@ export class SettingsPanel {
     this.body.textContent = '';
     this.rows = [];
     for (const g of tab.groups) {
-      this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'en' }, g.en), h('span', { class: 'th', attrs: { lang: 'th' } }, g.th)));
+      this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'th', attrs: { lang: 'th' } }, g.th), h('span', { class: 'en' }, g.en)));
       for (const r of g.rows) this.body.appendChild(this._row(r));
     }
     if (tab.preview) {
@@ -225,14 +226,15 @@ export class SettingsPanel {
 
   _label(r) {
     return h('div', { class: 'dlb-row__label' },
-      h('span', { class: 'en' }, r.en),
       h('span', { class: 'th', attrs: { lang: 'th' } }, r.th),
-      r.noteEn ? h('span', { class: 'dlb-row__note' }, r.noteEn) : null);
+      h('span', { class: 'en' }, r.en),
+      r.noteTh ? h('span', { class: 'dlb-row__note', attrs: { lang: 'th' } }, r.noteTh) : null);
   }
 
   _row(r) {
     const nav = this.ui.nav;
-    const row = h('div', { class: `dlb-row is-${r.type}`, attrs: { role: r.type === 'slider' ? 'slider' : 'radiogroup', 'aria-label': r.en } }, ember(), this._label(r));
+    const toggle = r.type === 'seg' && r.options === ONOFF;
+    const row = h('div', { class: `dlb-row is-${r.type}${toggle ? ' is-toggle' : ''}`, attrs: { role: r.type === 'slider' ? 'slider' : toggle ? 'switch' : 'radiogroup', 'aria-label': r.en } }, this._label(r));
     const ctl = h('div', { class: 'dlb-row__ctl' });
     row.appendChild(ctl);
     const entry = { r, row };
@@ -290,8 +292,20 @@ export class SettingsPanel {
       });
     } else if (r.type === 'seg') {
       const seg = h('div', { class: 'dlb-seg' });
-      const tag = r.preset ? h('span', { class: 'dlb-tag' }) : null;
+      const tag = r.preset ? h('span', { class: 'dlb-tag', attrs: { lang: 'th' } }) : null;
       if (tag) ctl.appendChild(tag);
+      if (toggle) {
+        // on/off: a switch (the two labels stay for screen readers and mouse clicks)
+        const sw = h('span', { class: 'dlb-switch', attrs: { 'aria-hidden': 'true' } }, h('i'));
+        sw.addEventListener('mousedown', (e) => e.preventDefault());
+        sw.addEventListener('click', (e) => {
+          e.stopPropagation();
+          nav.pointerFocus(row);
+          nav.sound('hover');
+          settings.set(r.key, !settings.get(r.key));
+        });
+        ctl.appendChild(sw);
+      }
       ctl.appendChild(seg);
       const opts = r.options.map(([val, a, b]) => {
         const o = h('span', { class: `dlb-seg__opt${r.thMain ? ' th-main' : ''}`, attrs: { role: 'radio' } },
@@ -317,7 +331,8 @@ export class SettingsPanel {
           o.setAttribute('aria-checked', on ? 'true' : 'false');
           o.style.opacity = on && custom ? '0.8' : '';
         }
-        if (tag) tag.textContent = custom ? 'กำหนดเอง · custom' : '';
+        if (tag) tag.textContent = custom ? 'กำหนดเอง' : '';
+        if (toggle) row.classList.toggle('is-on', !!v);
       };
       const idx = () => Math.max(0, opts.findIndex((o) => o.val === settings.get(r.key)));
       navItem(nav, row, {
@@ -341,20 +356,20 @@ export class SettingsPanel {
   }
 
   _button({ en, th, onSelect }) {
-    const row = h('div', { class: 'dlb-row is-button', attrs: { role: 'button' } }, ember(),
-      h('div', { class: 'dlb-row__label' }, h('span', { class: 'en' }, en), h('span', { class: 'th', attrs: { lang: 'th' } }, th)));
+    const row = h('div', { class: 'dlb-row is-button', attrs: { role: 'button' } },
+      h('div', { class: 'dlb-row__label' }, h('span', { class: 'th', attrs: { lang: 'th' } }, th), h('span', { class: 'en' }, en)));
     navItem(this.ui.nav, row, { kind: 'button', activate: onSelect });
     return row;
   }
 
   _reference() {
     CONTROL_GROUPS.forEach((g, gi) => {
-      this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'en' }, g.en), h('span', { class: 'th', attrs: { lang: 'th' } }, g.th),
+      this.body.appendChild(h('div', { class: 'dlb-group' }, h('span', { class: 'th', attrs: { lang: 'th' } }, g.th), h('span', { class: 'en' }, g.en),
         gi === 0 ? h('span', { class: 'dlb-group__cols' }, h('span', null, 'Keyboard'), h('span', null, 'Gamepad')) : null));
       for (const r of g.rows) {
         const { kb, pad } = controlRowGlyphs(r);
-        const row = h('div', { class: 'dlb-row is-info is-ctl' }, ember(),
-          h('div', { class: 'dlb-row__label' }, h('span', { class: 'en' }, r.en), h('span', { class: 'th', attrs: { lang: 'th' } }, r.th)),
+        const row = h('div', { class: 'dlb-row is-info is-ctl' },
+          h('div', { class: 'dlb-row__label' }, h('span', { class: 'th', attrs: { lang: 'th' } }, r.th), h('span', { class: 'en' }, r.en)),
           h('div', { class: 'dlb-row__ctl' }, kb, pad));
         navItem(this.ui.nav, row, { kind: 'info' });
         this.body.appendChild(row);
@@ -381,12 +396,12 @@ export class SettingsPanel {
     for (const e of this.rows) e.update?.();
     if (this.preview) {
       this.preview.textContent = '';
-      this.preview.appendChild(h('div', { class: 'dlb-subpreview__cap' }, 'ตัวอย่าง · preview'));
+      this.preview.appendChild(h('div', { class: 'dlb-subpreview__cap', attrs: { lang: 'th' } }, 'ตัวอย่างคำบรรยาย'));
       const line = this.ui.subs.render({ speakerTH: 'ป้าศรี', speakerEN: 'Auntie Sri', th: 'ดึกขนาดนี้ยังมีแท็กซี่วิ่งอยู่อีกเหรอ หนู', en: 'A taxi, this late? Lucky me, dear.' });
       if (line) {
         line.classList.add('is-in');
         this.preview.appendChild(line);
-      } else this.preview.appendChild(h('div', { class: 'dlb-row__note', style: 'text-align:center' }, 'ปิดคำบรรยาย · subtitles are off'));
+      } else this.preview.appendChild(h('div', { class: 'dlb-row__note', style: 'text-align:center' }, 'ปิดคำบรรยายอยู่'));
     }
   }
 }

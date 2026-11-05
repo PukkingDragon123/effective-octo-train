@@ -50,3 +50,5 @@ required; credited anyway), packed by `tools/assets/pack_polyhaven.mjs`. Only th
 | root_cluster_01 | Root Cluster 01 | Jenelle van Heerden, Rico Cilliers | CC0 1.0 | https://polyhaven.com/a/root_cluster_01 |
 | tree_stump_01 | Tree Stump 01 | Rob Tuytel | CC0 1.0 | https://polyhaven.com/a/tree_stump_01 |
 | tree_stump_02 | Tree Stump 02 | Rob Tuytel | CC0 1.0 | https://polyhaven.com/a/tree_stump_02 |
+| wall_clock | Wall Clock | PierreB3D | CC0 1.0 | https://polyhaven.com/a/wall_clock |
+| portable_cassette_player | Portable Cassette Player | Mateusz Sadek | CC0 1.0 | https://polyhaven.com/a/portable_cassette_player |

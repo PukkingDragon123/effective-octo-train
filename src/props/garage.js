@@ -5,7 +5,7 @@
 // Front (open side) faces +Z toward the road.
 import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, steelSection, makeRng, noise } from './lib/kit.js';
-import { mat, glowMat, signMat, texMat, stainTex, crackTex, paintingTex, photoTex, clockTex, noticeTex, graffitiTex } from './lib/materials.js';
+import { mat, glowMat, signMat, texMat, stainTex, crackTex, noticeTex } from './lib/materials.js';
 import { lightSpec, attachFlicker, LIGHT_PRESETS } from './lib/lights.js';
 import { G, PAL, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, incensePot, fruitPlate, candle, garland, waterJar } from './lib/small.js';
 import { dancerGeo } from './lib/figures.js';
@@ -261,7 +261,6 @@ export function createGarage(opts = {}) {
   const bx = -1.6, bz = zB + 0.42;
   k.add(mat('wood'), bbox(2.6, 0.07, 0.7, 0.01, 0.3), { p: [bx, 0.86, bz], color: 0x5a4430, w: { dust: 0.2, grime: 0.0 }, colorFn: (p, n, c) => { if (n.y > 0.5 && noise.noise2D(p.x * 4, p.z * 4) > 0.3) c.multiplyScalar(0.55); } });
   for (const sx of [-1.2, 1.2]) for (const sz of [-0.28, 0.28]) k.add(mat('metal'), G('wbleg', () => bbox(0.06, 0.86, 0.06, 0.006, 0.3)), { p: [bx + sx, 0, bz + sz], color: 0x3a3a38, w: { grime: 0.7 } });
-  k.add(mat('metal'), bbox(0.8, 0.5, 0.6, 0.01, 0.2), { p: [bx + 0.75, 0.12, bz], color: 0x6a2a20, w: { grime: 0.5, streak: 0.5 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(Math.sin(lp.y * 18)) < 0.12) c.multiplyScalar(0.3); } }); // drawers
   // vise
   if (!useAsset(k, 'bench_vice_01', { p: [bx - 1.05, 0.93, bz + 0.18], r: 0 }, { fit: { d: 0.38 }, w: { grime: 0.2, dust: 0.2 } })) {
     k.add(mat('metal'), G('vise', () => bbox(0.12, 0.12, 0.28, 0.01, 0.1)), { p: [bx - 1.1, 0.93, bz + 0.2], color: 0x2a4a6a, w: { grime: 0.2 } });
@@ -270,21 +269,11 @@ export function createGarage(opts = {}) {
   // pegboard + tools
   k.add(mat('wood'), bbox(1.8, 0.9, 0.02, 0.004, 0.3), { p: [bx, 1.25, zB + 0.11], color: 0x8a7458, w: { grime: 0, streak: 0.5, dust: 0.3 }, colorFn: (p, n, c, lp) => { if (Math.sin(lp.x * 160) * Math.sin(lp.y * 160) > 0.92) c.multiplyScalar(0.3); } });
   k.details(() => pegTools(k, bx - 0.75, 1.85, zB + 0.13, rng));
-  // stuff on the bench: radio, tools, a jar of screws, thermos, rags
+  // stuff on the bench: radio-cassette, a tin
   k.details(() => {
-    // transistor radio (pink-red like reference 5) — on the right end of the bench
-    k.at([bx + 0.9, 0.895, bz + 0.05], -0.25, null, () => {
-      k.add(mat('plastic'), G('radio', () => bevelBox(0.34, 0.2, 0.11, 0.025, 0.06, 2)), { p: [0, 0.1, 0], color: 0xc85a6a, w: { dust: 0.4, grime: 0 } });
-      k.add(mat('galv'), G('grill', () => bbox(0.16, 0.14, 0.01, 0.003, 0.05)), { p: [-0.07, 0.03, 0.055], color: 0xb8b8b0, colorFn: (p, n, c, lp) => { if (Math.sin(lp.x * 300) * Math.sin(lp.y * 300) > 0.3) c.multiplyScalar(0.3); }, w: false });
-      k.add(mat('ceramic'), G('dial', () => bbox(0.1, 0.05, 0.008, 0.002, 0.05)), { p: [0.09, 0.12, 0.056], color: 0xe8dcb0, w: false });
-      k.add(mat('plastic'), G('knob', () => cyl(0.018, 0.018, 0.02, 10, 0.003).rotateX(Math.PI / 2)), { p: [0.09, 0.06, 0.06], color: 0xe8e0d0, w: false });
-      k.add(mat('galv'), G('antenna', () => cyl(0.003, 0.004, 0.42, 4, 0)), { p: [0.13, 0.2, -0.03], r: [0, 0, -0.5], color: 0xc8c8c0, w: false });
-      k.add(mat('plastic'), G('handle', () => torus(0.09, 0.008, 4, 12, Math.PI)), { p: [0, 0.2, 0], color: 0x3a3a3a, w: false });
-    });
+    // radio-cassette player (CC0 Poly Haven) on the right end of the bench: the radio anchor
+    useAsset(k, 'portable_cassette_player', { p: [bx + 0.9, 0.895, bz + 0.05], r: -0.25 }, { fit: { w: 0.24 }, w: { dust: 0.4, grime: 0.1 } });
     can(k, { p: [bx - 0.5, 0.895, bz - 0.1], h: 0.14, rad: 0.05, color: 0x9a9080 });
-    k.add(mat('plastic'), G('thermos', () => cyl(0.06, 0.06, 0.32, 12, 0.02, 2)), { p: [bx + 0.3, 0.895, bz - 0.15], color: 0x2a6a5a, w: { grime: 0 } });
-    k.add(mat('cloth_static'), G('rag', () => bevelBox(0.3, 0.03, 0.2, 0.012, 0.05)), { p: [bx - 0.2, 0.9, bz + 0.15], r: 0.6, color: 0x5a4a3a, jitter: 0.01, jitterFreq: 20, w: { vary: 0.3 } });
-    for (let i = 0; i < 3; i++) k.add(mat('galv'), G('wrenchB', () => bevelBox(0.025, 0.008, 0.2, 0.004, 0.1)), { p: [bx - 0.7 + i * 0.07, 0.9, bz + 0.1], r: rng() * 1.5, color: 0xa0a098, w: false });
   });
   // calendar (signTex) + framed painting + family photo on the back wall
   k.add(signMat('calendar', { variant: 'buddha' }), G('calendarq', () => quad(0.5, 0.708, 2, 3)), { p: [0.9, 1.75, zB + 0.11], r: [0, 0, 0.02], color: 0xe0d8c8, uv: 'keep', w: { vary: 0.3, grime: 0 }, deform: (p) => { p.z += Math.max(0, -p.y - 0.2) * 0.12; } });
@@ -297,22 +286,14 @@ export function createGarage(opts = {}) {
     hole.moveTo(-0.33, -0.43); hole.lineTo(0.33, -0.43); hole.lineTo(0.33, 0.43); hole.lineTo(-0.33, 0.43); hole.closePath();
     fr.holes.push(hole);
     k.add(mat('gold'), G('frame', () => extrude(fr, 0.06, 0.015)), { color: 0xb88a3a, w: { grime: 0, dust: 0.5, vary: 0.3 }, colorFn: (p, n, c, lp) => { if (Math.sin(lp.x * 60 + lp.y * 60) > 0.6) c.multiplyScalar(0.6); } });
-    k.add(texMat('painting', () => paintingTex(seed), {}), G('paintq', () => quad(0.67, 0.87)), { p: [0, 0, 0.012], color: 0xffffff, uv: 'keep', w: false });
+    k.add(signMat('picture', { variant: 'temple' }), G('paintq', () => quad(0.67, 0.87)), { p: [0, 0, 0.012], color: 0xffffff, uv: 'keep', w: false });
   });
   // old photo of a young man with a taxi, tucked into the frame corner
-  k.add(texMat('photoG', () => photoTex(2), {}), G('photoq', () => quad(0.09, 0.12)), { p: [xL + 0.15, 1.35, 0.95], r: [0, Math.PI / 2, 0.15], color: 0xffffff, uv: 'keep', w: false });
-  // wall clock (stopped)
-  k.at([2.3, 2.35, zB + 0.12], null, null, () => {
-    k.add(mat('plastic'), G('clockRim', () => cyl(0.16, 0.16, 0.045, 20, 0.01).rotateX(Math.PI / 2)), { color: 0x2a2a2a, w: { dust: 0.5, grime: 0 } });
-    k.add(texMat('clock', () => clockTex(), {}), G('clockFace', () => new THREE.CircleGeometry(0.14, 20)), { p: [0, 0, 0.024], color: 0xd8d0b8, uv: 'keep', w: false });
-  });
-  // stickers slapped on the steel cabinet door + an older calendar left behind the new one
+  k.add(signMat('picture', { variant: 'snapshot' }), G('photoq', () => quad(0.09, 0.12)), { p: [xL + 0.15, 1.35, 0.95], r: [0, Math.PI / 2, 0.15], color: 0xffffff, uv: 'keep', w: false });
+  // wall clock (stopped): CC0 Poly Haven model
+  useAsset(k, 'wall_clock', { p: [2.3, 2.19, zB + 0.135], r: 0 }, { fit: { w: 0.32 }, w: { dust: 0.5, grime: 0.1 } });
+  // an older calendar left behind the new one
   {
-    const stickers = [[1.45, 1.35, -0.05], [1.72, 1.12, 0.12], [1.52, 0.86, 0.06], [1.8, 1.55, -0.1]];
-    stickers.forEach(([x, y, rz], i) => {
-      const st = findPrint([['sticker']], () => ((i * 0.37 + 0.11) % 1));
-      if (st) card(k, st.kind, st.opts, { p: [x, y, zB + 0.33 + 0.226], r: [0, 0, rz], scale: 1.6, curl: 0.004, seed: 30 + i, wt: { vary: 0.25, grime: 0.2, ground: 0 } });
-    });
     card(k, 'calendar', { variant: 'buddha_2' }, { p: [0.84, 1.72, zB + 0.106], r: [0, 0, -0.04], w: 0.48, torn: 0.5, curl: 0.03, seed: 77, wt: { vary: 0.4, grime: 0.3, ground: 1.2 } });
   }
   // layered wall dressing (reference 5: every wall covered): old posters, notices, water stains
@@ -436,7 +417,7 @@ export function createGarage(opts = {}) {
   waterJar(k, { p: [xL + 0.55, 0, zF - 0.7], size: 1.05, lid: true, moss: 0.4 });
   out.colliders.push({ x: xL + 0.55, z: zF - 0.7, r: 0.4 });
 
-  // ---- right side / back-right: tyres, drums, jack, hose, battery, engine parts --------------
+  // ---- right side / back-right: tyres, drums, hose, engine parts --------------
   k.details(() => {
     for (let i = 0; i < 5; i++) tire(k, { p: [xR - 0.55 + (rng() - 0.5) * 0.05, i * 0.19, zB + 0.7], r: rng() * 6 });
     for (let i = 0; i < 3; i++) tire(k, { p: [xR - 1.35, i * 0.19, zB + 0.6], r: rng() * 6, rad: 0.3 });
@@ -445,15 +426,8 @@ export function createGarage(opts = {}) {
     oilDrum(k, { p: [xR - 0.5, 0, 1.25], rusty: true, color: 0x7a3a1a });
     crate(k, { p: [xR - 0.5, 0.88, 0.9], kind: 'plastic', color: 0x2a6a3a });
     coil(k, { p: [xR - 0.13, 1.75, 2.4], r: [0, Math.PI / 2, 0], rad: 0.3, thick: 0.014, loops: 5, color: 0x2a6a3a, mat: 'plastic', seed: 8 });
-    // car battery + jerry can
-    k.add(mat('plastic'), G('battery', () => bbox(0.3, 0.22, 0.18, 0.01, 0.1)), { p: [xR - 1.4, 0, 0.2], r: 0.3, color: 0x1a1a1a, w: { dust: 0.5 } });
+    // jerry can
     if (!useAsset(k, 'plastic_jerrycan', { p: [xR - 1.0, 0, -0.9], r: -0.2 }, { fit: { h: 0.4 }, color: 0xb83a24, w: { grime: 0.5 } })) k.add(mat('plastic'), G('jerry', () => bbox(0.34, 0.42, 0.16, 0.03, 0.1)), { p: [xR - 1.0, 0, -0.9], r: -0.2, color: 0xa82a1a, w: { grime: 0.5 } });
-    // trolley jack
-    k.at([1.6, 0, 2.2], -0.6, null, () => {
-      k.add(mat('metal'), G('jackbody', () => bbox(0.28, 0.14, 0.7, 0.02, 0.1)), { color: 0xc0281a, w: { grime: 0.5 } });
-      k.add(mat('galv'), tube([V(0, 0.1, 0.3), V(0, 0.6, 1.0)], 0.015, 5), { color: 0x8a8a84, w: false });
-      for (const sx of [-1, 1]) k.add(mat('rubber'), G('jackwheel', () => cyl(0.04, 0.04, 0.03, 10, 0.005).rotateZ(Math.PI / 2)), { p: [sx * 0.15, 0.04, -0.28], color: 0x1a1a1a, w: false });
-    });
     // pallet (slatted) + an inline-four engine pulled from a taxi, waiting to be rebuilt
     for (let i = 0; i < 5; i++) k.add(mat('wood'), G('palslat', () => bbox(0.9, 0.022, 0.13, 0.004, 0.2)), { p: [-0.2, 0.098, zB + 1.15 + i * 0.175], r: [0, 0, (i % 2 ? 1 : -1) * 0.004], color: 0x8a6a48, w: { grime: 0.5 } });
     for (const x of [-0.6, -0.2, 0.2]) k.add(mat('wood'), G('palrun', () => bbox(0.09, 0.098, 0.8, 0.006, 0.2)), { p: [x, 0, zB + 1.5], color: 0x7a5a3a, w: { grime: 0.6 } });
@@ -463,25 +437,22 @@ export function createGarage(opts = {}) {
   });
   out.colliders.push({ x: xR - 0.6, z: zB + 0.9, hx: 0.6, hz: 0.6, yaw: 0 }, { x: xR - 0.5, z: 0.95, hx: 0.35, hz: 0.7, yaw: 0 }, { x: -0.2, z: zB + 1.5, hx: 0.45, hz: 0.4, yaw: 0 }, { x: bx, z: bz, hx: 1.3, hz: 0.38, yaw: 0 });
 
-  // ---- extra clutter: wall shelf of bottles over the bench, steel cabinet, boxes, hubcaps,
-  //      fan belts, buckets, a creeper board, cardboard on the floor -----------------------------
+  // ---- extra clutter: wall shelf of bottles over the bench, boxes, hubcaps,
+  //      fan belts, buckets, cardboard on the floor -----------------------------
   k.add(mat('wood'), bbox(2.2, 0.04, 0.28, 0.006, 0.3), { p: [bx, 2.25 - 0.55, zB + 0.24], color: 0x6a5038, w: { dust: 0.7 } });
   for (const sx of [-1, 1]) k.add(mat('metal'), G('wsbr', () => bbox(0.03, 0.2, 0.22, 0.004, 0.1)), { p: [bx + sx * 1.0, 1.5, zB + 0.21], color: 0x3a3a38, w: false });
   k.details(() => {
     fillShelf(k, bx - 1.05, 1.74, zB + 0.24, 1.0, 0.24, rng, 'mixed');
-    k.add(mat('plastic'), G('basket', () => bbox(0.36, 0.14, 0.24, 0.02, 0.08)), { p: [bx + 0.25, 1.74, zB + 0.24], color: 0xc02a1a, w: { dust: 0.6 }, colorFn: (p, n, c, lp) => { if (Math.abs(n.y) < 0.5 && Math.sin(lp.x * 120) * Math.sin(lp.y * 120) > 0.5) c.multiplyScalar(0.3); } });
     for (let i = 0; i < 4; i++) bottle(k, { p: [bx + 0.55 + i * 0.1, 1.74, zB + 0.24], kind: i % 2 ? 'whisky' : 'small', color: [0x7a4a1a, 0x2a5a2a, 0xa83a1a, 0xc8c0a0][i] });
-    // steel cabinet back-right + boxes on top
-    // dense enough that the baked rust streaks read as streaks (coarse vertices turned them into blotches)
-    k.add(mat('metal'), bbox(0.9, 1.85, 0.45, 0.01, 0.06), { p: [1.6, 0, zB + 0.33], color: 0x6a7a7a, w: { grime: 0.6, streak: 0.35, dust: 0.6 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && Math.abs(lp.x) < 0.012) c.multiplyScalar(0.25); } });
+    // cardboard boxes (CC0) stacked on the floor back-right
     if (hasAsset('cardboard_box_01')) {
       const bs = assetSize('cardboard_box_01');
-      for (let i = 0; i < 2; i++) addAsset(k, 'cardboard_box_01', { p: [1.6 + (rng() - 0.5) * 0.12, 1.85 + i * bs.y * 0.82, zB + 0.33], r: Math.PI / 2 + (rng() - 0.5) * 0.3, s: 0.82, w: { dust: 0.8, grime: 0.1 } });
-    } else for (let i = 0; i < 3; i++) k.add(mat('paper'), G('cbox' + i, () => bbox(0.5 - i * 0.08, 0.28, 0.38, 0.01, 0.15)), { p: [1.6 + (rng() - 0.5) * 0.1, 1.85 + i * 0.28, zB + 0.33], r: (rng() - 0.5) * 0.3, color: 0xa8845a, w: { dust: 0.8 } });
+      for (let i = 0; i < 2; i++) addAsset(k, 'cardboard_box_01', { p: [1.6 + (rng() - 0.5) * 0.12, i * bs.y * 0.82, zB + 0.33], r: Math.PI / 2 + (rng() - 0.5) * 0.3, s: 0.82, w: { dust: 0.8, grime: 0.1 } });
+    }
     // hubcaps + fan belts on the back wall
     for (let i = 0; i < 3; i++) k.add(mat('galv'), G('hubcap', () => lathe([[0, 0.03], [0.1, 0.025], [0.17, 0.01], [0.18, 0]], 18).rotateX(Math.PI / 2)), { p: [2.5 + i * 0.4, 1.4 + (i % 2) * 0.35, zB + 0.11], color: 0xb0b0a8, w: { grime: 0, dust: 0.4, streak: 0.4 } });
     for (let i = 0; i < 4; i++) k.add(mat('rubber'), G('belt' + i, () => torus(0.12 + i * 0.03, 0.008, 3, 20).scale(0.6, 1.3, 1)), { p: [3.55, 1.95 - i * 0.03, zB + 0.13], color: 0x1a1a1a, w: false });
-    // buckets + broom + creeper board + cardboard on the floor
+    // buckets + broom + cardboard on the floor
     const chest = useAsset(k, 'metal_tool_chest', { p: [0.55, 0, zB + 0.34], r: 0 }, { fit: { h: 0.66 }, w: { grime: 0.4, dust: 0.4, streak: 0.3 } });
     if (chest) {
       out.colliders.push({ x: 0.55, z: zB + 0.34, hx: 0.36, hz: 0.24, yaw: 0 });
@@ -495,7 +466,6 @@ export function createGarage(opts = {}) {
       k.add(mat('flower'), G('broomhead', () => cyl(0.02, 0.12, 0.35, 8, 0, 1, true)), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a7a50, w: false });
     }
     k.add(mat('paper'), G('cardboardfloor', () => bbox(0.9, 0.01, 1.6, 0.002, 0.3)), { p: [1.3, 0.0, 2.3], r: 0.35, color: 0x9a7a52, w: { grime: 0.8, grimeH: 0.05 } });
-    k.add(mat('wood'), G('creeper', () => bbox(0.4, 0.04, 0.95, 0.01, 0.2)), { p: [2.5, 0.07, 2.1], r: -0.5, color: 0x6a4a30, w: { grime: 0.5 } });
     // clothesline with rags across the back-left corner
     k.add(mat('dark'), tube(sagCurveG(V(xL + 0.15, 2.5, zB + 0.8), V(xL + 2.2, 2.5, zB + 0.15)), 0.004, 3), { color: 0x2a2a2a, w: false });
     for (let i = 0; i < 3; i++) k.add(mat('cloth_static'), G('ragh' + i, () => quad(0.3, 0.42, 2, 3).translate(0, -0.21, 0)), { p: [xL + 0.55 + i * 0.6, 2.44 - i * 0.02, zB + 0.68 - i * 0.2], r: [0, 0.32, 0], color: [0x6a7a8a, 0xb8a888, 0x8a3a2a][i], uv: 'keep', w: { vary: 0.3 }, deform: (p) => { p.z += Math.sin(p.x * 12) * 0.02; } });

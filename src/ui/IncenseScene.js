@@ -455,6 +455,101 @@ function haze(z, w, h, seed, alpha) {
   return mesh;
 }
 
+/** A pale face, painted once: the smoke shader only ever shows it in fragments. */
+function faceTexture() {
+  const W = 256, H = 320;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#000';
+  x.fillRect(0, 0, W, H);
+  // long skull-like oval, lit from below by the ember
+  const sk = x.createRadialGradient(W * 0.5, H * 0.58, 10, W * 0.5, H * 0.5, H * 0.46);
+  sk.addColorStop(0, 'rgba(255,255,255,0.95)');
+  sk.addColorStop(0.55, 'rgba(210,210,210,0.7)');
+  sk.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = sk;
+  x.beginPath();
+  x.ellipse(W * 0.5, H * 0.5, W * 0.36, H * 0.44, 0, 0, Math.PI * 2);
+  x.fill();
+  const hole = (cx, cy, rx, ry, a) => {
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+    g.addColorStop(0, `rgba(0,0,0,${a})`);
+    g.addColorStop(0.6, `rgba(0,0,0,${a * 0.75})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.save();
+    x.translate(cx, cy);
+    x.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
+    x.translate(-cx, -cy);
+    x.fillStyle = g;
+    x.beginPath();
+    x.arc(cx, cy, Math.max(rx, ry), 0, Math.PI * 2);
+    x.fill();
+    x.restore();
+  };
+  hole(W * 0.36, H * 0.42, 30, 24, 1); // eye hollows, a little uneven
+  hole(W * 0.645, H * 0.425, 28, 25, 1);
+  hole(W * 0.5, H * 0.56, 9, 20, 0.6); // nose shadow
+  hole(W * 0.5, H * 0.75, 20, 34, 1); // the mouth, hanging open
+  hole(W * 0.5, H * 0.24, 70, 26, 0.35); // brow shadow
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.NoColorSpace;
+  return t;
+}
+
+/** The face that forms in the smoke for a second, then is only smoke again. */
+function smokeFace() {
+  const m = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uK: { value: 0 }, uFace: { value: faceTexture() } },
+    vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: /* glsl */ `
+      varying vec2 vUv; uniform float uTime; uniform float uK; uniform sampler2D uFace;
+      ${NOISE_GLSL}
+      float fbm(vec2 p){ float a = 0.0, m = 0.5; for (int i = 0; i < 5; i++){ a += dlbN(p) * m; p = p * 2.07 + 7.3; m *= 0.5; } return a; }
+      void main(){
+        vec2 q = vUv + vec2(fbm(vUv * 3.0 + vec2(0.0, -uTime * 0.25)) - 0.5, fbm(vUv * 3.0 + 4.0 - uTime * 0.2) - 0.5) * (0.09 * (1.2 - uK));
+        float face = texture2D(uFace, q).r;
+        float smoke = fbm(vUv * vec2(4.0, 6.0) + vec2(sin(uTime * 0.3) * 0.4, -uTime * 0.35));
+        float a = face * smoothstep(0.25, 0.75, smoke + uK * 0.35) * uK;
+        gl_FragColor = vec4(vec3(0.62, 0.67, 0.72), a * 0.3);
+      }`,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.085, 0.106), m);
+  mesh.renderOrder = 2;
+  mesh.visible = false;
+  return mesh;
+}
+
+/** Something tall passing between the urn and the candle: only a darker dark, with a smoky edge. */
+function passingShadow() {
+  const m = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uK: { value: 0 } },
+    vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: /* glsl */ `
+      varying vec2 vUv; uniform float uTime; uniform float uK;
+      ${NOISE_GLSL}
+      void main(){
+        vec2 p = vUv * 2.0 - 1.0;
+        // head, a long neck and sloped shoulders, no clean edge anywhere
+        float head = length((p - vec2(0.0, 0.38)) * vec2(1.0, 0.82)) - 0.26;
+        float body = length((p - vec2(0.0, -0.75)) * vec2(0.62, 1.0)) - 0.62;
+        float d = min(head, body);
+        float n = dlbN(p * 7.0 + uTime * 0.6) * 0.6 + dlbN(p * 17.0 - uTime) * 0.4;
+        float a = (1.0 - smoothstep(-0.12, 0.1, d + (n - 0.5) * 0.18)) * uK;
+        gl_FragColor = vec4(vec3(0.0), a * 0.94);
+      }`,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.5), m);
+  mesh.renderOrder = 1;
+  mesh.visible = false;
+  return mesh;
+}
+
 /**
  * Smoke as a streakline: points are emitted at the ember and carried by a time-varying flow
  * (laminar at first, then breaking into curls). They are drawn as one camera-facing ribbon
@@ -617,10 +712,10 @@ export class IncenseScene {
     scene.add(this.emberLight);
     this.candleLight = new THREE.PointLight(0xff9a48, 0.22, 1.6, 2);
     scene.add(this.candleLight);
-    const moon = new THREE.DirectionalLight(0x8a96a8, 0.55);
+    const moon = new THREE.DirectionalLight(0x8a96a8, 0.09);
     moon.position.set(0.9, 0.5, -0.7);
     scene.add(moon);
-    scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.25));
+    scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.05));
     const fill = new THREE.DirectionalLight(0xffb070, 0.0);
     fill.position.set(-0.8, 0.3, 0.6);
     scene.add(fill);
@@ -658,7 +753,13 @@ export class IncenseScene {
       m.rotation.order = 'ZXY';
       scene.add(m);
     }
-    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.05), haze(-0.42, 1.6, 0.9, 7.1, 0.06));
+    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.03), haze(-0.42, 1.6, 0.9, 7.1, 0.035));
+    // two beats while it loads: a face in the smoke, then something passes and the candle dies
+    this.face = smokeFace();
+    this.shade = passingShadow();
+    scene.add(this.face, this.shade);
+    this.beats = { face: 3.4, shadow: 6.6 };
+    this.candleOn = 1;
 
     // ---- the stick
     this.u = {
@@ -819,7 +920,10 @@ export class IncenseScene {
     this.halo.position.copy(ember);
     this.halo.material.opacity = 0.55 + 0.35 * heat;
     const fl = 0.85 + 0.1 * Math.sin(t * 13.1) + 0.05 * Math.sin(t * 29.3);
-    this.candleLight.intensity = 0.05 * fl;
+    this._updateBeats(dt);
+    this.candleLight.intensity = 0.05 * fl * this.candleOn;
+    this.candle.userData.flame.scale.set(0.6 + 0.4 * this.candleOn, Math.max(0.001, this.candleOn), 1);
+    this.candle.userData.flame.visible = this.candleOn > 0.01;
     this.candle.userData.flameMat.uniforms.uTime.value = t;
     this.candle2.userData.flameMat.uniforms.uTime.value = t + 3.3;
     for (const c of [this.candle, this.candle2]) c.userData.flame.quaternion.copy(this.camera.quaternion);
@@ -849,6 +953,36 @@ export class IncenseScene {
     this.camera.lookAt(this.camTarget.x + sx * 0.3, this.camTarget.y, this.camTarget.z);
     this.renderer.domElement.style.opacity = String(1 - this.fade);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  _updateBeats(dt) {
+    const t = this.t;
+    const B = this.beats;
+    // the face: 1.4 s, gathering out of the plume above the ember and coming apart again
+    const fk = this.grab ? 0 : smooth(B.face, B.face + 0.55, t) * (1 - smooth(B.face + 0.95, B.face + 1.5, t));
+    this.face.visible = fk > 0.002;
+    if (this.face.visible) {
+      this.stick.localToWorld(this.face.position.set(0.006, this.tip + 0.055, -0.006));
+      this.face.quaternion.copy(this.camera.quaternion);
+      this.face.material.uniforms.uK.value = fk;
+      this.face.material.uniforms.uTime.value = t;
+      for (const s of this.smoke) s.stir = Math.max(s.stir, fk * 0.6);
+    }
+    // the shadow: crosses right to left in front of the candle, which gutters and goes out
+    const st = (t - B.shadow) / 1.9;
+    const on = st > 0 && st < 1 && !this.grab;
+    this.shade.visible = on;
+    if (on) {
+      const k = easeInOut(st);
+      this.shade.position.set(0.32 - k * 0.78, 0.13 + Math.sin(k * Math.PI) * 0.01, -0.13);
+      this.shade.material.uniforms.uK.value = smooth(0, 0.15, st) * (1 - smooth(0.85, 1, st));
+      this.shade.material.uniforms.uTime.value = t;
+    }
+    if (t > B.shadow + 0.7 && this.candleOn > 0) {
+      const g = smooth(B.shadow + 0.7, B.shadow + 1.25, t);
+      this.candleOn = Math.max(0, (1 - g) * (0.6 + 0.4 * Math.sin(t * 47) * Math.sin(t * 13)));
+      if (g >= 1) this.candleOn = 0;
+    }
   }
 
   _breakAsh() {

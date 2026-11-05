@@ -9,7 +9,7 @@ import { input } from '../core/Input.js';
 import { bus } from '../core/Events.js';
 import { settings } from '../core/Settings.js';
 import { cameraRig } from '../core/CameraRig.js';
-import { clamp, damp, lerp, wrapAngle, makeRng } from '../core/math.js';
+import { clamp, damp, lerp, wrapAngle, makeRng, noise } from '../core/math.js';
 import { audio } from '../audio/index.js';
 import { LAYOUT } from '../world/layout.js';
 import { MergeBuilder, xform, roundedBox, lathe, rod, tube, GridSurface, deform, pillow, boxUV } from './geom.js';
@@ -31,6 +31,11 @@ const T = (k, r) => {
 };
 
 const BIKE = { wheelR: 0.285, wheelbase: 1.2, axleF: -0.62, axleR: 0.58 };
+// Ride feel (an old 110 cc step-through on a narrow forest spur): top speed ~52 km/h, gentle
+// throttle and brake curves, steering that is quick at walking pace and calm at speed (the
+// steering angle is limited so the lateral grip never exceeds ~6 m/s²), auto-centring, lean.
+const RIDE = { vMax: 14.5, drive: 640, mass: 160, engineBrake: 0.7, brake: 6.4, latMax: 6.2, maxSteer: 0.6, leanMax: 0.62 };
+const approach = (cur, target, rate) => cur + clamp(target - cur, -rate, rate);
 
 let mats = null;
 function bikeMaterials() {
@@ -329,6 +334,11 @@ export class Motorcycle {
     this.gear = 1;
     this.wheelRot = 0;
     this.controlsEnabled = false;
+    this.crashed = false; // set by the off-road death: physics off, tumble pose applied
+    this.tumble = null; // { roll, pitch, yaw, lift } extra pose on top of the ride pose
+    this._in = { thr: 0, brk: 0, steer: 0 };
+    this._yawRate = 0;
+    this._vib = 0;
     this.autopilotSpec = null;
     this._autoResolve = null;
     this.forward = new THREE.Vector3(0, 0, -1);
@@ -437,6 +447,7 @@ export class Motorcycle {
   }
 
   setPose(pos, yaw) {
+    this.clearCrash();
     this.pos.copy(pos);
     if (this.world?.getHeight) this.pos.y = this.world.getHeight(pos.x, pos.z);
     this.yaw = yaw;
@@ -445,6 +456,23 @@ export class Motorcycle {
   }
   setControlsEnabled(v) {
     this.controlsEnabled = !!v;
+    if (!v) this._in.thr = this._in.brk = 0;
+  }
+  /** Crash pose (off-road death): physics stops, `tumble` {roll, pitch, yaw, lift} is applied each frame. */
+  setCrash(tumble = {}) {
+    this.crashed = true;
+    this.controlsEnabled = false;
+    this.autopilot(null);
+    this.tumble = { roll: 0, pitch: 0, yaw: 0, lift: 0, ...tumble };
+    this.v = 0;
+  }
+  clearCrash() {
+    this.crashed = false;
+    this.tumble = null;
+    this._in.thr = this._in.brk = this._in.steer = 0;
+    this._yawRate = 0;
+    this.lean = 0;
+    this.steerA = 0;
   }
   /** Engine on/off (a parked bike should be switched off so its engine voice stops). */
   setEngine(on) {
@@ -479,6 +507,7 @@ export class Motorcycle {
 
   update(dt) {
     if (!(dt > 0) || this.physics.frozen) return;
+    if (this.crashed) return this._crashTick(dt);
     let throttle = 0, brake = 0, steer = 0;
     const road = this.world?.road;
     if (this.autopilotSpec && road) {
@@ -496,6 +525,7 @@ export class Motorcycle {
       const ld = Math.max(0.5, Math.hypot(x, z));
       const want = Math.atan((2 * x * BIKE.wheelbase) / (ld * ld));
       steer = clamp(want / 0.5, -1, 1);
+      this._autoWant = clamp(want, -RIDE.maxSteer, RIDE.maxSteer);
       let vT = sp.speed;
       const end = sp.stopAt ?? L - 2;
       vT = Math.min(vT, Math.sqrt(Math.max(0, 2 * 2.5 * Math.max(0, end - s - 0.3))));
@@ -507,27 +537,40 @@ export class Motorcycle {
         this._autoResolve = null;
       }
     } else if (this.controlsEnabled) {
-      throttle = input.axis.throttle;
-      brake = input.axis.brake;
-      steer = input.axis.steer;
+      // keyboard, pad and touch all go through the same filter: keys ramp in, pads stay analog
+      const I = this._in;
+      const tIn = clamp(input.axis.throttle || 0, 0, 1), bIn = clamp(input.axis.brake || 0, 0, 1), sIn = clamp(input.axis.steer || 0, -1, 1);
+      I.thr = approach(I.thr, tIn, (tIn > I.thr ? 1.8 : 3.5) * dt);
+      I.brk = approach(I.brk, bIn, (bIn > I.brk ? 3.0 : 5.0) * dt);
+      // steer in steadily, centre a little faster (no twitch on tapped keys)
+      const back = Math.abs(sIn) < Math.abs(I.steer) || Math.sign(sIn) !== Math.sign(I.steer);
+      I.steer = approach(I.steer, sIn, (back ? 4.2 : 2.6) * dt);
+      throttle = Math.pow(I.thr, 1.5); // soft first half of the twist grip
+      brake = Math.pow(I.brk, 1.3);
+      steer = I.steer * (0.55 + 0.45 * Math.abs(I.steer)); // gentle near the centre
       if (input.pressed('headlights')) this.state.headlight = !this.state.headlight;
       if (input.pressed('horn')) audio.play('horn', { object: this.root, rate: 1.6, volume: 0.6 });
     }
-    // longitudinal
+    // longitudinal: torque fades toward the top speed; engine braking off the throttle
     const engine_ = this.state.engineOn;
-    const F = (engine_ ? throttle * 1500 * (1 - Math.min(1, this.v / 22)) : 0) - this.v * Math.abs(this.v) * 0.45 - Math.sign(this.v) * 60;
-    this.v += (F / 160) * dt;
-    const dB = brake * 7 * dt;
+    const drive = engine_ ? throttle * RIDE.drive * clamp(1 - this.v / RIDE.vMax, 0, 1) : 0;
+    const F = drive - this.v * Math.abs(this.v) * 0.4 - Math.sign(this.v) * 45;
+    this.v += (F / RIDE.mass) * dt;
+    const dB = (brake * RIDE.brake + (engine_ && throttle < 0.05 ? RIDE.engineBrake : 0)) * dt;
     this.v = Math.abs(this.v) <= dB ? 0 : this.v - Math.sign(this.v) * dB;
     this.v = Math.max(-1, this.v);
-    // steering & lean
+    // steering & lean: the angle the bars may take shrinks with v² (constant lateral grip)
     const speed = Math.abs(this.v);
-    const maxS = lerp(0.6, 0.12, Math.min(1, speed / 15));
-    this.steerA = damp(this.steerA, -steer * maxS, 6, dt);
-    const yawRate = (this.v * Math.tan(this.steerA)) / BIKE.wheelbase;
+    const maxS = Math.min(RIDE.maxSteer, Math.atan((RIDE.latMax * BIKE.wheelbase) / Math.max(1e-3, speed * speed)));
+    const steerT = this.autopilotSpec && road ? -this._autoWant : -steer * maxS;
+    this.steerA = damp(this.steerA, steerT, this.autopilotSpec ? 6 : 7, dt);
+    this._yawRate = damp(this._yawRate, (this.v * Math.tan(this.steerA)) / BIKE.wheelbase, 9, dt);
+    const yawRate = this._yawRate;
     this.yaw = wrapAngle(this.yaw + yawRate * dt);
-    const leanT = clamp(Math.atan2(this.v * yawRate, 9.81), -0.6, 0.6);
-    this.lean = damp(this.lean, leanT, 4, dt);
+    const leanT = clamp(Math.atan2(this.v * yawRate, 9.81), -RIDE.leanMax, RIDE.leanMax);
+    this.lean = damp(this.lean, leanT, 4.5, dt);
+    // road-surface vibration (a few mm; rougher on the gravel)
+    this._vib = speed > 0.3 ? Math.min(1, speed / 9) * (this._offRoad ? 2.4 : 1) : 0;
     this.forward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this.pos.addScaledVector(this.forward, this.v * dt);
     // corridor
@@ -535,6 +578,8 @@ export class Motorcycle {
       const pr = road.project(this.pos, this.physics.roadRef?.id ?? null);
       if (pr) {
         this.physics.roadRef = { id: pr.id, s: pr.s };
+        this.physics.lateral = pr.lateral;
+        this.physics.roadWidth = pr.width;
         const wall = (pr.width ?? 6.2) / 2 + LAYOUT.shoulder + 1.0;
         if (Math.abs(pr.lateral) > wall) {
           const pen = Math.abs(pr.lateral) - wall;
@@ -586,10 +631,39 @@ export class Motorcycle {
     this.physics.lean = this.lean;
   }
 
+  /** Lying in the ditch: no physics, the headlight stutters, the engine is dead. */
+  _crashTick(dt) {
+    this.rpm = 0;
+    this.wheelRot += (this._spinDown = (this._spinDown ?? 6) * Math.exp(-dt * 0.6)) * dt;
+    this._apply();
+    const on = this.state.headlight && Math.sin(engine.time * 31) + Math.sin(engine.time * 7.3) > -1.2;
+    this.spot.intensity = on ? 45 : 4;
+    this._headMat.emissiveIntensity = on ? 2.4 : 0.3;
+    this._tailMat.emissiveIntensity = 0.6;
+    if (this.beam) this.beam.visible = false;
+    this.spot.getWorldPosition(_hp);
+    this.spot.target.getWorldPosition(_hd).sub(_hp);
+    submitHeadlight(this, on ? 1 : 0.1, _hp, _hd, BIKE_CONE, 1e4);
+    audio.bikeSound?.setOn?.(false);
+    this.physics.speed = 0;
+  }
+
   _apply() {
+    const T = this.tumble;
     this.root.position.copy(this.pos);
-    this.root.rotation.set(0, this.yaw, 0, 'YXZ');
-    this.leanGroup.rotation.z = -this.lean;
+    if (T) this.root.position.y += T.lift || 0;
+    this.root.rotation.set(T ? T.pitch || 0 : 0, this.yaw + (T ? T.yaw || 0 : 0), 0, 'YXZ');
+    this.leanGroup.rotation.z = -this.lean + (T ? T.roll || 0 : 0);
+    // road buzz through the frame (tiny: the eye filters most of it)
+    const vb = this._vib || 0;
+    if (vb > 0 && !T) {
+      const t = engine.time;
+      this.leanGroup.position.y = noise.noise2D(t * 38, 3.3) * 0.0035 * vb;
+      this.leanGroup.rotation.x = noise.noise2D(t * 27, 9.1) * 0.0022 * vb;
+    } else {
+      this.leanGroup.position.y = 0;
+      this.leanGroup.rotation.x = 0;
+    }
     this.steerGroup.rotation.y = this.steerA;
     this.frontWheel.rotation.x = -this.wheelRot;
     this.rearWheel.rotation.x = -this.wheelRot;

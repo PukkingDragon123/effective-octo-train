@@ -1,5 +1,5 @@
 // Main menu (over the live cinematic) and the pause menu.
-import { h, enter, leave } from './dom.js';
+import { h, enter, leave, clockString, parseClock, thaiHourWords } from './dom.js';
 import { screen, titleLockup, menuItem } from './common.js';
 
 export class MainMenu {
@@ -29,7 +29,7 @@ export class MainMenu {
     this.list = h('nav', { class: 'dlb-list dlb-menu__list', attrs: { 'aria-label': 'Main menu' } }, items);
     this.el = screen('dlb-menu',
       h('div', { class: 'dlb-menu__shade' }),
-      h('div', { class: 'dlb-menu__col' }, titleLockup({ align: 'left' }), this.list));
+      h('div', { class: 'dlb-menu__col' }, titleLockup({ align: 'left' }), h('span', { class: 'dlb-rule', attrs: { 'aria-hidden': 'true' } }), this.list));
     ui.layer.appendChild(this.el);
     this.ctx = nav.push({ root: this.list, modal: true, initial: 0, name: 'menu' });
     enter(this.el);
@@ -84,7 +84,20 @@ export class PauseMenu {
       menuItem(nav, { en: 'Resume', th: 'เล่นต่อ', onSelect: resume }),
       menuItem(nav, { en: 'Settings', th: 'ตั้งค่า', onSelect: () => (handlers.onSettings ? handlers.onSettings() : ui.showSettings()) }),
       menuItem(nav, { en: 'Main Menu', th: 'เมนู', onSelect: quit }));
-    this.el = screen('dlb-pause', h('div', { class: 'dlb-backdrop' }), h('div', { class: 'dlb-pause__col' }, list));
+    // the night's clock, top right: the time it stopped at
+    const hr = typeof handlers.time === 'number' ? handlers.time : handlers.time ? parseClock(handlers.time) : ui._hour;
+    const time = typeof handlers.time === 'string' ? handlers.time : Number.isFinite(hr) ? clockString(hr) : null;
+    const clock = time ? h('div', { class: 'dlb-pause__time' },
+      h('div', { class: 't' }, time),
+      Number.isFinite(hr) ? h('div', { class: 'th', attrs: { lang: 'th' } }, thaiHourWords(hr)) : null,
+      handlers.th ? h('div', { class: 'ride', attrs: { lang: 'th' } }, handlers.th) : null,
+      handlers.en ? h('div', { class: 'ride en' }, handlers.en) : null) : null;
+    this.el = screen('dlb-pause', h('div', { class: 'dlb-backdrop' }),
+      h('div', { class: 'dlb-pause__col' },
+        h('div', { class: 'dlb-pause__head' }, h('span', { class: 'th', attrs: { lang: 'th' } }, 'หยุดพัก'), h('span', { class: 'en' }, 'Paused')),
+        h('span', { class: 'dlb-rule', attrs: { 'aria-hidden': 'true' } }),
+        list),
+      clock);
     ui.layer.appendChild(this.el);
     this.ctx = nav.push({ root: list, modal: true, name: 'pause', onBack: resume, onStart: resume });
     enter(this.el);
