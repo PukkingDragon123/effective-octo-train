@@ -153,7 +153,7 @@ export async function startGame(ctx) {
   ui.showLoading(1, 'พร้อมแล้ว', 'Ready');
   timed('total', bootT0);
   if (!skipLoading) {
-    // the burnt-down stick waits for the player; a hand takes it (audio unlocks on this gesture)
+    // the burnt-down stick is taken by a hand, automatically (audio unlocks later, in the menu)
     const play = (id, opts) => {
       try {
         audio.init();
@@ -201,35 +201,28 @@ export async function startGame(ctx) {
 function waitForStartSafe(cue) {
   return new Promise((resolve) => {
     let done = false;
-    let timer = 0;
     const finish = (why) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      window.removeEventListener('pointerdown', armed, true);
-      window.removeEventListener('keydown', armed, true);
-      if (why !== 'ok') console.warn(`[boot] start gate: ${why}, continuing to the menu`);
+      if (why !== 'ok') console.warn(`[boot] intro: ${why}, continuing to the menu`);
       resolve();
     };
-    // the first gesture arms a hard limit on the grab animation (it lasts ~3.4 s)
-    const armed = () => {
-      if (timer) return;
-      timer = setTimeout(() => finish("the hand animation stalled"), 12000);
-    };
-    window.addEventListener('pointerdown', armed, true);
-    window.addEventListener('keydown', armed, true);
+    // the hand plays by itself (no click gate; audio unlocks on the first gesture in the menu).
+    // Loading caps it at ~4 s; this is the hard stop if even that never settles.
+    const timer = setTimeout(() => finish('the hand animation stalled'), 6000);
     let p;
     try {
-      p = ui.loading?.waitForStart?.(cue);
+      p = ui.loading?.playIntro?.(cue);
     } catch (e) {
-      console.error('[boot] waitForStart failed', e);
+      console.error('[boot] intro failed', e);
     }
-    if (!p || typeof p.then !== 'function') return finish('no start gate');
+    if (!p || typeof p.then !== 'function') return finish('no intro');
     p.then(
       () => finish('ok'),
       (e) => {
-        console.error('[boot] start gate failed', e);
-        finish('start gate error');
+        console.error('[boot] intro failed', e);
+        finish('intro error');
       },
     );
   });

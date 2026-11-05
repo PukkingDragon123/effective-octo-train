@@ -1,8 +1,8 @@
 // UI overlay (HTML/CSS over the canvas) — menus, subtitles, minimal prompts
 // (contract: docs/ARCHITECTURE.md "ui").
 //
-// Design: "almost no UI", like a film title sequence. Bone text on near-black, a single
-// dim incense-red accent with a tiny ember, soft fades, film grain behind menus.
+// Design: "almost no UI", like a film title sequence. One typeface (Srisakdi), bone text on
+// near-black, one deep incense-red mark for focus, plain fades. No grain, glow or blur.
 // Every screen works with mouse, keyboard (arrows/WASD + Enter/Esc) and gamepad
 // (d-pad/stick + A/B, LB/RB tabs) through ./nav.js.
 import './styles.css';
@@ -25,10 +25,12 @@ import { Choice } from './Choice.js';
 import { DeathCard } from './Death.js';
 import { Ending } from './Ending.js';
 import { confirmDialog } from './Confirm.js';
+import { NewsReport } from './News.js';
 import { drawRulesPaper as drawPaper } from './RulesPaper.js';
 
 export { DEFAULT_RULES, HIDDEN_LINE } from './RulesPaper.js';
 export { glyph } from './glyphs.js';
+export { NEWS_TICKER } from './News.js';
 
 /** CPU-rendered WebGL (SwiftShader) or the QA harness: avoid backdrop-filter blur. */
 function isSoftwareRendering() {
@@ -81,12 +83,22 @@ class UI {
     this.choiceUI = new Choice(this);
     this.death = new DeathCard(this);
     this.endingUI = new Ending(this);
+    this.news = new NewsReport(this);
     this.loading = new Loading(this);
     this.menu = new MainMenu(this);
     this.pause = new PauseMenu(this);
     this.slots = new SlotPicker(this);
     this.settingsPanel = new SettingsPanel(this);
     this.credits = new CreditsScreen(this);
+    // prompts became the default: turn them on once for players who saved the old default
+    try {
+      if (!localStorage.getItem('dlbih.ui.prompts.v2')) {
+        localStorage.setItem('dlbih.ui.prompts.v2', '1');
+        if (settings.get('showPrompts') === false) settings.set('showPrompts', true);
+      }
+    } catch (e) {
+      /* storage unavailable */
+    }
     this.fadeEl = h('div', { class: 'dlb-fade' });
     root.appendChild(this.fadeEl);
 
@@ -146,6 +158,7 @@ class UI {
     if (this.loading?.el && !this.loading.el.hidden) n++;
     if (this.death?.el) n++;
     if (this.endingUI?.el) n++;
+    if (this.news?.el) n++;
     return n;
   }
 
@@ -241,6 +254,15 @@ class UI {
     this._ensure();
     return this.death.show(d || {});
   }
+  /**
+   * GAME OVER as breaking TV news: {th (headline), sub? (first ticker item), image? (canvas /
+   * image / URL of the crash footage), hold? (s, default 7), kicker?, place?, ticker?: [th],
+   * keepBlack?} -> Promise, resolves once the screen has cut to black.
+   */
+  newsReport(n) {
+    this._ensure();
+    return this.news.show(n || {});
+  }
   /** Ending title + credits roll: {id, titleTH, titleEN, th, en, credits?, keepBlack?} -> Promise */
   ending(e) {
     this._ensure();
@@ -263,6 +285,7 @@ class UI {
     if (!on) {
       this.death.release(secs);
       this.endingUI.release(secs);
+      this.news.release(secs);
     }
     return new Promise((r) => setTimeout(r, secs * 1000));
   }

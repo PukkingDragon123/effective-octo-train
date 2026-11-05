@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS = {
   transmission: 'auto', // 'auto' | 'manual'
   touchControls: 'auto', // 'auto' (on touch devices) | 'on' | 'off'
   testPanel: false, // developer test panel: only with ?dev=1
-  showPrompts: false, // minimal text: the crosshair dot blooms on targets but shows no label
+  showPrompts: true, // the crosshair ring shows a short Thai verb under it on interactables
   // text / language
   language: 'th', // 'th' = the whole game in Thai only (default) | 'both' = Thai with English helpers
   subtitles: 'th', // 'en' | 'th' | 'both' | 'off'
