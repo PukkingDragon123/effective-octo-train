@@ -63,6 +63,16 @@ export const CREDITS = [
     ],
   },
   {
+    id: 'photoTextures',
+    titleTH: 'ภาพถ่ายพื้นผิว (CC BY)',
+    titleEN: 'Photo textures (CC BY)',
+    entries: [
+      { th: 'เหล็กชุบสังกะสี: Andrew Beeston, Flickr, CC BY 2.0', en: 'Galvanised steel: Andrew Beeston, Flickr, CC BY 2.0' },
+      { th: 'ผิวน้ำคลอง: JunCTionS, Flickr, CC BY 2.0', en: 'Canal water: JunCTionS, Flickr, CC BY 2.0' },
+      { th: 'ภาพอื่นทั้งหมด CC0 จาก Poly Haven, ambientCG และ Wikimedia Commons', en: 'All other photos CC0 from Poly Haven, ambientCG and Wikimedia Commons' },
+    ],
+  },
+  {
     id: 'thanks',
     titleTH: 'ขอบคุณ',
     titleEN: 'Thanks',
