@@ -41,6 +41,7 @@ const actionName = (a) => {
 const estDuration = (line) => Math.max(1.8, 1.1 + (line.th || '').length * 0.065 + (line.en || '').length * 0.012);
 const NEUTRAL = { smile: 0, sad: 0, fear: 0, anger: 0, creepy: 0, surprise: 0 };
 const isSilentText = (t) => !t || /^[\s.…]*$/.test(t);
+const isSpeakable = (line) => !isSilentText(line.th) && line.tone !== 'thought' && line.who !== 'player_thought';
 
 export class Dialogue {
   constructor() {
@@ -106,6 +107,31 @@ export class Dialogue {
     if (this.current?.humanoid) this.current.humanoid.setTalking(false);
     this.current = null;
     this.busy = false;
+  }
+
+  /** speak() options for a line: the speaker's voice + the line's tone; radio / phone voices get their fx. */
+  _speakArgs(line, sp) {
+    const voice = { ...(sp.voice || {}), ...(line.tone === 'whisper' ? { whisper: true } : {}), ...(line.tone === 'ghost' ? { ghost: Math.max(0.6, sp.voice?.ghost || 0) } : {}) };
+    const fx = line.fx || (line.tone === 'phone' || line.tone === 'radio' ? line.tone : null) || sp.fx || null;
+    return { th: line.th, en: line.en, voice, object: sp.object || sp.humanoid?.root || null, tone: line.tone, ...(fx ? { fx } : {}) };
+  }
+
+  /** Ask the voice to pre-render the next speakable line of this block (no-op without support). */
+  _prepareNext(lines, i) {
+    try {
+      const prep = g.audio?.voice?.prepare;
+      if (!prep) return;
+      for (let j = i + 1; j < lines.length && j <= i + 2; j++) {
+        const l = lines[j];
+        if (!l || l.choice) return;
+        if (isSpeakable(l)) {
+          g.audio.voice.prepare(this._speakArgs(l, this._speaker(l.who)));
+          return;
+        }
+      }
+    } catch (e) {
+      /* preparing is only an optimisation */
+    }
   }
 
   /** Ton says a picked reply aloud (no subtitle). Never voices '…'. */
@@ -226,13 +252,14 @@ export class Dialogue {
       const duration = estDuration(line);
       if (line.th || line.en) g.ui.subtitle({ speakerTH: nameTH, speakerEN: nameEN, th: line.th, en: line.en, tone: line.tone || 'normal', duration: duration + 1.5 });
       const voiceMode = settings.get('voice');
-      const voice = { ...(sp.voice || {}), ...(line.tone === 'whisper' ? { whisper: true } : {}), ...(line.tone === 'ghost' ? { ghost: Math.max(0.6, sp.voice?.ghost || 0) } : {}) };
       const t0 = g.engine.realTime;
-      const speakable = !isSilentText(line.th) && line.tone !== 'thought' && line.who !== 'player_thought';
+      const speakable = isSpeakable(line);
+      // render the next line while this one plays (ghost voices take a moment to generate)
+      if (voiceMode !== 'off') this._prepareNext(lines, i);
       if (voiceMode !== 'off' && g.audio?.voice && speakable) {
         try {
           await Promise.race([
-            g.audio.voice.speak({ th: line.th, en: line.en, voice, object: sp.object || hum?.root || null, tone: line.tone }),
+            g.audio.voice.speak(this._speakArgs(line, sp)),
             wait(duration + 6),
           ]);
         } catch (e) {

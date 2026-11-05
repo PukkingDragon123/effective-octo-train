@@ -56,7 +56,7 @@ export function installGameplayB() {
   const radioObj = g.taxi.anchors.radioKnob;
   for (const id of ['radio', 'djNok']) {
     const c = CHARACTERS[id] || {};
-    g.dialogue.setSpeaker(id, { nameTH: c.nameTH || '', nameEN: c.nameEN || '', voice: { ...(c.voice || {}) }, humanoid: null, object: radioObj });
+    g.dialogue.setSpeaker(id, { nameTH: c.nameTH || '', nameEN: c.nameEN || '', voice: { ...(c.voice || {}) }, humanoid: null, object: radioObj, fx: 'radio' });
   }
   findDirector();
   bus.emit('gameplayB:ready', {});

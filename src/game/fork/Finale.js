@@ -141,7 +141,7 @@ export async function finale(ride) {
   g.clock?.advanceTo(29.85);
   // Ah Kong through the radio: which way home?
   if (!t.state.radioOn) t.setControl('radio', true);
-  g.dialogue.setSpeaker('ahKongRadio', { ...(CHARACTERS.ahKong ? { nameTH: CHARACTERS.ahKong.nameTH, nameEN: CHARACTERS.ahKong.nameEN, voice: { ...CHARACTERS.ahKong.voice, ghost: 0.4 } } : {}), humanoid: null, object: t.anchors.radioKnob });
+  g.dialogue.setSpeaker('ahKongRadio', { ...(CHARACTERS.ahKong ? { nameTH: CHARACTERS.ahKong.nameTH, nameEN: CHARACTERS.ahKong.nameEN, voice: { ...CHARACTERS.ahKong.voice, ghost: 0.4 } } : {}), humanoid: null, object: t.anchors.radioKnob, fx: 'radio' });
   g.dialogue.alias('ahKong', 'ahKongRadio');
   g.audio?.radio?.setStatic?.(0.35);
   await wait(1.2);
