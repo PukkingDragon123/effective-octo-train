@@ -340,7 +340,7 @@ const FRAG_MAP = /* glsl */ `
       }
       float lum = t.r / 0.31;
       c = uHairCol * clamp(lum, 0.0, 2.2);
-      mhRough = 0.42;
+      mhRough = 0.66; // matte strands: no plastic helmet highlight
     } else if (part == 3) {
       c = mix(uHairCol, vec3(0.012, 0.01, 0.009), 0.35 * (1.0 - uLook2.x)) * clamp(t.r / 0.31, 0.0, 2.0);
       mhRough = 0.6;
