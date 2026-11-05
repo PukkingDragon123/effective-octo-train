@@ -21,14 +21,13 @@ from printed import Doc, thd, _column, font, SS
 PHOTOS = {
     'buddha_hall': 'st_buddha_hall', 'buddha_seated': 'st_buddha_seated', 'buddha_gold': 'st_buddha_gold',
     'temple_river': 'st_temple_river', 'temple_sunset': 'st_temple_sunset', 'temple_sukhothai': 'st_temple_sukhothai',
-    'rice_field': 'st_rice_field', 'rice_bridge': 'st_rice_bridge', 'waterfall': 'st_waterfall', 'sunset': 'st_sunset_trees',
+    'rice_field': 'st_rice_field', 'rice_bridge': 'st_rice_bridge', 'waterfall': 'st_waterfall', 'sunset': 'st_sunset_sky',
     'lotus': 'st_lotus', 'marigold': 'st_marigold', 'chrysanthemum': 'st_chrysanthemum', 'elephant': 'st_elephant',
     'tomyum': 'st_tomyum', 'pork_noodle': 'st_pork_noodle', 'noodles': 'st_noodles', 'corn': 'st_corn', 'prawn': 'st_prawn',
     'squid': 'st_squid', 'chili': 'st_chili', 'ginger': 'st_ginger', 'parrot': 'st_parrot', 'incense': 'st_incense',
     'helmet': 'st_helmet', 'old_moto': 'st_old_moto', 'house_fog': 'st_house_fog', 'mist_road': 'st_mist_road',
     'stage': 'st_stage', 'yellow_car': 'st_yellow_car', 'pipe': 'st_pipe', 'lanterns': 'st_lanterns', 'candles': 'st_candles',
-    'joss': 'st_joss', 'car_wreck': 'st_car_wreck', 'drink': 'st_drink', 'lime': 'st_lime', 'strawberry': 'st_strawberry',
-    'banyan': 'st_banyan',
+    'car_wreck': 'st_car_wreck', 'drink': 'st_drink', 'lime': 'st_lime', 'strawberry': 'st_strawberry',
 }
 _CACHE = {}
 
