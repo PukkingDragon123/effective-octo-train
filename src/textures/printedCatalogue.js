@@ -177,6 +177,85 @@ export const PRINTED_CATALOGUE = {
    ]
   }
  },
+ "picture": {
+  "variants": [
+   "temple",
+   "waterfall",
+   "snapshot",
+   "motorbike",
+   "lotus",
+   "rice"
+  ],
+  "decal": false,
+  "size": [
+   0.512,
+   0.664
+  ],
+  "fallback": {
+   "temple": [
+    "picture",
+    {
+     "variant": "temple"
+    }
+   ],
+   "waterfall": [
+    "picture",
+    {
+     "variant": "waterfall"
+    }
+   ],
+   "snapshot": [
+    "picture",
+    {
+     "variant": "snapshot"
+    }
+   ],
+   "motorbike": [
+    "picture",
+    {
+     "variant": "motorbike"
+    }
+   ],
+   "lotus": [
+    "picture",
+    {
+     "variant": "lotus"
+    }
+   ],
+   "rice": [
+    "picture",
+    {
+     "variant": "rice"
+    }
+   ]
+  },
+  "sizes": {
+   "temple": [
+    0.512,
+    0.664
+   ],
+   "waterfall": [
+    0.512,
+    0.664
+   ],
+   "snapshot": [
+    0.09,
+    0.12
+   ],
+   "motorbike": [
+    0.09,
+    0.12
+   ],
+   "lotus": [
+    0.09,
+    0.12
+   ],
+   "rice": [
+    0.09,
+    0.12
+   ]
+  }
+ },
  "newspaper": {
   "variants": [
    "front",

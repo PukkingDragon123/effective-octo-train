@@ -69,7 +69,7 @@ export const CREDITS = [
     entries: [
       { th: 'เหล็กชุบสังกะสี: Andrew Beeston, Flickr, CC BY 2.0', en: 'Galvanised steel: Andrew Beeston, Flickr, CC BY 2.0' },
       { th: 'ผิวน้ำคลอง: JunCTionS, Flickr, CC BY 2.0', en: 'Canal water: JunCTionS, Flickr, CC BY 2.0' },
-      { th: 'ภาพอื่นทั้งหมด CC0 จาก Poly Haven, ambientCG และ Wikimedia Commons', en: 'All other photos CC0 from Poly Haven, ambientCG and Wikimedia Commons' },
+      { th: 'ภาพอื่นทั้งหมด CC0 จาก Poly Haven, ambientCG, Wikimedia Commons และ Openverse (Flickr, WordPress Photo Directory, The Met Open Access)', en: 'All other photos CC0 from Poly Haven, ambientCG, Wikimedia Commons and Openverse (Flickr, WordPress Photo Directory, The Met Open Access)' },
     ],
   },
   {

@@ -26,7 +26,7 @@ PHOTOS = {
     'tomyum': 'st_tomyum', 'pork_noodle': 'st_pork_noodle', 'noodles': 'st_noodles', 'corn': 'st_corn', 'prawn': 'st_prawn',
     'squid': 'st_squid', 'chili': 'st_chili', 'ginger': 'st_ginger', 'parrot': 'st_parrot', 'incense': 'st_incense',
     'helmet': 'st_helmet', 'old_moto': 'st_old_moto', 'house_fog': 'st_house_fog', 'mist_road': 'st_mist_road',
-    'stage': 'st_stage', 'yellow_car': 'st_yellow_car', 'pipe': 'st_pipe', 'lanterns': 'st_lanterns', 'candles': 'st_candles',
+    'yellow_car': 'st_yellow_car', 'pipe': 'st_pipe', 'lanterns': 'st_lanterns', 'candles': 'st_candles',
     'car_wreck': 'st_car_wreck', 'drink': 'st_drink', 'lime': 'st_lime', 'strawberry': 'st_strawberry',
 }
 _CACHE = {}
@@ -45,7 +45,7 @@ def _load(name):
     return _CACHE[sid]
 
 
-def photo(name, w, h, focus=(0.5, 0.5), zoom=1.0, sat=0.82, contrast=1.04, warm=0.0, mono=False):
+def photo(name, w, h, focus=(0.5, 0.5), zoom=1.0, sat=0.82, contrast=1.04, warm=0.0, mono=False, gain=1.0):
     """Cover-crop stock photo `name` to w x h around focus (relative), zoom >= 1 crops tighter."""
     a = _load(name)
     H, W = a.shape[:2]
@@ -60,6 +60,8 @@ def photo(name, w, h, focus=(0.5, 0.5), zoom=1.0, sat=0.82, contrast=1.04, warm=
         out = np.repeat(lum(out)[..., None], 3, 2)
     else:
         out = saturate(out, sat)
+    if gain != 1.0:  # lift dark night photos so they survive the print (screen + lifted mids)
+        out = 1 - (1 - np.clip(out, 0, 1)) ** gain
     out = np.clip((out - 0.5) * contrast + 0.5, 0, 1)
     if warm:
         out = out * (1 - warm) + out * hex2rgb('#ffe8c0') * warm
@@ -91,8 +93,8 @@ POSTER_AGE = dict(paper='cream', halftone=3.0, misreg=1.2, sun=0.45, folds=(1, 1
 
 def poster_movie(seed):
     D = Doc(PW, PH, '#0c0f10')
-    p = shade(photo('house_fog', PW, PH, focus=(0.5, 0.45), sat=0.55), 0.55, 0.95, 0.85)
-    p = shade(p, 0.75, 1.0, 0.5, top=True)
+    p = shade(photo('house_fog', PW, PH, focus=(0.5, 0.45), sat=0.6, gain=1.9, contrast=1.15), 0.62, 1.0, 0.7)
+    p = shade(p, 0.8, 1.0, 0.45, top=True)
     D.paste(p, 0, 0, PW, PH)
     D.text('วิญญาณริมทางโค้ง', PW / 2, PH * 0.1, 66, '#d8d2c0', max_w=PW - 60)
     D.text('อย่าจอด... ถ้าเธอโบกเรียก', PW / 2, PH * 0.8, 34, '#c8202a')
@@ -103,7 +105,7 @@ def poster_movie(seed):
 
 def poster_movie2(seed):
     D = Doc(PW, PH, '#101210')
-    p = shade(photo('mist_road', PW, PH, focus=(0.5, 0.5), sat=0.6, warm=0.25), 0.6, 1.0, 0.8)
+    p = shade(photo('mist_road', PW, PH, focus=(0.5, 0.5), sat=0.7, warm=0.15, gain=1.5, contrast=1.12), 0.66, 1.0, 0.7)
     D.paste(p, 0, 0, PW, PH)
     D.text('ทุ่งร้าง', PW / 2, PH * 0.12, 92, '#f0e6cc')
     D.text('ภาพยนตร์ไทย เสียงในฟิล์ม', PW / 2, PH * 0.86, 28, '#e0d6bc')
@@ -113,7 +115,7 @@ def poster_movie2(seed):
 
 def poster_concert(seed):
     D = Doc(PW, PH, '#0a0a0c')
-    p = shade(photo('stage', PW, PH, focus=(0.5, 0.5), sat=0.9), 0.62, 1.0, 0.7)
+    p = shade(photo('sunset', PW, PH, focus=(0.5, 0.5), sat=0.95, gain=1.2), 0.66, 1.0, 0.6)
     D.paste(p, 0, 0, PW, PH)
     D.text('คอนเสิร์ตลูกทุ่ง', PW / 2, PH * 0.1, 70, '#f2d27a')
     D.text('คืนวันเสาร์  ลานวัดมารวย', PW / 2, PH * 0.84, 36, '#f0eadc')
@@ -125,7 +127,7 @@ def poster_missing(seed):
     """Photocopied appeal for Boy M: the helmet found at the bus stop instead of a face."""
     D = Doc(PW, PH, '#f4f2ec')
     D.text('ประกาศ! เด็กหาย', PW / 2, PH * 0.075, 74, '#111111')
-    D.paste(photo('helmet', 400, 360, focus=(0.5, 0.42), mono=True, contrast=1.2), PW / 2 - 200, PH * 0.135, PW / 2 + 200, PH * 0.135 + 360)
+    D.paste(photo('helmet', 400, 360, focus=(0.5, 0.42), mono=True, contrast=1.1, gain=1.6), PW / 2 - 200, PH * 0.135, PW / 2 + 200, PH * 0.135 + 360)
     D.text('หมวกที่พบ ณ ป้ายรถเมล์ กม.๑๑', PW / 2, PH * 0.565, 24, '#222222')
     D.text('ด.ช. เอ็ม  อายุ ๙ ขวบ', PW / 2, PH * 0.635, 48, '#111111')
     D.lines(['หายตัวไปเย็นวันศุกร์ หลังเลิกเรียน', 'สวมชุดนักเรียน สะพายกระเป๋าสีแดง'],
@@ -166,7 +168,7 @@ def poster_lottery(seed):
 
 def poster_drink(seed):
     D = Doc(PW, PH, '#f2ecdc')
-    D.paste(photo('drink', PW, int(PH * 0.72), focus=(0.5, 0.5), sat=0.9), 0, 0, PW, PH * 0.72)
+    D.paste(photo('drink', PW, int(PH * 0.72), focus=(0.5, 0.5), sat=0.95, gain=1.25), 0, 0, PW, PH * 0.72)
     D.text('น้ำแดง ม้าเหลือง', PW / 2, PH * 0.8, 60, '#a81a10')
     D.text('เย็นชื่นใจ  ขวดละ ๕ บาท', PW / 2, PH * 0.89, 32, '#2a2a2a')
     return D.finish(), dict(POSTER_AGE, paper='board', halftone=2.6, sun=0.7, water=0.2, streaks=0.4, tear=0.05)
@@ -174,7 +176,7 @@ def poster_drink(seed):
 
 def poster_balm(seed):
     D = Doc(PW, PH, '#e8e2cc')
-    D.paste(photo('ginger', PW, int(PH * 0.66), focus=(0.5, 0.5), sat=0.85), 0, PH * 0.14, PW, PH * 0.8)
+    D.paste(photo('ginger', PW, int(PH * 0.66), focus=(0.5, 0.5), sat=0.9, gain=1.4), 0, PH * 0.14, PW, PH * 0.8)
     D.text('ยาหม่อง ตราเขียว', PW / 2, PH * 0.075, 56, '#1a4a2a')
     D.text('ไพล ขิง ตะไคร้  แก้ปวดเมื่อย', PW / 2, PH * 0.86, 32, '#1a1a1a', max_w=PW - 60)
     D.text('มีขายทุกร้านค้า', PW / 2, PH * 0.925, 26, '#3a3a3a')
@@ -222,7 +224,7 @@ def picture(seed, name, w, h, focus=(0.5, 0.5), border=0.0, warm=0.2, sat=0.75):
 def amulet_card(seed, name, label, gen):
     W, H = 384, 512
     D = Doc(W, H, '#14100c')
-    D.paste(photo(name, W - 48, int(H * 0.68), focus=(0.5, 0.4), zoom=1.15, sat=0.85), 24, 24, W - 24, 24 + H * 0.68)
+    D.paste(photo(name, W - 48, int(H * 0.68), focus=(0.5, 0.3), sat=0.85, gain=1.2), 24, 24, W - 24, 24 + H * 0.68)
     D.text(label, W / 2, H * 0.8, 34, '#e8c860', max_w=W - 30)
     D.text(gen, W / 2, H * 0.89, 24, '#c8b088')
     return D.finish(), dict(paper='board', halftone=0, solid=True, sun=0.2, grime=0.4, alpha=False, scratch=0.6, gloss=True)
@@ -376,7 +378,7 @@ def cigarette_pack(seed, variant='plaifah'):
 def betel_pack(seed):
     W, H = 384, 384
     D = Doc(W, H, '#1a5a2a')
-    D.paste(photo('parrot', W, int(H * 0.7), focus=(0.5, 0.45), sat=0.95), 0, 0, W, H * 0.7)
+    D.paste(photo('parrot', W, int(H * 0.7), focus=(0.5, 0.35), sat=0.95, gain=1.2), 0, 0, W, H * 0.7)
     D.text('หมากแห้ง ตรานกแก้ว', W / 2, H * 0.84, 38, '#f8ecc8', max_w=W - 30)
     return D.finish(), dict(paper='kraft', halftone=2.4, misreg=0.6, sun=0.3, crumple=0.6, grime=0.5, alpha=False)
 

@@ -14,11 +14,19 @@ in the shipped credits): "Texture - Galvanized metal" by Andrew Beeston and "wat
 of 3" by JunCTionS, both on Flickr, licensed CC BY 2.0 (https://creativecommons.org/licenses/by/2.0/),
 modified (tiled, recoloured, combined with other scans).
 
-Rejected / not used: anything NC, ND, BY-SA or with unknown licence; Flickr results other than the two
-CC BY photos above; photos showing brands, logos or identifiable people. All printed matter, packaging,
-signage and labels are ORIGINAL fictional designs (no real brands); text is set in Srisakdi
-(SIL OFL 1.1, Cadson Demak, bundled via @fontsource/srisakdi). Poster portraits are painted,
-generic and not of real people.
+**Stock photos for printed matter** (`st_*` rows): the picture on every poster, calendar, wall
+picture, product label / pack, newspaper, lottery ticket, offering label and sticker is a real
+photograph found through Openverse (https://openverse.org) with the CC0 filter, from Flickr (CC0
+1.0 "public domain dedication" on the Flickr photo page), the WordPress Photo Directory (CC0 1.0 for
+every photo), the Metropolitan Museum Open Access (CC0 1.0), or Wikimedia Commons (CC0 1.0 on the
+file page; the same files as docs/credits/screens.md). No Unsplash, Pexels or Pixabay imports. No
+royal images, brands, logos or portraits of real people (the missing-person poster shows a helmet).
+Each photo is cover-cropped, lightly graded and printed by `tools/photobash/stockprint.py`.
+
+Rejected / not used: anything NC, ND, BY-SA or with unknown licence; Flickr results other than the
+CC0 photos listed here and the two CC BY photos named above; photos showing brands, logos or identifiable people.
+Brand names on packs are fictional; text is set in Srisakdi (SIL OFL 1.1, Cadson Demak, bundled via
+@fontsource/srisakdi).
 
 Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 `python3 -I tools/photobash/build.py --raw <dir>` (see docs/ARCHITECTURE.md, textures).
@@ -120,3 +128,39 @@ Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 | pbr/bamboo_woven (from Poly Haven 'Bamboo Wall 03') | เฮียผัด (owner) | Amal Kumar | CC0 1.0 | <https://polyhaven.com/a/bamboo_wall_03> | bamboo_weave* (woven bamboo strips: winnowing trays, baskets) |
 | pbr/water_canal_calm (from Flickr photo 'water ripples texture 1 of 3') | เฮียผัด (owner) | JunCTionS | CC BY 2.0 | <https://www.flickr.com/photos/17333088@N00/2937691081> | water_surface* (ripple normals) |
 | pbr/brick_exposed_red (from ambientCG Bricks090) | เฮียผัด (owner) | Lennart Demes (ambientCG) | CC0 1.0 | <https://ambientcg.com/a/Bricks090> | brick* |
+| Ayutthaya: Phra Mongkhon Bophit Temple Buddha Statue | Flickr (via Openverse) | Gary Lee Todd, Ph.D. | CC0 1.0 | <https://www.flickr.com/photos/101561334@N08/45582796675> | 2D printed: calendar buddha |
+| Ayutthaya: Phra Mongkhon Bophit Temple Buddha Statue | Flickr (via Openverse) | Gary Lee Todd, Ph.D. | CC0 1.0 | <https://www.flickr.com/photos/101561334@N08/46496112121> | 2D printed: amulet_card luangpho |
+| A golden Buddha statue inside a Chinese Buddhist temple in Lumbini, seated on a  | WordPress Photo Directory (via Openverse) | aveline127 | CC0 1.0 | <https://wordpress.org/photos/photo/5196973217/> | 2D printed: amulet_card phra_somdej, sticker yantra |
+| Bell Temple (Wat Rakan). Bangkok. | Flickr (via Openverse) | Bernard Spragg | CC0 1.0 | <https://www.flickr.com/photos/88123769@N02/12450068764> | 2D printed: lottery ticket |
+| Lotus Flower | Flickr (via Openverse) | MyStockPhotos | CC0 1.0 | <https://www.flickr.com/photos/136375272@N05/24206938531> | 2D printed: candle_pack, sticker merit, picture lotus |
+| A vibrant yellow marigold flower in full bloom, surrounded by green leaves, plac | WordPress Photo Directory (via Openverse) | Yam B Chhetri | CC0 1.0 | <https://wordpress.org/photos/photo/657695cba7/> | 2D printed: offering_label spirit, sticker lucky |
+| White Chrysanthemum | Flickr (via Openverse) | Mustang Joe | CC0 1.0 | <https://www.flickr.com/photos/63234672@N04/30754214520> | 2D printed: offering_label condolence |
+| Thai War Elephant | Flickr (via Openverse) | Gary Lee Todd, Ph.D. | CC0 1.0 | <https://www.flickr.com/photos/101561334@N08/31288806287> | 2D printed: poster lottery, sticker cartoon |
+| Tom yum | Flickr (via Openverse) | sarahstierch | CC0 1.0 | <https://www.flickr.com/photos/7633518@N08/54047731397> | 2D printed: noodle_cup tomyum |
+| Local Thai food Tom Yum Noodles | WordPress Photo Directory (via Openverse) | Raju Alam | CC0 1.0 | <https://wordpress.org/photos/photo/1763eefdaf/> | 2D printed: noodle_cup pork |
+| Kimchi Beef Udon at Bay Sushi Cafe - Roland in Vancouver 2082 | Flickr (via Openverse) | roland | CC0 1.0 | <https://www.flickr.com/photos/35034347371@N01/138568275> | 2D printed: noodle_menu |
+| Tuesday Lunch Sweet Corn with Carrots & Cucumber | Flickr (via Openverse) | Gary Lee Todd, Ph.D. | CC0 1.0 | <https://www.flickr.com/photos/101561334@N08/34381075175> | 2D printed: snack_bag corn |
+| Boneless pork feet, stuffed with shrimps and black sausage | Flickr (via Openverse) | dkblnt | CC0 1.0 | <https://www.flickr.com/photos/121988714@N05/21103832420> | 2D printed: snack_bag prawn |
+| Japanese Lunch | Flickr (via Openverse) | cogdogblog | CC0 1.0 | <https://www.flickr.com/photos/37996646802@N01/2898929660> | 2D printed: snack_bag squid |
+| Heap of Dried Red Chili Peppers | Flickr (via Openverse) | qubodup | CC0 1.0 | <https://www.flickr.com/photos/21051491@N02/7698343400> | 2D printed: drink_label energy_red |
+| A close-up of fresh ginger roots with rough brown skin still covered in soil, so | WordPress Photo Directory (via Openverse) | Vishnu Chandra | CC0 1.0 | <https://wordpress.org/photos/photo/74569c5422/> | 2D printed: poster balm, drink_label energy |
+| Crisom winged parrot. (Aprosmictus erythropterus), | Flickr (via Openverse) | Bernard Spragg | CC0 1.0 | <https://www.flickr.com/photos/88123769@N02/8065423579> | 2D printed: betel_pack |
+| Buddha in background with incense sticks and incense smoke | WordPress Photo Directory (via Openverse) | Jose Varghese | CC0 1.0 | <https://wordpress.org/photos/photo/55564ea66c/> | 2D printed: incense_box |
+| A black motorcycle helmet rests on a cut tree stump near a river. | WordPress Photo Directory (via Openverse) | Yam B Chhetri | CC0 1.0 | <https://wordpress.org/photos/photo/87968da2fd/> | 2D printed: poster missing (Boy M) |
+| Motorcycle...Vroom...Vroom | Flickr (via Openverse) | Crusty Da Klown | CC0 1.0 | <https://www.flickr.com/photos/148598741@N02/42712819810> | 2D printed: newspaper classifieds, picture motorbike |
+| Flexaret 3a - Abandoned House at the Rail | Flickr (via Openverse) | Kojotisko | CC0 1.0 | <https://www.flickr.com/photos/98796230@N03/12345334633> | 2D printed: poster movie |
+| A misty mountainous landscape in Genting Highlands, Malaysia, with lush forests  | WordPress Photo Directory (via Openverse) | Zaved Sadek Chowdhury | CC0 1.0 | <https://wordpress.org/photos/photo/5266935405/> | 2D printed: poster movie_2, sticker no_stop |
+| Yellow vintage car | Flickr (via Openverse) | StockyPics | CC0 1.0 | <https://www.flickr.com/photos/135371437@N04/21299606203> | 2D printed: picture snapshot, sticker meter |
+| Tobacco Pipe with Maple Leaves in a River early to mid-1800s | Flickr (via Openverse) | museado | CC0 1.0 | <https://www.flickr.com/photos/200781279@N05/53865541232> | 2D printed: sticker no_smoking |
+| Bodhisattva Day, Torma, Incense, Candles, Flowers, ritual Tibetan Buddhist Offer | Flickr (via Openverse) | Wonderlane | CC0 1.0 | <https://www.flickr.com/photos/71401718@N00/4687243758> | 2D printed: poster temple_fair |
+| candle flame closeup | Flickr (via Openverse) | lisafree54 | CC0 1.0 | <https://www.flickr.com/photos/136594255@N06/24857435811> | 2D printed: cigarette_pack khwanthian |
+| Rainy | Flickr (via Openverse) | ₡ґǘșϯγ Ɗᶏ Ⱪᶅṏⱳդ | CC0 1.0 | <https://www.flickr.com/photos/148598741@N02/54005818507> | 2D printed: newspaper front |
+| ice tea glass in vietnam trà đá việt nam | Flickr (via Openverse) | Saigon Time | CC0 1.0 | <https://www.flickr.com/photos/117673294@N04/43670804651> | 2D printed: poster drink |
+| Strawberry spinach, Lower Lovetts Farm | Flickr (via Openverse) | karenblakeman | CC0 1.0 | <https://www.flickr.com/photos/11569642@N00/19815206662> | 2D printed: drink_label soda_red |
+| limes | Flickr (via Openverse) | lisafree54 | CC0 1.0 | <https://www.flickr.com/photos/136594255@N06/26532651385> | 2D printed: drink_label soda_green |
+| Rockaway Sunset Sky | Flickr (via Openverse) | romainguy | CC0 1.0 | <https://www.flickr.com/photos/24046097@N00/6249263074> | 2D printed: cigarette_pack plaifah, poster concert |
+| Temple Wat Arun 1.jpg | Wikimedia Commons | Welcome to Thailand | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Temple_Wat_Arun_1.jpg> | 2D printed: picture temple, joss_paper hell_note |
+| Temple Wat Mahathat de Sukhothai 1.jpg | Wikimedia Commons | Welcome to Thailand | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Temple_Wat_Mahathat_de_Sukhothai_1.jpg> | 2D printed: calendar buddha_2 |
+| Rice paddy in Thailand.jpg | Wikimedia Commons | Eerin25 | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Rice_paddy_in_Thailand.jpg> | 2D printed: poster election, sticker drive_slow |
+| Rice paddy in Thailand (Boon Kho Ku Sui Bridge).jpg | Wikimedia Commons | Eerin25 | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Rice_paddy_in_Thailand_(Boon_Kho_Ku_Sui_Bridge).jpg> | 2D printed: newspaper classifieds, picture rice |
+| Wang Mai Pak Waterfall.jpg | Wikimedia Commons | ประสบโชคชัยลาภขุมทรัพย์วนาลี | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Wang_Mai_Pak_Waterfall.jpg> | 2D printed: picture waterfall |
