@@ -193,14 +193,14 @@ export class ScreenPlayer {
       const c = (this.albumBg = makeCanvas(W, H));
       const g = c.getContext('2d', CPU);
       const grd = g.createLinearGradient(0, 0, W, H);
-      grd.addColorStop(0, '#f6b8cf');
-      grd.addColorStop(0.55, '#e8c4ee');
-      grd.addColorStop(1, '#b9d4f6');
+      grd.addColorStop(0, '#b8506f');
+      grd.addColorStop(0.55, '#7e5a9e');
+      grd.addColorStop(1, '#45689e');
       g.fillStyle = grd;
       g.fillRect(0, 0, W, H);
       for (let i = 0; i < 70; i++) {
         const x = rng.range(0, W), y = rng.range(0, H), s = rng.range(4, 10);
-        g.globalAlpha = rng.range(0.25, 0.55);
+        g.globalAlpha = rng.range(0.18, 0.4);
         if (rng() < 0.6) {
           g.fillStyle = rng() < 0.5 ? '#ffffff' : '#ff7fae';
           heartPath(g, x, y, s);
@@ -212,13 +212,13 @@ export class ScreenPlayer {
         }
       }
       g.globalAlpha = 1;
-      this.albumAvg = [0.88, 0.76, 0.88];
+      this.albumAvg = [0.5, 0.36, 0.55];
     }
     // the pale face for the scare (painted, not a photo): long black hair, hollow eyes
     {
       const c = (this.face = makeCanvas(256, 256));
       const g = c.getContext('2d', CPU);
-      g.fillStyle = '#050505';
+      g.fillStyle = '#121414';
       g.fillRect(0, 0, 256, 256);
       const skin = g.createRadialGradient(128, 118, 10, 128, 130, 98);
       skin.addColorStop(0, '#e9ecea');
@@ -230,12 +230,12 @@ export class ScreenPlayer {
       g.fill();
       // hair falling over both sides of the face
       g.strokeStyle = '#050505';
-      for (let i = 0; i < 160; i++) {
+      for (let i = 0; i < 70; i++) {
         const side = i % 2 ? 1 : -1;
-        const x0 = 128 + side * rng.range(8, 70);
+        const x0 = 128 + side * rng.range(46, 78);
         g.lineWidth = rng.range(1, 4);
         g.beginPath();
-        g.moveTo(128 + side * rng.range(0, 30), 30);
+        g.moveTo(128 + side * rng.range(10, 40), 40);
         g.bezierCurveTo(x0, 90, x0 + side * rng.range(-10, 20), 170, x0 + side * rng.range(0, 30), 256);
         g.stroke();
       }
@@ -264,8 +264,6 @@ export class ScreenPlayer {
       g.moveTo(108, 182);
       g.quadraticCurveTo(128, 190, 148, 181);
       g.stroke();
-      g.fillStyle = 'rgba(0,0,0,0.35)';
-      g.fillRect(0, 0, 256, 256);
     }
     // countdown dot + tmp context for measuring
     this._measure = makeCanvas(8, 8).getContext('2d', CPU);
@@ -477,7 +475,7 @@ export class ScreenPlayer {
     const bw = style === 'polaroid' ? 10 : 6, bb = style === 'polaroid' ? 34 : 6;
     g.fillRect(-pw / 2 - bw + 5, -ph / 2 - bw + 6, pw + bw * 2, ph + bw + bb);
     // paper border
-    g.fillStyle = style === 'sticker' ? '#fffdf8' : '#fbf8f0';
+    g.fillStyle = style === 'sticker' ? '#e4e0d8' : '#ddd8cc';
     g.fillRect(-pw / 2 - bw, -ph / 2 - bw, pw + bw * 2, ph + bw + bb);
     g.drawImage(e.img, -pw / 2, -ph / 2, pw, ph);
     // date stamp, old camera style: orange LED digits in the photo's corner
@@ -958,7 +956,13 @@ export class ScreenPlayer {
       if (r[2] > 0) {
         g.translate(r[0] - W / 2, r[1] - H / 2);
         g.rotate(r[4]);
-        g.drawImage(this.face, 0, 0, 256, 256, -r[2] / 2, -r[3] / 2, r[2], r[3]);
+        g.beginPath();
+        g.rect(-r[2] / 2, -r[3] / 2, r[2], r[3]);
+        g.clip();
+        g.fillStyle = '#121414';
+        g.fillRect(-r[2] / 2, -r[3] / 2, r[2], r[3]);
+        const fs = r[3] * 1.15;
+        g.drawImage(this.face, -fs / 2, -fs * 0.52, fs, fs);
       } else g.drawImage(this.face, -W / 2 + W * 0.3, -H / 2, H, H);
     }
     g.restore();

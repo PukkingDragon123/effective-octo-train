@@ -123,6 +123,8 @@ export class HeadUnit {
   /** Test hook: {station, item, time} drives the screen's own programme; album / glitch force a mode. */
   debug(o = {}) {
     this._dbg = { ...(this._dbg || {}), ...o };
+    this.player.bootT = 0;
+    this.player.volT = 0;
     if (o.station !== undefined || o.item !== undefined || o.time !== undefined) {
       this.fb.station = o.station ?? this.fb.station;
       this.fb.n = o.item ?? this.fb.n;
@@ -189,7 +191,7 @@ export class HeadUnit {
     if (on !== this.on) {
       this.on = on;
       if (on) {
-        P.boot();
+        if (!this._dbg) P.boot();
         this.dirty = true;
       } else {
         P.clear();
@@ -231,7 +233,7 @@ export class HeadUnit {
       P.draw(f);
     }
     this.visible = vis;
-    this.material.emissiveIntensity = 1.05 + (P.glitchFrames > 0 ? 0.5 : 0);
+    this.material.emissiveIntensity = 0.82 + (P.glitchFrames > 0 ? 0.35 : 0);
     const near = t.isCameraInside() || vis;
     this._light(dt, near ? 1 : 0);
   }
