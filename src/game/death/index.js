@@ -86,6 +86,9 @@ function makeCtx(type, opts) {
     cine: g.cine,
     alive: () => alive,
     eye(out = new THREE.Vector3()) {
+      // the first-person eye (Ton's own eyes) while seated; the cab's nominal eye otherwise
+      const fp = g.cameraRig?.eye;
+      if (fp && g.actions?.inTaxi && fp.parent) return fp.getWorldPosition(out);
       if (g.taxi?.anchors?.driverEye) return g.taxi.anchors.driverEye.getWorldPosition(out);
       return out.copy(g.engine.camera.position);
     },

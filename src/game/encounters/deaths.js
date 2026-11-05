@@ -66,7 +66,9 @@ const eyeWorld = () => engine.camera.getWorldPosition(new THREE.Vector3());
 /** Cinematic shot from the driver's eye (follows the moving car) looking at lookFn(). */
 function povShot(lookFn, opts = {}) {
   const t = g.taxi;
-  const eye = t?.anchors?.driverEye;
+  // Ton's own first-person eye while he sits in the cab (no jump from the view), else the cab's
+  const fp = cameraRig.eye;
+  const eye = fp && fp.parent && g.actions?.inTaxi ? fp : t?.anchors?.driverEye;
   const pos = () => (eye ? eye.getWorldPosition(new THREE.Vector3()) : eyeWorld());
   cameraRig.cinematic({ position: opts.position || pos, lookAt: lookFn, fov: opts.fov, roll: opts.roll ?? 0, blend: opts.blend ?? 0.25, cut: !!opts.cut });
 }

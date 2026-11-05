@@ -34,6 +34,8 @@ const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const PAPER_W = 0.205;
+// between the eyes, in the head bone's frame (when the body does not say)
+const DEFAULT_EYE_LOCAL = new THREE.Vector3(0, 0.07, 0.094);
 const PAPER_H = 0.282;
 const TEX_W = 896;
 const TEX_H = 1232;
@@ -591,15 +593,82 @@ export class PlayerActions {
     this._addTaxiColliders();
   }
 
+  // First-person cameras. The eye is Ton's own eyes (see _eyeUpdate), carried by the taxi body, the
+  // bike or his own body, so the view sits where the face is (never in the neck, never behind the
+  // head at speed). Look limits: in the cab you can turn far enough to look back (rule 3 needs it),
+  // on the bike over each shoulder, on foot all the way round.
   seatCamera(opts = {}) {
     const t = g.taxi;
-    g.cameraRig.attach(t.anchors.driverEye, t.bodyInner || t.root, { yaw: opts.yaw ?? 0, pitch: opts.pitch ?? -0.04, limits: { yawMin: -2.6, yawMax: 2.6, pitchMin: -1.2, pitchMax: 1.25 } });
+    const body = t.bodyInner || t.root;
+    const eye = this._eyeOn('taxi', body, t.anchors.driverEye);
+    g.cameraRig.attach(eye, body, { yaw: opts.yaw ?? 0, pitch: opts.pitch ?? -0.04, limits: { yawMin: -2.6, yawMax: 2.6, pitchMin: -1.15, pitchMax: 1.0 } });
   }
   footCamera(yaw = 0, pitch = 0) {
-    g.cameraRig.attach(g.player.eye, null, { yaw, pitch, limits: { yawMin: -1e9, yawMax: 1e9, pitchMin: -1.25, pitchMax: 1.2 } });
+    const eye = this._eyeOn('foot', g.player.root, g.player.eye);
+    g.cameraRig.attach(eye, null, { yaw, pitch, limits: { yawMin: -1e9, yawMax: 1e9, pitchMin: -1.25, pitchMax: 1.2 } });
   }
   bikeCamera(opts = {}) {
-    g.cameraRig.attach(g.player.eye, g.bike.root, { yaw: 0, pitch: opts.pitch ?? -0.14, limits: { yawMin: -1.9, yawMax: 1.9, pitchMin: -1.0, pitchMax: 0.8 } });
+    const eye = this._eyeOn('bike', g.bike.root, g.player.eye);
+    g.cameraRig.attach(eye, g.bike.root, { yaw: 0, pitch: opts.pitch ?? -0.14, limits: { yawMin: -1.9, yawMax: 1.9, pitchMin: -1.0, pitchMax: 0.8 } });
+  }
+
+  /** The first-person eye object, re-parented to `carrier`; `nominal` is the fallback eye. */
+  _eyeOn(mode, carrier, nominal) {
+    if (!this.eyeObj) {
+      this.eyeObj = new THREE.Object3D();
+      this.eyeObj.name = 'fp-eye';
+      g.engine.onUpdate((dt) => this._eyeUpdate(dt), 48, { always: true });
+    }
+    const e = this.eyeObj;
+    if (e.parent !== carrier) carrier.add(e);
+    this._eyeMode = mode;
+    this._eyeNominal = nominal || null;
+    this._eyeInit = false;
+    this._eyeUpdate(0);
+    return e;
+  }
+
+  /**
+   * Every frame (order 48: after the body is animated, before the camera rig): the eye point of the
+   * head bone, expressed in the carrier's frame and smoothed THERE, so a moving taxi or bike never
+   * leaves the view behind. In the taxi it stays inside a box around the nominal driver's eye.
+   */
+  _eyeUpdate(dt) {
+    const e = this.eyeObj;
+    const carrier = e?.parent;
+    if (!carrier || g.cameraRig.eye !== e) return;
+    const target = this._headEye(_v3);
+    carrier.updateWorldMatrix(true, false);
+    let local;
+    if (target) local = carrier.worldToLocal(target);
+    else if (this._eyeNominal) local = carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v3));
+    else return;
+    if (this._eyeMode === 'taxi' && this._eyeNominal) {
+      // a sane box around the cab's nominal eye (a broken rig never puts the view in the back seat)
+      const n = carrier.worldToLocal(this._eyeNominal.getWorldPosition(_v2));
+      local.x = clamp(local.x, n.x - 0.16, n.x + 0.16);
+      local.y = clamp(local.y, n.y - 0.06, n.y + 0.3);
+      local.z = clamp(local.z, n.z - 0.32, n.z + 0.12);
+    }
+    if (!Number.isFinite(local.x + local.y + local.z)) return;
+    if (!this._eyeInit || !(dt > 0)) {
+      e.position.copy(local);
+      this._eyeInit = true;
+      return;
+    }
+    const k = this._eyeMode === 'foot' ? 16 : 12;
+    e.position.set(damp(e.position.x, local.x, k, dt), damp(e.position.y, local.y, k, dt), damp(e.position.z, local.z, k, dt));
+  }
+
+  /** World position between Ton's eyes (head bone + the body's eye offset), or null. */
+  _headEye(out) {
+    const p = g.player;
+    const hb = p?.humanoid?.rig?.bone?.('Head');
+    if (!hb) return null;
+    hb.updateWorldMatrix(true, false);
+    const el = p._eyeLocal && p._eyeLocal.lengthSq() > 1e-6 ? p._eyeLocal : DEFAULT_EYE_LOCAL;
+    out.copy(el).applyMatrix4(hb.matrixWorld);
+    return Number.isFinite(out.x + out.y + out.z) ? out : null;
   }
 
   _addTaxiColliders() {
