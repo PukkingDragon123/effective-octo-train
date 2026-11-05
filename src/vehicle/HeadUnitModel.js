@@ -318,14 +318,15 @@ export function buildMonitor(opts) {
   }
   // ---- buttons on the bottom bezel + power LED ----
   const bandY = -SH / 2 - BEZ.bottom / 2 - 0.0008;
-  const btnX = [0.026, 0.041, 0.056, 0.071];
+  const FRONT = -0.0012 + 0.0034 + 0.0016; // bezel face (extrude depth + bevel)
+  const btnX = [0.0277, 0.0406, 0.0535, 0.0664];
   for (const x of btnX) {
-    const g = extrudeShape(shapeFrom(roundRectPts(0.0088, 0.0044, 0.0021, 3)), 0.0022, 0.0006, 0.0006, 2);
-    mb.add('plastic', xform(g, [x, bandY + 0.0012, 0]));
+    const g = extrudeShape(shapeFrom(roundRectPts(0.0088, 0.0044, 0.0021, 3)), FRONT - 0.0002, 0.0006, 0.0006, 2);
+    mb.add('plastic', xform(g, [x, bandY + 0.0025, 0]));
   }
   {
-    const g = extrudeShape(shapeFrom(roundRectPts(0.0088, 0.0044, 0.0021, 3)), 0.0022, 0.0006, 0.0006, 2);
-    mb.add('plastic', xform(g, [0.081 - 0.0005, bandY + 0.0012, 0]));
+    const g = extrudeShape(shapeFrom(roundRectPts(0.0088, 0.0044, 0.0021, 3)), FRONT - 0.0002, 0.0006, 0.0006, 2);
+    mb.add('plastic', xform(g, [0.0793, bandY + 0.0025, 0]));
   }
   // ---- sun hood: U channel over the top and down the sides, shallower toward the bottom ----
   {
@@ -354,20 +355,20 @@ export function buildMonitor(opts) {
   mon.add(screen);
 
   // ---- LED (blue = on, red = standby) ----
-  const led = new THREE.MeshStandardMaterial({ color: 0x220000, emissive: 0xff2a1a, emissiveIntensity: 0, roughness: 0.2 });
+  const led = paintedMaterial({ color: 0x1a0604, emissive: 0xff2a1a, emissiveIntensity: 0, roughness: 0.2, brush: 0, wet: 0, name: 'hu_led' });
   const ledMesh = new THREE.Mesh(lathe([[0, 0], [0.0016, 0], [0.0015, 0.0006], [0.001, 0.0011], [0, 0.0012]], 12).rotateX(Math.PI / 2), led);
-  ledMesh.position.set(-0.08, bandY + 0.0012, 0.0021);
+  ledMesh.position.set(-0.0815, bandY + 0.0025, FRONT - 0.0003);
   mon.add(ledMesh);
 
   // ---- decals: tape label (bottom bezel, crooked), cat sticker over the top-right corner, silkscreen ----
   {
     const db = new MergeBuilder();
     const tape = decalPlane(REG.tape, 0.088, 0.0179);
-    db.add('d', xform(tape, [-0.031, bandY + 0.0004, 0.00235 + 0.0016], [0, 0, 0.035]));
+    db.add('d', xform(tape, [-0.031, bandY + 0.0004, FRONT + 0.0002], [0, 0, 0.035]));
     const st = decalPlane(REG.sticker, 0.0215, 0.0215);
-    db.add('d', xform(st, [SW / 2 - 0.0035, SH / 2 - 0.004, 0.0026], [0, 0, -0.32]));
+    db.add('d', xform(st, [SW / 2 - 0.0035, SH / 2 - 0.004, FRONT + 0.0003], [0, 0, -0.32]));
     const silk = decalPlane(REG.silk, 0.068, 0.0074);
-    db.add('d', xform(silk, [0.0535, bandY - 0.0058, 0.00234 + 0.0016]));
+    db.add('d', xform(silk, [0.0535, bandY - 0.0045, FRONT + 0.0001]));
     mon.add(db.build({ d: mats.decal }));
   }
 
@@ -384,7 +385,7 @@ export function buildMonitor(opts) {
     const P3 = plateC.clone().add(new THREE.Vector3(0, 0.002, 0.003));
     const curve = new THREE.CubicBezierCurve3(P0, P0.clone().add(new THREE.Vector3(0, -0.004, -0.012)), P3.clone().add(new THREE.Vector3(0, 0.012, 0.006)), P3);
     const path = curve.getPoints(14);
-    const prof = roundRectPts(0.0145, 0.0036, 0.0015, 2);
+    const prof = roundRectPts(0.0036, 0.0145, 0.0015, 2); // thin across the path, wide along X
     mb2.add('metal', sweep(path, prof, { up: new THREE.Vector3(1, 0, 0) }));
     // plate: bevelled rounded rect on the stack face + two pan-head screws
     const plate = extrudeShape(shapeFrom(roundRectPts(0.046, 0.019, 0.0035, 4)), -0.0012, 0.0024, 0.0008, 2);

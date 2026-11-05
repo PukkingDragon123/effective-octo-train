@@ -28,7 +28,7 @@ const DIALOGUE_KEYS = ['hail', 'greet', 'destination', 'beats', 'arriveCorrect',
 const VARIANT_KEYS = ['hail', 'greet', 'destination', 'arriveCorrect', 'arriveWrong', 'idle', 'onLookBack', 'onFaceGaze', 'onFaceGazeWarn'];
 const ENDING_KINDS = ['good', 'bad', 'true', 'sad', 'bittersweet', 'dark', 'hopeful'];
 const ENDING_MOMENTS = ['fork', 'gate', 'finalFork', 'garage'];
-const DEJA_VU_TRIGGERS = ['seeTally', 'garageRadio', 'dog', 'calendar', 'enterTaxi'];
+const DEJA_VU_TRIGGERS = ['seeTally', 'garageRadio', 'calendar', 'enterTaxi'];
 const THAI = /[฀-๿]/;
 const KEY_LABEL = (k) => (/^[A-Z]$/.test(k) ? 'Key' + k : /^[0-9]$/.test(k) ? 'Digit' + k : k);
 const SILENT_TH = /^[.…\s]+$/;
@@ -606,7 +606,7 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
   for (const d of ENCOUNTER_DEATHS) if (!DEATH_CARDS[d]) err('ENCOUNTER_DEATHS', `no card for ${d}`);
   for (const d of WRONG_FORK_DEATHS) if (!DEATH_CARDS[d]) err('WRONG_FORK_DEATHS', `no card for ${d}`);
   // every GAME_DESIGN §6 encounter, plus one rule event (and its exception) per back-of-paper rule
-  for (const id of ['treeWatcher', 'womanRunning', 'wireCrawler', 'salaShadows', 'upsideDownHead', 'fingersDoorFrame', 'faceAgainstGlass', 'roofCrawler', 'reflectionStays', 'twistedNeckReflection', 'somethingEnormous', 'yaiSpeed', 'krasue', 'krahang', 'phiTaiHong', 'nameCall', 'breathOnNeck', 'cabinLightDies', 'elephants', 'strayDogs', 'fireflies', 'monksAlms', 'monkBlessing', 'noodleShopOpen', 'trunkKnocks', 'meter444', 'roadFigure', 'bloodDrip', 'betelSpit', 'windowKnock', 'radioName', 'fatherDedication', 'extraPassenger']) {
+  for (const id of ['treeWatcher', 'womanRunning', 'wireCrawler', 'salaShadows', 'upsideDownHead', 'fingersDoorFrame', 'faceAgainstGlass', 'roofCrawler', 'reflectionStays', 'twistedNeckReflection', 'somethingEnormous', 'yaiSpeed', 'krasue', 'krahang', 'phiTaiHong', 'nameCall', 'breathOnNeck', 'cabinLightDies', 'elephants', 'fireflies', 'monksAlms', 'monkBlessing', 'noodleShopOpen', 'trunkKnocks', 'meter444', 'roadFigure', 'bloodDrip', 'betelSpit', 'windowKnock', 'radioName', 'fatherDedication', 'extraPassenger']) {
     if (!ENCOUNTERS[id]) err('ENCOUNTERS', `missing design encounter ${id}`);
   }
   for (const r of RULES.filter((x) => x.side === 'back')) {
@@ -734,7 +734,7 @@ export function validateNarrative({ data, layout, keyBindings = null }) {
       if (k === 'radio' && r.station && !STATIONS.some((s) => s.index === r.station)) err(p, `unknown station ${r.station}`);
     }
   }
-  for (const k of ['tally', 'calendar', 'radio', 'dog', 'ahKong']) if (!LOOP_STAGING?.[k]) err('LOOP_STAGING', `missing ${k}`);
+  for (const k of ['tally', 'calendar', 'radio', 'ahKong']) if (!LOOP_STAGING?.[k]) err('LOOP_STAGING', `missing ${k}`);
   for (const [i, dv] of (DEJA_VU || []).entries()) {
     const p = `DEJA_VU[${i}]`;
     if (!DEJA_VU_TRIGGERS.includes(dv.trigger)) err(p, `trigger ${dv.trigger}`);

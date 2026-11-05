@@ -158,7 +158,7 @@ Each slot is about an hour. The game clock eases through the hour while you driv
 | 3 | 23:00 | `noodleShop` | **ลุงเปี๊ยก Uncle Piak**, 60s, drunk, sings old luk thung | human (looks creepy: pale, staggers, mumbles) | Comic relief inside horror. **Three knocks from the trunk** (rule 5) during his ride; he's asleep and snoring. Yai Speed may appear. His breath fogs the window; reflection fine. → RIGHT |
 | 4 | 00:00 | `busStop` | **น้องเอ็ม Boy "M"**, 9, school uniform, lunchbox | ghost (**reflection only**, ผีตายโหง, road accident) | The door opens by itself and nobody is visible; the meter starts; he sits in the mirror. He asks politely to turn off the radio (rule 6). He talks about his mum waiting with dinner. Sad. → LEFT. Wrong → the boy's reflection stays in the seat after he's gone; the road folds; drag-back death. |
 | 5 | 01:00 | `bananaGrove` | **คุณนวล Khun Nuan**, a beautiful woman in a green sabai | ghost (นางตานี), no reflection, feet don't touch the ground (seen from the side window) | Surreal and calm. **Krasue** floats through the banana trees. She leaves a banana leaf on the seat. Rule 4 temptation. → LEFT |
-| 6 | 02:00 | `forestTemple` | **หลวงพี่ Luang Phi (monk)**, 40s, wandering ธุดงค์ monk with an umbrella-tent (กลด) | human | Calm and funny ("อาตมาไม่มีตังค์นะโยม", "I have no money, layman"). Asks for the radio ON (dhamma). He **blesses the car**, and for one moment all the ghosts around the road glow faintly. **Krahang** flies overhead. Stray dogs chase the taxi. → RIGHT |
+| 6 | 02:00 | `forestTemple` | **หลวงพี่ Luang Phi (monk)**, 40s, wandering ธุดงค์ monk with an umbrella-tent (กลด) | human | Calm and funny ("อาตมาไม่มีตังค์นะโยม", "I have no money, layman"). Asks for the radio ON (dhamma). He **blesses the car**, and for one moment all the ghosts around the road glow faintly. **Krahang** flies overhead. → RIGHT |
 | 7 | 03:00 | `sala2` | **ลุงสมาน Uncle Saman**, a long-dead luk thung singer in a sequinned jacket | ghost (friendly), no reflection, cigarette smoke passes through the glass | Funny. He requests songs and sings along off-key. Still has scares: his face presses against the glass from outside while he's also inside. → LEFT |
 | 8 | 04:00 | `marketLamp` | **ยายบัว Grandma Bua**, 80, flower-garland seller | human | Emotional. She knew your father ("รถคันนี้เหมือนรถไอ้ชาย"). She gives you a garland for the dashboard. **Elephant family crossing**, with the baby following its mother. Blue hour begins. → RIGHT |
 | 9 | 05:00–05:40 | `fatherLamp` | **สมชาย Somchai**, your father | ghost | The reveal (§1). Dawn mist, birdsong, monks walking at the roadside. → LEFT (+ the final rule test). |
@@ -176,7 +176,7 @@ to rule events, an arrival line, and a wrong-fork line.
 |---|---|---|---|
 | **Dread** | 21:00–23:00 | Very scary. Oppressive silence, minimal music, rain, heavy fog. Brutal, unpredictable scares. | rain on, fog heavy, music `dread`/`silence`, encounter rate high |
 | **Surreal** | 23:00–02:00 | Folklore and bizarre events: red moon, crimson lanterns, Krasue, Krahang, Nang Tani, wire crawler, forest giant | rain stops ~00:30, surreal tint, music `surreal` |
-| **Calm** | 02:00–04:00 | Comfortable, sometimes funny: friendly ghosts, stray dogs, drunk uncle (earlier), noodle shop, radio songs. Still the odd surprise scare. | clear sky and stars, fireflies, music `calm`/`nostalgic` |
+| **Calm** | 02:00–04:00 | Comfortable, sometimes funny: friendly ghosts, drunk uncle (earlier), noodle shop, radio songs. Still the odd surprise scare. | clear sky and stars, fireflies, music `calm`/`nostalgic` |
 | **Dawn** | 04:00–06:00 | Beautiful and emotional: blue hour, morning mist, birds, monks collecting alms, elephants, golden sunrise | dawn lighting, music `dawn` |
 
 **Ride loop:** drive to the pickup (the passenger hails; the ว่าง vacant lamp is red) →
@@ -238,7 +238,7 @@ trigger **only when you aren't looking**, then reveal when you are.
   wreaths and the old crashed motorbike.
 * **Voice calling "ต้น..."** (rule 7) and **breath on the neck** (rule 8) events.
 * **Cabin light dies** (rule 9) event.
-* **Beautiful encounters:** elephant family crossing (04), stray dogs chasing the taxi
+* **Beautiful encounters:** elephant family crossing (04)
   (02–03), drunk uncle singing (ride 3), noodle shop open all night (Auntie Lek is
   human; coffee and snacks), elderly flower seller, monk blessing, fireflies, monks
   collecting alms (05–06).
@@ -271,7 +271,7 @@ trigger **only when you aren't looking**, then reveal when you are.
   motorbike. No loading cut.
 * **Motorbike intro (playable)**: first-person hands on the handlebars of an old
   rusty motorbike on the spur road through the forest. Insects hit the headlight,
-  dogs bark in the distance, a spirit house goes by. You ride to the garage; a
+  an owl calls in the distance, a spirit house goes by. You ride to the garage; a
   flickering fluorescent tube; Ah Kong smoking beside the taxi.
 * **Garage**: walk (full-body first person) to Ah Kong. Cinematic dialogue (soft zoom,
   letterbox, Thai voice + subtitles). He gives you the keys and the paper. Read it.
@@ -360,7 +360,7 @@ no lingering close-ups).
 
 ## 10. Audio direction
 
-Spatial and dynamic. Cicadas, frogs, crickets, the gecko's "ตุ๊กแก" call, distant dogs,
+Spatial and dynamic. Cicadas, frogs, crickets, the gecko's "ตุ๊กแก" call,
 temple bells, owls, wind in leaves, branches cracking, 50 Hz electrical hum (100 Hz
 buzz) at poles and transformers, rain on the roof, rattling dashboard decorations,
 engine, wipers, indicator ticks, footsteps, whispers, unnatural breathing. **Minimal

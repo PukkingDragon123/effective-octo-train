@@ -64,7 +64,7 @@ Don't edit the foundation modules. Report what you need from them instead. Don't
     the progress points in the ride data.
   * Rule events (knocks, breath, voice calling, cabin light, 444, figure in the road, blood from
     the roof, window visitor, radio saying your name, extra passenger) are encounters that arm rules.
-* **Animals (C):** `createAnimal(kind)` in `src/creatures/` for `'elephant' | 'elephantCalf' | 'dog'`
+* **Animals (C):** `createAnimal(kind)` in `src/creatures/` for `'elephant' | 'elephantCalf'`
   (the characters module's `createQuadruped` is only a placeholder).
 * **Rides (B):** `g.ride` is the current Ride. Fields: `passenger` (humanoid + clue behaviours),
   `data` (the passenger entry), `progress` 0..1, `seat`, `phase`
@@ -79,7 +79,7 @@ Don't edit the foundation modules. Report what you need from them instead. Don't
 * **Knowledge (B):** `g.knowledge` covers memories, pencil notes, clues and deaths, persisted in
   `g.save` (and `g.persist()`).
 * **Loop staging (A):** on every restart, `LoopStaging.apply(loops)` places the garage changes
-  from `data.loop.LOOP_STAGING`: dash tally scratches, calendar, radio song, dog, cigarette ash.
+  from `data.loop.LOOP_STAGING`: dash tally scratches, calendar, radio song, cigarette ash.
 
 ## Owner's standing directions (also in GAME_DESIGN.md §0)
 
