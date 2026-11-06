@@ -11,7 +11,7 @@ export function titleLockup({ presents = false, align = 'left' } = {}) {
   return h('div', { class: `dlb-name-block is-${align}` },
     presents ? h('div', { class: 'dlb-name-by' }, 'Pukking Dragon') : null,
     h('h1', { class: 'dlb-name', attrs: { lang: 'th', 'aria-label': TITLE.th } }, letters(TITLE.th, 'dlb-letters')),
-    h('div', { class: 'dlb-name-en en', attrs: { lang: 'en' } }, 'Haunted to the Last Stop'));
+    h('div', { class: 'dlb-name-latin', attrs: { 'aria-hidden': 'true' } }, h('i'), h('span', null, 'Haunted to the Last Stop')));
 }
 
 /** Four thin corner marks framing a screen (CSS .dlb-corners). */
