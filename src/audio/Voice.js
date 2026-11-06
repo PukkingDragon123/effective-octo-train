@@ -1,28 +1,31 @@
 // Character voices. voice.speak({th, en, voice:{gender,age,pitch,rate,ghost,whisper}, object|position, tone, fx})
 // -> Promise resolved when the spoken words end (so subtitles stay in sync).
 //
-//  * settings.voice 'auto' + an OS Thai voice: Web Speech TTS of the Thai text, with per-character pitch / rate
-//    (gender, age, the character's own pitch/rate, a stable per-character offset, ghost slowing) and volume from
-//    distance. The OS voice cannot enter Web Audio, so the voice rack (VoiceFX.js) plays its companion layers:
-//    a soft inhale before living lines; for ghosts the reverse-reverb swell, an octave-down murmur double and a
-//    whispered double behind the listener, breaths that do not match the words and a sub-bass hum, all kept in
-//    step with the utterance's word-boundary events. Ghost lines are spoken in chunks with stutters and pauses
-//    at wrong places (planGhostEdits, shared with the murmur).
-//  * otherwise ('murmur', no Thai voice, whispers, sung lines): formant-synthesised Thai speech built from the
-//    actual Thai text (Synth/speech.js renderVoiceLine), all of it processed by the rack: cabin / outdoor reverb,
-//    proximity tone, phone / radio band, and for ghosts every layer above plus ring-mod / bit-crush flutter on
-//    stressed syllables and a start in the wrong ear.
+//  * DEFAULT (settings.voice 'auto' or 'murmur', every character, with or without an OS Thai voice): realistic
+//    gibberish made from REAL recorded voices (VoiceBanks.js + Synth/gibberish.js): the Thai text's syllables,
+//    tones, words and pauses re-sequenced from syllable grains of a speaker matched to the character's gender and
+//    age, pitch-shifted gently toward the Thai tones and the character's own pitch (TD-PSOLA), crossfaded, with
+//    breaths, whispers (LPC noise re-excitation) and an old voice's tremble. Every line runs through the voice
+//    rack (VoiceFX.js): cabin / outdoor reverb, proximity tone, phone / radio band, and for ghosts the reverse-
+//    reverb swell, an octave-down double, a whispered double behind the listener, mismatched breaths, ring-mod /
+//    bit-crush flutter on stressed syllables, a sub-bass hum and a start in the wrong ear. Ghost lines also stutter
+//    and pause at wrong places (planGhostEdits). A speaker whose bank is not loaded yet (a ~1.5 s wait at most)
+//    or cannot be decoded falls back to the formant-synthesised murmur (Synth/speech.js renderVoiceLine).
+//  * OPTION (settings.voice 'tts', or voice.preferTTS = true): Web Speech TTS of the Thai text when the OS has a
+//    Thai voice, with per-character pitch / rate and the rack's companion layers kept in step with the utterance's
+//    word-boundary events (soft inhale before living lines; ghost swell, murmur double, whisper, breaths, hum).
 //  * 'off': silent, but still resolves after a reading-time estimate.
 //
-// OS voices: Chromium lists whatever the platform speech engine exposes. Windows: SAPI 5 voices (the
+// OS voices (TTS option): Chromium lists whatever the platform speech engine exposes. Windows: SAPI 5 voices (the
 // OneCore-only "Microsoft Pattara" Thai voice appears only when the OS exposes it to SAPI; Edge also lists
 // online "Premwadee / Niwat (Natural)"), macOS: Kanya / Narisa, Android: Google Thai. Electron uses the
-// same Chromium path, so the desktop build finds Pattara exactly when Chrome on that machine does; when no
-// voice with lang th* is listed the murmur is used. A voice that never starts (watchdog) is skipped.
+// same Chromium path. When no voice with lang th* is listed, or a voice never starts (watchdog), the gibberish
+// voice is used.
 import { settings } from '../core/Settings.js';
 import { VoiceFX } from './VoiceFX.js';
 import { parseThai, planGhostEdits } from './Synth/speech.js';
 import { hashStr, rngFrom } from './Synth/dsp.js';
+import { VoiceBanks } from './VoiceBanks.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const FEMALE_HINT = /kanya|narisa|premwadee|achara|female|หญิง|woman|girl/i;
@@ -47,7 +50,9 @@ export class VoiceSystem {
     this._broken = new Set(); // OS voices that never started
     this._cal = new Map(); // OS voice name -> seconds per syllable at rate 1 (learned)
     this.fx = null;
-    this.lastPath = null; // 'tts' | 'murmur' (debug / sandbox)
+    this.lastPath = null; // 'gibberish' | 'murmur' (formant fallback) | 'tts' (debug / sandbox)
+    this.preferTTS = false; // OS Thai TTS instead of the recorded-voice gibberish (also settings.voice 'tts')
+    this.banks = new VoiceBanks(sys);
     this._detect();
   }
 
@@ -67,6 +72,8 @@ export class VoiceSystem {
       female: this._pickVoice({ gender: 'f' })?.name || null,
       speaking: this._active.size,
       lastPath: this.lastPath,
+      tts: this._ttsWanted(),
+      ...this.banks.info(),
     };
   }
 
@@ -98,6 +105,16 @@ export class VoiceSystem {
   }
   _attachCore() {
     this.fx = null;
+    if (!this.sys.offline) {
+      // the garage speakers first (player, Ah Kong), then the radio's DJ / dhamma voices
+      setTimeout(() => this.banks.warm(['m1', 'om']), 1200);
+      setTimeout(() => this.banks.warm(['f1', 'm2']), 9000);
+    }
+  }
+
+  /** OS TTS only when asked for (setting 'tts' or preferTTS); the recorded-voice gibberish is the default. */
+  _ttsWanted() {
+    return (settings.get('voice') === 'tts' || this.preferTTS) && !this.sys.offline;
   }
 
   /** Reading-time estimate (s) used for fallbacks and 'off'. */
@@ -127,7 +144,7 @@ export class VoiceSystem {
     const th = line.th || '';
     const seed = hashStr(`${th}|${v.gender}|${v.age}|${v.pitch}|${v.rate}|${v.ghost}|${v.whisper}|${tone}`);
     const edits = planGhostEdits(th, v.ghost, seed);
-    return { th, v, tone, fx, seed, edits, ghost: v.ghost, obj };
+    return { th, v, tone, fx, seed, edits, ghost: v.ghost, obj, spk: this.banks.speaker(v) };
   }
 
   speak(line = {}) {
@@ -136,8 +153,8 @@ export class VoiceSystem {
     if (mode === 'off' || !line.th || !this.sys.core) return wait(est * 1000);
     const d = this._desc(line);
     const sing = d.tone === 'sing' || line.voice?.sing;
-    const useTTS = mode === 'auto' && !this.sys.offline && this.hasThaiVoice && !d.v.whisper && !sing && typeof SpeechSynthesisUtterance !== 'undefined';
-    this.lastPath = useTTS ? 'tts' : 'murmur';
+    const useTTS = this._ttsWanted() && this.hasThaiVoice && !d.v.whisper && !sing && typeof SpeechSynthesisUtterance !== 'undefined';
+    this.lastPath = useTTS ? 'tts' : 'gibberish';
     return useTTS ? this._tts(line, d, est) : this._murmur(line, d, est);
   }
 
@@ -146,14 +163,18 @@ export class VoiceSystem {
     const core = this.sys.core;
     if (!core || !line.th || (settings.get('voice') || 'auto') === 'off') return;
     const d = this._desc(line);
-    const useTTS = (settings.get('voice') || 'auto') === 'auto' && this.hasThaiVoice && !d.v.whisper && d.tone !== 'sing';
+    const useTTS = this._ttsWanted() && this.hasThaiVoice && !d.v.whisper && d.tone !== 'sing';
     if (useTTS) return; // the shadow depends on the chosen OS voice's learned rate: rendered at speak time
-    try {
-      const r = core.task(this._key(d, 'murmur'), 'voiceLine', this._args(d, 'murmur'), 2);
-      if (r instanceof Promise) r.catch(() => {});
-    } catch (e) {
-      /* ignore */
-    }
+    const render = () => {
+      try {
+        const r = core.task(this._key(d, 'murmur'), 'voiceLine', this._args(d, 'murmur'), 2);
+        if (r instanceof Promise) r.catch(() => {});
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    // load the speaker's recorded voice first, then pre-render the line with it
+    this.banks.ensure(d.spk).then(render, render);
   }
 
   stop() {
@@ -200,11 +221,14 @@ export class VoiceSystem {
     return job;
   }
 
+  _bank(d) {
+    return this.banks.ready(d.spk) ? d.spk : null;
+  }
   _key(d, mode, rate = 1) {
-    return `voice:${mode}:${d.seed}:${rate.toFixed(2)}:${d.th}`;
+    return `voice:${mode}:${this._bank(d) || 'formant'}:${d.seed}:${rate.toFixed(2)}:${d.th}`;
   }
   _args(d, mode, rate) {
-    return { th: d.th, voice: d.v, tone: d.tone, seed: d.seed, mode, edits: d.edits, rate, sr: 24000 };
+    return { th: d.th, voice: d.v, tone: d.tone, seed: d.seed, mode, edits: d.edits, rate, sr: 24000, bank: this._bank(d) };
   }
   _rackOpts(line, d, extra = {}) {
     const rng = rngFrom(d.seed ^ 0x51ed27);
@@ -227,8 +251,27 @@ export class VoiceSystem {
 
   // ---------------------------------------------------------------- murmur path (any platform)
   _murmur(line, d, est, job = null) {
-    const core = this.sys.core;
     job = job || this._job(est);
+    if (d.spk && !this.banks.ready(d.spk) && !this.banks.failed.has(d.spk)) {
+      // the speaker's recorded voice is still loading: wait a moment for it (else the formant voice speaks)
+      let go = false;
+      const run = () => {
+        if (go || job.done) return;
+        go = true;
+        this._renderLine(line, d, job);
+      };
+      this.banks.ensure(d.spk).then(run, run);
+      job.after(1.5, run);
+      return job.p;
+    }
+    this._renderLine(line, d, job);
+    return job.p;
+  }
+
+  _renderLine(line, d, job) {
+    const core = this.sys.core;
+    if (!core) return job.finish();
+    if (!this._bank(d) && this.lastPath === 'gibberish') this.lastPath = 'murmur';
     const fx = this._rackPool();
     let r;
     try {

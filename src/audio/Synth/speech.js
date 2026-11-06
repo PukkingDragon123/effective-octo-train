@@ -340,14 +340,14 @@ export function planGhostEdits(text, ghost = 0, seed = 1) {
 // Prosody + segments
 // ---------------------------------------------------------------------------
 // Tone contours in semitones over the voiced rhyme (vowel + sonorant coda), at u = 0, .25, .5, .75, 1.
-const TONE_SHAPES = {
+export const TONE_SHAPES = {
   M: [0.2, 0, -0.2, -0.45, -0.75],
   L: [-1.0, -1.7, -2.3, -2.8, -3.2],
   F: [1.1, 2.3, 2.0, 0.1, -3.2],
   H: [0.3, 0.6, 1.2, 2.3, 3.3],
   R: [-0.6, -1.7, -1.9, -0.3, 2.7],
 };
-function toneAt(shape, u) {
+export function toneAt(shape, u) {
   const x = clamp(u) * 4;
   const i = Math.min(3, Math.floor(x));
   const f = x - i;
@@ -623,7 +623,7 @@ function syllable(sc, sy, c) {
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
-const loud50 = (a, sr) => {
+export const loud50 = (a, sr) => {
   const w = Math.max(1, Math.floor(sr * 0.05));
   let best = 0;
   for (let s0 = 0; s0 < a.length; s0 += w >> 1) {
@@ -634,7 +634,7 @@ const loud50 = (a, sr) => {
   }
   return best;
 };
-const peakOf = (a) => {
+export const peakOf = (a) => {
   let p = 0;
   for (let i = 0; i < a.length; i++) {
     const v = a[i] < 0 ? -a[i] : a[i];
@@ -645,7 +645,7 @@ const peakOf = (a) => {
 const dB = (x) => Math.pow(10, x / 20);
 
 /** Gated K-weighted loudness (BS.1770 style, mono; dB re full scale) — sets dialogue levels by what ears hear. */
-function kLoud(a, sr) {
+export function kLoud(a, sr) {
   // K-weighting: high shelf (+4 dB above ~1.7 kHz) then RLB high-pass (~38 Hz)
   let K = Math.tan((Math.PI * 1681.97) / sr);
   const Vh = Math.pow(10, 4 / 20), Vb = Math.pow(Vh, 0.4997), Q1 = 0.7072;
@@ -705,7 +705,7 @@ function voxOpts(preset, rng, extra = {}) {
 }
 
 /** One breath event (inhale / exhale / ghost rattle) as a short buffer. */
-function breathEvent(sr, kind, dur, preset, rng, rattle = 0) {
+export function breathEvent(sr, kind, dur, preset, rng, rattle = 0) {
   const sc = new VoxScore({ f0: 60, av: 0 });
   const fs = preset.fs;
   if (kind === 'in') {
@@ -732,7 +732,7 @@ function breathEvent(sr, kind, dur, preset, rng, rattle = 0) {
 }
 
 /** Reverse-reverb swell: the whisper of the first words, reversed, reverberated and reversed back. */
-function reverseSwell(src, sr, at, lead, ghost, rng) {
+export function reverseSwell(src, sr, at, lead, ghost, rng) {
   const segLen = Math.min(src.length - at, Math.floor(1.1 * sr));
   if (segLen < sr * 0.1) return null;
   const seg = src.subarray(at, at + segLen);
@@ -917,7 +917,17 @@ export function renderVoiceLine(sr, a = {}) {
  * Render a Thai line to a murmur buffer (mono Float32Array) — radio DJ, whisper SFX and other one-layer uses.
  * voice: {gender, age, pitch, rate, ghost, whisper}
  */
+let murmurHook = null;
+/** Sample-based gibberish (gibberish.js) serves renderMurmur when its voice bank is loaded; null = formant synth. */
+export function setMurmurHook(fn) {
+  murmurHook = fn;
+}
+
 export function renderMurmur(sr, th, voice = {}, seed = null) {
+  if (murmurHook) {
+    const r = murmurHook(sr, th, voice, seed);
+    if (r) return r;
+  }
   const preset = voicePreset(voice);
   const rng = rngFrom(seed ?? hashStr(th + JSON.stringify(voice)));
   const phrases = parseThai(th);

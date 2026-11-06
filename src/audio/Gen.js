@@ -3,6 +3,10 @@
 // de-duplication and a synchronous fallback (no Worker support, offline tests).
 import { runTask } from './Synth/registry.js';
 
+// Tasks that must run in one particular worker: the voice banks (several MB of PCM each) live only in worker 0,
+// so voice lines and the radio programme (its DJ speaks with them) render there.
+const AFFINITY = { setVoiceBank: 0, voiceLine: 0, radioChunk: 0, murmur: 0 };
+
 export class GenService {
   constructor({ workers = 2, sync = false } = {}) {
     this.sync = sync;
@@ -12,6 +16,7 @@ export class GenService {
     this.nextId = 1;
     this.inflight = new Map(); // id -> job
     this.busy = 0;
+    this.epoch = 0; // bumped when the workers are lost (worker-pinned state such as voice banks must be re-sent)
     if (!sync && typeof Worker !== 'undefined') {
       try {
         for (let i = 0; i < workers; i++) {
@@ -32,6 +37,7 @@ export class GenService {
   }
 
   _fallback() {
+    this.epoch++;
     for (const w of this.pool) {
       try {
         w.terminate();
@@ -96,11 +102,22 @@ export class GenService {
 
   /** Run a state-setting task on the main thread and in every worker (e.g. registering sample PCM). */
   broadcast(type, args) {
+    const only = AFFINITY[type];
+    if (only != null && this.pool[only]) {
+      // worker-pinned state (voice banks): that worker only, no main-thread copy
+      try {
+        this.pool[only].postMessage({ id: -this.nextId++, type, args });
+        return;
+      } catch (e) {
+        /* fall through */
+      }
+    }
     try {
       runTask(type, args);
     } catch (e) {
       /* ignore */
     }
+    if (only != null) return;
     for (const w of this.pool) {
       try {
         w.postMessage({ id: -this.nextId++, type, args });
@@ -119,9 +136,12 @@ export class GenService {
   }
 
   _pump() {
-    for (const w of this.pool) {
+    for (let wi = 0; wi < this.pool.length; wi++) {
+      const w = this.pool[wi];
       if (w._busy || !this.queue.length) continue;
-      const job = this.queue.shift();
+      const qi = this.queue.findIndex((j) => AFFINITY[j.type] == null || AFFINITY[j.type] === wi || !this.pool[AFFINITY[j.type]]);
+      if (qi < 0) continue;
+      const job = this.queue.splice(qi, 1)[0];
       w._busy = true;
       this.inflight.set(job.id, job);
       w.postMessage({ id: job.id, type: job.type, args: job.args });

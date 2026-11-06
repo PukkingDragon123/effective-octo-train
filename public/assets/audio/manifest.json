@@ -3732,5 +3732,138 @@
    -23.0
   ],
   "notes": "Early morning in the Chiang Rai mountains: birds waking, frogs/insects fading (05:00-06:00)."
+ },
+ "voice_m1": {
+  "files": [
+   "voice/m1.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor 035df65951a3",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Thai, 44 validated clips"
+   }
+  ],
+  "notes": "Voice bank (adult man (thirties)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
+ },
+ "voice_m2": {
+  "files": [
+   "voice/m2.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor 132b4f09f2e9",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Thai, 41 validated clips"
+   }
+  ],
+  "notes": "Voice bank (adult man (forties)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
+ },
+ "voice_f1": {
+  "files": [
+   "voice/f1.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor 4e9845ab3862",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Thai, 50 validated clips"
+   }
+  ],
+  "notes": "Voice bank (adult woman (twenties)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
+ },
+ "voice_f2": {
+  "files": [
+   "voice/f2.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor 79e1c16f1097",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Thai, 40 validated clips"
+   }
+  ],
+  "notes": "Voice bank (adult woman (fifties)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
+ },
+ "voice_om": {
+  "files": [
+   "voice/om.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor c14ad590de00",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Vietnamese, 48 validated clips"
+   }
+  ],
+  "notes": "Voice bank (old man (sixties)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
+ },
+ "voice_of1": {
+  "files": [
+   "voice/of1.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor 972a790ede11",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Thai, 21 validated clips"
+   }
+  ],
+  "notes": "Voice bank (old woman (eighties)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
+ },
+ "voice_ch": {
+  "files": [
+   "voice/ch.ogg"
+  ],
+  "loop": false,
+  "gain": 1,
+  "category": "voice",
+  "credits": [
+   {
+    "source": "https://commonvoice.mozilla.org/datasets",
+    "file": "https://huggingface.co/datasets/fixie-ai/common_voice_17_0",
+    "author": "Mozilla Common Voice contributor dfcd31d40699",
+    "license": "CC0 1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "title": "Common Voice Corpus 17.0, Thai, 40 validated clips"
+   }
+  ],
+  "notes": "Voice bank (teenage girl (used for the child voices)): syllable-grain atlas for the gibberish voice, loaded by src/audio/VoiceBanks.js (not a playable sound; .mp3 fallback and .json grain index alongside)."
  }
 }

@@ -7,6 +7,7 @@ import { HORROR_SFX } from './sfxHorror.js';
 import { rngFrom, hashStr, sanitize, normalize, fadeOut, fadeIn } from './dsp.js';
 import { renderInstrument } from './instruments.js';
 import { renderMurmur, renderSung, renderVoiceLine } from './speech.js';
+import { setVoiceBank, renderBankVoiceLine, BANKS } from './gibberish.js';
 import { renderEngineLoop, CAR_CFG, BIKE_CFG } from './engineModel.js';
 import { renderBed } from './beds.js';
 import { programItem, renderRadioChunk, setSampled, RADIO_SR } from './songs.js';
@@ -99,9 +100,19 @@ export function runTask(type, a) {
     }
     case 'voiceLine': {
       // a dialogue line as aligned layers for the voice rack (Voice.js / VoiceFX.js); levels set inside
+      // sample-based gibberish from a real voice when the speaker's bank is loaded here, else formant synthesis
+      const spk = a.bank ? BANKS.get(a.bank) : null;
+      if (spk) {
+        const r = renderBankVoiceLine(a, spk);
+        return { channels: r.channels.map((c) => sanitize(c)), sr: r.sr, meta: r.meta };
+      }
       const sr = a.sr || 24000;
       const r = renderVoiceLine(sr, a);
       return { channels: r.channels.map((c) => sanitize(c)), sr, meta: r.meta };
+    }
+    case 'setVoiceBank': {
+      // recorded voice bank (Int16 PCM + grain index) for the gibberish renderer (voice worker / main thread)
+      return setVoiceBank(a);
     }
     case 'sung': {
       const sr = a.sr || 24000;

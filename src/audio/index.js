@@ -37,11 +37,15 @@
 //   audio.radio { setOn, next, setStation(1..4), setStatic(0..1), attach(obj), setVolume, setHour, on, station, song }
 //   audio.voice.speak({th, en, voice:{gender:'m'|'f'|'child', age, pitch, rate, ghost:0..1, whisper}, object|position,
 //                      tone:'ghost'|'whisper'|'shout'|'sing'|'phone'|'radio', fx:'phone'|'radio', outside, volume}) -> Promise
-//                                      (resolves when the words end). OS Thai TTS when available, else formant-synthesised
-//                                      Thai; every line runs through the voice rack (./VoiceFX.js): reverb, proximity /
+//                                      (resolves when the words end). Realistic gibberish cut from REAL recorded voices
+//                                      (./VoiceBanks.js + ./Synth/gibberish.js, CC0 Common Voice syllable banks in
+//                                      assets/audio/voice) for every character by default; OS Thai TTS only with settings
+//                                      voice 'tts' (or voice.preferTTS = true); formant synthesis while a bank is missing.
+//                                      Every line runs through the voice rack (./VoiceFX.js): reverb, proximity /
 //                                      phone / radio tone, and for ghosts the octave-down double, the delayed whisper
 //                                      behind your head, the reverse swell, flutter, mismatched breaths, sub hum.
-//   audio.voice.stop() · .hasThaiVoice · .prepare(line) (pre-render the next line) · .info() (OS voices, path used)
+//   audio.voice.stop() · .hasThaiVoice · .prepare(line) (loads the speaker's bank + pre-renders the line) · .info()
+//                                      (OS voices, path used, banks) · .banks.ensure(speakerId) · VoiceBanks.enabled (A/B)
 //
 // SOUND IDS (keep in sync with ./Synth/registry.js — `SOUND_IDS` exports the live list):
 //  car/cabin   door_open door_close key_insert key_turn ignition engine_start engine_stall handbrake(variant 0 pull,
@@ -70,7 +74,8 @@
 // Still synthesized: key_turn radio_click radio_tune meter_beep switch_click seat_creak collision_thud
 // rain_roof_start cigarette_inhale garland_jingle sting_low sting_high sting_reveal scare_hit neck_snap
 // child_laugh_far amulet_hum ui_hover ui_select ui_back chapter_chime, the held horn / bush_scrape /
-// fluorescent_flicker loops, and the music, radio programmes, voices and the engine model themselves.
+// fluorescent_flicker loops, and the music, radio programmes and the engine model themselves. Voices: recorded
+// syllable banks (manifest voice_* entries, credits; loaded by ./VoiceBanks.js, not play()-able sounds).
 import { engine } from '../core/Engine.js';
 import { settings } from '../core/Settings.js';
 import { bus } from '../core/Events.js';
