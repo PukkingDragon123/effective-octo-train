@@ -3,11 +3,8 @@
 // with the loading progress. Partway through, the ember goes out by itself: a last flare, a puff,
 // then only the cold. When loading is done a woman's pale hand comes out of the dark, the ash
 // breaks off under her grip and bounces into the urn, the stick bends as she pulls it from the
-// ash, and the zebras her arm brushes rock or fall over. The burning front glows and breathes; a grey ash
-// column grows over it, curls, breaks and drops into the urn. A thin smoke line rises and goes
-// turbulent the way real incense smoke does. Old red stubs stand in the ash, and a red altar
-// candle burns behind. When the player starts, a pale hand reaches out of the dark, closes
-// around the stick and pulls it away.
+// ash, and the zebras her arm brushes rock or fall over. While it burns, a grey ash column grows
+// over the glowing front, curls, breaks and drops; the smoke rises and turns turbulent.
 //
 // It has its own WebGL canvas, because the engine loop isn't running while the game boots. It is
 // disposed when the loading screen leaves. If WebGL fails, Loading keeps its 2D stick.
