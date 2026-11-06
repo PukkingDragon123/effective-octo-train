@@ -73,6 +73,7 @@ export const LAYOUT = {
   pickups: ['sala1', 'accidentCurve', 'noodleShop', 'busStop', 'bananaGrove', 'forestTemple', 'sala2', 'marketLamp', 'fatherLamp'],
 
   // Unsettling roadside set dressing between the landmarks, so the drive shows something wrong
+  // (no buildings: the road is abandoned; only the garage, the shrine and story landmarks stand)
   // every 100-200 m (built by Placement with props createRoadScare / streetlights / a cloth-wrapped
   // tree). offset = metres beyond the asphalt edge; u1 = end of a stretch (dead_lamps).
   scares: [
@@ -85,13 +86,13 @@ export const LAYOUT = {
     { spline: 'main', u: 0.035, side: 'R', offset: 1.8, kind: 'abandoned_shrine' },
     { spline: 'main', u: 0.13, side: 'L', offset: 2.0, kind: 'school_chairs' },
     { spline: 'main', u: 0.155, side: 'R', offset: 0.9, kind: 'flicker_lamp' },
-    { spline: 'main', u: 0.205, side: 'L', offset: 2.2, kind: 'empty_stall' },
+    { spline: 'main', u: 0.205, side: 'R', offset: 1.4, kind: 'culvert' },
     { spline: 'main', u: 0.285, side: 'L', offset: 0.7, kind: 'cctv_warning' },
     { spline: 'main', u: 0.395, side: 'R', offset: 1.4, kind: 'culvert' },
     { spline: 'main', u: 0.46, side: 'L', offset: 0.9, kind: 'flicker_lamp' },
     { spline: 'main', u: 0.51, side: 'R', offset: 4.0, kind: 'cloth_tree' },
     { spline: 'main', u: 0.65, side: 'R', offset: 1.6, kind: 'bike_wreck' },
-    { spline: 'main', u: 0.705, side: 'L', offset: 1.5, kind: 'broken_shelter' },
+    { spline: 'main', u: 0.705, side: 'L', offset: 1.8, kind: 'abandoned_shrine' },
     { spline: 'main', u: 0.765, side: 'R', offset: 0.9, kind: 'flicker_lamp' },
     { spline: 'main', u: 0.818, u1: 0.848, side: 'L', offset: 0.9, kind: 'dead_lamps' }, // the dead stretch before the last streetlight
     { spline: 'main', u: 0.96, side: 'R', offset: 2.0, kind: 'school_chairs' },

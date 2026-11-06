@@ -25,7 +25,8 @@ import { settings } from '../core/Settings.js';
 import { bus } from '../core/Events.js';
 import { clamp } from '../core/math.js';
 import { FS_VERT, GAUSS_FRAG } from './Painterly.js';
-import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG } from './PostShaders.js';
+import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG, AO_FRAG, AO_BLUR_FRAG } from './PostShaders.js';
+import { lensDirtTexture } from './noiseTex.js';
 import { GORE_UNIFORM } from './Blood.js';
 import { GLOBAL_UNIFORMS } from './uniforms.js';
 import { FrameClock, DynamicResolution, AutoQuality } from './Perf.js';
@@ -162,9 +163,15 @@ class PostFX {
     this.matDown = passMaterial(BLOOM_DOWN_FRAG, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() }, uKaris: { value: 0 }, uClampMax: { value: 400 } });
     this.matUp = passMaterial(BLOOM_UP_FRAG, { tLow: { value: null }, tHigh: { value: null }, uTexel: { value: new THREE.Vector2() }, uScatter: { value: 0.7 } });
     this.matShaftMask = passMaterial(SHAFT_MASK_FRAG, { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uAspect: { value: 1 }, uThreshold: { value: 0.8 } });
+    this.matAO = passMaterial(AO_FRAG, {
+      tDepth: { value: null }, uTexel: { value: new THREE.Vector2() }, uProjInv: { value: new THREE.Vector2(1, 1) },
+      uNear: { value: 0.1 }, uFar: { value: 1000 }, uRadius: { value: 0.55 }, uIntensity: { value: 1.0 }, uPxPerM: { value: 500 },
+    });
+    this.matAOBlur = passMaterial(AO_BLUR_FRAG, { tAO: { value: null }, uTexel: { value: new THREE.Vector2() } });
     this.matShaftBlur = passMaterial(SHAFT_BLUR_FRAG, { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uLength: { value: 0.6 }, uJitter: { value: 1 } });
     const fu = {
       tScene: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tShafts: { value: null },
+      tAO: { value: null }, tDirt: { value: lensDirtTexture() }, uAO: { value: 0 }, uDirt: { value: 0 }, uFilmic: { value: 0.2 },
       uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 },
       uExposure: { value: 1 }, uSaturation: { value: 1 }, uContrast: { value: 1 }, uTemperature: { value: 0 }, uTint: { value: 0 },
       uLift: { value: new THREE.Vector3() }, uGamma: { value: new THREE.Vector3(1, 1, 1) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
@@ -189,6 +196,8 @@ class PostFX {
     this.matOutputFxaa = passMaterial(OUTPUT_FRAG, ou, { FXAA: '' });
     this._black = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
     this._black.needsUpdate = true;
+    this._white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+    this._white.needsUpdate = true;
   }
 
   _pass(renderer, material, target) {
@@ -202,8 +211,10 @@ class PostFX {
     this._settingsDirty = false;
     const preset = settings.get('graphicsPreset') || 'medium';
     const samples = MSAA_BY_PRESET[preset] ?? 2;
-    if (samples !== this._samples) {
+    const ao = (settings.get('ambientOcclusion') ?? preset !== 'low') !== false;
+    if (samples !== this._samples || ao !== this._ao) {
       this._samples = samples;
+      this._ao = ao;
       this._sizeDirty = true;
     }
     this.cfg = {
@@ -226,7 +237,9 @@ class PostFX {
     dispose(this.copyRT);
     dispose(this.glassBlurA);
     dispose(this.glassBlurB);
-    this.shaftA = this.shaftB = this.copyRT = this.glassBlurA = this.glassBlurB = null;
+    dispose(this.aoRT);
+    dispose(this.aoBlurRT);
+    this.shaftA = this.shaftB = this.copyRT = this.glassBlurA = this.glassBlurB = this.aoRT = this.aoBlurRT = null;
   }
 
   _resize(renderer) {
@@ -246,6 +259,13 @@ class PostFX {
     const samples = Math.min(this._samples, renderer.capabilities.maxSamples || 0);
     this._msaa = samples;
     this.sceneRT = makeRT(w, h, { depth: true, samples, name: 'dlbScene' });
+    if (this._ao) {
+      // depth as a texture (resolved from the MSAA buffer after the opaque pass only) for AO
+      this.sceneRT.depthTexture = new THREE.DepthTexture(w, h);
+      const hw = Math.max(1, Math.ceil(w / 2)), hh = Math.max(1, Math.ceil(h / 2));
+      this.aoRT = makeRT(hw, hh, { name: 'dlbAO' });
+      this.aoBlurRT = makeRT(hw, hh, { name: 'dlbAOBlur' });
+    }
     // display-referred, dithered sRGB: 8 bits are enough (half the bandwidth of HalfFloat)
     this.gradeRT = makeRT(w, h, { ldr: true, name: 'dlbGrade' });
     this.bloomDown = [];
@@ -349,10 +369,29 @@ class PostFX {
     camera.layers.mask = mask & ~GLASS_BIT;
     renderer.autoClear = true;
     if (sky) sky.uniforms.uSkyAlpha.value = 0;
+    this.sceneRT.resolveDepthBuffer = !!this.sceneRT.depthTexture;
     renderer.setRenderTarget(this.sceneRT);
     renderer.render(scene, camera);
+    this.sceneRT.resolveDepthBuffer = false; // the glass pass never re-resolves depth
     if (sky) sky.uniforms.uSkyAlpha.value = 1;
     camera.layers.mask = mask;
+
+    // ---- 1b. half-res ambient occlusion from the opaque depth (before glass) -------------
+    const doAO = !!(this.aoRT && camera.isPerspectiveCamera);
+    if (doAO) {
+      const a = this.matAO.uniforms;
+      const pm = camera.projectionMatrix.elements;
+      a.tDepth.value = this.sceneRT.depthTexture;
+      a.uTexel.value.set(1 / this._w, 1 / this._h);
+      a.uProjInv.value.set(1 / pm[0], 1 / pm[5]);
+      a.uNear.value = camera.near;
+      a.uFar.value = camera.far;
+      a.uPxPerM.value = pm[5] * 0.5 * this._h;
+      this._pass(renderer, this.matAO, this.aoRT);
+      this.matAOBlur.uniforms.tAO.value = this.aoRT.texture;
+      this.matAOBlur.uniforms.uTexel.value.set(1 / this.aoRT.width, 1 / this.aoRT.height);
+      this._pass(renderer, this.matAOBlur, this.aoBlurRT);
+    }
 
     // ---- 2. glass (only while a glass pane is in view) --------------------------------
     let doGlass = this.glass === true;
@@ -482,6 +521,9 @@ class PostFX {
     fu.tBloom.value = needBloomChain ? this.bloomUp[0].texture : this._black;
     fu.tBlur.value = needBloomChain ? this.bloomUp[0].texture : this._black;
     fu.tShafts.value = shafts > 0.01 ? this.shaftA.texture : this._black;
+    fu.tAO.value = doAO ? this.aoBlurRT.texture : this._white;
+    fu.uAO.value = doAO ? 0.85 : 0;
+    fu.uDirt.value = needBloomChain ? 0.35 * clamp(bloomAmt, 0, 1) : 0;
     fu.uTime.value = (fu.uTime.value + dt) % 1000;
     fu.uExposure.value = exposure;
     fu.uSaturation.value = (grade?.saturation ?? 1) * P.saturation;

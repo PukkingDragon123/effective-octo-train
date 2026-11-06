@@ -1,5 +1,9 @@
-// Loading screen 3D: one joss stick (ธูป) planted in a brass urn of old ash on Ah Kong's altar,
-// burning down with the loading progress. The burning front glows and breathes; a grey ash
+// Loading screen 3D: one joss stick (ธูป) planted in a brass urn of old ash at a roadside zebra
+// shrine (ศาลม้าลาย: ceramic zebras, red soda, faded garlands; see ZebraShrine.js), burning down
+// with the loading progress. Partway through, the ember goes out by itself: a last flare, a puff,
+// then only the cold. When loading is done a woman's pale hand comes out of the dark, the ash
+// breaks off under her grip and bounces into the urn, the stick bends as she pulls it from the
+// ash, and the zebras her arm brushes rock or fall over. The burning front glows and breathes; a grey ash
 // column grows over it, curls, breaks and drops into the urn. A thin smoke line rises and goes
 // turbulent the way real incense smoke does. Old red stubs stand in the ash, and a red altar
 // candle burns behind. When the player starts, a pale hand reaches out of the dark, closes
@@ -11,6 +15,7 @@ import * as THREE from 'three';
 import { makeRng } from '../core/math.js';
 import { HandRig } from '../creatures/hand.js';
 import { creatureMaterial } from '../creatures/skin.js';
+import { buildZebraShrine } from './ZebraShrine.js';
 
 const S = { base: -0.04, stem: 0.075, top: 0.3, rCore: 0.00105, rCoat: 0.00235 };
 const SAND_Y = -0.004;
@@ -86,7 +91,7 @@ function stickMaterial(u) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTip; uniform float uCurl; uniform float uCurlDir;\nvarying vec3 vSt;')
+      .replace('#include <common>', '#include <common>\nuniform float uTip; uniform float uCurl; uniform float uCurlDir; uniform vec3 uBendBase; uniform vec3 uWhip; uniform float uGrip;\nvarying vec3 vSt;')
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
@@ -101,6 +106,10 @@ vSt = position;
     transformed.x += c * cos(uCurlDir);
     transformed.z += c * sin(uCurlDir);
   }
+  // held at uGrip: below it the stem lags where the ash still holds it, above it the tip whips
+  float gb = clamp((uGrip - position.y) / (uGrip - ${S.base.toFixed(4)}), 0.0, 1.0);
+  float gt = clamp((position.y - uGrip) / (${S.top.toFixed(4)} - uGrip), 0.0, 1.0);
+  transformed += uBendBase * gb * gb + uWhip * gt * gt;
 }`,
       );
     sh.fragmentShader = sh.fragmentShader
@@ -271,84 +280,46 @@ function ashBed(rng) {
   return mesh;
 }
 
-/** Red altar candle with a melted cup and wax runs, and a sharp flickering flame. */
-function candle(rng) {
-  const s = rng() * 10;
-  const H = 0.25, R = 0.016;
-  const g = tubeGeometry(-0.075, -0.075 + H, 120, 40, (y, a) => {
-    const t = (y + 0.075) / H;
-    const drip = Math.max(0, Math.sin(a * 3 + s)) ** 6 * 0.0018 * smooth(1, 0.35, t) + Math.max(0, Math.sin(a * 5 - s)) ** 8 * 0.0012 * smooth(1, 0.6, t);
-    const lip = t > 0.97 ? 1 - 0.12 * (t - 0.97) / 0.03 : 1;
-    return (R + drip) * lip;
-  });
-  const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x7a1410, roughness: 0.42, metalness: 0, emissive: 0x2a0402 }));
-  const flameMat = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    uniforms: { uTime: { value: 0 } },
-    vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: /* glsl */ `
-      varying vec2 vUv; uniform float uTime;
-      void main(){
-        vec2 p = vUv * 2.0 - 1.0;
-        float sway = sin(uTime * 3.1) * 0.06 + sin(uTime * 7.7) * 0.03;
-        p.x -= sway * (p.y + 1.0) * 0.5;
-        // teardrop: round at the bottom, drawn to a point at the top
-        float w = mix(0.62, 0.0, smoothstep(-0.6, 1.0, p.y)) * (1.0 - smoothstep(0.55, 1.0, -p.y));
-        float d = abs(p.x) / max(w, 1e-3);
-        float shape = 1.0 - smoothstep(0.86, 1.0, d);
-        float core = 1.0 - smoothstep(0.0, 0.7, d);
-        vec3 c = mix(vec3(1.0, 0.36, 0.06), vec3(1.0, 0.86, 0.6), core * smoothstep(-0.7, 0.2, p.y));
-        c = mix(vec3(0.25, 0.35, 1.0), c, smoothstep(-0.85, -0.45, p.y));
-        gl_FragColor = vec4(c * shape * 1.6, 1.0);
-      }`,
-  });
-  const flame = new THREE.Mesh(new THREE.PlaneGeometry(0.009, 0.024), flameMat);
-  flame.position.y = -0.075 + H + 0.012;
-  const wick = new THREE.Mesh(tubeGeometry(-0.075 + H - 0.002, -0.075 + H + 0.005, 6, 6, () => 0.0005), new THREE.MeshStandardMaterial({ color: 0x0c0806 }));
-  const grp = new THREE.Group();
-  grp.add(mesh, flame, wick);
-  grp.userData.flame = flame;
-  grp.userData.flameMat = flameMat;
-  return grp;
-}
-
-/** Lacquered altar top (dark red, worn to the wood, wax spots, spilt ash). */
+/** The shrine's concrete shelf: weathered cement, lichen, wax and red soda stains, spilt ash. */
 function altarTop() {
   const c = document.createElement('canvas');
   c.width = c.height = 512;
   const x = c.getContext('2d');
   const rng = makeRng(77);
-  x.fillStyle = '#2a0b07';
+  x.fillStyle = '#3a3731';
   x.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 260; i++) {
-    x.strokeStyle = `rgba(${60 + rng() * 40},${18 + rng() * 14},${10 + rng() * 8},${0.12 + rng() * 0.2})`;
-    x.lineWidth = 0.6 + rng() * 2.2;
-    const y = rng() * 512;
+  for (let i = 0; i < 2600; i++) {
+    const v = 40 + rng() * 40;
+    x.fillStyle = `rgba(${v},${v * 0.96},${v * 0.9},${0.25 + rng() * 0.3})`;
+    x.fillRect(rng() * 512, rng() * 512, 1 + rng() * 3, 1 + rng() * 3);
+  }
+  for (let i = 0; i < 40; i++) {
+    x.fillStyle = `rgba(${50 + rng() * 30},${62 + rng() * 30},${30 + rng() * 14},${0.15 + rng() * 0.25})`;
     x.beginPath();
-    x.moveTo(0, y);
-    for (let k = 0; k <= 8; k++) x.lineTo(k * 64, y + Math.sin(k * 0.9 + y) * 4 + (rng() - 0.5) * 3);
+    x.ellipse(rng() * 512, rng() * 512, 4 + rng() * 26, 3 + rng() * 14, rng() * 3, 0, Math.PI * 2);
+    x.fill();
+  }
+  for (let i = 0; i < 12; i++) {
+    x.fillStyle = `rgba(${110 + rng() * 40},${14 + rng() * 10},${16},${0.18 + rng() * 0.2})`;
+    x.beginPath();
+    x.ellipse(rng() * 512, rng() * 512, 6 + rng() * 22, 4 + rng() * 12, rng() * 3, 0, Math.PI * 2);
+    x.fill();
+  }
+  x.strokeStyle = 'rgba(14,12,10,0.55)';
+  for (let i = 0; i < 9; i++) {
+    x.lineWidth = 0.6 + rng();
+    x.beginPath();
+    let px = rng() * 512, py = rng() * 512;
+    x.moveTo(px, py);
+    for (let k = 0; k < 12; k++) x.lineTo((px += (rng() - 0.5) * 40), (py += (rng() - 0.3) * 30));
     x.stroke();
-  }
-  for (let i = 0; i < 70; i++) {
-    x.fillStyle = `rgba(${150 + rng() * 60},${140 + rng() * 50},${130 + rng() * 40},${0.05 + rng() * 0.12})`;
-    x.beginPath();
-    x.ellipse(rng() * 512, rng() * 512, 1 + rng() * 9, 1 + rng() * 5, rng() * 3, 0, Math.PI * 2);
-    x.fill();
-  }
-  for (let i = 0; i < 14; i++) {
-    x.fillStyle = `rgba(${170 + rng() * 40},${30 + rng() * 20},${24},${0.3 + rng() * 0.3})`;
-    x.beginPath();
-    x.ellipse(rng() * 512, rng() * 512, 2 + rng() * 7, 2 + rng() * 6, rng() * 3, 0, Math.PI * 2);
-    x.fill();
   }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(2, 1);
   tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.38, metalness: 0 }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0 }));
   m.rotation.x = -Math.PI / 2;
   m.position.set(0, -0.0752, -0.18);
   m.receiveShadow = true;
@@ -365,8 +336,10 @@ function shrineWall() {
   c.height = 512;
   const x = c.getContext('2d');
   const rng = makeRng(4242);
-  x.fillStyle = '#300c08';
+  x.fillStyle = '#26221d';
   x.fillRect(0, 0, 1024, 512);
+  x.fillStyle = 'rgba(120,24,16,0.35)';
+  x.fillRect(0, 300, 1024, 90);
   // boards
   for (let b = 0; b < 9; b++) {
     const bx = b * 118 + rng() * 8;
@@ -452,102 +425,6 @@ function haze(z, w, h, seed, alpha) {
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
   mesh.position.set(0, h * 0.32, z);
   mesh.renderOrder = 2;
-  return mesh;
-}
-
-/** A pale face, painted once: the smoke shader only ever shows it in fragments. */
-function faceTexture() {
-  const W = 256, H = 320;
-  const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
-  const x = c.getContext('2d');
-  x.fillStyle = '#000';
-  x.fillRect(0, 0, W, H);
-  // long skull-like oval, lit from below by the ember
-  const sk = x.createRadialGradient(W * 0.5, H * 0.58, 10, W * 0.5, H * 0.5, H * 0.46);
-  sk.addColorStop(0, 'rgba(255,255,255,0.95)');
-  sk.addColorStop(0.55, 'rgba(210,210,210,0.7)');
-  sk.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = sk;
-  x.beginPath();
-  x.ellipse(W * 0.5, H * 0.5, W * 0.36, H * 0.44, 0, 0, Math.PI * 2);
-  x.fill();
-  const hole = (cx, cy, rx, ry, a) => {
-    const g = x.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
-    g.addColorStop(0, `rgba(0,0,0,${a})`);
-    g.addColorStop(0.6, `rgba(0,0,0,${a * 0.75})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    x.save();
-    x.translate(cx, cy);
-    x.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
-    x.translate(-cx, -cy);
-    x.fillStyle = g;
-    x.beginPath();
-    x.arc(cx, cy, Math.max(rx, ry), 0, Math.PI * 2);
-    x.fill();
-    x.restore();
-  };
-  hole(W * 0.36, H * 0.42, 30, 24, 1); // eye hollows, a little uneven
-  hole(W * 0.645, H * 0.425, 28, 25, 1);
-  hole(W * 0.5, H * 0.56, 9, 20, 0.6); // nose shadow
-  hole(W * 0.5, H * 0.75, 20, 34, 1); // the mouth, hanging open
-  hole(W * 0.5, H * 0.24, 70, 26, 0.35); // brow shadow
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.NoColorSpace;
-  return t;
-}
-
-/** The face that forms in the smoke for a second, then is only smoke again. */
-function smokeFace() {
-  const m = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    uniforms: { uTime: { value: 0 }, uK: { value: 0 }, uFace: { value: faceTexture() } },
-    vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: /* glsl */ `
-      varying vec2 vUv; uniform float uTime; uniform float uK; uniform sampler2D uFace;
-      ${NOISE_GLSL}
-      float fbm(vec2 p){ float a = 0.0, m = 0.5; for (int i = 0; i < 5; i++){ a += dlbN(p) * m; p = p * 2.07 + 7.3; m *= 0.5; } return a; }
-      void main(){
-        vec2 q = vUv + vec2(fbm(vUv * 3.0 + vec2(0.0, -uTime * 0.25)) - 0.5, fbm(vUv * 3.0 + 4.0 - uTime * 0.2) - 0.5) * (0.09 * (1.2 - uK));
-        float face = texture2D(uFace, q).r;
-        float smoke = fbm(vUv * vec2(4.0, 6.0) + vec2(sin(uTime * 0.3) * 0.4, -uTime * 0.35));
-        float wisps = smoothstep(0.42, 0.78, smoke + uK * 0.12);
-        float a = face * face * wisps * uK;
-        gl_FragColor = vec4(vec3(0.6, 0.65, 0.7), a * 0.17);
-      }`,
-  });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.062, 0.078), m);
-  mesh.renderOrder = 2;
-  mesh.visible = false;
-  return mesh;
-}
-
-/** Something tall passing between the urn and the candle: only a darker dark, with a smoky edge. */
-function passingShadow() {
-  const m = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    uniforms: { uTime: { value: 0 }, uK: { value: 0 } },
-    vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: /* glsl */ `
-      varying vec2 vUv; uniform float uTime; uniform float uK;
-      ${NOISE_GLSL}
-      void main(){
-        vec2 p = vUv * 2.0 - 1.0;
-        // head, a long neck and sloped shoulders, no clean edge anywhere
-        float head = length((p - vec2(0.0, 0.38)) * vec2(1.0, 0.82)) - 0.26;
-        float body = length((p - vec2(0.0, -0.75)) * vec2(0.62, 1.0)) - 0.62;
-        float d = min(head, body);
-        float n = dlbN(p * 7.0 + uTime * 0.6) * 0.6 + dlbN(p * 17.0 - uTime) * 0.4;
-        float a = (1.0 - smoothstep(-0.12, 0.1, d + (n - 0.5) * 0.18)) * uK;
-        gl_FragColor = vec4(vec3(0.0), a * 0.94);
-      }`,
-  });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.5), m);
-  mesh.renderOrder = 1;
-  mesh.visible = false;
   return mesh;
 }
 
@@ -690,51 +567,32 @@ export class IncenseScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.72;
+    renderer.toneMappingExposure = 0.78;
     renderer.shadowMap.enabled = false;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setClearColor(0x000000, 1);
     this.renderer = renderer;
     renderer.domElement.className = 'dlb-loading__canvas';
     host.appendChild(renderer.domElement);
 
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.FogExp2(0x020203, 2.4);
-    this.camera = new THREE.PerspectiveCamera(30, 1, 0.005, 5);
+    scene.fog = new THREE.FogExp2(0x020203, 1.2);
+    this.camera = new THREE.PerspectiveCamera(34, 1, 0.005, 5);
     const rng = makeRng(1331);
 
-    // ---- light: the ember, the altar candle, a cold sliver of moon through the shutters
-    this.emberLight = new THREE.PointLight(0xff6326, 0.012, 0.6, 2);
-    this.emberLight.castShadow = true;
-    this.emberLight.shadow.mapSize.set(512, 512);
-    this.emberLight.shadow.camera.near = 0.003;
-    this.emberLight.shadow.camera.far = 0.6;
-    this.emberLight.shadow.bias = -0.0004;
+    // ---- light: the ember, a cold sliver of moon; once the ember dies the cold creeps in
+    this.emberLight = new THREE.PointLight(0xff6326, 0.014, 0.7, 2);
     scene.add(this.emberLight);
-    this.candleLight = new THREE.PointLight(0xff9a48, 0.22, 1.6, 2);
-    scene.add(this.candleLight);
-    const moon = new THREE.DirectionalLight(0x8a96a8, 0.09);
-    moon.position.set(0.9, 0.5, -0.7);
+    const moon = new THREE.DirectionalLight(0x8a96a8, 0.17);
+    moon.position.set(0.9, 0.6, -0.5);
     scene.add(moon);
-    scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.05));
-    const fill = new THREE.DirectionalLight(0xffb070, 0.0);
-    fill.position.set(-0.8, 0.3, 0.6);
-    scene.add(fill);
+    scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
+    this.cold = new THREE.PointLight(0x8796b4, 0, 1.6, 2);
+    this.cold.position.set(0.16, 0.3, 0.34);
+    scene.add(this.cold);
 
-    // ---- set
+    // ---- the shrine
     this.urn = urn(rng);
-    this.urn.receiveShadow = true;
-    scene.add(this.urn, ashBed(rng), altarTop());
-    this.candle = candle(rng);
-    this.candle.position.set(-0.16, 0, -0.24);
-    this.candleLight.position.set(-0.16, 0.2, -0.22);
-    scene.add(this.candle);
-    const c2 = candle(rng);
-    c2.position.set(0.24, 0, -0.42);
-    c2.scale.setScalar(1.1);
-    c2.visible = false;
-    scene.add(c2);
-    this.candle2 = c2;
+    scene.add(this.urn, ashBed(rng), altarTop(), shrineWall());
     const stubMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
     for (let i = 0; i < 17; i++) {
       const a = rng() * Math.PI * 2, r = 0.012 + rng() * 0.042;
@@ -743,7 +601,6 @@ export class IncenseScene {
       st.rotation.set((rng() - 0.5) * 0.35, rng() * 6.28, (rng() - 0.5) * 0.35);
       scene.add(st);
     }
-    // old ash curls lying on the bed
     this.ashMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
     this.ashGeos = [0.006, 0.009, 0.012, 0.015].map((l) => ashChunkGeometry(l, rng));
     for (let i = 0; i < 22; i++) {
@@ -754,24 +611,20 @@ export class IncenseScene {
       m.rotation.order = 'ZXY';
       scene.add(m);
     }
-    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.03), haze(-0.42, 1.6, 0.9, 7.1, 0.035));
-    // two beats while it loads: a face in the smoke, then something passes and the candle dies
-    this.face = smokeFace();
-    this.shade = passingShadow();
-    scene.add(this.face, this.shade);
-    this.beats = { face: 3.4, shadow: 6.6 };
-    this.candleOn = 1;
+    this.shrine = buildZebraShrine(scene, rng, -0.0752);
+    scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.025), haze(-0.42, 1.6, 0.9, 7.1, 0.03));
 
     // ---- the stick
     this.u = {
       uTip: { value: S.top - 0.0015 }, uAsh: { value: 0.0016 }, uCurl: { value: 0.0 }, uCurlDir: { value: 0.6 },
       uTime: { value: 0 }, uStem: { value: S.stem }, uHeat: { value: 1 },
+      uBendBase: { value: new THREE.Vector3() }, uWhip: { value: new THREE.Vector3() }, uGrip: { value: S.stem - 0.016 },
     };
     this.stickPivot = new THREE.Group();
     this.stickPivot.rotation.set(0.035, 0, -0.06);
     scene.add(this.stickPivot);
     this.stick = new THREE.Mesh(stickGeometry(), stickMaterial(this.u));
-    this.stick.receiveShadow = true;
+    this.stick.frustumCulled = false;
     this.stickPivot.add(this.stick);
     this.tip = S.top - 0.0015;
     this.ashLen = 0.0016;
@@ -806,11 +659,16 @@ export class IncenseScene {
     scene.add(this.sparkPts);
 
     this.smoke = [new Smoke({ seed: 0.0, width: 1, alpha: 0.5 }), new Smoke({ seed: 2.7, width: 2.2, alpha: 0.16, rate: 60, life: 7.5 })];
-    for (const s of this.smoke) scene.add(s.mesh);
+    for (const s of this.smoke) {
+      s.baseRate = s.rate;
+      scene.add(s.mesh);
+    }
 
-    // camera follows the burning front down, with a breath of hand-held drift
-    this.camTarget = new THREE.Vector3(0, this.tip - 0.02, 0);
-    this.camDist = 0.34;
+    // the ember goes out on its own a few seconds in (or when the hand comes, if loading is quick)
+    this.emberOutAt = 4.6;
+    this.out = null;
+    this.camTarget = new THREE.Vector3(0, 0.1, 0);
+    this.camDist = 0.56;
     this.grab = null;
     this.hand = null;
     this.fade = 0;
@@ -850,25 +708,41 @@ export class IncenseScene {
     if (this.hand || this.disposed) return;
     try {
       const material = creatureMaterial({
-        detail: 'ghostSkin', detailScale: 3.6, detailAmount: 0.6, bump: 1.0, color: 0xffffff, roughness: 0.58,
-        skin: true, sss: 0.75, pale: 0.3, wet: 0.3, brush: 0.25, emissive: 0x000000, rim: 0.25, puddles: 0,
+        detail: 'ghostSkin', detailScale: 3.6, detailAmount: 0.45, bump: 0.8, color: 0xffffff, roughness: 0.55,
+        skin: true, sss: 0.8, pale: 0.38, wet: 0.2, brush: 0.2, emissive: 0x000000, rim: 0.3, puddles: 0,
       });
+      // a woman's hand: slender long fingers, a narrow wrist, long nails
       const hand = new HandRig({
-        shape: { fingerScale: 1.12, thickness: 0.95, bony: 0.55, nails: 0.035, forearm: 2.4, color: [0.6, 0.55, 0.49] },
+        shape: { fingerScale: 1.2, thickness: 0.72, bony: 0.3, nails: 0.2, forearm: 2.4, wrist: 0.76, color: [0.66, 0.61, 0.56] },
         material,
-        twitch: 0.18,
+        twitch: 0.12,
       });
       const root = new THREE.Group();
       root.add(hand.mesh);
-      root.scale.setScalar(0.088);
+      root.scale.setScalar(0.082);
       root.visible = false;
-      hand.mesh.traverse((o) => {
-        o.castShadow = true;
-        o.receiveShadow = true;
-      });
       this.scene.add(root);
       this.hand = hand;
       this.handRoot = root;
+      // an old gold bangle, loose on the wrist (a D-section swept round, worn smooth)
+      const R = 0.27, w = 0.085, th = 0.042;
+      const prof = [];
+      for (let i = 0; i <= 28; i++) {
+        const a = (i / 28) * Math.PI * 2;
+        const c = Math.cos(a);
+        prof.push(new THREE.Vector2(R + th * 0.5 + c * th * (c > 0 ? 0.5 : 0.3), Math.sin(a) * w * 0.5));
+      }
+      const bangle = new THREE.Mesh(new THREE.LatheGeometry(prof, 72), new THREE.MeshStandardMaterial({ color: 0xa8843c, metalness: 1, roughness: 0.34 }));
+      root.updateMatrixWorld(true);
+      const bone = hand.b.arm || hand.b.wrist;
+      const wp = hand.mesh.localToWorld(new THREE.Vector3(0.03, -0.46, -0.02));
+      bone.worldToLocal(wp);
+      bangle.position.copy(wp);
+      const qb = bone.getWorldQuaternion(new THREE.Quaternion()).invert();
+      bangle.quaternion.copy(qb.multiply(hand.mesh.getWorldQuaternion(new THREE.Quaternion()))).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.18, 0, 0.12)));
+      const ws = bone.getWorldScale(new THREE.Vector3()).x / root.scale.x;
+      bangle.scale.setScalar(1 / Math.max(1e-6, ws));
+      bone.add(bangle);
       // compile now so the reach doesn't hitch
       root.visible = true;
       root.position.set(0, -10, 0);
@@ -891,18 +765,31 @@ export class IncenseScene {
     return this.stick.localToWorld(out.set(c * Math.cos(d), this.tip + a - 0.0006, c * Math.sin(d)));
   }
 
+  /** The ember dies: one last flare, a puff of smoke, a few sparks, then dark. */
+  _snuff() {
+    this.out = { t: this.t };
+    for (const s of this.smoke) {
+      s.rate = s.baseRate * 3.5;
+      s.stir = 1;
+    }
+    const e = this.emberWorld(new THREE.Vector3());
+    for (let k = 0; k < 6; k++) this.sparks.push({ p: e.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.1, 0.05 + Math.random() * 0.09, (Math.random() - 0.5) * 0.1), life: 0.3 + Math.random() * 0.4 });
+  }
+
   update(dt) {
     this.t += dt;
     const t = this.t, u = this.u;
     u.uTime.value = t;
+    if (!this.out && (t > this.emberOutAt || this.grab)) this._snuff();
+    const since = this.out ? t - this.out.t : -1;
 
-    // burn: the front creeps toward the progress target, never jumps
-    if (!this.grab) {
+    // burn: the front creeps toward the progress target while lit, never jumps
+    if (!this.grab && !this.out) {
       const target = S.top - 0.0015 - this.progress * (S.top - S.stem) * 0.7;
       const speed = 0.006 + Math.max(0, this.tip - target) * 0.8;
       const prev = this.tip;
       this.tip = Math.max(target, this.tip - speed * dt);
-      this.tip -= dt * 0.00012; // it is always burning, a little
+      this.tip -= dt * 0.00012;
       this.ashLen += (prev - this.tip) * 0.9;
       if (this.ashLen > this.ashMax) this._breakAsh();
     }
@@ -910,45 +797,45 @@ export class IncenseScene {
     u.uAsh.value = this.ashLen;
     u.uCurl.value = 0.45 + 0.25 * Math.sin(this.ashMax * 900);
     const breath = 0.86 + 0.14 * Math.sin(t * 1.3) * Math.sin(t * 0.71 + 1.0) + 0.05 * Math.sin(t * 9.0);
-    const heat = breath * (this.grab ? this.grab.heat : 1);
+    let heat = breath;
+    if (this.out) heat *= since < 0.12 ? 1 + since * 7 : Math.max(0, 1 - (since - 0.12) / 0.32) ** 2;
     u.uHeat.value = heat;
+    // after the puff the smoke thins to a smoulder, then stops
+    if (this.out) for (const s of this.smoke) s.rate = since < 0.35 ? s.baseRate * 3.5 : s.baseRate * 0.3;
+    const emitting = !this.out || since < 1.5;
 
     this.scene.updateMatrixWorld(true);
     const ember = this.emberWorld(this._ember);
     const smokeAt = this.smokeSource(this._smokeAt);
     this.emberLight.position.copy(ember).add(this._v.set(0.0012, 0.004, 0.003));
-    this.emberLight.intensity = 0.012 * heat * (this.fade > 0 ? 1 - this.fade : 1);
+    this.emberLight.intensity = 0.014 * heat * (1 - this.fade);
     this.halo.position.copy(ember);
-    this.halo.material.opacity = 0.55 + 0.35 * heat;
-    const fl = 0.85 + 0.1 * Math.sin(t * 13.1) + 0.05 * Math.sin(t * 29.3);
-    this._updateBeats(dt);
-    this.candleLight.intensity = 0.05 * fl * this.candleOn;
-    this.candle.userData.flame.scale.set(0.6 + 0.4 * this.candleOn, Math.max(0.001, this.candleOn), 1);
-    this.candle.userData.flame.visible = this.candleOn > 0.01;
-    this.candle.userData.flameMat.uniforms.uTime.value = t;
-    this.candle2.userData.flameMat.uniforms.uTime.value = t + 3.3;
-    for (const c of [this.candle, this.candle2]) c.userData.flame.quaternion.copy(this.camera.quaternion);
+    this.halo.material.opacity = (0.55 + 0.35 * heat) * Math.min(1, heat);
+    this.halo.visible = heat > 0.01;
+    this.cold.intensity = this.out ? 0.06 * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
     this.scene.traverse((o) => {
       if (o.material?.uniforms?.uSeed) o.material.uniforms.uTime.value = t;
     });
 
     this._updateFalling(dt);
-    this._updateSparks(dt, ember);
+    this._updateSparks(dt, ember, heat);
     if (this.grab) this._updateGrab(dt);
     if (this.hand) this.hand.update(dt);
+    this.shrine.update(dt);
 
-    for (const s of this.smoke) s.update(dt, t, smokeAt, this.camera.position, true);
+    for (const s of this.smoke) s.update(dt, t, smokeAt, this.camera.position, emitting);
 
-    // camera
-    const want = this.grab ? this.grab.camTarget : this._v.set(-0.03 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1), Math.max(0.07, this.tip - 0.025), 0);
+    // camera: the whole little shrine, the stick in the middle; drifting like a held breath
+    const portrait = this.camera.aspect < 1;
+    const want = this.grab ? this.grab.camTarget : this._v.set(-0.02 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1), 0.085 + (this.tip - 0.14) * 0.35, 0);
     this.camTarget.lerp(want, 1 - Math.exp(-dt * 1.6));
-    const dist = this.grab ? this.grab.camDist : this.camDist + (this.camera.aspect < 1 ? 0.12 : 0);
+    const dist = this.grab ? this.grab.camDist : 0.56 + (portrait ? 0.22 : 0) - (this.out ? 0.05 * smooth(0, 4, since) : 0);
     this.camDist += (dist - this.camDist) * (1 - Math.exp(-dt * 1.4));
     const sx = Math.sin(t * 0.31) * 0.004 + Math.sin(t * 0.83) * 0.0015, sy = Math.sin(t * 0.27 + 1) * 0.003;
     const shake = this.grab?.shake || 0;
     this.camera.position.set(
-      this.camTarget.x + 0.05 + sx + (Math.random() - 0.5) * shake,
-      this.camTarget.y + 0.015 + sy + (Math.random() - 0.5) * shake,
+      this.camTarget.x + 0.06 + sx + (Math.random() - 0.5) * shake,
+      this.camTarget.y + 0.08 + sy + (Math.random() - 0.5) * shake,
       this.camTarget.z + this.camDist,
     );
     this.camera.lookAt(this.camTarget.x + sx * 0.3, this.camTarget.y, this.camTarget.z);
@@ -956,75 +843,59 @@ export class IncenseScene {
     this.renderer.render(this.scene, this.camera);
   }
 
-  _updateBeats(dt) {
-    const t = this.t;
-    const B = this.beats;
-    // the face: 1.4 s, gathering out of the plume above the ember and coming apart again
-    const fk = this.grab ? 0 : smooth(B.face, B.face + 0.55, t) * (1 - smooth(B.face + 0.95, B.face + 1.5, t));
-    this.face.visible = fk > 0.002;
-    if (this.face.visible) {
-      this.stick.localToWorld(this.face.position.set(0.004, this.tip + 0.036, -0.008));
-      this.face.quaternion.copy(this.camera.quaternion);
-      this.face.material.uniforms.uK.value = fk;
-      this.face.material.uniforms.uTime.value = t;
-      for (const s of this.smoke) s.stir = Math.max(s.stir, fk * 0.6);
-    }
-    // the shadow: crosses right to left in front of the candle, which gutters and goes out
-    const st = (t - B.shadow) / 1.9;
-    const on = st > 0 && st < 1 && !this.grab;
-    this.shade.visible = on;
-    if (on) {
-      const k = easeInOut(st);
-      this.shade.position.set(0.32 - k * 0.78, 0.13 + Math.sin(k * Math.PI) * 0.01, -0.13);
-      this.shade.material.uniforms.uK.value = smooth(0, 0.15, st) * (1 - smooth(0.85, 1, st));
-      this.shade.material.uniforms.uTime.value = t;
-    }
-    if (t > B.shadow + 0.7 && this.candleOn > 0) {
-      const g = smooth(B.shadow + 0.7, B.shadow + 1.25, t);
-      this.candleOn = Math.max(0, (1 - g) * (0.6 + 0.4 * Math.sin(t * 47) * Math.sin(t * 13)));
-      if (g >= 1) this.candleOn = 0;
-    }
-  }
-
-  _breakAsh() {
-    // the curled column drops off into the urn
+  /** The curled ash column snaps off and falls (kick: extra velocity, e.g. the jolt of a grip). */
+  _breakAsh(kick = null) {
     const len = Math.min(this.ashLen - 0.0012, 0.016);
-    const geo = this.ashGeos.reduce((b, g, i) => (Math.abs([0.006, 0.009, 0.012, 0.015][i] - len) < Math.abs([0.006, 0.009, 0.012, 0.015][b] - len) ? i : b), 0);
+    if (len < 0.002) return;
+    const L = [0.006, 0.009, 0.012, 0.015];
+    const geo = L.reduce((b, l, i) => (Math.abs(l - len) < Math.abs(L[b] - len) ? i : b), 0);
     const m = new THREE.Mesh(this.ashGeos[geo], this.ashMat);
-    const p = this.stick.localToWorld(new THREE.Vector3(0, this.tip + len / 2 + 0.001, 0));
-    m.position.copy(p);
+    m.position.copy(this.stick.localToWorld(new THREE.Vector3(0, this.tip + len / 2 + 0.001, 0)));
     m.quaternion.copy(this.stick.getWorldQuaternion(new THREE.Quaternion()));
-    m.castShadow = true;
     this.scene.add(m);
-    this.falling.push({ m, v: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0, (Math.random() - 0.5) * 0.02), w: new THREE.Vector3(Math.random() * 6 - 3, 0, Math.random() * 8 - 4), done: false });
-    if (this.falling.length > 10) {
-      const old = this.falling.shift();
-      old.m.removeFromParent();
-    }
+    const v = new THREE.Vector3((Math.random() - 0.5) * 0.03, 0, (Math.random() - 0.5) * 0.03);
+    if (kick) v.add(kick);
+    this.falling.push({ m, v, w: new THREE.Vector3(Math.random() * 10 - 5, 0, Math.random() * 12 - 6), done: false });
+    if (this.falling.length > 10) this.falling.shift().m.removeFromParent();
     this.ashLen = 0.0014;
     this.ashMax = 0.007 + Math.random() * 0.009;
     this.u.uCurlDir.value = Math.random() * Math.PI * 2;
   }
 
+  // ash under gravity: it lands on the ash bed, the urn's lip or the shelf, bounces, settles
   _updateFalling(dt) {
     for (const f of this.falling) {
       if (f.done) continue;
-      f.v.y -= 9.8 * dt * 0.6;
-      f.m.position.addScaledVector(f.v, dt);
+      const p = f.m.position;
+      f.v.y -= 9.8 * dt;
+      p.addScaledVector(f.v, dt);
       f.m.rotation.x += f.w.x * dt;
       f.m.rotation.z += f.w.z * dt;
-      if (f.m.position.y < SAND_Y + 0.0035 && Math.hypot(f.m.position.x, f.m.position.z) < 0.055) {
-        f.m.position.y = SAND_Y + 0.0018;
-        f.m.rotation.set(Math.PI / 2, 0, Math.random() * 6.28, 'ZXY');
-        f.done = true;
+      const r = Math.hypot(p.x, p.z);
+      const floor = r < 0.058 ? SAND_Y + 0.0016 : r < 0.07 ? 0.0158 : -0.0736;
+      if (r >= 0.058 && r < 0.07) {
+        f.v.x += (p.x / r) * 0.6 * dt; // rolls off the rounded lip
+        f.v.z += (p.z / r) * 0.6 * dt;
       }
-      if (f.m.position.y < -0.1) f.done = true;
+      if (p.y < floor) {
+        p.y = floor;
+        if (f.v.y < -0.12) {
+          f.v.y = -f.v.y * 0.3;
+          f.v.x *= 0.5;
+          f.v.z *= 0.5;
+          f.w.multiplyScalar(0.45);
+        } else if (r < 0.058 || r >= 0.07) {
+          f.m.rotation.set(Math.PI / 2, 0, f.m.rotation.y + Math.random(), 'ZXY');
+          f.done = true;
+        }
+      }
+      if (p.y < -0.2) f.done = true;
     }
   }
 
-  _updateSparks(dt, ember) {
+  _updateSparks(dt, ember, heat) {
     const pop = this.grab ? this.grab.sparks : 0.25;
-    if (Math.random() < pop * dt) {
+    if (heat > 0.3 && Math.random() < pop * dt) {
       for (let k = 0; k < (this.grab ? 3 : 1); k++)
         if (this.sparks.length < 24) this.sparks.push({ p: ember.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.04 + Math.random() * 0.08, (Math.random() - 0.5) * 0.08), life: 0.35 + Math.random() * 0.5 });
     }
@@ -1040,13 +911,13 @@ export class IncenseScene {
       s.v.y -= 0.25 * dt;
       s.p.addScaledVector(s.v, dt);
     }
-    for (const s of this.sparks) pos.set([s.p.x, s.p.y, s.p.z], n++ * 3);
+    for (const s of this.sparks.slice(0, 24)) pos.set([s.p.x, s.p.y, s.p.z], n++ * 3);
     this.sparkPts.geometry.setDrawRange(0, n);
     this.sparkPts.geometry.attributes.position.needsUpdate = true;
   }
 
   /**
-   * The start sequence: a pale hand comes out of the dark, closes around the red stem and
+   * The start sequence: a woman's pale hand comes out of the dark, closes around the red stem and
    * pulls the stick out of the urn. Resolves when the screen has gone dark.
    */
   playGrab(cue = () => {}) {
@@ -1054,19 +925,16 @@ export class IncenseScene {
     this._cue = cue;
     this._buildHand();
     clearTimeout(this._handTimer);
-    const g = { time: 0, heat: 1, sparks: 0.25, shake: 0, camTarget: this.camTarget.clone(), camDist: this.camDist, attached: false };
+    const g = { time: 0, heat: 1, sparks: 0, shake: 0, camTarget: this.camTarget.clone(), camDist: this.camDist, attached: false, whip: 0, whipV: 0 };
     g.promise = new Promise((r) => (g.resolve = r));
     this.grab = g;
     if (!this.hand) {
-      // no hand (sculpt failed): just snuff the ember and fade
       g.noHand = true;
       return g.promise;
     }
-    // where the fist closes: the red stem just under the paste
     this.scene.updateMatrixWorld(true);
     const grip = this.stick.localToWorld(new THREE.Vector3(0, S.stem - 0.016, 0));
-    // hand basis: fingers point -X (toward the stick), palm faces away from camera, thumb down,
-    // then yawed so the forearm comes in from the right and a little toward the viewer
+    // fingers toward the stick, palm away from camera, thumb down; forearm in from the right
     const basis = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, -1, 0), new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, -1));
     const q = new THREE.Quaternion().setFromRotationMatrix(basis);
     q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.55));
@@ -1081,33 +949,43 @@ export class IncenseScene {
     g.away = g.wristAt.clone().addScaledVector(forearm, 0.42).add(new THREE.Vector3(0, 0.12, 0.09));
     g.forearm = forearm;
     g.grip = grip;
+    // the zebras in the arm's way: one is brushed and rocks, one is knocked over on the way out
+    const mid = g.wristAt.clone().addScaledVector(forearm, 0.12);
+    mid.y = -0.075;
+    g.knock = this.shrine.nearest(mid, 2);
     this.handRoot.position.copy(g.from);
     this.handRoot.visible = true;
     this.hand.setCurl({ i: -0.15, m: -0.12, r: -0.1, p: -0.08, t: -0.05 }, 6);
     this.hand.spreadT = 1;
-    g.camTarget.set(grip.x + 0.005, (grip.y + this.tip) / 2 - 0.004, 0);
-    g.camDist = 0.47;
+    g.camTarget.set(grip.x + 0.01, (grip.y + this.tip) / 2 - 0.01, 0);
+    g.camDist = 0.5;
     return g.promise;
+  }
+
+  _knock(f, strength) {
+    if (!f) return;
+    const d = f.base0.clone().sub(this.handRoot.getWorldPosition(new THREE.Vector3()));
+    d.y = 0;
+    if (d.lengthSq() < 1e-8) d.set(-1, 0, 0);
+    f.push(d.normalize(), strength);
   }
 
   _updateGrab(dt) {
     const g = this.grab;
     g.time += dt;
     const T = g.time;
+    const u = this.u;
     if (g.noHand) {
-      g.heat = Math.max(0, 1 - T / 0.8);
-      this.fade = clamp((T - 0.5) / 0.8, 0, 1);
-      if (T > 1.4 && !g.done) {
+      this.fade = clamp((T - 0.6) / 0.8, 0, 1);
+      if (T > 1.5 && !g.done) {
         g.done = true;
         g.resolve();
       }
       return;
     }
     const hr = this.handRoot;
-    // 0.0–0.3  the ember brightens, as if someone breathed on it
-    g.heat = 1 + 0.6 * smooth(0.0, 0.35, T) - 0.3 * smooth(0.6, 1.2, T);
-    // 0.25–1.45 reach in out of the dark (decelerating), fingers opening
     if (T < 1.45) {
+      // reach in out of the dark (decelerating), fingers opening; she brushes a zebra
       const k = easeOut(clamp((T - 0.25) / 1.2, 0, 1));
       hr.position.lerpVectors(g.from, g.near, k);
       hr.position.y += Math.sin(k * Math.PI) * 0.012;
@@ -1115,17 +993,20 @@ export class IncenseScene {
         g.breathed = true;
         this._cue('reach');
       }
+      if (T > 0.8 && !g.brushed) {
+        g.brushed = true;
+        this._knock(g.knock[0], 0.62);
+      }
       if (T > 1.05 && !g.opened) {
         g.opened = true;
         this.hand.setCurl({ i: 0.12, m: 0.1, r: 0.12, p: 0.16, t: 0.15 }, 7);
       }
-      // the hand pushes air: the smoke leans away from it
       for (const s of this.smoke) {
         s.stir = Math.min(1, s.stir + dt * 0.8);
         s.wind.set(-0.02 * k, 0.0, -0.01 * k);
       }
     } else if (T < 2.1) {
-      // close: settle onto the stem and clench, fingers first, thumb last
+      // close on the stem, fingers first, thumb last; the jolt snaps the ash off
       const k = easeInOut(clamp((T - 1.45) / 0.22, 0, 1));
       hr.position.lerpVectors(g.near, g.wristAt, k);
       if (!g.closed) {
@@ -1133,8 +1014,12 @@ export class IncenseScene {
         this._cue('grab');
         this.hand.setCurl({ i: 0.8, m: 0.78, r: 0.76, p: 0.74, t: 0.5 }, 11);
         this.hand.spreadT = 0.15;
-        g.sparks = 18;
         g.shake = 0.0012;
+        g.whipV += 0.05;
+      }
+      if (T > 1.56 && !g.snapped) {
+        g.snapped = true;
+        this._breakAsh(new THREE.Vector3(-0.05, 0.03, 0.02));
       }
       if (T > 1.62 && !g.attached) {
         g.attached = true;
@@ -1143,10 +1028,10 @@ export class IncenseScene {
         this.hand.setCurl({ i: 0.86, m: 0.84, r: 0.82, p: 0.8, t: 0.62 }, 6);
       }
       g.shake *= Math.exp(-dt * 6);
-      g.sparks = Math.max(0.5, g.sparks * Math.exp(-dt * 5));
-      // a tremble before the pull
+      // a tremble before the pull; the squeezed stem shivers with it
       hr.position.x += Math.sin(T * 61) * 0.00035;
       hr.position.y += Math.sin(T * 47) * 0.00025;
+      u.uBendBase.value.set(Math.sin(T * 61) * 0.0004, 0, 0);
     } else {
       // pull it out of the ash and away, into the dark
       const k = easeIn(clamp((T - 2.1) / 0.85, 0, 1));
@@ -1156,19 +1041,34 @@ export class IncenseScene {
       }
       hr.position.lerpVectors(g.wristAt, g.away, k);
       hr.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), dt * k * 0.9);
+      // the ash holds the foot of the stick for a moment: it bows, then springs free and whips
+      const hold = clamp((T - 2.1) / 0.26, 0, 1);
+      const bow = T < 2.36 ? Math.sin(Math.PI * hold) : 0;
+      u.uBendBase.value.set(-0.006 * bow, -0.002 * bow, 0.003 * bow);
+      if (T >= 2.36 && !g.freed) {
+        g.freed = true;
+        g.whipV += 0.16;
+      }
+      if (T > 2.3 && !g.toppled) {
+        g.toppled = true;
+        this._knock(g.knock[1], 1.6);
+      }
       g.shake = 0.0006 * k;
       g.camTarget.y += dt * 0.03 * k;
       for (const s of this.smoke) {
         s.stir = 1;
         s.wind.set(0.03 * k, 0.01 * k, 0.015 * k);
       }
-      g.heat = 0.9 + 0.8 * k;
-      this.fade = clamp((T - 2.55) / 0.75, 0, 1);
-      if (T > 3.35 && !g.done) {
+      this.fade = clamp((T - 2.6) / 0.75, 0, 1);
+      if (T > 3.4 && !g.done) {
         g.done = true;
         g.resolve();
       }
     }
+    // the free end of the stick: a damped spring
+    g.whipV += (-220 * g.whip - 7 * g.whipV) * dt;
+    g.whip += g.whipV * dt;
+    u.uWhip.value.set(g.whip, 0, g.whip * 0.4);
   }
 
   dispose() {

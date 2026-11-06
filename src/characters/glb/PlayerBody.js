@@ -24,7 +24,7 @@ function splitHead(geo, t) {
   const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, part = geo.attributes.apart;
   const head = new Set([t.index.Head, t.index.neck_01, t.index.eye_l, t.index.eye_r, ...['hair_1', 'hair_2', 'hair_3', 'hairL_1', 'hairL_2', 'hairR_1', 'hairR_2'].map((n) => t.index[n])]);
   const hw = (i) => { let w = 0; for (let k = 0; k < 4; k++) if (head.has(si.getComponent(i, k))) w += sw.getComponent(i, k); return w; };
-  // shoulder caps (clavicle / upper-arm skin and sleeve within ~11 cm of the shoulder joint) bulge up
+  // shoulder caps (clavicle / upper-arm skin and sleeve within ~8.5 cm above the shoulder joint) bulge up
   // beside the eye when the hands reach forward: they go with the head (mirrors only, never in view)
   const shoulderBones = new Set(['clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r'].map((n) => t.index[n]).filter((i) => i !== undefined));
   const joints = ['upperarm_l', 'upperarm_r'].map((n) => t.Gp[t.index[n]]).filter(Boolean);
@@ -36,7 +36,7 @@ function splitHead(geo, t) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
     let d = Infinity;
     for (const j of joints) d = Math.min(d, Math.hypot(x - j.x, y - j.y, z - j.z));
-    return d < 0.11 && y > (joints[0]?.y ?? 0) - 0.03 ? 1 : 0;
+    return d < 0.085 && y > (joints[0]?.y ?? 0) - 0.01 ? 1 : 0; // only the cap that rises beside the eye
   };
   const idx = geo.index.array;
   const A = [], B = [], M = [];

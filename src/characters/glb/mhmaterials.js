@@ -246,6 +246,9 @@ const FRAG_MAP = /* glsl */ `
   vec2 uv = vMhUv;
   // uv derivatives in uniform control flow (the cut-out mip estimate below needs them)
   vec2 mhUvDx = dFdx(vMhUv), mhUvDy = dFdy(vMhUv);
+  // clothing mask (cut-outs / sequins) and its screen-space rate, sampled in uniform control flow
+  vec4 mhMk = texture2D(uMaskMap, vMhUv);
+  float mhMkW = fwidth(mhMk.b);
   int part = int(vPart + 0.5);
   vec3 c = vec3(1.0);
   float alpha = 1.0;
@@ -311,9 +314,19 @@ const FRAG_MAP = /* glsl */ `
   } else if (part == 1) {
     // ---------------- clothes: procedural atlas (layout.js), mask: g roughness, b cut-outs / sequins
     vec4 tex = texture2D(map, uv);
-    vec4 mk = texture2D(uMaskMap, uv);
+    vec4 mk = mhMk;
+    // shell cut-outs (necklines, armholes, bare shoulders): a clean, antialiased edge (alpha-to-coverage
+    // with MSAA) instead of a stair-stepped hard discard
+#ifdef MH_A2C
+    float cov = clamp((0.75 - mk.b) / max(mhMkW, 1e-4) + 0.5, 0.0, 1.0);
+    if (cov < 0.02) discard;
+    diffuseColor.a *= cov;
+#else
     if (mk.b > 0.75) discard;
-    glbSeq = step(0.3, mk.b) * step(mk.b, 0.7);
+#endif
+    // sequins only where the mask really says so: a mipmapped cut-out border averages to the same grey
+    // and sparkled along collars and armholes
+    glbSeq = step(0.3, mk.b) * step(mk.b, 0.7) * (1.0 - step(0.06, mhMkW));
     c = tex.rgb;
     mhRough = max(0.06, mk.g);
     mhRough = mix(mhRough, 0.28, glbSeq);

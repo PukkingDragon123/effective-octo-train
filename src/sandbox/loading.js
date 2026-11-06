@@ -1,5 +1,5 @@
 // Loading screen 3D incense. ?p=<progress 0..1>&t=<scene seconds, default 8>&grab=<seconds into the hand sequence>
-// beats: the face in the smoke peaks around t=4.1, the shadow passes the candle around t=7.6
+// the ember goes out at t=4.6 (sc.emberOutAt)
 import { IncenseScene } from '../ui/IncenseScene.js';
 
 export default async function (ctx) {

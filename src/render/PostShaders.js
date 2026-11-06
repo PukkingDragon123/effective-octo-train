@@ -109,6 +109,80 @@ void main() {
 `;
 
 /**
+ * Half-resolution scalable ambient obscurance (SAO, McGuire 2012 style) from the resolved
+ * scene depth: 8 spiral taps, normals from the smaller depth step (robust at silhouettes),
+ * world radius uRadius, faded out with distance (contact darkening only: cabin, garage,
+ * under props and wheels). Writes (ao, viewZ).
+ */
+export const AO_FRAG = /* glsl */ `
+#include <dlb_common>
+uniform sampler2D tDepth;
+uniform vec2 uTexel;     // full-res texel
+uniform vec2 uProjInv;   // 1 / P[0][0], 1 / P[1][1]
+uniform float uNear;
+uniform float uFar;
+uniform float uRadius;   // metres
+uniform float uIntensity;
+uniform float uPxPerM;   // full-res pixels per metre at 1 m
+varying vec2 vUv;
+float vz(vec2 uv) { float d = texture2D(tDepth, uv).x; return (uNear * uFar) / ((uFar - uNear) * d - uFar); }
+vec3 vpos(vec2 uv, float z) { return vec3((uv * 2.0 - 1.0) * uProjInv * -z, z); }
+void main() {
+  float d = texture2D(tDepth, vUv).x;
+  if (d >= 0.99999) { gl_FragColor = vec4(1.0, -1e4, 0.0, 1.0); return; }
+  float z = (uNear * uFar) / ((uFar - uNear) * d - uFar);
+  float fade = 1.0 - smoothstep(14.0, 30.0, -z);
+  float rPx = min(uRadius * uPxPerM / -z, 90.0);
+  if (fade <= 0.0 || rPx < 2.0) { gl_FragColor = vec4(1.0, z, 0.0, 1.0); return; }
+  vec3 P = vpos(vUv, z);
+  vec2 ex = vec2(uTexel.x, 0.0), ey = vec2(0.0, uTexel.y);
+  vec3 pr = vpos(vUv + ex, vz(vUv + ex)), pl = vpos(vUv - ex, vz(vUv - ex));
+  vec3 pu = vpos(vUv + ey, vz(vUv + ey)), pd = vpos(vUv - ey, vz(vUv - ey));
+  vec3 ddx = abs(pr.z - P.z) < abs(P.z - pl.z) ? pr - P : P - pl;
+  vec3 ddy = abs(pu.z - P.z) < abs(P.z - pd.z) ? pu - P : P - pd;
+  vec3 N = normalize(cross(ddx, ddy));
+  if (dot(N, P) > 0.0) N = -N;
+  float rot = dlbIGN(gl_FragCoord.xy) * 6.2831853;
+  float r2 = uRadius * uRadius;
+  float bias = 0.01 + 0.002 * -z;
+  float sum = 0.0;
+  for (int i = 0; i < 8; i++) {
+    float a = (float(i) + 0.5) / 8.0;
+    float ang = a * 15.70796 + rot; // 2.5 turns
+    vec2 suv = vUv + vec2(cos(ang), sin(ang)) * (a * rPx) * uTexel;
+    vec3 v = vpos(suv, vz(suv)) - P;
+    float vv = dot(v, v);
+    float f = max(r2 - vv, 0.0);
+    sum += f * f * f * max((dot(v, N) - bias) / (0.01 + vv), 0.0);
+  }
+  float ao = max(0.0, 1.0 - sum * uIntensity / (r2 * r2 * r2) * (5.0 / 8.0));
+  gl_FragColor = vec4(mix(1.0, ao, fade), z, 0.0, 1.0);
+}
+`;
+
+/** Depth-aware 3x3 blur of the half-res AO (keeps contact darkening off silhouettes). */
+export const AO_BLUR_FRAG = /* glsl */ `
+uniform sampler2D tAO;
+uniform vec2 uTexel; // half-res texel
+varying vec2 vUv;
+void main() {
+  vec4 c = texture2D(tAO, vUv);
+  float zc = c.g;
+  float sum = c.r, ws = 1.0;
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      if (x == 0 && y == 0) continue;
+      vec4 s = texture2D(tAO, vUv + vec2(float(x), float(y)) * uTexel);
+      float w = exp(-abs(s.g - zc) / (0.04 * abs(zc) + 0.03));
+      sum += s.r * w;
+      ws += w;
+    }
+  }
+  gl_FragColor = vec4(sum / ws, zc, 0.0, 1.0);
+}
+`;
+
+/**
  * Final composite + grade -> display-referred sRGB, dithered and stored in an 8-bit target
  * (the dither is applied here, before the 8-bit store, so the night gradients never band).
  * The OUTPUT pass then sharpens / upscales it and adds blood / fade / letterbox.
@@ -119,6 +193,11 @@ uniform sampler2D tScene;
 uniform sampler2D tBloom;
 uniform sampler2D tBlur;
 uniform sampler2D tShafts;
+uniform sampler2D tAO;
+uniform sampler2D tDirt;
+uniform float uAO;
+uniform float uDirt;
+uniform float uFilmic;
 uniform vec2 uRes;
 uniform float uTime;
 uniform float uExposure;
@@ -193,9 +272,13 @@ void main() {
   } else {
     col = texture2D(tScene, uv).rgb;
   }
-  // ---- bloom, shafts, menu blur, flash ---------------------------------------------
+  // ---- ambient occlusion (contact darkening), bloom, lens dirt, shafts, menu blur, flash ------
+  if (uAO > 0.0) col *= mix(1.0, texture2D(tAO, uv).r, uAO);
   vec3 bloom = texture2D(tBloom, uv).rgb;
   col = mix(col, bloom, uBloom);
+  // sharp specks of lens dirt that only light up around bright lamps (the dirt texture is
+  // crisp; the bloom buffer only says how much light is falling on that part of the lens)
+  if (uDirt > 0.0) col += bloom * texture2D(tDirt, vUv).r * uDirt;
   if (uShafts > 0.0) col += texture2D(tShafts, uv).rgb * uShaftCol * uShafts;
   if (uBlur > 0.0) col = mix(col, texture2D(tBlur, uv).rgb, clamp(uBlur, 0.0, 1.0));
   col += uFlash.rgb * uFlash.a;
@@ -218,6 +301,13 @@ void main() {
     vec3 lo = pv * pow(clamp(col / pv, 0.0, 1.0), vec3(uContrast));
     vec3 hi = 1.0 - (1.0 - pv) * pow(clamp((1.0 - col) / (1.0 - pv), 0.0, 1.0), vec3(uContrast));
     col = mix(lo, hi, step(pv, col));
+  }
+  // filmic contrast: a gentle S in perceptual space, the toe protected so the shadows stay open
+  if (uFilmic > 0.0) {
+    vec3 p = sqrt(clamp(col, 0.0, 1.0));
+    vec3 s = p * p * (3.0 - 2.0 * p);
+    p = mix(p, s, uFilmic * smoothstep(0.12, 0.35, p));
+    col = p * p;
   }
   l = dlbLuma(col);
   // night: the dark world stays muted, lit practicals (lamps, shrine, cabin, headlight

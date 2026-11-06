@@ -118,6 +118,29 @@ function channels() {
   return d.chan;
 }
 
+/**
+ * Clothing shells are separate proxies (top, sleeves, bottoms) whose borders coincide (shoulder seam,
+ * waist): each got its own normals, so the seam showed as a shading line. Average the normals of
+ * cloth vertices that share a position (0.5 mm grid) across all shells.
+ */
+function weldClothNormals(pos, nor, apart, from, to) {
+  const groups = new Map();
+  const key = (i) => Math.round(pos[i * 3] * 2000) + ',' + Math.round(pos[i * 3 + 1] * 2000) + ',' + Math.round(pos[i * 3 + 2] * 2000);
+  for (let i = from; i < to; i++) {
+    if (Math.abs(apart[i] - 1) > 0.01) continue;
+    const k = key(i);
+    const g = groups.get(k);
+    if (g) g.push(i); else groups.set(k, [i]);
+  }
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    let x = 0, y = 0, z = 0;
+    for (const i of g) { x += nor[i * 3]; y += nor[i * 3 + 1]; z += nor[i * 3 + 2]; }
+    const l = Math.hypot(x, y, z) || 1;
+    for (const i of g) { nor[i * 3] = x / l; nor[i * 3 + 1] = y / l; nor[i * 3 + 2] = z / l; }
+  }
+}
+
 export function hasProxy(key) { return !!(MH.meta && MH.meta.proxies[key]); }
 
 // ------------------------------------------------------------------------------------ positions
@@ -185,6 +208,50 @@ function fitProxy(px, P) {
   }
   return out;
 }
+/**
+ * Clothing shells sit only 1–3 mm off the skin in places (shoulders, armpits, chest): under joint
+ * compression the skin then pokes through or z-fights. Push every shell vertex out along the body
+ * normal at its binding point to at least `minGap` (the shells share the body's skin weights, so the gap
+ * survives animation).
+ */
+function enforceGap(fp, px, P, N, minGap) {
+  const bi = px.bi, bw = px.bwd;
+  for (let i = 0; i < px.nv; i++) {
+    let bx = 0, by = 0, bz = 0, nx = 0, ny = 0, nz = 0;
+    for (let j = 0; j < 3; j++) {
+      const b = bi[i * 3 + j] * 3, w = bw[i * 3 + j];
+      bx += P[b] * w; by += P[b + 1] * w; bz += P[b + 2] * w;
+      nx += N[b] * w; ny += N[b + 1] * w; nz += N[b + 2] * w;
+    }
+    const l = Math.hypot(nx, ny, nz);
+    if (l < 1e-12) continue;
+    nx /= l; ny /= l; nz /= l;
+    const gap = (fp[i * 3] - bx) * nx + (fp[i * 3 + 1] - by) * ny + (fp[i * 3 + 2] - bz) * nz;
+    if (gap < minGap) {
+      const d = minGap - gap;
+      fp[i * 3] += nx * d; fp[i * 3 + 1] += ny * d; fp[i * 3 + 2] += nz * d;
+    }
+  }
+}
+const CLOTH_GAP = 0.004;
+const isShell = (key) => /^shell_/.test(key || '');
+
+/** body normals on the base vertices (area-weighted face sums, unnormalised) */
+function baseNormals(P) {
+  const d = dec();
+  const acc = new Float32Array(d.nb * 3);
+  const bt = d.body.base;
+  for (let t = 0; t < bt.length; t += 3) {
+    const a = bt[t], b = bt[t + 1], c = bt[t + 2];
+    const ax = P[a * 3], ay = P[a * 3 + 1], az = P[a * 3 + 2];
+    const e1x = P[b * 3] - ax, e1y = P[b * 3 + 1] - ay, e1z = P[b * 3 + 2] - az;
+    const e2x = P[c * 3] - ax, e2y = P[c * 3 + 1] - ay, e2z = P[c * 3 + 2] - az;
+    const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+    for (const v of [a, b, c]) { acc[v * 3] += nx; acc[v * 3 + 1] += ny; acc[v * 3 + 2] += nz; }
+  }
+  return acc;
+}
+
 /** smooth normals (averaged across uv seams through the weld map) */
 function normalsOf(pos, tris, weld, nWeld) {
   const acc = new Float32Array(nWeld * 3);
@@ -299,10 +366,12 @@ export function buildPerson(recipe) {
   let base = nbv;
   const eyeFit = (() => { const px = proxyData('eyes'); return px ? { px, p: fitProxy(px, P) } : null; })();
   let mouthStart = -1;
+  const shellFirst = base;
   for (const pt of parts) {
     const px = pt.px;
     if (pt.mouth && mouthStart < 0) mouthStart = index.length;
     const fp = fitProxy(px, P);
+    if (isShell(pt.key)) enforceGap(fp, px, P, baseN, CLOTH_GAP);
     const nn = normalsOf(fp, px.trisA, px.weld, px.nv);
     const rect = pt.rect;
     for (let i = 0; i < px.nv; i++) {
@@ -328,6 +397,7 @@ export function buildPerson(recipe) {
     for (let k = 0; k < tr.length; k++) index.push(tr[k] + base);
     base += px.nv;
   }
+  weldClothNormals(pos, nor, apart, shellFirst, base);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
@@ -467,7 +537,7 @@ export function personLod(person) {
   const px = proxyData(key);
   if (!px) return (person.lo = person.geo);
   const parts = [{ px, part: 0 }];
-  for (const k of r.shells || []) { const s = proxyData(k); if (s) parts.push({ px: s, part: s.part }); }
+  for (const k of r.shells || []) { const s = proxyData(k); if (s) parts.push({ px: s, part: s.part, key: k }); }
   if (r.hair && proxyData('hair_' + r.hair)) parts.push({ px: proxyData('hair_' + r.hair), part: 2 });
   let total = 0;
   for (const p of parts) total += p.px.nv;
@@ -475,8 +545,10 @@ export function personLod(person) {
   const si = new Uint16Array(total * 4), swt = new Float32Array(total * 4), apart = new Float32Array(total), amask = new Float32Array(total), amorph = new Float32Array(total).fill(-1);
   const index = [];
   let base = 0;
+  const N = baseNormals(person.P);
   for (const pt of parts) {
     const fp = fitProxy(pt.px, person.P);
+    if (isShell(pt.key)) enforceGap(fp, pt.px, person.P, N, CLOTH_GAP);
     const nn = normalsOf(fp, pt.px.trisA, pt.px.weld, pt.px.nv);
     pos.set(fp, base * 3);
     nor.set(nn, base * 3);

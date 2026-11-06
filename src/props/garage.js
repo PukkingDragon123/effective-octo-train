@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, steelSection, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex, noticeTex } from './lib/materials.js';
 import { lightSpec, attachFlicker, LIGHT_PRESETS } from './lib/lights.js';
-import { G, PAL, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, incensePot, fruitPlate, candle, garland, waterJar } from './lib/small.js';
+import { G, PAL, rag, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, incensePot, fruitPlate, candle, garland, waterJar } from './lib/small.js';
 import { dancerGeo } from './lib/figures.js';
 import { addAsset, hasAsset, assetShelves, assetSize } from './lib/assets.js';
 import { useAsset } from './lib/small.js';
@@ -23,6 +23,25 @@ function anchor(parent, name, x, y, z, yaw = 0) {
   a.rotation.y = yaw;
   parent.add(a);
   return a;
+}
+
+/**
+ * A loose prop the world can knock about (LooseProps): built in its own small kit at the origin,
+ * placed at p / r in the garage and listed in out.looseProps.
+ */
+function looseItem(out, group, seed, p, r, build) {
+  const lk = new Kit(seed, { grime: 0.5, grimeH: 0.4, vary: 0.25, dust: 0.3 });
+  if (build(lk) === false) return null;
+  const obj = lk.build({ name: 'garageLoose' });
+  obj.position.set(p[0], p[1], p[2]);
+  if (Array.isArray(r)) obj.rotation.set(r[0], r[1], r[2], r[3] || 'XYZ');
+  else obj.rotation.set(0, r || 0, 0);
+  obj.traverse((o) => {
+    if (o.isMesh) o.userData.noMerge = true;
+  });
+  group.add(obj);
+  out.looseProps.push(obj);
+  return obj;
 }
 
 /** Fill a shelf (kit space: x0..x0+w at height y, depth z0±d/2) with random garage stuff. */
@@ -45,18 +64,18 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
       const pick = ['can_rusted', 'oil_tin', 'cleaner_tin_01', 'multi_cleaner_5_litre', 'jug_01'][Math.floor(rng() * (theme === 'parts' ? 3 : 5))];
       const fit = { can_rusted: { h: 0.12 + rng() * 0.05 }, oil_tin: { h: 0.2 }, cleaner_tin_01: { h: 0.13 }, multi_cleaner_5_litre: { h: 0.26 }, jug_01: { h: 0.17 } }[pick];
       const wid = { can_rusted: 0.12, oil_tin: 0.13, cleaner_tin_01: 0.1, multi_cleaner_5_litre: 0.21, jug_01: 0.24 }[pick];
-      if (useAsset(k, pick, { p: [x + wid / 2, y, zj], r: (rng() - 0.5) * 1.2 }, { fit, w: { dust: 0.5, grime: 0.15 } })) {
-        x += wid + 0.02;
+      if (useAsset(k, pick, { p: [x + wid / 2, y, zj], r: [(rng() - 0.5) * 0.05, (rng() - 0.5) * 1.6, (rng() - 0.5) * 0.05] }, { fit, w: { dust: 0.5, grime: 0.15 } })) {
+        x += wid * (0.75 + rng() * 0.35); // hand-placed: things crowd and overlap
         continue;
       }
     }
     if (theme !== 'parts' && r < 0.32) {
       const kind = rng() < 0.5 ? 'whisky' : rng() < 0.5 ? 'beer' : 'water';
       bottle(k, { p: [x + 0.04, y, zj], kind, label: rng() < 0.8, color: kind === 'whisky' ? (rng() < 0.5 ? 0x7a4a1a : 0x3a5a2a) : undefined, labelColor: rng() < 0.5 ? 0xd8c8a0 : 0xc84a2a });
-      x += 0.09;
+      x += 0.06 + rng() * 0.05;
     } else if (r < 0.5) {
       oilCan(k, { p: [x + 0.06, y, zj], color: [0x2a5a8a, 0xc8a020, 0x8a2a1a, 0x2a6a3a][Math.floor(rng() * 4)], r: (rng() - 0.5) * 0.3 });
-      x += 0.14;
+      x += 0.1 + rng() * 0.06;
     } else if (r < 0.64) {
       can(k, { p: [x + 0.05, y, zj], h: 0.1 + rng() * 0.12, rad: 0.04 + rng() * 0.03, color: [0xb0a080, 0x6a6a6a, 0xa03020, 0x2a4a6a][Math.floor(rng() * 4)], rust: rng() < 0.4, spout: rng() < 0.3 });
       x += 0.11;
@@ -164,7 +183,7 @@ export function createGarage(opts = {}) {
   const HF = 3.7, HB = 3.15; // roof height front/back
   const zF = D / 2, zB = -D / 2;
   const xL = -W / 2, xR = W / 2;
-  const out = { object: group, colliders: [], lights: [], lampControllers: [] };
+  const out = { object: group, colliders: [], lights: [], lampControllers: [], looseProps: [], looseFloor: 0 };
   const roofY = (z) => HB + ((z - zB) / D) * (HF - HB);
 
   // ---- floor: oil-stained concrete with a sloped apron to the road ----------------------
@@ -366,11 +385,11 @@ export function createGarage(opts = {}) {
   out.keysAnchor = anchor(group, 'keys', tx + 0.02, 0.73, tz + 0.05);
   out.colliders.push({ x: tx, z: tz, hx: 0.5, hz: 0.36, yaw: 0.12 });
   // the old man's chair (front-left of the table, facing the road/entrance) + a spare chair
-  plasticChair(k, { p: [tx - 0.12, 0, tz + 0.62], r: Math.PI + 0.12, color: PAL.chairRed, dust: 0.3 });
+  looseItem(out, group, seed + 41, [tx - 0.12, 0, tz + 0.62], Math.PI + 0.12, (lk) => plasticChair(lk, { color: PAL.chairRed, dust: 0.3 }));
   out.oldManSeat = anchor(group, 'oldManSeat', tx - 0.12, 0.44, tz + 0.66, 0.12);
-  plasticChair(k, { p: [tx + 0.75, 0, tz - 0.25], r: -Math.PI / 2 + 0.4, color: PAL.chairBlue, dust: 0.5 });
+  looseItem(out, group, seed + 42, [tx + 0.75, 0, tz - 0.25], -Math.PI / 2 + 0.4, (lk) => plasticChair(lk, { color: PAL.chairBlue, dust: 0.5 }));
   out.guestSeat = anchor(group, 'guestSeat', tx + 0.75, 0.44, tz - 0.25, -Math.PI / 2 + 0.4 + Math.PI);
-  plasticStool(k, { p: [tx - 0.75, 0, tz - 0.55], color: PAL.chairGreen });
+  looseItem(out, group, seed + 43, [tx - 0.75, 0, tz - 0.55], 0.3, (lk) => plasticStool(lk, { color: PAL.chairGreen }));
   // standing fan (blades spin in their own little group)
   const fx = tx - 1.0, fz = tz - 0.9;
   k.at([fx, 0, fz], 0.9, null, () => {
@@ -459,8 +478,9 @@ export function createGarage(opts = {}) {
       // an old wood-cased TV on the chest (muay thai on Sunday nights)
       useAsset(k, 'Television_01', { p: [0.55, 0.66, zB + 0.36], r: 0.12 }, { fit: { w: 0.56 }, w: { dust: 0.6, grime: 0 } });
     }
-    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: chest ? [1.3, 0, zB + 0.85] : [0.6, 0, zB + 0.45], color: 0x2a5a9a, w: { grime: 0.5 } });
-    k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: chest ? [1.62, 0, zB + 0.9] : [0.9, 0, zB + 0.5], color: 0xd8b030, w: { grime: 0.5 } });
+    const bucket = (color) => (lk) => lk.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { color, w: { grime: 0.5 } });
+    looseItem(out, group, seed + 44, chest ? [1.3, 0, zB + 0.85] : [0.6, 0, zB + 0.45], 0.4, bucket(0x2a5a9a));
+    looseItem(out, group, seed + 45, chest ? [1.7, 0.15, zB + 1.0] : [0.95, 0.15, zB + 0.6], [Math.PI / 2, 0.9, 0, 'YXZ'], bucket(0xd8b030)); // knocked over
     // (no broom: the leaning one floated off the floor)
     k.add(mat('paper'), G('cardboardfloor', () => bbox(0.9, 0.01, 1.6, 0.002, 0.3)), { p: [1.3, 0.0, 2.3], r: 0.35, color: 0x9a7a52, w: { grime: 0.8, grimeH: 0.05 } });
     // clothesline with rags across the back-left corner
@@ -505,24 +525,31 @@ export function createGarage(opts = {}) {
     // orange extension cord from the switch box sagging down to a power strip on the floor
     k.add(mat('plastic'), tube(smoothPath([V(xL + 0.14, 1.25, zF - 0.42), V(xL + 0.3, 0.7, zF - 0.5), V(xL + 0.45, 0.05, zF - 0.7), V(xL + 1.0, 0.012, zF - 1.1), V(tx - 0.5, 0.012, tz + 1.0)], 24), 0.007, 4), { color: 0xd8701a, w: { grime: 0.4 } });
     k.add(mat('plastic'), G('powerstrip', () => bbox(0.28, 0.035, 0.06, 0.008, 0.05)), { p: [tx - 0.5, 0, tz + 1.0], r: 0.4, color: 0xe0dcd0, w: { grime: 0.5 } });
-    useAsset(k, 'folding_wooden_stool', { p: [tx + 0.55, 0, tz + 0.95], r: -0.7 }, { fit: { h: 0.44 }, w: { grime: 0.3, dust: 0.3 } });
+    looseItem(out, group, seed + 46, [tx + 0.55, 0, tz + 0.95], -0.7, (lk) => useAsset(lk, 'folding_wooden_stool', { p: [0, 0, 0] }, { fit: { h: 0.44 }, w: { grime: 0.3, dust: 0.3 } }));
     useAsset(k, 'dustpan', { p: [xL + 0.3, 0, zF - 0.95], r: [0, 1.2, 0] }, { w: { grime: 0.5 } });
   });
   k.details(() => {
     useAsset(k, 'propane_tank', { p: [bx + 1.55, 0, bz + 0.05], r: 0.6 }, { fit: { h: 0.55 }, w: { grime: 0.5, streak: 0.5 } });
-    useAsset(k, 'metal_stool_02', { p: [bx - 0.2, 0, bz + 0.72], r: 0.3 }, { fit: { h: 0.62 }, w: { dust: 0.3, grime: 0.4 } });
+    looseItem(out, group, seed + 47, [bx - 0.2, 0, bz + 0.72], 0.3, (lk) => useAsset(lk, 'metal_stool_02', { p: [0, 0, 0] }, { fit: { h: 0.62 }, w: { dust: 0.3, grime: 0.4 } }));
     if (useAsset(k, 'hand_truck', { p: [xR - 0.75, 0, zF - 0.85], r: [-0.18, -0.5, 0, 'YXZ'] }, { w: { grime: 0.5, streak: 0.5 } })) out.colliders.push({ x: xR - 0.75, z: zF - 0.85, r: 0.3 });
     useAsset(k, 'cement_bag', { p: [0.75, 0, zB + 1.35], r: 0.3 }, { fit: { w: 0.42 }, w: { dust: 0.8 } });
     // more workshop gear: tyre pump + rusty rim by the tyre stacks, toolbox under the bench,
     // pliers / screwdrivers / oil can on the bench, a metal jerrycan, Ah Kong's electric kettle
-    useAsset(k, 'tire_pump', { p: [xR - 1.0, 0, zB + 1.45], r: -0.8 }, { w: { grime: 0.4, dust: 0.3 } });
+    looseItem(out, group, seed + 48, [xR - 1.0, 0, zB + 1.45], [0.25, -0.8, 0.1, 'YXZ'], (lk) => useAsset(lk, 'tire_pump', { p: [0, 0, 0] }, { w: { grime: 0.4, dust: 0.3 } }));
     useAsset(k, 'rusted_wheel_rim_01', { p: [xR - 0.2, 0, zB + 2.25], r: [0, -Math.PI / 2, 0.12] }, { fit: { h: 0.4 }, w: { streak: 0.4 } });
-    useAsset(k, 'metal_toolbox', { p: [bx - 0.75, 0, bz + 0.05], r: 0.15 }, { fit: { w: 0.45 }, w: { grime: 0.4, dust: 0.4 } });
-    useAsset(k, 'pliers', { p: [bx - 0.35, 0.93, bz + 0.2], r: [0, 0.7, 0] }, { w: false });
-    useAsset(k, 'screwdrivers_02', { p: [bx + 0.05, 0.93, bz + 0.22], r: [0, -0.4, 0] }, { w: false });
-    useAsset(k, 'adjustable_wrench', { p: [bx - 0.55, 0.93, bz + 0.05], r: [0, 1.9, 0] }, { w: false });
-    useAsset(k, 'small_oil_can_01', { p: [bx + 0.55, 0.93, bz - 0.12], r: 2.2 }, { w: { grime: 0.3 } });
-    useAsset(k, 'metal_jerrycan', { p: [xR - 1.45, 0, -1.25], r: 1.3 }, { fit: { h: 0.45 }, w: { grime: 0.5, streak: 0.5 } });
+    looseItem(out, group, seed + 49, [bx - 0.75, 0, bz + 0.05], 0.15, (lk) => useAsset(lk, 'metal_toolbox', { p: [0, 0, 0] }, { fit: { w: 0.45 }, w: { grime: 0.4, dust: 0.4 } }));
+    // tools left where they were dropped: on the bench at odd angles, a few spilt on the floor
+    looseItem(out, group, seed + 50, [bx - 0.35, 0.93, bz + 0.2], 0.7 + rng() * 0.4, (lk) => useAsset(lk, 'pliers', { p: [0, 0, 0] }, { w: false }));
+    looseItem(out, group, seed + 51, [bx + 0.05, 0.93, bz + 0.22], -0.4 + rng() * 0.5, (lk) => useAsset(lk, 'screwdrivers_02', { p: [0, 0, 0] }, { w: false }));
+    looseItem(out, group, seed + 52, [bx - 0.48, 0.0, bz + 0.62], 1.9 + rng(), (lk) => useAsset(lk, 'adjustable_wrench', { p: [0, 0, 0] }, { w: false }));
+    looseItem(out, group, seed + 53, [bx + 0.55, 0.93, bz - 0.12], 2.2, (lk) => useAsset(lk, 'small_oil_can_01', { p: [0, 0, 0] }, { w: { grime: 0.3 } }));
+    looseItem(out, group, seed + 54, [bx + 0.35, 0.0, bz + 0.85], 0.6 + rng(), (lk) => useAsset(lk, 'combination_wrench', { p: [0, 0, 0] }, { w: { grime: 0.3 } }));
+    looseItem(out, group, seed + 55, [bx - 0.9, 0.0, bz + 0.95], -0.3 + rng(), (lk) => useAsset(lk, 'flathead_screwdriver', { p: [0, 0, 0] }, { w: false }));
+    // rags: one draped over the bench front, one over the oil drum, one thrown on the floor
+    rag(k, { p: [bx + 0.2, 0.935, bz + 0.05], r: 0.15, w: 0.34, d: 0.5, edge: 0.18, color: 0x5a4a3a, seed: 3 });
+    rag(k, { p: [xR - 0.5, 1.0, 0.45], r: 2.4, w: 0.3, d: 0.48, edge: 0.12, color: 0x8a3a2a, seed: 5 });
+    rag(k, { p: [bx - 0.1, 0.0, bz + 1.05], r: 0.9, w: 0.32, d: 0.4, color: 0x6a7a8a, seed: 7 });
+    looseItem(out, group, seed + 56, [xR - 1.45, 0, -1.25], 1.3, (lk) => useAsset(lk, 'metal_jerrycan', { p: [0, 0, 0] }, { fit: { h: 0.45 }, w: { grime: 0.5, streak: 0.5 } }));
   });
 
   group.add(k.build({ name: 'garage', detailDistance: 45 }));

@@ -6,6 +6,7 @@
 //   Ride 9 ends in the finale (Finale.js) and A's EndingState({ id }).
 //   Every frame: the ride, C's encounter director (g.director.update unless director.selfUpdate),
 //   the ambience bed and the phase music.
+import { pickupLandmark } from '../ride/pickup.js';
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
 import { clamp } from '../../core/math.js';
@@ -73,7 +74,7 @@ export const ShiftState = {
     if (Math.abs(g.clock.hour - hour) > 0.05) g.clock.set(hour);
     save.hour = Math.floor(hour);
     // ---- the taxi: keep it if it is already on the way to this pickup, else place it --------------
-    const stopS = mainS(g.world.landmarks[data.pickup].stopPos);
+    const stopS = mainS(pickupLandmark(data.pickup).stopPos);
     const r = taxiRoad();
     const keep = !params.debug && !params.free && r && r.id === 'main' && stopS - r.s > 20 && stopS - r.s < 900;
     if (!keep) {

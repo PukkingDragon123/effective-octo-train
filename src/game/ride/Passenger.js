@@ -12,6 +12,7 @@
 //   payment     coins / notes / old notes / leaves, with a short note (a Ton thought)
 // Gore: Boy M's reflection shows the blood-soaked shirt; true forms are revealed by the
 // death cinematics (setGore / setGhost).
+import { pickupLandmark } from './pickup.js';
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { createHumanoid } from '../../characters/index.js';
@@ -74,7 +75,7 @@ export class Passenger {
     h.setGroundFn?.((x, z) => g.world.getHeight(x, z));
     g.engine.scene.add(h.root);
     // wait at the shoulder, facing the road
-    const lm = g.world.landmarks[data.pickup];
+    const lm = pickupLandmark(data.pickup);
     this.landmark = lm;
     const pos = lm.waitPos.clone();
     pos.y = g.world.getHeight(pos.x, pos.z);

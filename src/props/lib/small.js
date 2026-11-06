@@ -705,3 +705,28 @@ export function helmet(k, o = {}) {
     k.add(mat('plastic'), G('visor', () => new THREE.SphereGeometry(0.158, 12, 4, Math.PI / 2 - 0.9, 1.8, Math.PI * 0.32, Math.PI * 0.18).scale(1, 1.05, 1.15)), { p: [0, 0.02, 0], color: 0x3a3a30, w: false });
   });
 }
+
+
+/**
+ * A rag thrown down / draped over an edge: a wrinkled cloth sheet lying on a surface whose far
+ * part (beyond `edge` along local +Z) hangs straight down. o {p, r, w=0.35, d=0.45, edge, color, seed}
+ */
+export function rag(k, o = {}) {
+  const w = o.w ?? 0.35, d = o.d ?? 0.45, edge = o.edge ?? 1e9, seed = o.seed ?? 3;
+  const g = new THREE.PlaneGeometry(w, d, 8, 10).rotateX(-Math.PI / 2);
+  const pa = g.attributes.position;
+  for (let i = 0; i < pa.count; i++) {
+    let x = pa.getX(i), z = pa.getZ(i), y = 0.004;
+    // wrinkles + a lifted fold
+    y += Math.max(0, noise.noise2D(x * 9 + seed, z * 9 - seed)) * 0.03 + Math.max(0, Math.sin(x * 14 + seed) * Math.cos(z * 6)) * 0.012;
+    if (z > edge) {
+      // hanging part: drop down the edge with a little sway outward
+      const over = z - edge;
+      y = 0.004 - over;
+      z = edge + 0.01 + Math.sin(over * 4 + x * 3) * 0.015 + over * 0.04;
+    }
+    pa.setXYZ(i, x, y, z);
+  }
+  g.computeVertexNormals();
+  k.add(mat('cloth_static'), g, { p: o.p, r: o.r, color: o.color ?? 0x6a5a4a, uv: 'keep', w: { grime: 0.6, grimeH: 1, ground: -1, vary: 0.35, dust: 0.2 } });
+}

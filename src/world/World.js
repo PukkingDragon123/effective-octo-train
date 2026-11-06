@@ -15,6 +15,7 @@ import { Ambience } from './Ambience.js';
 import { loadWorldAssets } from './assets.js';
 import { autoProgressive, menuRoute, nearRoute, storyKey, runInBackground, SYNC_RADIUS, SYNC_PROPS_RADIUS } from './Progressive.js';
 import { prefetchAtlas, atlasReady } from './atlasPrefetch.js';
+import { LooseProps } from './LooseProps.js';
 export { loadWorldAssets };
 
 // paint the leaf atlas in a worker while the rest of the game boots (see atlasPrefetch.js)
@@ -52,6 +53,8 @@ export class World {
     this._pr = null;
     this._focus = new THREE.Vector3(1e9, 0, 1e9);
     this.built = false;
+    /** Loose small props (rigid bodies the player / taxi knock over). */
+    this.loose = new LooseProps(this);
   }
 
   /**
@@ -325,6 +328,7 @@ export class World {
     if (this.waterMaterial?.userData.flow) this.waterMaterial.userData.flow.offset.y -= dt * 0.12;
     if (this.forest) this.forest.update(dt, focus);
     if (this.placement) this.placement.update(dt, focus);
+    if (this.loose) this.loose.update(dt, focus);
     if (this.ambience) this.ambience.update(dt, focus);
   }
 

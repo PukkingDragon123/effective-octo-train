@@ -225,11 +225,27 @@ export function createRoadScare(kind, opts = {}) {
       // a row of old school chairs on the verge, all facing the road; one has fallen over
       const n = opts.n ?? 5;
       const fall = Math.floor(rng() * n);
+      // each chair is a loose prop (knocked over by the player / the taxi), not baked in
+      out.looseProps = [];
       for (let i = 0; i < n; i++) {
         const x = (i - (n - 1) / 2) * 0.62 + (rng() - 0.5) * 0.06;
-        if (i === fall) schoolChair(k, { p: [x, 0.2, 0.15], r: [-Math.PI / 2 + 0.25, rng() - 0.5, 0], color: [0x4a6a8a, 0x8a3a2a, 0x3a6a4a][i % 3] });
-        else schoolChair(k, { p: [x, 0, 0], r: (rng() - 0.5) * 0.12, color: [0x4a6a8a, 0x8a3a2a, 0x3a6a4a][i % 3] });
+        const ck = new Kit(seed + i, { grime: 0.55, grimeH: 0.5, mossLow: 0.6, mossH: 0.4, streak: 0.4, vary: 0.25 });
+        schoolChair(ck, { color: [0x4a6a8a, 0x8a3a2a, 0x3a6a4a][i % 3] });
+        const obj = ck.build({ name: 'schoolChair' });
+        if (i === fall) {
+          obj.position.set(x, 0.2, 0.15);
+          obj.rotation.set(-Math.PI / 2 + 0.25, rng() - 0.5, 0);
+        } else {
+          obj.position.set(x, 0, 0);
+          obj.rotation.set(0, (rng() - 0.5) * 0.25, 0);
+        }
+        obj.traverse((o) => {
+          if (o.isMesh) o.userData.noMerge = true;
+        });
+        group.add(obj);
+        out.looseProps.push(obj);
       }
+      out.looseDrop = true;
       out.colliders.push({ x: 0, z: 0, hx: n * 0.32, hz: 0.3 });
       break;
     }

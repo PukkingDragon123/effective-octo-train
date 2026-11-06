@@ -209,3 +209,55 @@ export function fogNoiseTexture3D() {
   _fogNoise3 = t;
   return t;
 }
+
+let _lensDirt = null;
+/**
+ * 512² lens dirt mask (R): crisp round specks of dust / dried rain of many sizes, a few
+ * faint smears and a very low base level. Only visible where PostFX's bloom buffer says a
+ * bright light is falling on that part of the lens.
+ */
+export function lensDirtTexture() {
+  if (_lensDirt) return _lensDirt;
+  const N = 512;
+  const rng = makeRng(0x1e95);
+  const f = new Float32Array(N * N);
+  const disc = (cx, cy, r, a, edge) => {
+    const x0 = Math.max(0, Math.floor(cx - r - 2)), x1 = Math.min(N - 1, Math.ceil(cx + r + 2));
+    const y0 = Math.max(0, Math.floor(cy - r - 2)), y1 = Math.min(N - 1, Math.ceil(cy + r + 2));
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const d = Math.hypot(x - cx, y - cy);
+        // crisp rim (a slightly brighter ring like a dried droplet), flat-ish centre
+        const k = Math.min(1, Math.max(0, (r - d) / edge + 0.5));
+        const rim = d > r * 0.7 ? 1.25 : 1;
+        f[y * N + x] = Math.max(f[y * N + x], k * a * rim);
+      }
+    }
+  };
+  for (let i = 0; i < 140; i++) disc(rng() * N, rng() * N, 1.2 + Math.pow(rng(), 3) * 9, 0.25 + rng() * 0.55, 0.9);
+  for (let i = 0; i < 18; i++) disc(rng() * N, rng() * N, 10 + rng() * 16, 0.08 + rng() * 0.12, 3);
+  // faint wiped smears: short arcs of low-opacity specks
+  for (let s = 0; s < 6; s++) {
+    let x = rng() * N, y = rng() * N, a = rng() * Math.PI * 2;
+    for (let i = 0; i < 40; i++) {
+      disc(x, y, 3 + rng() * 2, 0.05 + rng() * 0.04, 2);
+      a += (rng() - 0.5) * 0.25;
+      x += Math.cos(a) * 3;
+      y += Math.sin(a) * 3;
+    }
+  }
+  const data = new Uint8Array(N * N * 4);
+  for (let i = 0; i < N * N; i++) {
+    const v = Math.min(255, Math.round((0.02 + f[i]) * 255));
+    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v;
+    data[i * 4 + 3] = 255;
+  }
+  const t = new THREE.DataTexture(data, N, N);
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = true;
+  t.name = 'dlbLensDirt';
+  t.needsUpdate = true;
+  _lensDirt = t;
+  return t;
+}

@@ -17,6 +17,8 @@
 // would reach the fork before minSeconds or before every essential beat has played, the road folds
 // back in the fog (stretch 'fog') / glowing mist ('mist'). Beats: progress/time beats queue, event
 // beats interrupt idle lines only; an interrupted beat resumes where it stopped.
+import { installTalk } from './Talk.js';
+import { pickupLandmark } from './pickup.js';
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
@@ -60,7 +62,7 @@ export class Ride {
     this._stopT = 0;
     this._offs = [];
     this.passenger = new Passenger(this, data);
-    this.pickupLm = g.world.landmarks[data.pickup];
+    this.pickupLm = pickupLandmark(data.pickup);
     this.stopS = mainS(this.pickupLm.stopPos);
     this.forkS = g.world.fork.decisionS;
     this.route = Math.max(60, this.forkS - this.stopS);
@@ -504,6 +506,15 @@ export class Ride {
     if (!opts.resume) {
       this.playBlock('greet');
       this.playBlock('destination');
+    }
+    // talk with them (questions, their questions for you): see Talk.js
+    if (!this._talk) {
+      try {
+        this._talk = installTalk(this);
+        this._offs.push(() => this._talk?.dispose());
+      } catch (e) {
+        console.warn('[ride] talk', e);
+      }
     }
     let folding = false;
     let approachFired = false;

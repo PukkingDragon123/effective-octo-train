@@ -208,8 +208,18 @@ vec3 dlbEnvRadiance(vec3 r, vec3 wp, float rough) {
     if (lc.r + lc.g + lc.b < 1e-4) continue;
     vec3 lv = dlbLampPos[i].xyz - wp;
     float d2 = dot(lv, lv);
-    float cs = dot(r, lv * inversesqrt(max(d2, 1e-4)));
+    vec3 ldir = lv * inversesqrt(max(d2, 1e-4));
+    float cs = dot(r, ldir);
     float g = exp(-(1.0 - cs) * k) * (k / 60.0 + 1.0) * 0.012;
+    // wet asphalt / puddles: smooth, up-facing reflections of a lamp stretch into a long,
+    // crisp vertical streak toward the viewer (narrow across, long along the view)
+    float smoothK = 1.0 - smoothstep(0.12, 0.45, rough);
+    if (smoothK > 0.0 && r.y > 0.0) {
+      float csH = dot(normalize(r.xz + 1e-5), normalize(ldir.xz + 1e-5));
+      float dEl = r.y - ldir.y;
+      float streak = exp(-(1.0 - csH) * k * 1.2 - dEl * dEl * k * 0.035) * (k / 60.0 + 1.0) * 0.012;
+      g = max(g, streak * 0.55 * smoothK);
+    }
     // wide lobe: the lamp's fog halo seen in reflection
     float halo = exp(-(1.0 - cs) * 18.0) * 0.0035 * (dlbFogDensity * 30.0 + 0.3);
     c += lc * (g + halo) / (1.0 + d2 * 0.08);
