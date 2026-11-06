@@ -194,7 +194,7 @@ export function createRoadScare(kind, opts = {}) {
       out.colliders.push(...(sh.colliders || []));
       const off = sh.offeringAnchor ? sh.offeringAnchor.position : V(0, 1.0, 0.2);
       // toppled figurines and spilt offerings on the ground in front, dead garlands
-      zebras(k, { p: [0.42, 0.045, 0.45], r: [0, 0.6, Math.PI / 2], n: 1, size: 1.1, seed: seed + 1 });
+      zebras(k, { p: [0.42, 0.045, 0.45], r: [0, 0.6, Math.PI / 2], n: 1, seed: seed + 1 });
       zebras(k, { p: [-0.3, 0.04, 0.55], r: [Math.PI / 2, 1.9, 0], n: 1, size: 0.9, seed: seed + 2 });
       dancers(k, { p: [0.15, 0.03, 0.7], r: [Math.PI / 2, 0.4, 0], n: 1, size: 1.1 });
       bottle(k, { kind: 'soda', p: [-0.15, 0.03, 0.38], r: [Math.PI / 2, 0.8, 0] });

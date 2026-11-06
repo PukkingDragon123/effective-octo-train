@@ -10,7 +10,6 @@ const JOBS = [
   ['deityBodyGeo', []],
   ['lionGeo', [false]],
   ['lionGeo', [true]],
-  ['zebraGeo', []],
   ['dancerGeo', []],
   ['elderGeo', [false]],
   ['elderGeo', [true]],

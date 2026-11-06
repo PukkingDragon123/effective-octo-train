@@ -110,6 +110,7 @@ export class Kit {
     this.rng = makeRng(seed * 7919 + 13);
     this.buckets = new Map();
     this.detailBuckets = new Map();
+    this.objects = []; // standalone meshes (custom attributes / shaders): [{object, detail}]
     this.detail = false; // when true, parts go into the distance-culled detail LOD
     this.stack = [new THREE.Matrix4()];
     this.setWeather(weather);
@@ -265,6 +266,22 @@ export class Kit {
     return this;
   }
 
+  /**
+   * Add a standalone object (its own geometry / material, e.g. custom vertex attributes that must
+   * survive) at the current kit transform x o {p, r, s}. It is never merged into the buckets.
+   */
+  addObject(object, o = {}) {
+    const m = makeMatrix(o.p, o.r, o.s, new THREE.Matrix4()).premultiply(this.matrix);
+    object.matrix.copy(m);
+    object.matrix.decompose(object.position, object.quaternion, object.scale);
+    object.matrixAutoUpdate = false;
+    object.traverse((c) => {
+      if (c.isMesh) c.userData.noMerge = true;
+    });
+    this.objects.push({ object, detail: this.detail || !!o.detail });
+    return object;
+  }
+
   /** Run fn with every added part going to the distance-culled detail LOD. */
   details(fn) {
     const d = this.detail;
@@ -297,10 +314,12 @@ export class Kit {
       parent.add(mesh);
     };
     for (const b of this.buckets.values()) mk(b, g, opts.shadows ?? true);
-    if (this.detailBuckets.size) {
+    for (const e of this.objects) if (!e.detail) g.add(e.object);
+    if (this.detailBuckets.size || this.objects.some((e) => e.detail)) {
       const near = new THREE.Group();
       near.name = 'details';
       for (const b of this.detailBuckets.values()) mk(b, near, false);
+      for (const e of this.objects) if (e.detail) near.add(e.object);
       const lod = new THREE.LOD();
       lod.name = (opts.name || 'prop') + ':detailLOD';
       lod.addLevel(near, 0);

@@ -1,6 +1,6 @@
 // Organic sculpts (SDF + surface nets, cached): the Ma Ruay deity (old man of the
 // earth, smiling, long white beard — his face must read from the shrine steps), seated
-// and standing Buddhas, guardian lions, zebra / Thai dancer / ta-yai figurines and a
+// and standing Buddhas, guardian lions, Thai dancer / ta-yai figurines and a
 // five-headed naga crest. Each returns a geometry with painted vertex colours.
 import * as THREE from 'three';
 import { sculpt, smin, ssub, sphere, ellipsoid, capsule, rbox, torusY, C } from './sdf.js';
@@ -275,30 +275,6 @@ export function lionGeo(female = false) {
 }
 
 // ---------------------------------------------------------------------------
-// Zebra figurine (offerings at dangerous curves). Unit: ~0.36 tall, front +Z.
-// ---------------------------------------------------------------------------
-function zebraSDF(x, y, z) {
-  const ax = abs(x);
-  let d = ellipsoid(x, y, z, 0, 0.2, 0, 0.058, 0.055, 0.13);
-  d = smin(d, capsule(ax, y, z, 0.035, 0.18, 0.09, 0.035, 0.0, 0.1, 0.022, 0.015), 0.015);
-  d = smin(d, capsule(ax, y, z, 0.035, 0.18, -0.09, 0.035, 0.0, -0.1, 0.024, 0.015), 0.015);
-  d = smin(d, capsule(x, y, z, 0, 0.23, 0.1, 0, 0.33, 0.15, 0.03, 0.024), 0.02);
-  d = smin(d, capsule(x, y, z, 0, 0.335, 0.15, 0, 0.3, 0.225, 0.024, 0.016), 0.012);
-  d = smin(d, capsule(ax, y, z, 0.012, 0.35, 0.145, 0.018, 0.385, 0.135, 0.008, 0.004), 0.006);
-  d = smin(d, capsule(x, y, z, 0, 0.36, 0.14, 0, 0.26, 0.085, 0.009), 0.006); // mane
-  d = smin(d, capsule(x, y, z, 0, 0.22, -0.13, 0, 0.12, -0.16, 0.008, 0.006), 0.01); // tail
-  return d;
-}
-const ZW = C(0xe8e4da), ZB = C(0x16140f);
-function zebraColor(x, y, z, nx, ny, nz, out) {
-  const s = sin(z * 95 + y * 48 + abs(x) * 20) + 0.25 * sin(y * 130);
-  out.copy(s > 0.25 ? ZB : ZW);
-  if (y < 0.012 || (z > 0.2 && y < 0.32)) out.copy(ZB); // hooves / muzzle
-  return out;
-}
-export function zebraGeo() {
-  return sculpt('zebra', zebraSDF, [-0.08, -0.01, -0.19, 0.08, 0.4, 0.25], 0.0078, { color: zebraColor, smooth: 1 });
-}
 
 // ---------------------------------------------------------------------------
 // Thai dancer figurine (kneeling, hands in a wai, pointed chada crown). ~0.26 tall.

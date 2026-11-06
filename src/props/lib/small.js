@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { bevelBox, bbox, lathe, cyl, sphere, tube, torus, quad, smoothPath, blob, makeRng, noise } from './kit.js';
 import { mat, glowMat } from './materials.js';
-import { zebraGeo, dancerGeo } from './figures.js';
+import { dancerGeo } from './figures.js';
+import { zebraGeometry, zebraMaterial } from './zebraFigurine.js';
 import { addAsset, hasAsset } from './assets.js';
 import { labelBand } from './print.js';
 import { flowerHead, flowerCard, ribbonTail, flowerForColor, isWiltedColor } from './flowers.js';
@@ -401,14 +402,37 @@ export function fruitPlate(k, o = {}) {
 }
 
 /** Zebra figurine(s). o.n zebras in a little herd. */
+// glazed zebra figurines: 3 poses x 4 glaze variants, shared by every zebras() call
+let _zebraGeos = null, _zebraMats = null;
+function zebraKit() {
+  if (!_zebraGeos) {
+    const r = makeRng(4417);
+    _zebraGeos = [zebraGeometry(r, { headDown: 0, stride: 0.2 }), zebraGeometry(r, { headDown: 0.12, stride: 0.45 }), zebraGeometry(r, { headDown: 0.04, stride: 0.05 })];
+    _zebraMats = [zebraMaterial({ seed: 0.3 }), zebraMaterial({ fade: 0.55, chip: 0.4, seed: 1.7 }), zebraMaterial({ fade: 0.2, chip: 0.9, seed: 3.1 }), zebraMaterial({ fade: 0.85, chip: 0.6, seed: 5.3 })];
+    for (const m of _zebraMats) m.name = 'props_zebra';
+  }
+  return [_zebraGeos, _zebraMats];
+}
+/**
+ * Zebra figurines (ม้าลาย offerings): glazed ceramic, 15-25 cm tall at size 1, facing local +Z.
+ * o {p, r, s, n=1, size=1, spread=0.4, yaw, seed, fade (0..1 sun-bleached bias)}
+ */
 export function zebras(k, o = {}) {
   const rng = makeRng(o.seed ?? 21);
   const n = o.n ?? 1;
+  const [geos, mats] = zebraKit();
   k.at(o.p, o.r, o.s, () => {
     for (let i = 0; i < n; i++) {
-      const sc = (o.size ?? 1) * (0.75 + rng() * 0.5);
+      // figurine units: shoulder 1, ears ~1.45 -> 0.105..0.17 m scale = 15..25 cm to the ears
+      const sc = (o.size ?? 1) * (0.105 + rng() * 0.065);
       const p = n === 1 ? [0, 0, 0] : [(rng() - 0.5) * (o.spread ?? 0.4), 0, (rng() - 0.5) * (o.spread ?? 0.4) * 0.6];
-      k.add(mat('ceramic'), zebraGeo(), { p, r: (o.yaw ?? 0) + (rng() - 0.5) * 0.8, s: sc, w: { grime: 0.35, grimeH: 0.08, vary: 0.1, moss: o.moss ?? 0, mossLow: o.moss ?? 0, mossH: 0.06 } });
+      const mi = Math.min(3, Math.floor(rng() * 4 + (o.fade ?? 0) * 2));
+      const m = new THREE.Mesh(geos[Math.floor(rng() * 3)], mats[mi]);
+      m.name = 'zebraFigurine';
+      m.castShadow = true;
+      m.receiveShadow = true;
+      // the sculpt faces +X: turn it to face the prop's front (+Z)
+      k.addObject(m, { p, r: (o.yaw ?? 0) - Math.PI / 2 + (rng() - 0.5) * 0.8, s: sc });
     }
   });
 }

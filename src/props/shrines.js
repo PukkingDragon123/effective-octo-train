@@ -149,7 +149,7 @@ export function createSpiritHouse(opts = {}) {
     k.pop();
     // ground-level clutter: zebras, old bottles, dried garlands, more figurines
     const gz = style === 'chinese' ? 0.55 : 0.55;
-    zebras(k, { p: [0.0, 0, gz], n: 2 + Math.floor(rng() * 3), spread: 0.75, size: 1.2, seed: seed + 5, moss: age * 0.5 });
+    zebras(k, { p: [0.0, 0, gz], n: 2 + Math.floor(rng() * 3), spread: 0.75, seed: seed + 5, moss: age * 0.5 });
     for (let i = 0; i < 5; i++) bottle(k, { p: [-0.45 + rng() * 0.9, 0, gz + 0.12 + rng() * 0.2], straw: rng() < 0.7, strawYaw: rng() * 6, color: rng() < 0.85 ? PAL.sodaRed : PAL.sodaGreen, s: 1 });
     if (rng() < 0.7) bottle(k, { p: [0.3, 0.03, gz + 0.2], r: [Math.PI / 2, rng() * 6, 0], straw: false, color: 0x6a1010 });
     garland(k, { p: [-0.25, 0.01, gz + 0.05], r: [-Math.PI / 2 + 0.1, rng() * 3, 0], len: 0.14, color: 0x8a7a5a, accent: 0x6a4a2a, rose: 0x4a1a14 });

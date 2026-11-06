@@ -683,7 +683,7 @@ export function createAccidentMemorial(opts = {}) {
     incensePot(k, { p: [0, 0.75, -0.42], rad: 0.05, color: 0x8a2418, sticks: 12, seed: seed + 2 });
     garland(k, { p: [0, 1.2, -0.44], len: 0.16 });
     // zebras crowding in front (traffic deaths)
-    zebras(k, { p: [0.05, 0, -0.05], n: 7, spread: 1.1, size: 1.25, seed: seed + 5, yaw: Math.PI * 0.1, moss: 0.3 });
+    zebras(k, { p: [0.05, 0, -0.05], n: 7, spread: 1.1, seed: seed + 5, yaw: Math.PI * 0.1, moss: 0.3 });
     // drinks, a toy car, shoes
     for (let i = 0; i < 4; i++) bottle(k, { p: [-0.6 + rng() * 1.2, 0, 0.3 + rng() * 0.3], straw: rng() < 0.5, color: rng() < 0.7 ? PAL.sodaRed : PAL.sodaGreen });
     shoes(k, { p: [0.75, 0, 0.1], r: 0.6, color: 0x2a2a3a, messy: true });

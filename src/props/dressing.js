@@ -112,7 +112,7 @@ export function createDressing(kind, opts = {}) {
       break;
     }
     case 'zebra_statues':
-      zebras(k, { n: opts.n ?? 3 + Math.floor(rng() * 4), spread: 0.8, size: opts.size ?? 1.3, seed, moss: opts.moss ?? 0.3 });
+      zebras(k, { n: opts.n ?? 3 + Math.floor(rng() * 4), spread: 0.8, size: opts.size ?? 1, seed, moss: opts.moss ?? 0.3 });
       out.colliders.push({ x: 0, z: 0, r: 0.4 });
       break;
     case 'thai_dancer_figurine':
@@ -168,7 +168,7 @@ export function createDressing(kind, opts = {}) {
         }
         for (let i = 0; i < 4; i++) bottle(k, { p: [-0.3 + i * 0.2, 0.54, -0.18], straw: true, color: PAL.sodaRed, s: 0.8 });
         garland(k, { p: [0.0, 0.5, 0.26], len: 0.15 });
-        zebras(k, { p: [0.0, 0, 0.45], n: 2, spread: 0.5, size: 1.1, seed });
+        zebras(k, { p: [0.0, 0, 0.45], n: 2, spread: 0.5, seed });
       });
       for (const s of [-1, 1]) out.lights.push(lightSpec('candle', anchorAt(group, s * 0.32, 0.7, 0.12), { intensity: 0.5 }));
       out.colliders.push({ x: 0, z: 0, hx: 0.45, hz: 0.25, yaw: 0 });
