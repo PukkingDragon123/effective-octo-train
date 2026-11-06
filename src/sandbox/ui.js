@@ -5,7 +5,7 @@
 //          icon=hand|grab|talk|eye|key|pray, stage=title|text|roll (ending),
 //          notes=1 & hidden=1 (paper), full=1 (paper at 1:1), progress=0..1
 //   ?screen=news (GAME OVER news report)  ?screen=tour&settle=0: window.__tour.next() steps
-//   menu -> subtitles + choice + crosshair target -> news report (one harness run, --shots=3)
+//   menu -> subtitles + choice + crosshair + hint -> settings -> death card -> news (--shots=5)
 import { ui } from '../ui/index.js';
 import { loadFonts } from '../ui/fonts.js';
 import { makeRng, noise } from '../core/math.js';
@@ -186,6 +186,12 @@ export default async function ({ params, saves }) {
           ui.nav._update?.();
           playScene();
         },
+        () => {
+          ui.settingsPanel.tabIndex = 2;
+          ui.showSettings();
+          ui.nav.handle?.('down');
+        },
+        () => ui.deathCard({ th: 'คุณหันกลับไปมอง', en: 'You looked back.', hold: 999 }),
         () => news(),
       ];
       let i = 0;
