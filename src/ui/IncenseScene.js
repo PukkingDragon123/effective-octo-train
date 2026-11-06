@@ -581,7 +581,10 @@ export class IncenseScene {
     scene.add(this.emberLight);
     const moon = new THREE.DirectionalLight(0x8a96a8, 0.17);
     moon.position.set(0.9, 0.6, -0.5);
-    scene.add(moon);
+    // a faint cold wash from the road side, just enough to read the white glaze of the zebras
+    const road = new THREE.DirectionalLight(0x7d8aa0, 0.2);
+    road.position.set(0.5, 0.9, 0.8);
+    scene.add(moon, road);
     scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
     this.cold = new THREE.PointLight(0x8796b4, 0, 1.6, 2);
     this.cold.position.set(0.34, 0.22, 0.06);

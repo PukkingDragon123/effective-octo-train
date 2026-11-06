@@ -845,7 +845,7 @@ export class TaxiControls {
         ctx.strokeText('บาท', 6, H * 0.74);
         ctx.fillText('บาท', 6, H * 0.74);
       } else {
-        // Srisakdi's hairlines vanish at LED size: stroke the glyphs to give them LED weight
+        // Thin glyph strokes vanish at LED size: stroke the glyphs to give them LED weight
         ctx.fillStyle = red;
         ctx.strokeStyle = red;
         ctx.lineJoin = 'round';
