@@ -1,14 +1,13 @@
 // อู่ กม.9 — Ah Kong's garage (intro + every loop restart). Open-front shophouse
 // workshop: corrugated roof, cluttered shelves, workbench, tyres, calendar, painting,
 // transistor radio, standing fan, ONE hanging fluorescent tube, a plastic table where the
-// old man sits, a small Chinese wall altar glowing red, the 'อู่ กม.9' sign, a dog bowl.
+// old man sits, the 'อู่ กม.9' sign, a dog bowl.
 // Front (open side) faces +Z toward the road.
 import * as THREE from 'three';
 import { Kit, bevelBox, bbox, lathe, cyl, tube, torus, sphere, quad, extrude, smoothPath, blob, steelSection, makeRng, noise } from './lib/kit.js';
 import { mat, glowMat, signMat, texMat, stainTex, crackTex, noticeTex } from './lib/materials.js';
 import { lightSpec, attachFlicker, LIGHT_PRESETS } from './lib/lights.js';
-import { G, PAL, rag, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, incensePot, fruitPlate, candle, garland, waterJar } from './lib/small.js';
-import { dancerGeo } from './lib/figures.js';
+import { G, PAL, rag, bottle, can, oilCan, cup, teacup, bowl, plate, plasticChair, plasticStool, foldTable, shelfUnit, tire, oilDrum, crate, coil, candle, garland, waterJar } from './lib/small.js';
 import { addAsset, hasAsset, assetShelves, assetSize } from './lib/assets.js';
 import { useAsset } from './lib/small.js';
 import { card, findPrint, snackBag, noodleCup, posterStack, litter, printedPack } from './lib/print.js';
@@ -169,8 +168,8 @@ function engine(k, p, r) {
  * อู่ กม.9 (intro garage).
  * -> { object, oldManSeat (sit facing the anchor's −Z), taxiSpot (taxi origin; yaw so the
  *      taxi faces the road), bikeSpot, playerArrive, tableAnchor, lampAnchor, lightSpec,
- *      lights, colliders, altarAnchor, radioAnchor, fanAnchor, fanBlades (Object3D, spins),
- *      calendarAnchor, dogBowlAnchor, keysAnchor, ashtrayAnchor, smokeAnchor (mosquito coil),
+ *      lights, colliders, radioAnchor, fanAnchor, fanBlades (Object3D, spins),
+ *      calendarAnchor, dogBowlAnchor, keysAnchor, ashtrayAnchor,
  *      lampControllers, walkSurfaces }
  */
 export function createGarage(opts = {}) {
@@ -333,28 +332,7 @@ export function createGarage(opts = {}) {
   k.add(texMat('notice3', () => noticeTex(3), { decal: true }), G('noticeq', () => quad(0.21, 0.29)), { p: [1.5, 1.6, zB + 0.11], r: [0, 0, -0.05], color: 0xffffff, uv: 'keep', w: false });
   k.add(signMat('poster', { variant: 1 }), G('gposter', () => quad(0.45, 0.643)), { p: [xR - 0.11, 2.05, -1.6], r: [0, -Math.PI / 2, 0.03], color: 0xc8c0b0, uv: 'keep', w: { vary: 0.35, grime: 0 } });
 
-  // ---- Chinese wall altar high on the back wall, glowing red -----------------------------
-  const ax = -0.15, ay = 2.15, az = zB + 0.3;
-  k.at([ax, ay, az], null, null, () => {
-    k.add(mat('lacquer'), bbox(0.7, 0.04, 0.38, 0.01, 0.2), { color: 0x8a1a12, w: false }); // shelf
-    for (const s of [-1, 1]) k.add(mat('metal'), G('abracket', () => bbox(0.03, 0.25, 0.3, 0.004, 0.1)), { p: [s * 0.3, -0.25, -0.02], color: 0x5a1a12, w: false });
-    k.add(mat('lacquer'), bbox(0.5, 0.48, 0.24, 0.01, 0.15), { p: [0, 0.04, -0.06], color: 0x9a1a12, w: { grime: 0, streak: 0.4 } });
-    k.add(mat('dark'), bbox(0.36, 0.34, 0.02, 0.004, 0.1), { p: [0, 0.08, 0.06], color: 0x2a0604, w: false });
-    k.add(mat('gold'), G('altarTopG', () => bevelBox(0.58, 0.06, 0.3, 0.01, 0.1)), { p: [0, 0.55, -0.06], color: 0xd8a848, w: false, deform: (p) => { p.y += Math.pow(Math.abs(p.x) / 0.29, 4) * 0.04; } });
-    k.add(mat('gold'), dancerGeo(), { p: [0, 0.09, 0.0], s: 0.95, color: 0xe0b860, w: false });
-    // red paper couplets on the wall either side of the altar (texture aspect 0.3:1.6)
-    for (const s of [-1, 1]) k.add(signMat('couplet', { side: s < 0 ? 'left' : 'right' }), G('acouplet', () => quad(0.08, 0.427, 1, 3)), { p: [s * 0.42, 0.2, -0.185], r: [0, 0, s * 0.02], color: 0xffffff, uv: 'keep', w: { vary: 0.2, grime: 0 } });
-    incensePot(k, { p: [0, 0.04, 0.12], rad: 0.045, metal: true, color: 0xb08a40, sticks: 9, seed: 3, lit: 0.6 });
-    fruitPlate(k, { p: [0.22, 0.04, 0.1], kind: 'orange', s: 0.55, seed: 4 });
-    teacup(k, { p: [-0.15, 0.04, 0.12] });
-    for (const s of [-1, 1]) {
-      k.add(mat('gold'), G('lotusS', () => lathe([[0, 0], [0.02, 0], [0.026, 0.015], [0.036, 0.03], [0.022, 0.034], [0, 0.03]], 10)), { p: [s * 0.27, 0.04, 0.1], color: 0xd8a848, w: false });
-      k.add(glowMat('red'), G('redbulbS', () => sphere(0.022, 10, 8).scale(1, 1.35, 1)), { p: [s * 0.27, 0.095, 0.1], color: 0xffffff, w: false });
-    }
-  });
-  out.altarAnchor = anchor(group, 'altar', ax, ay + 0.2, az + 0.15);
-  out.lights.push(lightSpec('altar', anchor(group, 'altarLight', ax, ay + 0.2, az + 0.3), { intensity: 3.5, distance: 4.5 }));
-  out.smokeAnchor = anchor(group, 'altarSmoke', ax, ay + 0.25, az + 0.12);
+  // (no wall altar: the garage's shrine is the spirit house outside)
 
   // ---- old man's corner: plastic table + chairs, ashtray, tea, newspaper, fan, dog bowl -------
   const tx = -2.35, tz = 1.35;

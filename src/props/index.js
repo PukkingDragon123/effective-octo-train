@@ -57,7 +57,7 @@
 // createLanternString(a, b, {count, sag, white, size, lightEvery}) -> {object, lanternAnchors, lights}
 // createGarage({seed}) -> {object, oldManSeat, guestSeat, taxiSpot (yaw: taxi faces the road),
 //       bikeSpot, playerArrive, tableAnchor, keysAnchor, ashtrayAnchor, lampAnchor, lightSpec,
-//       lights, colliders, altarAnchor, smokeAnchor, radioAnchor, fanAnchor, fanBlades, fanOn,
+//       lights, colliders, radioAnchor, fanAnchor, fanBlades, fanOn,
 //       calendarAnchor, dogBowlAnchor, mosquitoCoilAnchor, lampControllers, walkSurfaces}
 // createBusStop({seed}) -> {object, waitSpot, seats[], lampAnchor, lightSpec, lights, colliders}
 // createNoodleStall({seed}) -> {object, vendorSpot, customerSpots[], counterAnchor, lampAnchor,
