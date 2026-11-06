@@ -461,10 +461,7 @@ export function createGarage(opts = {}) {
     }
     k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: chest ? [1.3, 0, zB + 0.85] : [0.6, 0, zB + 0.45], color: 0x2a5a9a, w: { grime: 0.5 } });
     k.add(mat('plastic'), G('bucket', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: chest ? [1.62, 0, zB + 0.9] : [0.9, 0, zB + 0.5], color: 0xd8b030, w: { grime: 0.5 } });
-    if (!useAsset(k, 'plastic_broom', { p: [xL + 0.62, 0.02, zF - 1.35], r: [0, 0.4, -0.22] }, { color: 0xe0e0d8, w: { dust: 0.4 } })) {
-      k.add(mat('wood'), tube([V(0, 0.02, 0), V(0.02, 1.25, -0.25)], 0.012, 5), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a6a40, w: false });
-      k.add(mat('flower'), G('broomhead', () => cyl(0.02, 0.12, 0.35, 8, 0, 1, true)), { p: [xL + 0.3, 0, zB + 1.2], color: 0x8a7a50, w: false });
-    }
+    // (no broom: the leaning one floated off the floor)
     k.add(mat('paper'), G('cardboardfloor', () => bbox(0.9, 0.01, 1.6, 0.002, 0.3)), { p: [1.3, 0.0, 2.3], r: 0.35, color: 0x9a7a52, w: { grime: 0.8, grimeH: 0.05 } });
     // clothesline with rags across the back-left corner
     k.add(mat('dark'), tube(sagCurveG(V(xL + 0.15, 2.5, zB + 0.8), V(xL + 2.2, 2.5, zB + 0.15)), 0.004, 3), { color: 0x2a2a2a, w: false });
