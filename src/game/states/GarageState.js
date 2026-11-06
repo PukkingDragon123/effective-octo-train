@@ -14,8 +14,10 @@ import { LAYERS } from '../../core/layers.js';
 import { clamp, easeInOut } from '../../core/math.js';
 import { ensurePlayerActions } from '../systems/PlayerActions.js';
 import { LoopStaging } from '../systems/LoopStaging.js';
-import { setupGarage, ahKongFace, ahKongStand, walkAroundTaxi, retireAhKong } from '../opening/garageSet.js';
+import { setupGarage, ahKongFace, ahKongStand, ahKongSit, walkAroundTaxi, retireAhKong } from '../opening/garageSet.js';
 import { createChips } from '../opening/chips.js';
+import { Chores, nightStage } from '../opening/chores.js';
+import * as CH from '../data/chores.js';
 import { createVolumetricBeam, paintedMaterial } from '../../render/index.js';
 import { ensureOffRoad } from '../systems/OffRoad.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, runLines, resolve, music, sfx, ground, yawTo, roadPoint, roadYaw, roadLen, releaseSky, hidePlayer, waitFor, logic, taxiPoint, quietDirector } from '../opening/common.js';
@@ -89,6 +91,8 @@ export const GarageState = {
     // first night: Ah Kong is not back yet (Ton waits under the tube; see _waitForKong)
     this.kongAway = !this.restart && !params.skipTalk;
     ensureOffRoad();
+    if (this.restart || !params.arrived) nightStage.clear(); // a new night: last night's offerings are gone
+    this.chores = null;
     this.set = setupGarage(this.stage, { ahKong: this.kongAway ? 'none' : where === 'stool' ? 'stool' : where === 'dark' ? 'none' : 'besideTaxi', interactions: true });
     this.where = where;
     this._parkBike();
@@ -132,8 +136,8 @@ export const GarageState = {
     this.talkWanted = false;
     const item = interact.register({
       id: 'garage.ahKong', object: box, labelTH: 'คุยกับอากง', labelEN: 'Talk to Ah Kong', icon: 'talk', reach: 2.8,
-      enabled: () => this.phase === 'walkToKong' && g.ahKong.root.visible,
-      onUse: () => (this.talkWanted = true),
+      enabled: () => (this.phase === 'walkToKong' || this.phase === 'chores') && g.ahKong.root.visible,
+      onUse: () => (this.phase === 'chores' ? this._choreHint() : (this.talkWanted = true)),
     });
     this.stage.add(() => {
       interact.unregister(item);
@@ -185,10 +189,21 @@ export const GarageState = {
     }
     this.phase = 'talk';
     g.ui.hint(null);
-    await this._converse(S, async () => {
-      const lines = resolve(g.data?.ahkong?.INTRO_GARAGE || []);
-      await runLines(lines, { alive: () => this.active, onLine: (l) => this._onLine(l) });
-    });
+    // the arrival talk up to the keys, then his chores "for safety", then the keys and the paper
+    const intro = g.data?.ahkong?.INTRO_GARAGE || [];
+    const ki = intro.findIndex((l) => l?.set?.hasKeys);
+    const before = ki > 0 ? intro.slice(0, ki) : intro;
+    const after = ki > 0 ? intro.slice(ki) : [];
+    const alive = () => this.active;
+    await this._converse(S, () => runLines(resolve(before), { alive, onLine: (l) => this._onLine(l) }));
+    if (after.length) {
+      await this._choresPhase(S, CH.CHORES_INTRO, null);
+      this.phase = 'talk';
+      await this._converse(S, async () => {
+        await runLines(resolve(CH.CHORES_KEYS), { alive });
+        await runLines(resolve(after), { alive, onLine: (l) => this._onLine(l) });
+      });
+    }
     g.player.hold?.(null);
     if (g.save) {
       g.save.flags.hasKeys = true;
@@ -199,6 +214,58 @@ export const GarageState = {
     this.phase = 'done';
     S.chk();
     g.fsm.go('tutorial', { fromGarage: true });
+  },
+
+  // ------------------------------------------------------------------ chores "for safety"
+  /** He tells Ton what to do, sits down to watch; the keys wait until the required ones are done. */
+  async _choresPhase(S, lines, only) {
+    const A = g.actions;
+    let C = this.chores;
+    if (!C || (only && !only.every((id) => C.has(id)))) {
+      try {
+        C = this.chores = new Chores(this.stage, { only });
+      } catch (e) {
+        console.warn('[garage] chores', e);
+        return;
+      }
+    }
+    if (C.requiredDone()) return;
+    this.phase = 'talk';
+    await this._converse(S, () => runLines(resolve(lines), { alive: () => this.active }));
+    this.phase = 'chores';
+    this.choreT = 0;
+    this.choreNudge = 0;
+    C.start();
+    A?.setAllowed({ paper: false, amulet: false, vehicle: false });
+    g.player.setWalkEnabled(true);
+    if (!g.ahKong._seated) ahKongSit();
+    await S.step(waitFor(() => !this.active || C.requiredDone() || this.choreT > CH.CHORE_SKIP_SECONDS));
+    if (!C.requiredDone()) {
+      // three minutes: he grumbles and does the rest himself
+      await runLines(resolve(CH.CHORES_GRUMBLE), { alive: () => this.active });
+      S.chk();
+      await S.step(g.cine.fade(1, 0.5));
+      C.finishRest();
+      await S.wait(0.4);
+      g.cine.fade(0, 0.8);
+    }
+    await S.wait(1.4);
+  },
+
+  /** Talking to him while chores are left: what to do next. */
+  _choreHint() {
+    if (g.dialogue.busy) return;
+    const C = this.chores;
+    const next = C && ['shrine', ...CH.REQUIRED_CHORES, 'coins', 'mirror'].find((id) => C.has(id) && !C.done(id));
+    if (next) runLines(resolve(CH.CHORE_HINT[next] || []));
+  },
+  _idleNudgeChores(dt) {
+    this.choreT = (this.choreT || 0) + dt;
+    this.choreNudge = (this.choreNudge || 0) + dt;
+    if (this.choreNudge > 40 && !g.dialogue.busy) {
+      this.choreNudge = 0;
+      this._choreHint();
+    }
   },
 
   // ------------------------------------------------------------------ first night: the wait
@@ -217,9 +284,15 @@ export const GarageState = {
         if (this.phase === 'wait') g.ui.subtitle({ speakerTH: 'ต้น', speakerEN: 'Ton', th: 'อากงไม่อยู่แฮะ… รอแป๊บนึงก็ได้', en: "Ah Kong's not here… I'll wait a bit.", tone: 'thought', duration: 4.5 });
       })
       .catch(() => {});
+    try {
+      this.chores = new Chores(this.stage, {});
+    } catch (e) {
+      console.warn('[garage] chores', e);
+    }
     const startAt = 30 + Math.random() * 14; // he walks in ~25 s later: 55-70 s in all
     const C = this.chips;
-    await S.step(waitFor(() => !this.active || this.waitT > startAt || (C && C.eaten >= 3 && g.engine.time - C.lastEatAt > 2.5) || this.waitT > 200));
+    const calling = () => this.chores?.state?.phone === 'call';
+    await S.step(waitFor(() => !this.active || (!calling() && (this.waitT > startAt || (C && C.eaten >= 3 && g.engine.time - C.lastEatAt > 2.5))) || this.waitT > 200));
     this.phase = 'arrive';
     await this._kongArrives(S);
     this.chips?.putAway?.();
@@ -431,6 +504,12 @@ export const GarageState = {
         if (accept) this.timeSkip = this._skipTarget(last, dh);
       }
       S.chk();
+    });
+    // before the keys: the spirit house, every night
+    await this._choresPhase(S, CH.CHORES_RESTART, ['shrine']);
+    this.phase = 'talk';
+    await this._converse(S, async () => {
+      const alive = () => this.active;
       // the keys (and, from the fourth night, the way out)
       const r = await runLines(resolve(AK.RESTART_KEYS || []), { alive });
       keys = r.choices.restart_keys || 'take';
@@ -597,6 +676,13 @@ export const GarageState = {
     if (this.phase !== 'talk' && this.phase !== 'setup') LoopStaging.update(dt);
     if (this.phase === 'wait' || this.phase === 'arrive') {
       this.waitT = (this.waitT || 0) + dt;
+      // the garage phone rings once while he is away
+      if (this.phase === 'wait' && !this._rang && this.waitT > 13) {
+        this._rang = true;
+        this.chores?.ringPhone();
+      }
+    } else if (this.phase === 'chores') {
+      this._idleNudgeChores(dt);
     } else if (this.phase === 'walkToKong') {
       this.walkT = (this.walkT || 0) + dt;
       if (this.walkT > 7 && !this._walkHint) {
