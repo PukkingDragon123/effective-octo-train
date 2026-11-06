@@ -195,9 +195,9 @@ export class TaxiLights {
     this.headLevel = damp(this.headLevel, headTarget, 14, dt);
     const high = mode === 'high';
     const hl = this.headLevel;
-    this.spot.intensity = hl * (high ? 300 : 150);
+    this.spot.intensity = hl * (high ? 1500 : 750); // low beam lights 30–50 m of road, high beam further
     this.spot.angle = high ? 0.42 : 0.55;
-    this.spot.distance = high ? 95 : 60;
+    this.spot.distance = high ? 120 : 80;
     this.spot.target.position.set(0, high ? 0.45 : -0.2, -16);
     L.head.emissiveIntensity = hl * (high ? 5 : 3.2) + (mode !== 'off' ? 0.12 : 0);
     const gy = (phys.groundY ?? 0) + 0.03;

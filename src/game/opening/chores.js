@@ -24,13 +24,20 @@ import { mat } from '../../props/lib/materials.js';
 import { bowl, can } from '../../props/lib/small.js';
 import { createHumanoid } from '../../characters/index.js';
 import { FONTS } from '../../ui/fonts.js';
-import { lm, sfx, ground, runLines, resolve } from './common.js';
+import { lm, sfx, ground, runLines, resolve, Stage } from './common.js';
+import { bus } from '../../core/Events.js';
 import * as D from '../data/chores.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 const UP = V(0, 1, 0);
 const say = (lines) => runLines(resolve(lines || []));
+
+/** Props that stay for the night (the tutorial and the shift start at the same garage). */
+export const nightStage = new Stage();
+bus.on('game:state', ({ state } = {}) => {
+  if (state === 'menu' || state === 'intro') nightStage.clear();
+});
 
 // ------------------------------------------------------------------------------ small props
 function incenseSticks(n = 3, seed = 3) {
@@ -120,7 +127,7 @@ function mirrorCloth(w, h) {
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i);
     const t = -y / (h + 0.08);
-    p.setZ(i, 0.035 + Math.sin(x * 26 + t * 3) * 0.012 * t + noise.noise2D(x * 9, y * 7) * 0.008 + 0.02 * (1 - Math.min(1, Math.abs(x) / (w / 2))) * Math.sin(t * Math.PI));
+    p.setZ(i, 0.062 + Math.sin(x * 26 + t * 3) * 0.012 * t + noise.noise2D(x * 9, y * 7) * 0.008 + 0.02 * (1 - Math.min(1, Math.abs(x) / (w / 2))) * Math.sin(t * Math.PI));
   }
   geo.computeVertexNormals();
   const c = document.createElement('canvas');
@@ -320,7 +327,8 @@ function ringBuffer() {
 // ------------------------------------------------------------------------------ the chores
 export class Chores {
   constructor(stage, opts = {}) {
-    this.stage = stage;
+    this.stage = stage; // interactables (this state only)
+    this.night = nightStage; // props, smoke, the per-frame life (the whole night)
     this.only = opts.only || null;
     this.active = false;
     this.flags = g.save?.flags || (g.save ? (g.save.flags = {}) : {});
@@ -336,8 +344,19 @@ export class Chores {
       console.warn('[chores] props failed: the chores are done for you', e);
       for (const id of this._needed) this._mark(id, 'done', true);
     }
-    stage.update((dt) => this._update(dt), 52);
-    stage.add(() => this._releaseHand());
+    this.night.update((dt) => this._update(dt), 52);
+    this.night.update(() => this._smokeWind(), 85); // after the particles (80) refresh their wind
+    stage.add(() => {
+      // leaving the garage with something in hand: it is put where it belongs
+      if (this.held) {
+        const k = this.held.kind;
+        this._dropHeld();
+        if (k === 'sticks') this._plantSticks(true);
+        else if (k === 'offering') this._placeOffering(true);
+        else if (k === 'cloth') this._tieCloth(true);
+      }
+      this.active = false;
+    });
   }
 
   // ---------------------------------------------------------------- public
@@ -367,8 +386,8 @@ export class Chores {
 
   // ---------------------------------------------------------------- build
   _local(obj, x, y, z, yaw = 0) {
-    if (this.go) this.stage.mesh(obj, this.go);
-    else this.stage.mesh(obj);
+    if (this.go) this.night.mesh(obj, this.go);
+    else this.night.mesh(obj);
     obj.position.set(x, y, z);
     obj.rotation.y = yaw;
     if (!this.go && this.G) {
@@ -398,14 +417,15 @@ export class Chores {
       this.shrine = sh;
       this._local(sh.object, 3.55, 0, 4.85, Math.PI + 0.5);
       sh.object.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
-      if (sh.candleAnchor) this.stage.light({ kind: 'candle', object: sh.candleAnchor, intensity: 2.2, distance: 3.2, glow: { size: 0.16, opacity: 0.6 } });
+      if (sh.candleAnchor) this.night.light({ kind: 'candle', object: sh.candleAnchor, intensity: 2.2, distance: 3.2, glow: { size: 0.16, opacity: 0.6 } });
       const bundle = incenseSticks(9, 11).object;
       bundle.rotation.set(0, 0.3, Math.PI / 2);
       bundle.position.set(-0.04, 0.012, 0.04);
       (sh.offeringAnchor || sh.object).add(bundle);
-      this._item('sticks', sh.offeringAnchor || sh.object, [0, 0.03, 0.04], [0.32, 0.12, 0.14], 'หยิบธูปสามดอก', 'Take three incense sticks', () => this.active && S.sticks === 'none' && !this.held, () => this._takeSticks());
+      const ay = sh.incenseAnchor?.position.y ?? 1.1, az = sh.incenseAnchor?.position.z ?? 0.1;
+      this._item('sticks', sh.offeringAnchor || sh.object, [-0.05, 0.02, 0.04], [0.16, 0.07, 0.1], 'หยิบธูปสามดอก', 'Take three incense sticks', () => this.active && S.sticks === 'none' && !this.held, () => this._takeSticks());
       this._item('light', sh.candleAnchor || sh.object, [0, 0.03, 0], [0.12, 0.14, 0.12], 'จุดธูป', 'Light the incense', () => this.held?.kind === 'sticks' && !S.lit, () => this._lightSticks());
-      this._item('wai', sh.object, [0, 1.15, 0.05], [0.5, 0.45, 0.4], 'ไหว้', 'Wai', () => this.held?.kind === 'sticks' && !S.waied && !this._wai, () => this._doWai(), 2.2, 'pray');
+      this._item('wai', sh.object, [0, ay + 0.32, az - 0.14], [0.4, 0.32, 0.22], 'ไหว้', 'Wai', () => this.held?.kind === 'sticks' && !S.waied && !this._wai, () => this._doWai(), 2.2, 'pray');
       this._item('plant', sh.incenseAnchor || sh.object, [0, 0.04, 0], [0.16, 0.12, 0.16], 'ปักธูป', 'Plant the incense', () => this.held?.kind === 'sticks' && !this._wai, () => this._plantSticks(false));
       if (this.done('shrine')) this._plantSticks(true, this.flags['chore.shrine'] === 'wrong', true);
     }
@@ -424,7 +444,7 @@ export class Chores {
       st.rotation.set(-Math.PI / 2, 0, 0.6);
       st.position.set(-0.32, 0.004, 0.24);
       table.add(st);
-      this.stage.add(() => st.removeFromParent());
+      this.night.add(() => st.removeFromParent());
       this.strips = st;
       this._item('cloth', table, [-0.32, 0.03, 0.2], [0.24, 0.08, 0.24], 'หยิบผ้าสามสี', 'Take the coloured cloth', () => can1() && S.cloth === 'table' && !this.held, () => this._takeCloth());
       const mir = g.taxi?.anchors?.rearviewMirror;
@@ -435,7 +455,7 @@ export class Chores {
       const tin = fareTin();
       tin.position.set(0.36, 0, -0.06);
       table.add(tin);
-      this.stage.add(() => tin.removeFromParent());
+      this.night.add(() => tin.removeFromParent());
       this.tin = tin;
       this._item('coins', table, [0.36, 0.05, -0.06], [0.14, 0.12, 0.14], 'นับเหรียญ', 'Count the coins', () => can1() && !this.done('coins') && !this._counting && !this.held, () => this._countCoins());
     }
@@ -447,7 +467,7 @@ export class Chores {
       this._item('mirror', m.object, [0, m.H * 0.5, 0.06], [m.W, m.H, 0.12], 'คลุมผ้า', 'Cover it with the cloth', () => !this.done('mirror') && !this.held, () => this._coverMirror(false), 2.0);
       if (this.done('mirror')) this._coverMirror(true);
     }
-    if (this.has('phone') || (!this.only && this.flags)) {
+    if (!this.only) {
       const ph = rotaryPhone();
       this.phone = ph;
       this._local(ph.object, -1.06, 0.895, -2.98, 0.35);
@@ -509,7 +529,7 @@ export class Chores {
   _takeSticks() {
     const st = incenseSticks(3, 5);
     this.sticks = st;
-    this.stage.mesh(st.object);
+    this.night.mesh(st.object);
     (this.shrine.offeringAnchor || this.shrine.object).getWorldPosition(_v);
     st.object.position.copy(_v);
     this.state.sticks = 'held';
@@ -519,7 +539,7 @@ export class Chores {
     const S = this.state;
     S.lit = true;
     sfx('lighter', { object: this.sticks.object, volume: 0.5 });
-    this._smoke = this.stage.emit('incense', { object: this.sticks.tipAnchor, count: 34, intensity: 0.7 });
+    this._smoke = this.night.emit('incense', { object: this.sticks.tipAnchor, count: 34, intensity: 0.7 });
     this._glow = 1;
   }
   async _doWai() {
@@ -559,7 +579,7 @@ export class Chores {
     if (!sh) return;
     if (!this.sticks) {
       this.sticks = incenseSticks(3, 5);
-      this.stage.mesh(this.sticks.object);
+      this.night.mesh(this.sticks.object);
     }
     const bad = wrong ?? !(S.lit && S.waied);
     const st = this.sticks;
@@ -570,7 +590,7 @@ export class Chores {
     st.object.quaternion.identity();
     st.object.rotation.set(0, 0, 0.05);
     st.tipMat.emissiveIntensity = 2.2;
-    if (!this._smoke) this._smoke = this.stage.emit('incense', { object: st.tipAnchor, count: 34, intensity: 0.75 });
+    if (!this._smoke) this._smoke = this.night.emit('incense', { object: st.tipAnchor, count: 34, intensity: 0.75 });
     S.sticks = 'planted';
     this._wrongSmoke = bad;
     if (bad) {
@@ -593,12 +613,8 @@ export class Chores {
     this.gateSpot.attach(T.object);
     T.object.position.set(0, 0, 0);
     T.object.rotation.set(0, 0.3, 0);
-    const gy = ground(...(() => {
-      T.object.getWorldPosition(_v);
-      return [_v.x, _v.z];
-    })());
     T.object.getWorldPosition(_v);
-    T.object.position.y += gy - _v.y + 0.005;
+    T.object.position.y += ground(_v.x, _v.z) - _v.y + 0.005;
     this.state.offering = 'gate';
     this._placedAt = g.engine.time;
     if (!instant) sfx('coins', { object: T.object, volume: 0.15, rate: 0.6 });
@@ -639,7 +655,7 @@ export class Chores {
     const coinMat = paintedMaterial({ color: 0xc8c4b8, metalness: 0.8, roughness: 0.35, brush: 0.2, name: 'coin' });
     const oldMat = paintedMaterial({ color: 0x5a3a22, metalness: 0.6, roughness: 0.55, brush: 0.4, dirt: 0.6, name: 'oldCoin' });
     const coins = [];
-    this.stage.add(() => {
+    this.night.add(() => {
       for (const c of coins) c.removeFromParent();
       coinMat.dispose();
       oldMat.dispose();
@@ -736,7 +752,7 @@ export class Chores {
       h.setMode?.('stand');
       h.setGhost?.({ stare: 1, noBlink: 1, unlimited: 1, headRoll: 0.3 }, 50);
       this._figure = h;
-      this.stage.add(() => {
+      this.night.add(() => {
         try {
           h.dispose();
         } catch (e) {
@@ -784,6 +800,16 @@ export class Chores {
     await say(D.PHONE_CALL.after);
   }
 
+  /** The planted sticks' smoke: straight up, or leaning at Ton if a step was skipped. */
+  _smokeWind() {
+    const sm = this._smoke?.object?.material?.uniforms?.uWindV;
+    if (!sm || this.state.sticks !== 'planted') return;
+    if (this._wrongSmoke && g.player?.root) {
+      const toward = _v.copy(g.player.root.position).sub(this.sticks.tipAnchor.getWorldPosition(_v2)).setY(0).normalize();
+      sm.value.set(toward.x * 1.5, toward.z * 1.5);
+    } else sm.value.set(0, 0);
+  }
+
   // ---------------------------------------------------------------- per frame (after the camera)
   _update(dt) {
     const t = g.engine.time;
@@ -798,13 +824,6 @@ export class Chores {
     }
     // incense glow and the smoke: straight up, or leaning into the garage if a step was skipped
     if (this.sticks) this.sticks.tipMat.emissiveIntensity = this.state.lit || this.state.sticks === 'planted' ? 1.8 + Math.sin(t * 7) * 0.4 : 0;
-    const sm = this._smoke?.object?.material?.uniforms?.uWindV;
-    if (sm) {
-      if (this._wrongSmoke) {
-        const toward = _v.copy(g.player?.root?.position || _v).sub(this.sticks.tipAnchor.getWorldPosition(_v2)).setY(0).normalize();
-        sm.value.set(toward.x * 1.4, toward.z * 1.4);
-      } else if (this.state.sticks === 'planted') sm.value.set(0, 0);
-    }
     // the soda goes down when nobody is looking
     const T = this.tray;
     if (T && this.state.offering === 'gate' && !this._sipped && t - this._placedAt > 14 && !g.cameraRig.isOnScreen(T.object.getWorldPosition(_v), -0.2)) {
