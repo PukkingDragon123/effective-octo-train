@@ -173,6 +173,7 @@ export default async function ({ params, saves }) {
     ui.setCrosshair(true);
     window.__game.bus.emit('interact:target', { id: 'taxi.door', labelTH: 'เปิดประตู', labelEN: 'Open the door', icon: 'hand' });
     ui.subtitle({ th: 'ต้น... ต้นลูก... เปิดประตูให้แม่หน่อย', en: 'Ton... Ton, my boy... open the door for Mum.', speakerTH: 'เสียงจากข้างนอก', speakerEN: 'a voice outside', tone: 'normal', duration: 999 });
+    ui.hint({ th: 'ขึ้นรถ', en: 'Get in', keys: ['V'], duration: 0 });
     ui.choice({ options: [{ key: 'answer', th: 'แม่เหรอครับ', en: '“Mum?”' }, { key: 'silent', th: 'เงียบไว้', en: 'Stay silent' }], timeout: 12, defaultKey: 'silent' });
   };
   switch (screen) {

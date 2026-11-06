@@ -22,7 +22,7 @@ export const DeathState = {
     const type = params.type || params.death || 'crash';
     const card = deathCardFor(type);
     const hour = params.hour ?? g.clock?.hour ?? 21;
-    if (card.gameOver) return this._gameOver(type, params, hour);
+    if (card.gameOver) return this._gameOverSafe(type, card, params);
     // ---- hard cut to black: the night stops mid-breath ----------------------------------------
     const p = g.postfx.params;
     p.fadeColor.setRGB(0, 0, 0);
@@ -92,7 +92,20 @@ export const DeathState = {
    * GAME OVER (off the road): the late-night TV news, then the run is cleared (what Ton has learnt,
    * the endings seen and the settings stay) and the game returns to the main menu. No loop.
    */
-  async _gameOver(type, params, hour) {
+  async _gameOverSafe(type, card, params) {
+    try {
+      await this._gameOver(type, card, params);
+    } catch (e) {
+      // never leave the player on a black screen: straight to the menu
+      console.error('[death] game over failed', e);
+      clearDying();
+      if (this.active) {
+        g.fsm.go('menu', { gameOver: true });
+        g.ui.fade?.(false, 1.2);
+      }
+    }
+  },
+  async _gameOver(type, card, params) {
     const p = g.postfx.params;
     p.fadeColor.setRGB(0, 0, 0);
     p.fade = 1;

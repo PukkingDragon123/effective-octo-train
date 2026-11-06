@@ -62,7 +62,7 @@ export class Ride {
     this._stopT = 0;
     this._offs = [];
     this.passenger = new Passenger(this, data);
-    this.pickupLm = pickupLandmark(data.pickup);
+    this.pickupLm = pickupLandmark(data.pickupAt || data.pickup);
     this.stopS = mainS(this.pickupLm.stopPos);
     this.forkS = g.world.fork.decisionS;
     this.route = Math.max(60, this.forkS - this.stopS);

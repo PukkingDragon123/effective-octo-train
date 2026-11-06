@@ -9,7 +9,8 @@ export const RIDE_SRI = {
   id: 'sri',
   order: 1,
   hour: 21,
-  pickup: 'firstHitch', // ~150 m past the garage, under a lamp (ride/pickup.js; the old stop was sala1)
+  pickup: 'sala1', // LAYOUT contract (validator)
+  pickupAt: 'firstHitch', // where she really waits: ~150 m past the garage, under a lamp (ride/pickup.js)
   characterId: 'sri',
   identity: 'human',
   fork: 'right',

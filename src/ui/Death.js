@@ -1,7 +1,7 @@
 // Death card: a slow red-black bleed, the Thai line large and the English small,
 // then black. Resolves while still black; the black then fades out on its own so the
 // game can reset the scene (21:00, the garage) underneath.
-import { h, sleep, enter } from './dom.js';
+import { h, sleep, enter, letters } from './dom.js';
 import { screen } from './common.js';
 import * as NARRATIVE from '../game/data/index.js';
 
@@ -19,7 +19,7 @@ export class DeathCard {
       h('div', { class: 'dlb-death__bg' }),
       h('div', { class: 'dlb-death__veins' }),
       h('div', { class: 'dlb-death__txt' },
-        d.th ? h('div', { class: 'dlb-death__th', attrs: { lang: 'th' } }, d.th) : null,
+        d.th ? h('div', { class: 'dlb-death__th', attrs: { lang: 'th' } }, letters(d.th, 'dlb-letters')) : null,
         d.en ? h('div', { class: 'dlb-death__en' }, d.en) : null,
         sub ? h('div', { class: 'dlb-death__sub' }, h('span', { class: 'th', attrs: { lang: 'th' } }, sub.th), sub.en ? h('span', { class: 'en' }, sub.en) : null) : null),
       h('div', { class: 'dlb-death__black' }));

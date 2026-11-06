@@ -23,6 +23,24 @@ function pick(x) {
   return x;
 }
 
+/** What Ah Kong points at for a step (a taxi anchor), or null. */
+const DEMO = {
+  key: 'keySlot', ignition: 'keySlot', headlights: 'headlightStalk', handbrake: 'handbrake', gear: 'gearKnob', indicator: 'headlightStalk',
+  wipers: 'wiperStalk', cabinLight: 'cabinLight', radio: 'radioKnob', radioTune: 'radioKnob', meter: 'meter', window: 'windowCrankFR', horn: 'hornPad',
+};
+function demoTarget(wf, step) {
+  const A = g.taxi?.anchors || {};
+  if (!wf) return null;
+  if (wf.type === 'control') return A[DEMO[wf.control]] || null;
+  if (wf.type === 'interact' && /door/.test(wf.id || '')) return A.doorFR || null;
+  if (wf.type === 'gaze' || /mirror/i.test(step?.id || '')) return A[{ mirrorRear: 'rearviewMirror', mirrorLeft: 'mirrorLeft', mirrorRight: 'mirrorRight' }[step.id]] || null;
+  if (/amulet/.test(step?.id || '')) return A.amuletHang || null;
+  if (/accelerate/.test(step?.id || '')) return A.pedalThrottle || null;
+  if (/brake/.test(step?.id || '')) return A.pedalBrake || null;
+  if (/steer/.test(step?.id || '')) return A.steeringWheel || null;
+  return null;
+}
+
 /** The live check for one step's waitFor (see ahkong.js header). */
 function makeWaiter(wf) {
   const t = g.taxi;
@@ -278,8 +296,13 @@ export const TutorialState = {
     for (const step of steps) {
       S.chk();
       const wf = pick(step.waitFor);
-      const lines = pick(step.lines) || [];
+      // one action at a time: one short line, his demonstration, then Ton's turn; the rest after
+      const all = pick(step.lines) || [];
+      const lines = all.slice(0, 1);
+      const afterLines = [...all.slice(1), ...(step.after || [])];
       const hint = pick(step.hint);
+      const demo = demoTarget(wf, step);
+      if (demo) this._demo(demo);
       const outside = ['paper', 'interact', 'enterVehicle'].includes(wf?.type) && !A.inTaxi;
       const kongGo = this._kongTo(outside ? 'door' : 'window', S).catch(() => {});
       const waiter = makeWaiter(wf);
@@ -303,9 +326,9 @@ export const TutorialState = {
             else if (wf?.type === 'interact' && wf.id === 'taxi.door.fr.out' && A.canEnter()) g.taxi.setControl('door', { door: 'fr', open: 1 }, { source: 'hotkey' });
           }
           // the hint, once his voice has had its say
-          if (talkDone && !hinted && hint && t > 1.0 && !waiter.w.done) {
+          if (talkDone && !hinted && hint && t > 0.3 && !waiter.w.done) {
             hinted = true;
-            g.ui.hint({ th: hint.th, en: hint.en, keys: hint.keys, duration: 0 });
+            g.ui.hint({ th: hint.th, en: hint.en, keys: hint.keys, duration: 0, tutorial: true });
           }
           // read the front... then turn it over
           if (wf?.type === 'paper' && A.paper.up && A.paper.seconds > 2.4 && !A.paper.flipped && !flipHint) {
@@ -333,10 +356,30 @@ export const TutorialState = {
         g.taxi.setControlsEnabled(true);
         g.player.setWalkEnabled(false);
       }
-      if (step.after) await runLines(resolve(step.after), { alive: () => this.active });
+      if (afterLines.length) await runLines(resolve(afterLines), { alive: () => this.active });
       S.chk();
       if (step.memory) await this._memory(step.memory);
       await S.wait(0.35);
+    }
+  },
+
+  /** Ah Kong shows where first: he points at it, it catches the light, the view eases toward it. */
+  _demo(target) {
+    try {
+      const h = g.ahKong;
+      h?.lookAt?.(target, { weight: 1, speed: 4 });
+      h?.play?.('point', { target, side: 'R' })?.catch?.(() => {});
+      const p = target.getWorldPosition(new THREE.Vector3());
+      const glint = g.lightPool?.add?.({ object: target, color: 0xffe2a8, intensity: 0.5, distance: 0.5, glow: { size: 0.035, opacity: 0.9 }, priority: 8, name: 'tutorialGlint' });
+      const rig = g.cameraRig;
+      if (g.actions?.inTaxi && !rig.inCinematic) rig.setFocus(p, 0.3);
+      setTimeout(() => {
+        glint?.remove?.();
+        if (rig.focusTarget === p) rig.setFocus(null);
+        h?.lookAt?.(g.player?.eye, { weight: 0.7, speed: 2 });
+      }, 1800);
+    } catch (e) {
+      /* the demonstration is cosmetic */
     }
   },
 

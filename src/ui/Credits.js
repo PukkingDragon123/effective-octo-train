@@ -1,6 +1,6 @@
 // Credits content (shared by the menu credits and the ending roll) + a slow film roll.
 import { h, enter, leave } from './dom.js';
-import { screen, titleLockup } from './common.js';
+import { screen, titleLockup, corners } from './common.js';
 import { keyHints, NAV_HINTS } from './glyphs.js';
 import * as NARRATIVE from '../game/data/index.js';
 
@@ -216,7 +216,7 @@ export class CreditsScreen {
     const ui = this.ui;
     const roll = buildCredits({ full: false });
     const view = h('div', { class: 'dlb-roll-view' }, roll);
-    const el = screen('dlb-credits', h('div', { class: 'dlb-backdrop' }), view);
+    const el = screen('dlb-credits', h('div', { class: 'dlb-backdrop' }), corners(), view);
     ui.layer.appendChild(el);
     const r = new Roll(view, roll, { speed: 26, startDelay: 3.2, startFrac: 0.16 });
     let ctx = null;

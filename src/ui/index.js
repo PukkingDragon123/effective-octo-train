@@ -230,9 +230,13 @@ class UI {
     this._ensure();
     this.subs.clear();
   }
-  /** Minimal tutorial / instruction hint (bottom-left, fades). {th, en, keys?: ['W','S'], duration} ; pass null to clear */
-  hint() {
-    // owner: no control guides on screen. Ah Kong teaches with his voice; the game shows nothing.
+  /** Tutorial hint (bottom centre, fades). {th, en, keys?: ['W','S'], duration} ; pass null to clear */
+  hint(h) {
+    // Only Ah Kong's lessons: one key glyph and a few Thai words near the bottom, fading when done.
+    // Hints without a key (mid-shift nudges) stay silent.
+    this._ensure();
+    if (h && !(Array.isArray(h.keys) ? h.keys.length : h.keys)) return;
+    this.hints.show(h || null);
   }
   /** Chapter card for hour changes: {time:'23:00', th, en} */
   chapter(c) {

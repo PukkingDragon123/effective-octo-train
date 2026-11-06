@@ -1,6 +1,6 @@
 // Main menu (over the live cinematic) and the pause menu.
-import { h, enter, leave, clockString, parseClock, thaiHourWords } from './dom.js';
-import { screen, titleLockup, menuItem } from './common.js';
+import { h, enter, leave, clockString, parseClock, thaiHourWords, thaiDigits } from './dom.js';
+import { screen, titleLockup, menuItem, corners } from './common.js';
 
 export class MainMenu {
   constructor(ui) {
@@ -27,8 +27,22 @@ export class MainMenu {
     );
     if (handlers.onQuit) items.push(menuItem(nav, { en: 'Quit', th: 'ออก', onSelect: call(handlers.onQuit) }));
     this.list = h('nav', { class: 'dlb-list dlb-menu__list', attrs: { 'aria-label': 'Main menu' } }, items);
+    // the hour stamp: the player's own clock, in Thai numerals (it is always late when you play this)
+    const stampT = h('span', { class: 'd' });
+    const stampW = h('span', { class: 'w', attrs: { lang: 'th' } });
+    const tick = () => {
+      const d = new Date();
+      const hr = d.getHours() + d.getMinutes() / 60;
+      stampT.textContent = thaiDigits(clockString(hr));
+      stampW.textContent = thaiHourWords(hr);
+    };
+    tick();
+    clearInterval(this._clock);
+    this._clock = setInterval(tick, 15000);
     this.el = screen('dlb-menu',
       h('div', { class: 'dlb-menu__shade' }),
+      corners(),
+      h('div', { class: 'dlb-stamp', attrs: { 'aria-hidden': 'true' } }, stampW, h('i'), stampT),
       h('div', { class: 'dlb-menu__col' }, titleLockup({ align: 'left' }), h('span', { class: 'dlb-rule', attrs: { 'aria-hidden': 'true' } }), this.list));
     ui.layer.appendChild(this.el);
     this.ctx = nav.push({ root: this.list, modal: true, initial: 0, name: 'menu' });
@@ -48,6 +62,7 @@ export class MainMenu {
   async _teardown(instant) {
     const el = this.el;
     this.el = null;
+    clearInterval(this._clock);
     if (this.ctx) this.ui.nav.remove(this.ctx);
     this.ctx = null;
     if (instant) el.remove();
@@ -92,7 +107,7 @@ export class PauseMenu {
       Number.isFinite(hr) ? h('div', { class: 'th', attrs: { lang: 'th' } }, thaiHourWords(hr)) : null,
       handlers.th ? h('div', { class: 'ride', attrs: { lang: 'th' } }, handlers.th) : null,
       handlers.en ? h('div', { class: 'ride en' }, handlers.en) : null) : null;
-    this.el = screen('dlb-pause', h('div', { class: 'dlb-backdrop' }),
+    this.el = screen('dlb-pause', h('div', { class: 'dlb-backdrop' }), corners(),
       h('div', { class: 'dlb-pause__col' },
         h('div', { class: 'dlb-pause__head' }, h('span', { class: 'th', attrs: { lang: 'th' } }, 'หยุดพัก'), h('span', { class: 'en' }, 'Paused')),
         h('span', { class: 'dlb-rule', attrs: { 'aria-hidden': 'true' } }),

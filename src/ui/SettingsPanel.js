@@ -2,7 +2,7 @@
 // segmented choices, a controls reference and a live subtitle preview.
 import { settings, GRAPHICS_PRESETS, DEFAULT_SETTINGS } from '../core/Settings.js';
 import { h, enter, leave } from './dom.js';
-import { screen, ember } from './common.js';
+import { screen, corners } from './common.js';
 import { navItem } from './nav.js';
 import { keyHints, NAV_HINTS, CONTROL_GROUPS, controlRowGlyphs, glyph } from './glyphs.js';
 
@@ -156,6 +156,7 @@ export class SettingsPanel {
       h('span', { class: 'dlb-tabs__key' }, glyph({ kb: 'KeyQ', pad: 'LB' })), this.tabs, h('span', { class: 'dlb-tabs__key' }, glyph({ kb: 'KeyE', pad: 'RB' })));
     this.el = screen('dlb-settings',
       h('div', { class: 'dlb-backdrop' }),
+      corners(),
       h('div', { class: 'dlb-settings__wrap' },
         h('div', { class: 'dlb-settings__head' }, h('span', { class: 'th', attrs: { lang: 'th' } }, 'ตั้งค่า'), h('span', { class: 'en' }, 'Settings')),
         tabsEl,

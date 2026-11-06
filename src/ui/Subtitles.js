@@ -1,7 +1,7 @@
 // Subtitles: bottom-centre, no box, soft shadow. Speaker (small caps) + Thai + English
 // according to settings.subtitles; tones whisper / ghost / shout / thought.
 import { settings } from '../core/Settings.js';
-import { h } from './dom.js';
+import { h, letters } from './dom.js';
 
 /** Reading time for a line (s). */
 export function autoDuration(line) {
@@ -43,8 +43,8 @@ export class Subtitles {
     }
     return h('div', { class: `dlb-sub tone-${tone}${!th ? ' only-en' : ''}` },
       who,
-      th ? h('span', { class: 'dlb-sub__th', attrs: { lang: 'th' } }, th) : null,
-      en ? h('span', { class: 'dlb-sub__en', attrs: { lang: 'en' } }, en) : null);
+      th ? h('span', { class: 'dlb-sub__th', attrs: { lang: 'th' } }, letters(th, 'dlb-ink')) : null,
+      en ? h('span', { class: 'dlb-sub__en', attrs: { lang: 'en' } }, letters(en, 'dlb-ink')) : null);
   }
 
   /** line {speakerTH, speakerEN, th, en, duration, tone, queue?:bool} */

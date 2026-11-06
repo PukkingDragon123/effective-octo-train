@@ -75,7 +75,7 @@ export class Passenger {
     h.setGroundFn?.((x, z) => g.world.getHeight(x, z));
     g.engine.scene.add(h.root);
     // wait at the shoulder, facing the road
-    const lm = pickupLandmark(data.pickup);
+    const lm = pickupLandmark(data.pickupAt || data.pickup);
     this.landmark = lm;
     const pos = lm.waitPos.clone();
     pos.y = g.world.getHeight(pos.x, pos.z);

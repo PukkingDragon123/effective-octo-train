@@ -1,6 +1,6 @@
 // Ending: title card, the ending text, then the full credits roll.
 // Resolves when the roll finishes or the player skips (press twice).
-import { h, sleep, enter } from './dom.js';
+import { h, sleep, enter, letters } from './dom.js';
 import { screen } from './common.js';
 import { buildCredits, Roll } from './Credits.js';
 import { keyHints } from './glyphs.js';
@@ -38,7 +38,7 @@ export class Ending {
 
       const stage1 = h('div', { class: 'dlb-ending__stage' },
         h('div', { class: 'dlb-ending__cap' }, h('span', { class: 'th', attrs: { lang: 'th' } }, subTh || 'ตอนจบ'), subEn || 'Ending'),
-        h('div', { class: 'dlb-ending__name-th', attrs: { lang: 'th' } }, e.titleTH || names.th || ''),
+        h('div', { class: 'dlb-ending__name-th', attrs: { lang: 'th' } }, letters(e.titleTH || names.th || '', 'dlb-letters')),
         h('div', { class: 'dlb-ending__name-en' }, e.titleEN || names.en || ''));
       const stages = cards.map((c) => h('div', { class: 'dlb-ending__stage' },
         c.th ? h('div', { class: 'dlb-ending__text-th', attrs: { lang: 'th' } }, c.th) : null,

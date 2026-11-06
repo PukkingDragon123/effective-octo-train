@@ -115,3 +115,36 @@ export function parseClock(str) {
 export function clamp01(v) {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
+
+const SEG = typeof Intl !== 'undefined' && Intl.Segmenter ? new Intl.Segmenter('th', { granularity: 'grapheme' }) : null;
+/**
+ * Text split into grapheme clusters (Thai marks stay with their consonant), each in a span with
+ * --i = its index, for per-letter reveals (CSS classes dlb-ink / dlb-letters). Line breaking is
+ * unchanged (inline spans). Without Intl.Segmenter it is one plain span (class is-whole).
+ */
+export function letters(text, cls = 'dlb-ink') {
+  const wrap = h('span', { class: cls });
+  const str = String(text ?? '');
+  if (!SEG) {
+    wrap.textContent = str;
+    wrap.classList.add('is-whole');
+    return wrap;
+  }
+  let i = 0;
+  for (const { segment } of SEG.segment(str)) {
+    if (/^\s+$/.test(segment)) {
+      wrap.appendChild(document.createTextNode(segment));
+      continue;
+    }
+    const sp = document.createElement('span');
+    sp.textContent = segment;
+    sp.style.setProperty('--i', String(i++));
+    wrap.appendChild(sp);
+  }
+  wrap.style.setProperty('--n', String(i));
+  return wrap;
+}
+
+const TH_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
+/** Arabic digits to Thai digits ('02:14' -> '๐๒:๑๔'). */
+export const thaiDigits = (s) => String(s).replace(/[0-9]/g, (d) => TH_DIGITS[d]);

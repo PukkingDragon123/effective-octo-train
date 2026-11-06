@@ -74,7 +74,7 @@ export const ShiftState = {
     if (Math.abs(g.clock.hour - hour) > 0.05) g.clock.set(hour);
     save.hour = Math.floor(hour);
     // ---- the taxi: keep it if it is already on the way to this pickup, else place it --------------
-    const stopS = mainS(pickupLandmark(data.pickup).stopPos);
+    const stopS = mainS(pickupLandmark(data.pickupAt || data.pickup).stopPos);
     const r = taxiRoad();
     const keep = !params.debug && !params.free && r && r.id === 'main' && stopS - r.s > 20 && stopS - r.s < 900;
     if (!keep) {

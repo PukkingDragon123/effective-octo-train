@@ -1,5 +1,5 @@
 // Shared building blocks: title lockup, menu items, grain texture, screen shells.
-import { h } from './dom.js';
+import { h, letters } from './dom.js';
 import { navItem } from './nav.js';
 import * as NARRATIVE from '../game/data/index.js';
 
@@ -10,9 +10,12 @@ export const TITLE = { l1: 'HAUNTED', l2: 'to the last stop', th: NARRATIVE.GAME
 export function titleLockup({ presents = false, align = 'left' } = {}) {
   return h('div', { class: `dlb-name-block is-${align}` },
     presents ? h('div', { class: 'dlb-name-by' }, 'Pukking Dragon') : null,
-    h('h1', { class: 'dlb-name', attrs: { lang: 'th' } }, TITLE.th),
+    h('h1', { class: 'dlb-name', attrs: { lang: 'th', 'aria-label': TITLE.th } }, letters(TITLE.th, 'dlb-letters')),
     h('div', { class: 'dlb-name-en en', attrs: { lang: 'en' } }, 'Haunted to the Last Stop'));
 }
+
+/** Four thin corner marks framing a screen (CSS .dlb-corners). */
+export const corners = () => h('div', { class: 'dlb-corners', attrs: { 'aria-hidden': 'true' } });
 
 export const ember = () => h('span', { class: 'dlb-ember', attrs: { 'aria-hidden': 'true' } });
 

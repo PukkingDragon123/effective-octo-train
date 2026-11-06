@@ -1,5 +1,5 @@
 // Hour card: large thin numerals + Thai/English chapter title, ~4.5 s.
-import { h, sleep, enter, leave, parseClock, thaiHourWords, clockString } from './dom.js';
+import { h, sleep, enter, leave, parseClock, thaiHourWords, clockString, letters } from './dom.js';
 import { screen } from './common.js';
 
 export class Chapter {
@@ -26,7 +26,7 @@ export class Chapter {
         word ? h('div', { class: 'dlb-chapter__word', attrs: { lang: 'th' } }, word) : null,
         h('div', { class: 'dlb-chapter__time', attrs: { 'aria-label': time } }, hh ?? time, mm != null ? h('span', { class: 'c' }, ':') : null, mm ?? ''),
         h('div', { class: 'dlb-chapter__hair' }),
-        c.th ? h('div', { class: 'dlb-chapter__th', attrs: { lang: 'th' } }, c.th) : null,
+        c.th ? h('div', { class: 'dlb-chapter__th', attrs: { lang: 'th' } }, letters(c.th, 'dlb-letters')) : null,
         c.en ? h('div', { class: 'dlb-chapter__en' }, c.en) : null));
     this.ui.layer.appendChild(el);
     this.el = el;
