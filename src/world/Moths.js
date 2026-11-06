@@ -33,6 +33,7 @@ export class Moths {
     this.group = new THREE.Group();
     this.group.name = 'moths';
     this.lamps = []; // active lamp anchors
+    this.extra = []; // lamp anchors added by game code (addLamp)
     this._t = 0;
     this._scan = 0;
     this.enabled = true;
@@ -68,8 +69,13 @@ export class Moths {
   }
 
   /** Lit lamps (main lamp anchors of placed props that still have a light). */
+  /** Add a lamp anchor that isn't a placed prop (e.g. the garage tube set up by game code). */
+  addLamp(anchor) {
+    if (anchor && !this.extra.includes(anchor)) this.extra.push(anchor);
+  }
+
   _candidates() {
-    const out = [];
+    const out = [...this.extra];
     for (const r of this.world.placement?.results || []) {
       if (r.lampAnchor && r.lights && r.lights.length) out.push(r.lampAnchor);
     }

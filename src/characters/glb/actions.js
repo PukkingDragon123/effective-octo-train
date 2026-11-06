@@ -102,20 +102,20 @@ export const ACTIONS = {
       // aim from the lips: the hand floats 3.5 cm in front of them (the palm faces the face) and a little
       // low, so the cigarette between the fingers lands its filter on the lips
       const lipsW = h.jaw ? h.jaw.getWorldPosition(new THREE.Vector3()) : null;
-      const mouth = lipsW ? lipsW.addScaledVector(mPalm, -0.035 * h.scale).addScaledVector(mAlong, -0.05 * h.scale) : bp(h, 'Head', -0.018, 0.035, 0.155);
-      const pos = rest.lerp(mouth, easeInOut(toMouth));
-      // the FILTER (not the palm) must meet the lips: feed the remaining gap back into the target
+      let mouth = lipsW ? lipsW.clone().addScaledVector(mPalm, -0.035 * h.scale).addScaledVector(mAlong, -0.05 * h.scale) : bp(h, 'Head', -0.018, 0.035, 0.155);
+      // exact placement: the filter's offset from the wrist (last frame, the hand already oriented for the
+      // lips) is subtracted from the lips; the IK then puts the wrist 8.5 cm back along the fingers and
+      // 2 cm off the palm from its target, so add that back. Smoothed against frame-to-frame jitter.
       const cig = h.held.cigarette?.cig;
       const st = c.st;
-      st.corr = st.corr || new THREE.Vector3();
-      // (learned only while the hand is AT the mouth: during the lift the gap is the path, not the offset)
-      if (cig && h.jaw && toMouth > 0.92) {
-        const lips = h.jaw.getWorldPosition(new THREE.Vector3());
-        const tip = cig.filterWorld(new THREE.Vector3());
-        st.corr.addScaledVector(lips.sub(tip), 0.5);
-        if (st.corr.length() > 0.2) st.corr.setLength(0.2);
+      if (cig && lipsW && toMouth > 0.6) {
+        const wrist = h.rig.worldPos(h.t.index.hand_r, new THREE.Vector3());
+        const off = cig.filterWorld(new THREE.Vector3()).sub(wrist);
+        const want = lipsW.clone().sub(off).addScaledVector(mAlong, 0.085 * h.scale).addScaledVector(mPalm, 0.02 * h.scale);
+        st.want = st.want ? st.want.lerp(want, 0.35) : want;
       }
-      pos.addScaledVector(st.corr, toMouth);
+      if (st.want) mouth = mouth.lerp(st.want, smoothstep(0.6, 0.95, toMouth));
+      const pos = rest.lerp(mouth, easeInOut(toMouth));
       const al = restAlong.lerp(mAlong, toMouth), pa = restPalm.lerp(mPalm, toMouth);
       req(h, 'R', c.w, pos, al, pa, { fingers: 'cig' });
     },

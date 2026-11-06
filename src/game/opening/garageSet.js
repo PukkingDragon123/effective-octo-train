@@ -66,7 +66,8 @@ export function setupGarage(stage, opts = {}) {
   // smoke and moths
   if (A.mosquitoCoilAnchor) stage.emit('incense', { object: A.mosquitoCoilAnchor, count: 30, intensity: 0.5 });
   if (A.smokeAnchor) stage.emit('incense', { object: A.smokeAnchor, count: 40, intensity: 0.7 });
-  if (A.lampAnchor) stage.emit('moths', { object: A.lampAnchor, count: 18, radius: 0.9 });
+  // real-photo moths (world Moths) at the garage tube too; the old particle moths are gone
+  if (A.lampAnchor) g.world?.moths?.addLamp?.(A.lampAnchor);
   smokeRig(stage, g.ahKong);
   try {
     g.audio?.setEnvironment?.('garage');
