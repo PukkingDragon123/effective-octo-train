@@ -807,6 +807,14 @@ export class HumanoidGLB {
 
   _outputs() {
     const t = this.t;
+    // the held cigarette's filter relative to its wrist in the FINAL pose (the smoke action aims with it:
+    // during the next frame's IK the rig is back in the base animation pose)
+    const hc = this.held?.cigarette;
+    if (hc?.cig) {
+      const wi = t.index[hc.side === 'L' ? 'hand_l' : 'hand_r'];
+      this._cigOff = hc.cig.filterWorld(this._cigOff || new THREE.Vector3()).sub(this.rig.worldPos(wi, _v4));
+      if (this.jaw) this._lipsW = this.jaw.getWorldPosition(this._lipsW || new THREE.Vector3()); // after look-at
+    }
     const hb = this.rig.bones[t.index.Head];
     _v.set(0, 0.09 / this.headScale, 0.01).applyMatrix4(hb.matrixWorld);
     this.headPosition.copy(_v);

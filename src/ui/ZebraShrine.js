@@ -162,40 +162,131 @@ float zN(vec2 p) {
   return mix(mix(zH(i), zH(i + vec2(1.0, 0.0)), f.x), mix(zH(i + vec2(0.0, 1.0)), zH(i + vec2(1.0, 1.0)), f.x), f.y);
 }`;
 
-/** Glazed ceramic with painted stripes, yellowed glaze, crazing, grime and chips. */
-export function zebraMaterial() {
+/**
+ * Glazed ceramic with painted stripes, yellowed glaze, crazing, grime and chips. Variants share one
+ * program: fade (sun-bleached: stripes go grey, the glaze yellows), chip (more of the grey body
+ * showing), seed (moves the grime and chips so no two figurines match).
+ */
+export function zebraMaterial({ fade = 0, chip = 0, seed = 0 } = {}) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0 });
+  const U = { uFade: { value: fade }, uChip: { value: chip }, uSeed: { value: seed } };
   m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec3 aSt; varying vec3 vZst; varying vec3 vZp;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvZst = aSt; vZp = position;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec3 vZst; varying vec3 vZp;\n${COAT_GLSL}`)
+      .replace('#include <common>', `#include <common>\nuniform float uFade; uniform float uChip; uniform float uSeed;\nvarying vec3 vZst; varying vec3 vZp;\n${COAT_GLSL}`)
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
 {
-  float warp = (zN(vZp.xz * 9.0 + vZp.y * 3.0) - 0.5) * 1.9 + (zN(vZp.xy * 23.0) - 0.5) * 0.6;
+  vec3 q = vZp + vec3(uSeed * 3.17, 0.0, uSeed * 1.91);
+  float warp = (zN(q.xz * 9.0 + q.y * 3.0) - 0.5) * 1.9 + (zN(q.xy * 23.0) - 0.5) * 0.6;
   float s = sin(vZst.x * 6.2832 + warp);
-  float thr = 0.05 + (zN(vZp.yz * 6.0 + 3.1) - 0.5) * 0.55;
-  float aa = fwidth(s) * 0.9 + 0.02;
+  float thr = 0.05 + (zN(q.yz * 6.0 + 3.1) - 0.5) * 0.55;
+  float aa = fwidth(s) * 0.7 + 0.01;
   float stripe = smoothstep(thr - aa, thr + aa, s) * (1.0 - vZst.z);
   float black = max(stripe, vZst.y);
-  vec3 glaze = vec3(0.83, 0.8, 0.72) * (0.92 + 0.08 * zN(vZp.xy * 14.0));
-  vec3 col = mix(glaze, vec3(0.03, 0.028, 0.026), black);
-  // crazing in the glaze, grime settled low and in the creases, a few chips to the grey body
-  float craze = smoothstep(0.035, 0.0, abs(zN(vZp.xy * 70.0) - zN(vZp.zy * 70.0 + 9.0)));
-  col *= 1.0 - craze * 0.18 * (1.0 - black);
-  float grime = smoothstep(0.55, 0.0, vZp.y) * 0.45 + smoothstep(0.62, 0.9, zN(vZp.xz * 4.0 + 1.7)) * 0.25;
-  col = mix(col, vec3(0.2, 0.17, 0.12), grime * 0.55);
-  float chip = step(0.86, zN(vZp.xy * 31.0 + vZp.z * 17.0));
-  col = mix(col, vec3(0.52, 0.48, 0.42), chip * 0.85);
+  vec3 glaze = mix(vec3(0.86, 0.84, 0.78), vec3(0.8, 0.74, 0.6), uFade) * (0.92 + 0.08 * zN(q.xy * 14.0));
+  vec3 ink = mix(vec3(0.025, 0.024, 0.023), vec3(0.3, 0.29, 0.27), uFade * (0.6 + 0.4 * zN(q.xy * 5.0)));
+  vec3 col = mix(glaze, ink, black);
+  float craze = smoothstep(0.035, 0.0, abs(zN(q.xy * 70.0) - zN(q.zy * 70.0 + 9.0)));
+  col *= 1.0 - craze * (0.14 + 0.2 * uFade) * (1.0 - black);
+  float grime = smoothstep(0.55, 0.0, vZp.y) * 0.5 + smoothstep(0.62, 0.9, zN(q.xz * 4.0 + 1.7)) * 0.25;
+  col = mix(col, vec3(0.18, 0.15, 0.11), grime * 0.55);
+  float chip = step(0.88 - uChip * 0.12, zN(q.xy * 31.0 + q.z * 17.0));
+  col = mix(col, vec3(0.5, 0.47, 0.42), chip * 0.9);
   diffuseColor.rgb = col;
 }`,
       )
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(0.24, 0.75, smoothstep(0.55, 0.0, vZp.y) * 0.6 + step(0.86, zN(vZp.xy * 31.0 + vZp.z * 17.0)) * 0.6);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(0.22, 0.8, clamp(smoothstep(0.55, 0.0, vZp.y) * 0.6 + uFade * 0.4, 0.0, 1.0));');
   };
   m.customProgramCacheKey = () => 'dlb-zebra-ceramic';
+  return m;
+}
+
+/** A candle stub left burnt down: lathed, the rim melted in, wax runs down the side. */
+function candleStub(rng, h, color) {
+  const r = 0.011 + rng() * 0.004;
+  const prof = [[0, 0], [r * 1.25, 0], [r * 1.2, 0.002], [r, 0.006], [r, h * 0.82], [r * 1.05, h * 0.92], [r * 0.95, h], [r * 0.6, h - 0.004], [0.0007, h - 0.006], [0.0007, h + 0.004], [0, h + 0.005]]
+    .map(([x, y]) => new THREE.Vector2(x, y));
+  const g = new THREE.LatheGeometry(prof, 28);
+  const p = g.attributes.position;
+  const s = rng() * 6;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), y = p.getY(i);
+    const a = Math.atan2(z, x);
+    const drip = 1 + 0.12 * Math.max(0, Math.sin(a * 3 + s)) ** 6 * sstep(h, h * 0.3, y);
+    p.setX(i, x * drip);
+    p.setZ(i, z * drip);
+  }
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.55 }));
+}
+
+/** The ledge at the shrine's foot: a chamfered concrete block, small square tiles on top, grime. */
+function ledge(W, D, H, topY) {
+  const tex = (() => {
+    const c = document.createElement('canvas');
+    c.width = 1024;
+    c.height = 832;
+    const x = c.getContext('2d');
+    let seed = 77;
+    const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    x.fillStyle = '#5a554c';
+    x.fillRect(0, 0, c.width, c.height);
+    const T = 52;
+    for (let ty = 0; ty < c.height; ty += T)
+      for (let tx = 0; tx < c.width; tx += T) {
+        const v = 168 + r() * 26;
+        const terr = r() < 0.08;
+        x.fillStyle = terr ? `rgb(${v * 0.62},${v * 0.36},${v * 0.28})` : `rgb(${v},${v * 0.97},${v * 0.9})`;
+        x.fillRect(tx + 2, ty + 2, T - 4, T - 4);
+        if (r() < 0.12) {
+          x.strokeStyle = 'rgba(40,36,30,0.6)';
+          x.lineWidth = 1;
+          x.beginPath();
+          x.moveTo(tx + r() * T, ty);
+          x.lineTo(tx + r() * T, ty + T);
+          x.stroke();
+        }
+      }
+    for (let i = 0; i < 90; i++) {
+      x.fillStyle = `rgba(${40 + r() * 30},${36 + r() * 30},${26 + r() * 14},${0.15 + r() * 0.35})`;
+      x.beginPath();
+      x.ellipse(r() * c.width, r() * c.height, 6 + r() * 60, 4 + r() * 30, r() * 3, 0, Math.PI * 2);
+      x.fill();
+    }
+    for (let i = 0; i < 10; i++) {
+      x.fillStyle = `rgba(120,18,16,${0.15 + r() * 0.2})`;
+      x.beginPath();
+      x.ellipse(r() * c.width, r() * c.height, 8 + r() * 26, 5 + r() * 14, r() * 3, 0, Math.PI * 2);
+      x.fill();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  })();
+  const sh = new THREE.Shape();
+  const c = 0.012;
+  sh.moveTo(-W / 2 + c, -D / 2);
+  sh.lineTo(W / 2 - c, -D / 2);
+  sh.lineTo(W / 2, -D / 2 + c);
+  sh.lineTo(W / 2, D / 2 - c);
+  sh.lineTo(W / 2 - c, D / 2);
+  sh.lineTo(-W / 2 + c, D / 2);
+  sh.lineTo(-W / 2, D / 2 - c);
+  sh.lineTo(-W / 2, -D / 2 + c);
+  sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: H - 0.016, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2 });
+  g.rotateX(-Math.PI / 2);
+  // top UVs from the plan (the extrude's own UVs are in metres)
+  const p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + W / 2) / W, (p.getZ(i) + D / 2) / D + p.getY(i) * 0.6);
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85 }));
+  m.position.y = topY - H + 0.008;
   return m;
 }
 
@@ -333,51 +424,93 @@ class Figurine {
 }
 
 /**
- * Dress the shrine around the urn (urn at the origin, shelf top at shelfY). Returns
- * { figurines, update(dt), nearest(point, n) }.
+ * Dress the ledge around the urn (urn at the origin, ledge top at shelfY): a crowd of zebras in
+ * three sizes facing the road (+Z), bottles, candle stubs, a garland. avoid: [{x, z, r}] areas left
+ * free (the spirit house and its own offerings). Returns { figurines, update(dt), nearest(point, n) }.
  */
-export function buildZebraShrine(scene, rng, shelfY) {
-  const mat = zebraMaterial();
-  const geos = [zebraGeometry(rng, { headDown: 0, stride: 0.2 }), zebraGeometry(rng, { headDown: 0.15, stride: 0.5 }), zebraGeometry(rng, { headDown: 0.55, stride: 0.1 })];
+export function buildZebraShrine(scene, rng, shelfY, { W = 1.6, D = 1.3, H = 0.22, zc = -0.5, avoid = [] } = {}) {
+  const L = ledge(W, D, H, shelfY);
+  L.position.z = zc;
+  scene.add(L);
+  const mats = [zebraMaterial({ seed: 0.3 }), zebraMaterial({ fade: 0.55, chip: 0.4, seed: 1.7 }), zebraMaterial({ fade: 0.2, chip: 0.9, seed: 3.1 }), zebraMaterial({ fade: 0.85, chip: 0.6, seed: 5.3 })];
+  const geos = [zebraGeometry(rng, { headDown: 0, stride: 0.2 }), zebraGeometry(rng, { headDown: 0.12, stride: 0.45 }), zebraGeometry(rng, { headDown: 0.04, stride: 0.05 })];
   const figurines = [];
-  // [x, z, size (shoulder height, m), yaw]
-  // mostly in profile (they read as zebras side-on), small near the urn, bigger further back in the
-  // dark, none in front of the stick; two little ones by the front corners, in the hand's way
-  const P = Math.PI;
-  const spots = [
-    [0.125, -0.015, 0.06, P + 0.3], [-0.125, -0.03, 0.065, 0.25], [0.165, -0.12, 0.075, P - 0.2], [-0.17, -0.13, 0.08, -0.15],
-    [0.05, -0.165, 0.07, P + 0.1], [-0.065, -0.205, 0.085, 0.1], [0.27, -0.2, 0.1, P - 0.4], [-0.3, -0.24, 0.115, 0.35],
-    [0.1, -0.3, 0.13, P], [-0.13, -0.37, 0.15, 0.05], [0.15, 0.075, 0.05, P + 0.6], [-0.15, 0.07, 0.05, -0.5],
-  ];
-
-  spots.forEach(([x, z, h, yaw], i) => {
-    const s = h / 1.0;
-    const m = new THREE.Mesh(geos[i % 3], mat);
-    m.scale.setScalar(s);
-    m.position.set(x, shelfY, z);
-    m.rotation.y = yaw + (rng() - 0.5) * 0.3;
-    m.castShadow = true;
-    m.receiveShadow = true;
+  const placed = [{ x: 0, z: 0, r: 0.1 }, ...avoid];
+  const free = (x, z, r) => placed.every((q) => Math.hypot(q.x - x, q.z - z) > q.r + r);
+  // three sizes; the big ones stand at the back, the small ones crowd the front edge
+  const tiers = [[0.2, 7, -0.62, -0.25], [0.13, 11, -0.4, 0.0], [0.085, 14, -0.15, 0.12]];
+  let n = 0;
+  for (const [h, count, z0, z1] of tiers) {
+    let made = 0;
+    for (let tries = 0; tries < 400 && made < count; tries++) {
+      const x = (rng() - 0.5) * (W - 0.14);
+      const z = z0 + rng() * (z1 - z0);
+      const r = h * 0.48;
+      if (z + h * 0.8 > zc + D / 2 - 0.02 || !free(x, z, r)) continue;
+      placed.push({ x, z, r });
+      const hh = h * (0.9 + rng() * 0.2);
+      const m = new THREE.Mesh(geos[n % 3], mats[(n * 7 + Math.floor(rng() * 3)) % 4]);
+      m.scale.setScalar(hh);
+      m.position.set(x, shelfY, z);
+      m.rotation.y = -Math.PI / 2 + (rng() - 0.5) * 0.7; // facing the road
+      scene.add(m);
+      figurines.push(new Figurine(m, m.position, hh, 0.42 * hh, 0.11 * hh));
+      made++;
+      n++;
+    }
+  }
+  // a few big ones on the ground at the ledge's ends
+  for (const [x, z, h] of [[-W / 2 - 0.16, zc + 0.2, 0.3], [W / 2 + 0.18, zc + 0.05, 0.34], [W / 2 + 0.12, zc + 0.45, 0.22]]) {
+    const m = new THREE.Mesh(geos[n++ % 3], mats[n % 4]);
+    m.scale.setScalar(h);
+    m.position.set(x, shelfY - H, z);
+    m.rotation.y = -Math.PI / 2 + (rng() - 0.5) * 0.4;
     scene.add(m);
-    figurines.push(new Figurine(m, m.position, h * 1.0, 0.42 * s, 0.11 * s));
-  });
-  // red soda bottles left as offerings
-  for (const [x, z] of [[-0.21, -0.13], [-0.24, -0.06], [0.2, -0.13], [0.07, -0.26]]) {
+    figurines.push(new Figurine(m, m.position, h, 0.42 * h, 0.11 * h));
+  }
+  // red soda bottles with straws, candle stubs, a faded garland on the ledge and one round the urn
+  for (const [x, z] of [[-0.2, -0.06], [0.22, -0.02], [-0.55, 0.05], [0.6, -0.1], [0.42, 0.08]]) {
+    if (!free(x, z, 0.035)) continue;
+    placed.push({ x, z, r: 0.035 });
     const b = sodaBottle(rng);
     b.position.set(x, shelfY, z);
     b.rotation.y = rng() * 6;
     scene.add(b);
   }
-  // faded garlands: one on the shelf in front, one hung over the urn's lip
-  scene.add(garland(rng, V(-0.06, shelfY, 0.16), 0.07, 0.035), garland(rng, V(0.0, 0.004, 0.0), 0.066, 0.066, 40));
+  for (const [x, z, col] of [[-0.13, 0.08, 0xe6e0d0], [0.14, 0.09, 0xa8261c], [-0.36, 0.1, 0xe6e0d0], [0.33, -0.12, 0xa8261c]]) {
+    if (!free(x, z, 0.02)) continue;
+    const c = candleStub(rng, 0.03 + rng() * 0.05, col);
+    c.position.set(x, shelfY, z);
+    scene.add(c);
+  }
+  scene.add(garland(rng, V(-0.02, shelfY, 0.16), 0.1, 0.035), garland(rng, V(0.0, 0.004, 0.0), 0.066, 0.066, 40));
+  // the ground beyond the ledge: dark packed earth and gravel
+  const gc = document.createElement('canvas');
+  gc.width = gc.height = 512;
+  const gx = gc.getContext('2d');
+  gx.fillStyle = '#1d1a16';
+  gx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 5000; i++) {
+    const v = 20 + rng() * 50;
+    gx.fillStyle = `rgba(${v},${v * 0.92},${v * 0.8},${0.4 + rng() * 0.5})`;
+    gx.fillRect(rng() * 512, rng() * 512, 1 + rng() * 3, 1 + rng() * 2);
+  }
+  const gt = new THREE.CanvasTexture(gc);
+  gt.colorSpace = THREE.SRGBColorSpace;
+  gt.wrapS = gt.wrapT = THREE.RepeatWrapping;
+  gt.repeat.set(6, 6);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = shelfY - H;
+  scene.add(ground);
   return {
     figurines,
     update(dt) {
       for (const f of figurines) f.update(dt);
     },
     /** The n figurines closest to a point (by their base). */
-    nearest(point, n = 2) {
-      return [...figurines].sort((a, b) => a.base0.distanceToSquared(point) - b.base0.distanceToSquared(point)).slice(0, n);
+    nearest(point, k = 2) {
+      return [...figurines].sort((a, b) => a.base0.distanceToSquared(point) - b.base0.distanceToSquared(point)).slice(0, k);
     },
   };
 }

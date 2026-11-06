@@ -11,6 +11,7 @@ export default async function (ctx) {
   document.body.appendChild(host);
   const sc = new IncenseScene(host, { manual: true });
   window.__inc = sc;
+  await sc.ready;
   const p = Number(ctx.params.get('p') ?? 0.3);
   sc.setProgress(p);
   sc.tip = 0.2985 - p * 0.225 * 0.7;

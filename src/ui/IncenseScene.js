@@ -234,7 +234,7 @@ function urn(rng) {
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   g.computeVertexNormals();
-  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.82, roughness: 0.48 }));
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.55, roughness: 0.68 }));
 }
 
 /** Grey ash and sand in the urn: grains, a mound and crater around the stick, dark burnt crumbs. */
@@ -275,129 +275,6 @@ function ashBed(rng) {
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
   mesh.receiveShadow = true;
   return mesh;
-}
-
-/** The shrine's concrete shelf: weathered cement, lichen, wax and red soda stains, spilt ash. */
-function altarTop() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 512;
-  const x = c.getContext('2d');
-  const rng = makeRng(77);
-  x.fillStyle = '#3a3731';
-  x.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 2600; i++) {
-    const v = 40 + rng() * 40;
-    x.fillStyle = `rgba(${v},${v * 0.96},${v * 0.9},${0.25 + rng() * 0.3})`;
-    x.fillRect(rng() * 512, rng() * 512, 1 + rng() * 3, 1 + rng() * 3);
-  }
-  for (let i = 0; i < 40; i++) {
-    x.fillStyle = `rgba(${50 + rng() * 30},${62 + rng() * 30},${30 + rng() * 14},${0.15 + rng() * 0.25})`;
-    x.beginPath();
-    x.ellipse(rng() * 512, rng() * 512, 4 + rng() * 26, 3 + rng() * 14, rng() * 3, 0, Math.PI * 2);
-    x.fill();
-  }
-  for (let i = 0; i < 12; i++) {
-    x.fillStyle = `rgba(${110 + rng() * 40},${14 + rng() * 10},${16},${0.18 + rng() * 0.2})`;
-    x.beginPath();
-    x.ellipse(rng() * 512, rng() * 512, 6 + rng() * 22, 4 + rng() * 12, rng() * 3, 0, Math.PI * 2);
-    x.fill();
-  }
-  x.strokeStyle = 'rgba(14,12,10,0.55)';
-  for (let i = 0; i < 9; i++) {
-    x.lineWidth = 0.6 + rng();
-    x.beginPath();
-    let px = rng() * 512, py = rng() * 512;
-    x.moveTo(px, py);
-    for (let k = 0; k < 12; k++) x.lineTo((px += (rng() - 0.5) * 40), (py += (rng() - 0.3) * 30));
-    x.stroke();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(2, 1);
-  tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0 }));
-  m.rotation.x = -Math.PI / 2;
-  m.position.set(0, -0.0752, -0.18);
-  m.receiveShadow = true;
-  return m;
-}
-
-/**
- * The shrine wall behind the altar, mostly lost in the dark: red lacquer boards with faded gold
- * cloud scrolls, a sun-bleached yellow talisman sheet with red brush strokes, smoke stains.
- */
-function shrineWall() {
-  const c = document.createElement('canvas');
-  c.width = 1024;
-  c.height = 512;
-  const x = c.getContext('2d');
-  const rng = makeRng(4242);
-  x.fillStyle = '#26221d';
-  x.fillRect(0, 0, 1024, 512);
-  x.fillStyle = 'rgba(120,24,16,0.35)';
-  x.fillRect(0, 300, 1024, 90);
-  // boards
-  for (let b = 0; b < 9; b++) {
-    const bx = b * 118 + rng() * 8;
-    x.fillStyle = `rgba(${70 + rng() * 30},${16 + rng() * 10},${10},0.35)`;
-    x.fillRect(bx, 0, 112, 512);
-    x.fillStyle = 'rgba(0,0,0,0.45)';
-    x.fillRect(bx + 112, 0, 4, 512);
-    for (let i = 0; i < 30; i++) {
-      x.strokeStyle = `rgba(20,4,2,${0.1 + rng() * 0.15})`;
-      x.lineWidth = 0.5 + rng() * 1.5;
-      x.beginPath();
-      const gx = bx + rng() * 112;
-      x.moveTo(gx, 0);
-      x.bezierCurveTo(gx + (rng() - 0.5) * 10, 170, gx + (rng() - 0.5) * 10, 340, gx + (rng() - 0.5) * 8, 512);
-      x.stroke();
-    }
-  }
-  // faded gold cloud scrolls
-  x.lineCap = 'round';
-  for (let i = 0; i < 26; i++) {
-    const cx = rng() * 1024, cy = 60 + rng() * 380, r = 10 + rng() * 26;
-    x.strokeStyle = `rgba(${170 + rng() * 40},${120 + rng() * 30},${50},${0.18 + rng() * 0.2})`;
-    x.lineWidth = 2 + rng() * 3;
-    x.beginPath();
-    for (let k = 0; k < 40; k++) {
-      const a = k * 0.32, rr = r * (1 - k / 46);
-      const px = cx + Math.cos(a) * rr + k * 1.2, py = cy + Math.sin(a) * rr * 0.7;
-      if (k === 0) x.moveTo(px, py);
-      else x.lineTo(px, py);
-    }
-    x.stroke();
-  }
-  // a yellow talisman sheet with red brush strokes, pinned crooked
-  x.save();
-  x.translate(610, 150);
-  x.rotate(0.05);
-  x.fillStyle = 'rgba(186,150,62,0.85)';
-  x.fillRect(-34, -90, 68, 190);
-  x.strokeStyle = 'rgba(120,20,12,0.85)';
-  x.lineWidth = 3;
-  for (let k = 0; k < 9; k++) {
-    x.beginPath();
-    const y = -74 + k * 19;
-    x.moveTo(-20 + rng() * 6, y);
-    x.quadraticCurveTo(rng() * 20 - 10, y + 10 * (rng() - 0.5), 18 - rng() * 6, y + 4 * (rng() - 0.5));
-    x.stroke();
-  }
-  x.restore();
-  // soot rising off the altar
-  const gr = x.createLinearGradient(0, 512, 0, 0);
-  gr.addColorStop(0, 'rgba(0,0,0,0.0)');
-  gr.addColorStop(0.6, 'rgba(0,0,0,0.25)');
-  gr.addColorStop(1, 'rgba(0,0,0,0.75)');
-  x.fillStyle = gr;
-  x.fillRect(0, 0, 1024, 512);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, metalness: 0 }));
-  m.position.set(0.05, 0.3, -0.62);
-  return m;
 }
 
 /** Drifting haze sheets between the objects (dim, slow, cool). */
@@ -564,7 +441,7 @@ export class IncenseScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.78;
+    renderer.toneMappingExposure = 0.9;
     renderer.shadowMap.enabled = false;
     renderer.setClearColor(0x000000, 1);
     this.renderer = renderer;
@@ -572,17 +449,17 @@ export class IncenseScene {
     host.appendChild(renderer.domElement);
 
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.FogExp2(0x020203, 1.2);
+    scene.fog = new THREE.FogExp2(0x020203, 0.2);
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.005, 5);
     const rng = makeRng(1331);
 
     // ---- light: the ember, a cold sliver of moon; once the ember dies the cold creeps in
     this.emberLight = new THREE.PointLight(0xff6326, 0.014, 0.7, 2);
     scene.add(this.emberLight);
-    const moon = new THREE.DirectionalLight(0x8a96a8, 0.17);
+    const moon = new THREE.DirectionalLight(0x8a96a8, 0.24);
     moon.position.set(0.9, 0.6, -0.5);
     // a faint cold wash from the road side, just enough to read the white glaze of the zebras
-    const road = new THREE.DirectionalLight(0x7d8aa0, 0.2);
+    const road = new THREE.DirectionalLight(0x7d8aa0, 0.34);
     road.position.set(0.5, 0.9, 0.8);
     scene.add(moon, road);
     scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
@@ -592,7 +469,7 @@ export class IncenseScene {
 
     // ---- the shrine
     this.urn = urn(rng);
-    scene.add(this.urn, ashBed(rng), altarTop(), shrineWall());
+    scene.add(this.urn, ashBed(rng));
     const stubMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
     for (let i = 0; i < 17; i++) {
       const a = rng() * Math.PI * 2, r = 0.012 + rng() * 0.042;
@@ -611,7 +488,9 @@ export class IncenseScene {
       m.rotation.order = 'ZXY';
       scene.add(m);
     }
-    this.shrine = buildZebraShrine(scene, rng, -0.0752);
+    // the ledge and its crowd of zebras; the spirit house on its post stands at the back of it
+    this.shrine = buildZebraShrine(scene, rng, -0.0752, { avoid: [{ x: 0.0, z: -0.4, r: 0.32 }, { x: 0.05, z: -0.95, r: 0.34 }, { x: 0.12, z: -0.2, r: 0.16 }, { x: -0.1, z: -0.2, r: 0.14 }] });
+    this.ready = this._buildHouse();
     scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.025), haze(-0.42, 1.6, 0.9, 7.1, 0.03));
 
     // ---- the stick
@@ -665,10 +544,10 @@ export class IncenseScene {
     }
 
     // the ember goes out on its own a few seconds in (or when the hand comes, if loading is quick)
-    this.emberOutAt = 4.6;
+    this.emberOutAt = 6.8;
     this.out = null;
-    this.camTarget = new THREE.Vector3(0, 0.1, 0);
-    this.camDist = 0.56;
+    this.camTarget = new THREE.Vector3(0, 0.62, -0.55);
+    this.camDist = 2.5;
     this.grab = null;
     this.hand = null;
     this.fade = 0;
@@ -754,6 +633,24 @@ export class IncenseScene {
     }
   }
 
+  /** The ศาลพระภูมิ from the props module (with its own offerings: incense pot, candles, soda,
+   *  dancers, carved elephants, garlands), once its CC0 models are in. Its materials are shared with
+   *  the game, so dispose() leaves it alone. */
+  async _buildHouse() {
+    try {
+      const P = await import('../props/index.js');
+      await Promise.race([P.loadPropAssets?.(), new Promise((r) => setTimeout(r, 4000))]);
+      if (this.disposed) return;
+      const sh = P.createSpiritHouse({ style: 'thai', size: 0.62, seed: 21, age: 0.85, offerings: true });
+      sh.object.position.set(0.05, -0.0752, -0.95);
+      sh.object.userData.noDispose = true;
+      this.scene.add(sh.object);
+      this.renderer.compile(this.scene, this.camera);
+    } catch (e) {
+      console.warn('[loading] spirit house unavailable', e);
+    }
+  }
+
   /** The stick's ember (top of the burning front) in world space. */
   emberWorld(out) {
     return this.stick.localToWorld(out.set(0, this.tip + 0.0004, 0));
@@ -827,15 +724,17 @@ export class IncenseScene {
 
     // camera: the whole little shrine, the stick in the middle; drifting like a held breath
     const portrait = this.camera.aspect < 1;
-    const want = this.grab ? this.grab.camTarget : this._v.set(-0.02 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1), 0.05 + (this.tip - 0.03) * 0.5, 0);
-    this.camTarget.lerp(want, 1 - Math.exp(-dt * 1.6));
-    const dist = this.grab ? this.grab.camDist : 0.56 + (portrait ? 0.22 : 0) - (this.out ? 0.05 * smooth(0, 4, since) : 0);
-    this.camDist += (dist - this.camDist) * (1 - Math.exp(-dt * 1.4));
+    // it opens wide on the whole shrine, then drifts in to the stick
+    const wide = 1 - smooth(1.0, 7.0, t);
+    const want = this.grab ? this.grab.camTarget : this._v.set(-0.02 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1) * (1 - wide), 0.05 + (this.tip - 0.03) * 0.5 + (0.62 - 0.05 - (this.tip - 0.03) * 0.5) * wide, -0.55 * wide);
+    this.camTarget.lerp(want, 1 - Math.exp(-dt * (this.grab ? 1.6 : 4)));
+    const dist = this.grab ? this.grab.camDist : 0.56 + (portrait ? 0.22 : 0) + (2.5 - 0.56) * wide - (this.out ? 0.05 * smooth(0, 4, since) : 0);
+    this.camDist += (dist - this.camDist) * (1 - Math.exp(-dt * (this.grab ? 1.4 : 4)));
     const sx = Math.sin(t * 0.31) * 0.004 + Math.sin(t * 0.83) * 0.0015, sy = Math.sin(t * 0.27 + 1) * 0.003;
     const shake = this.grab?.shake || 0;
     this.camera.position.set(
       this.camTarget.x + 0.06 + sx + (Math.random() - 0.5) * shake,
-      this.camTarget.y + 0.07 + sy + (Math.random() - 0.5) * shake,
+      this.camTarget.y + 0.07 + 0.18 * (this.grab ? 0 : wide) + sy + (Math.random() - 0.5) * shake,
       this.camTarget.z + this.camDist,
     );
     this.camera.lookAt(this.camTarget.x + sx * 0.3, this.camTarget.y, this.camTarget.z);
@@ -1077,13 +976,16 @@ export class IncenseScene {
     cancelAnimationFrame(this._raf);
     clearTimeout(this._handTimer);
     window.removeEventListener('resize', this._resize);
-    this.scene.traverse((o) => {
+    const free = (o) => {
+      if (o.userData?.noDispose) return;
       if (o.geometry) o.geometry.dispose();
-      if (o.material) {
+      if (o.material && !Array.isArray(o.material)) {
         if (o.material.map) o.material.map.dispose();
         o.material.dispose();
       }
-    });
+      for (const c of o.children) free(c);
+    };
+    free(this.scene);
     this.hand?.dispose?.();
     this.renderer.dispose();
     this.renderer.forceContextLoss?.();
