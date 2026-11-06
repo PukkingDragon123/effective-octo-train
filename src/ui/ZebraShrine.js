@@ -341,11 +341,15 @@ export function buildZebraShrine(scene, rng, shelfY) {
   const geos = [zebraGeometry(rng, { headDown: 0, stride: 0.2 }), zebraGeometry(rng, { headDown: 0.15, stride: 0.5 }), zebraGeometry(rng, { headDown: 0.55, stride: 0.1 })];
   const figurines = [];
   // [x, z, size (shoulder height, m), yaw]
+  // mostly in profile (they read as zebras side-on), small near the urn, bigger further back in the
+  // dark, none in front of the stick; two little ones by the front corners, in the hand's way
+  const P = Math.PI;
   const spots = [
-    [0.13, 0.05, 0.075, 2.6], [0.17, -0.06, 0.09, 2.9], [0.11, 0.13, 0.06, 1.9], [-0.13, 0.06, 0.085, 0.4],
-    [-0.17, -0.08, 0.1, 0.2], [-0.09, 0.14, 0.055, 1.2], [0.24, 0.08, 0.11, 3.3], [-0.27, 0.02, 0.13, -0.3],
-    [0.04, -0.17, 0.12, 1.6], [-0.05, -0.24, 0.16, 1.4], [0.3, -0.18, 0.19, 2.4], [-0.36, -0.22, 0.22, 0.6],
+    [0.125, -0.015, 0.06, P + 0.3], [-0.125, -0.03, 0.065, 0.25], [0.165, -0.12, 0.075, P - 0.2], [-0.17, -0.13, 0.08, -0.15],
+    [0.05, -0.165, 0.07, P + 0.1], [-0.065, -0.205, 0.085, 0.1], [0.27, -0.2, 0.1, P - 0.4], [-0.3, -0.24, 0.115, 0.35],
+    [0.1, -0.3, 0.13, P], [-0.13, -0.37, 0.15, 0.05], [0.15, 0.075, 0.05, P + 0.6], [-0.15, 0.07, 0.05, -0.5],
   ];
+
   spots.forEach(([x, z, h, yaw], i) => {
     const s = h / 1.0;
     const m = new THREE.Mesh(geos[i % 3], mat);

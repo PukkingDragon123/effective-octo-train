@@ -573,7 +573,7 @@ export class IncenseScene {
 
     const scene = (this.scene = new THREE.Scene());
     scene.fog = new THREE.FogExp2(0x020203, 1.2);
-    this.camera = new THREE.PerspectiveCamera(34, 1, 0.005, 5);
+    this.camera = new THREE.PerspectiveCamera(40, 1, 0.005, 5);
     const rng = makeRng(1331);
 
     // ---- light: the ember, a cold sliver of moon; once the ember dies the cold creeps in
@@ -584,7 +584,7 @@ export class IncenseScene {
     scene.add(moon);
     scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
     this.cold = new THREE.PointLight(0x8796b4, 0, 1.6, 2);
-    this.cold.position.set(0.16, 0.3, 0.34);
+    this.cold.position.set(0.34, 0.22, 0.06);
     scene.add(this.cold);
 
     // ---- the shrine
@@ -809,7 +809,7 @@ export class IncenseScene {
     this.halo.position.copy(ember);
     this.halo.material.opacity = (0.55 + 0.35 * heat) * Math.min(1, heat);
     this.halo.visible = heat > 0.01;
-    this.cold.intensity = this.out ? 0.06 * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
+    this.cold.intensity = this.out ? 0.03 * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
     this.scene.traverse((o) => {
       if (o.material?.uniforms?.uSeed) o.material.uniforms.uTime.value = t;
     });
@@ -824,7 +824,7 @@ export class IncenseScene {
 
     // camera: the whole little shrine, the stick in the middle; drifting like a held breath
     const portrait = this.camera.aspect < 1;
-    const want = this.grab ? this.grab.camTarget : this._v.set(-0.02 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1), 0.085 + (this.tip - 0.14) * 0.35, 0);
+    const want = this.grab ? this.grab.camTarget : this._v.set(-0.02 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1), 0.05 + (this.tip - 0.03) * 0.5, 0);
     this.camTarget.lerp(want, 1 - Math.exp(-dt * 1.6));
     const dist = this.grab ? this.grab.camDist : 0.56 + (portrait ? 0.22 : 0) - (this.out ? 0.05 * smooth(0, 4, since) : 0);
     this.camDist += (dist - this.camDist) * (1 - Math.exp(-dt * 1.4));
@@ -832,12 +832,12 @@ export class IncenseScene {
     const shake = this.grab?.shake || 0;
     this.camera.position.set(
       this.camTarget.x + 0.06 + sx + (Math.random() - 0.5) * shake,
-      this.camTarget.y + 0.08 + sy + (Math.random() - 0.5) * shake,
+      this.camTarget.y + 0.07 + sy + (Math.random() - 0.5) * shake,
       this.camTarget.z + this.camDist,
     );
     this.camera.lookAt(this.camTarget.x + sx * 0.3, this.camTarget.y, this.camTarget.z);
     this.renderer.domElement.style.opacity = String(1 - this.fade);
-    this.renderer.render(this.scene, this.camera);
+    if (!this.noRender) this.renderer.render(this.scene, this.camera);
   }
 
   /** The curled ash column snaps off and falls (kick: extra velocity, e.g. the jolt of a grip). */

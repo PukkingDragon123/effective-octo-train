@@ -14,16 +14,19 @@ export default async function (ctx) {
   const p = Number(ctx.params.get('p') ?? 0.3);
   sc.setProgress(p);
   sc.tip = 0.2985 - p * 0.225 * 0.7;
-  const T = Number(ctx.params.get('t') ?? 8);
-  for (let i = 0; i < Math.round(T * 30); i++) sc.update(1 / 30);
-  window.__incStep = (sec) => {
-    for (let i = 0; i < Math.round(sec * 30); i++) sc.update(1 / 30);
+  // step the simulation without drawing (SwiftShader is slow), then draw the last frame
+  const step = (sec) => {
+    sc.noRender = true;
+    for (let i = 0; i < Math.round(sec * 30) - 1; i++) sc.update(1 / 30);
+    sc.noRender = false;
+    sc.update(1 / 30);
   };
+  step(Number(ctx.params.get('t') ?? 8));
+  window.__incStep = step;
   const grab = ctx.params.get('grab');
   if (grab != null) {
     sc._buildHand();
     sc.playGrab();
-    const n = Math.round(Number(grab) * 30);
-    for (let i = 0; i < n; i++) sc.update(1 / 30);
+    step(Number(grab));
   }
 }
