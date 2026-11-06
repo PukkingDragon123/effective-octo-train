@@ -13,8 +13,8 @@
     "desktop": "node tools/desktop/build.mjs"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-sans-thai": "^5.3.0",
-    "@fontsource/kanit": "^5.3.0",
+    "@fontsource/ibm-plex-sans-thai-looped": "^5.3.0",
+    "@fontsource/noto-serif-thai": "^5.3.0",
     "three": "0.170.0"
   },
   "devDependencies": {

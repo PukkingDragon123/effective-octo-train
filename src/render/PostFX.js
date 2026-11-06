@@ -523,7 +523,7 @@ class PostFX {
     fu.tShafts.value = shafts > 0.01 ? this.shaftA.texture : this._black;
     fu.tAO.value = doAO ? this.aoBlurRT.texture : this._white;
     fu.uAO.value = doAO ? 0.85 : 0;
-    fu.uDirt.value = needBloomChain ? 0.35 * clamp(bloomAmt, 0, 1) : 0;
+    fu.uDirt.value = 0; // owner: no lens-dirt specks on screen
     fu.uTime.value = (fu.uTime.value + dt) % 1000;
     fu.uExposure.value = exposure;
     fu.uSaturation.value = (grade?.saturation ?? 1) * P.saturation;

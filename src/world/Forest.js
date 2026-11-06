@@ -26,7 +26,7 @@ const CLEAR_STRIP = 1.5; // no undergrowth / low foliage within this beyond the 
 const CLEAR_LOW = 2.5; // ... below this height
 const CLEAR_HEIGHT = 4.5; // nothing below this hangs over the asphalt (m above the road)
 const CLEAR_THIN_E = 6; // undergrowth within this of the asphalt edge is thinned ...
-const CLEAR_THIN = 0.45; // ... by this fraction
+const CLEAR_THIN = 0.15; // ... by this fraction (owner: keep it dense)
 const CLEAR_KNEE_E = 5; // grass this close to the road is knee high
 const UNDERGROWTH = new Set(['fern', 'grass', 'shrub', 'elephantEar', 'banana', 'treeFern', 'understory', 'bamboo', 'palm']);
 const cellKey = (ix, iz) => (ix + 4096) * 8192 + (iz + 4096);

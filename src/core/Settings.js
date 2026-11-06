@@ -12,22 +12,22 @@ const KEY = 'dlbih.settings.v1';
 export const GRAPHICS_PRESETS = {
   low: {
     resolutionScale: 0.6, painterly: 0, painterlyQuality: 'low', bloom: 0.5, shadows: false, ambientOcclusion: false,
-    shadowMapSize: 512, mirrorResolution: 192, glassReflections: false, foliageDensity: 0.5,
+    shadowMapSize: 512, mirrorResolution: 192, glassReflections: false, foliageDensity: 0.65,
     particles: 0.45, drawDistance: 90, volumetrics: false,
   },
   medium: {
     resolutionScale: 0.8, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true, ambientOcclusion: true,
-    shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 0.75,
+    shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 1.0,
     particles: 0.75, drawDistance: 120, volumetrics: true,
   },
   high: {
     resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.8, shadows: true, ambientOcclusion: true,
-    shadowMapSize: 2048, mirrorResolution: 384, glassReflections: true, foliageDensity: 1.0,
+    shadowMapSize: 2048, mirrorResolution: 384, glassReflections: true, foliageDensity: 1.2,
     particles: 1.0, drawDistance: 150, volumetrics: true,
   },
   ultra: {
     resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true, ambientOcclusion: true,
-    shadowMapSize: 2048, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.3,
+    shadowMapSize: 2048, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.45,
     particles: 1.3, drawDistance: 190, volumetrics: true,
   },
 };

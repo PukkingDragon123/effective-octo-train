@@ -140,6 +140,28 @@ function bagTexture() {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
+  // owner: the pack shows a REAL photo (the CC0 stock snack-bag print), not a painted one.
+  // Front and back panels get the photo between the crimped silver seals; the painted
+  // version above only shows until the image arrives.
+  const img = new Image();
+  img.onload = () => {
+    for (const ox of [0, 256]) {
+      x.save();
+      x.beginPath();
+      x.rect(ox, 36, 256, 288);
+      x.clip();
+      const s = Math.max(256 / img.width, 288 / img.height);
+      const w = img.width * s, h = img.height * s;
+      x.drawImage(img, ox + (256 - w) / 2, 36 + (288 - h) / 2, w, h);
+      if (ox) {
+        x.fillStyle = 'rgba(10,10,10,0.35)'; // the back panel sits a little darker
+        x.fillRect(ox, 36, 256, 288);
+      }
+      x.restore();
+    }
+    tex.needsUpdate = true;
+  };
+  img.src = 'assets/textures/printed/snack_bag__corn.webp';
   return tex;
 }
 

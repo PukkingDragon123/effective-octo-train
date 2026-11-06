@@ -26,17 +26,19 @@ function splitHead(geo, t) {
   const hw = (i) => { let w = 0; for (let k = 0; k < 4; k++) if (head.has(si.getComponent(i, k))) w += sw.getComponent(i, k); return w; };
   // shoulder caps (clavicle / upper-arm skin and sleeve within ~8.5 cm above the shoulder joint) bulge up
   // beside the eye when the hands reach forward: they go with the head (mirrors only, never in view)
-  const shoulderBones = new Set(['clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r'].map((n) => t.index[n]).filter((i) => i !== undefined));
+  // (owner: the shoulders and neck base still bugged into view; the whole top of the shoulders, the
+  // trapezius and the collar above the arm joints now go with the head too)
+  const shoulderBones = new Set(['clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r', 'spine_03'].map((n) => t.index[n]).filter((i) => i !== undefined));
   const joints = ['upperarm_l', 'upperarm_r'].map((n) => t.Gp[t.index[n]]).filter(Boolean);
   const pos = geo.attributes.position;
   const sh = (i) => {
     let w = 0;
     for (let k = 0; k < 4; k++) if (shoulderBones.has(si.getComponent(i, k))) w += sw.getComponent(i, k);
-    if (w < 0.45) return 0;
+    if (w < 0.35) return 0;
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
     let d = Infinity;
     for (const j of joints) d = Math.min(d, Math.hypot(x - j.x, y - j.y, z - j.z));
-    return d < 0.085 && y > (joints[0]?.y ?? 0) - 0.01 ? 1 : 0; // only the cap that rises beside the eye
+    return d < 0.15 && y > (joints[0]?.y ?? 0) - 0.03 ? 1 : 0; // everything that can rise beside the eye
   };
   const idx = geo.index.array;
   const A = [], B = [], M = [];
