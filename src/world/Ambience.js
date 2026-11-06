@@ -60,6 +60,21 @@ export class Ambience {
       }
     }
     for (const m of T?.mods || []) if (m.dh < 0) mist({ x: m.x, z: m.z }, m.r * 0.6, 1.1);
+    // sparse fog pockets where the road dips (a low point at least 1.2 m under the road 60 m
+    // either side), at most 10 and 250 m apart
+    {
+      const dips = [];
+      for (const sp of this.world.road?.splines?.values?.() || []) {
+        for (let s = 70; s < sp.length - 70; s += 10) {
+          const h = sp.heightAt(s);
+          if (h < sp.heightAt(s - 10) && h <= sp.heightAt(s + 10) && h < sp.heightAt(s - 60) - 1.2 && h < sp.heightAt(s + 60) - 1.2) {
+            const p = sp.pointAt(s, 0);
+            if (dips.every((d) => Math.hypot(d.x - p.x, d.z - p.z) > 250)) dips.push(p);
+          }
+        }
+      }
+      for (const p of dips.slice(0, 10)) mist(p, 18, 1.15);
+    }
     for (const key of ['hiddenPond', 'bananaGrove', 'elephantCrossing', 'ghostGate', 'shrineApproach', 'shrineMaRuay', 'sacredTree1', 'sacredTree3']) {
       const L = lm[key];
       if (L) mist(key === 'shrineMaRuay' ? L.centre || L.pos : L.pos, key === 'bananaGrove' || key === 'shrineApproach' ? 24 : 16, key === 'ghostGate' ? 1.5 : 1);

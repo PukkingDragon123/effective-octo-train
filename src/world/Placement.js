@@ -20,6 +20,18 @@ import { ChunkBatcher } from './Batch.js';
 
 const TAG = 'world';
 const SMALL_PIECE_DIST = 85; // offerings / small shrines are not drawn beyond this (m)
+// footprint of each road scare: half extents along (hx) / away from (hz) the road, clearing, pad
+const SCARE_FOOT = {
+  abandoned_shrine: { hx: 0.8, hz: 0.6, clear: 2.4, pad: 'gravel' },
+  bike_wreck: { hx: 1.4, hz: 1.0, clear: 2.8, pad: 'dirt' },
+  school_chairs: { hx: 1.7, hz: 0.4, clear: 2.6, pad: 'dirt' },
+  broken_shelter: { hx: 2.6, hz: 1.0, clear: 4.0, pad: 'concrete' },
+  cctv_warning: { hx: 1.0, hz: 0.3, clear: 1.8, pad: null },
+  culvert: { hx: 1.3, hz: 0.3, clear: 2.4, pad: null },
+  empty_stall: { hx: 1.2, hz: 0.9, clear: 3.4, pad: 'gravel' },
+  cloth_tree: { hx: 1.5, hz: 1.5, clear: 6.0, pad: null },
+  flicker_lamp: { hx: 0.3, hz: 0, clear: 1.4, pad: null },
+};
 // set pieces the game reads as soon as the menu is up (the intro's spirit house, the fork shrine)
 const SYNC_LANDMARKS = new Set(['shrineMaRuay', 'spurShrine', 'spurStart', 'spurJunction', 'shrineApproach', 'fatherLamp']);
 const POLE_E = 1.0; // pole distance beyond the asphalt edge (m)
@@ -95,6 +107,36 @@ export class Placement {
         const p = sp.pointAt(g.roadRef.s, s * 4.75);
         plan.clearings.push({ x: p.x, z: p.z, r: 2.2, key: 'ghostGatePost' });
       }
+    }
+
+    // ---- unsettling roadside set dressing (LAYOUT.scares) -------------------------------------
+    for (const [i, sc] of (layout.scares || []).entries()) {
+      const sp = road.get(sc.spline);
+      if (!sp) continue;
+      const side = sc.side === 'L' ? -1 : 1;
+      const s = Math.min(sp.length - 2, Math.max(2, sc.u * sp.length));
+      const seed = 900 + i * 17;
+      if (sc.kind === 'dead_lamps') {
+        // a run of streetlights whose lamps have all died
+        const s1 = Math.min(sp.length - 2, (sc.u1 ?? sc.u + 0.02) * sp.length);
+        for (let t = s, j = 0; t <= s1; t += 34, j++) {
+          const lat = side * (hw + sc.offset);
+          const q = sp.pointAt(t, lat);
+          this.items.push({ type: 'scare', kind: 'dead_lamp', id: sc.spline, s: t, lat, side, seed: seed + j });
+          this.points.push({ x: q.x, z: q.z, r: 1 });
+          plan.clearings.push({ x: q.x, z: q.z, r: 1.4, key: 'scare' });
+        }
+        block(sc.spline, s - 8, s1 + 8, side);
+        continue;
+      }
+      const F = SCARE_FOOT[sc.kind] || { hz: 0.5, clear: 2, pad: null };
+      const lat = side * (hw + sc.offset + F.hz);
+      const q = sp.pointAt(s, lat);
+      this.items.push({ type: 'scare', kind: sc.kind, id: sc.spline, s, lat, side, seed });
+      this.points.push({ x: q.x, z: q.z, r: F.clear * 0.6 });
+      plan.clearings.push({ x: q.x, z: q.z, r: F.clear, key: 'scare' });
+      if (F.pad) plan.pads.push({ x: q.x, z: q.z, hx: F.hx, hz: F.hz + 0.2, yaw: faceRoadYaw(sp.yawAt(s), side < 0 ? 'L' : 'R'), h: sp.heightAt(s) - 0.05, blend: 2.2, kind: F.pad });
+      block(sc.spline, s - (F.hx + 6), s + (F.hx + 6), side);
     }
 
     // ---- features: guardrails, convex mirrors, curve warnings --------------------------------
@@ -708,7 +750,7 @@ export class Placement {
     const pos = lm.pos.clone();
     pos.y = this._ground(pos.x, pos.z) - 0.05;
     tree.position.copy(pos);
-    tree.rotation.y = seed;
+    tree.rotation.y = forest.clearYaw ? forest.clearYaw(built, pos.x, pos.z, pos.y, seed) : seed;
     tree.updateMatrix();
     tree.name = 'sacredTree_' + lm.key;
     this.group.add(tree);
@@ -741,6 +783,69 @@ export class Placement {
     lm.anchors.offering = sh.offeringAnchor || null;
     lm.anchors.incense = sh.incenseAnchor || null;
     return result;
+  }
+
+  /** One LAYOUT.scares piece (see props createRoadScare). */
+  _buildScare(it, sp) {
+    const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
+    const ty = sp.yawAt(it.s);
+    const face = faceRoadYaw(ty, it.side < 0 ? 'L' : 'R');
+    if (it.kind === 'flicker_lamp' || it.kind === 'dead_lamp') {
+      // the lamp arm reaches over the road (+X = right of travel on the left edge)
+      const yaw = it.side < 0 ? ty : ty + Math.PI;
+      const dead = it.kind === 'dead_lamp';
+      const res = P.createStreetlight(dead ? { kind: 'sodium', seed: it.seed, height: 6.8 } : it.seed % 2 ? { kind: 'dying', seed: it.seed, height: 6.6 } : { kind: 'sodium', broken: true, seed: it.seed, height: 7.0 });
+      if (dead) {
+        res.lights = [];
+        for (const c of res.lampControllers || []) c.on = false;
+      }
+      this._put(res, p, yaw, { r: 20 });
+      return;
+    }
+    if (it.kind === 'cloth_tree') {
+      this._clothTree(it, p, face);
+      return;
+    }
+    const res = P.createRoadScare(it.kind, { seed: it.seed });
+    // the culvert mouth sits down in the ditch
+    if (it.kind === 'culvert') p.y -= 0.35;
+    this._put(res, p, face, { batch: true });
+  }
+
+  /** A big old tree on the verge with white cloth tied round it and old offerings at its foot. */
+  _clothTree(it, pos, yaw) {
+    const forest = this.world.forest;
+    if (!forest) return;
+    const species = it.seed % 2 ? 'dipterocarp' : 'rainTree';
+    const tree = forest.makeSingle(species, it.seed % 3, 9500 + it.seed, { scale: 0.95 });
+    const base = pos.clone();
+    base.y = this._ground(base.x, base.z) - 0.05;
+    tree.position.copy(base);
+    // turn the crown's lowest limbs away from the road (keeps the road clearance)
+    tree.rotation.y = forest.clearYaw ? forest.clearYaw(tree.userData.built, base.x, base.z, base.y, it.seed) : it.seed;
+    tree.updateMatrix();
+    tree.name = 'clothTree';
+    this.group.add(tree);
+    this.pieces.push({ object: tree, x: base.x, z: base.z, r: 40 });
+    const r = trunkRadius(tree.userData.built.lods[0], 1.0, 1.9) || 0.8;
+    const wrap = P.createClothWrap(r, 1.0, 1.75, { seed: it.seed, colors: [0xe8e4da, 0xdedad0, 0xd4cfc2], garland: true });
+    wrap.position.copy(base);
+    wrap.rotation.y = yaw;
+    this.group.add(wrap);
+    this.pieces.push({ object: wrap, x: base.x, z: base.z, r: 30, near: true });
+    colliders.addCircle(base.x, base.z, Math.max(0.6, r * 0.95), { tag: TAG });
+    this.colliderCount++;
+    const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const at = (f, s2) => {
+      const q = base.clone().addScaledVector(fwd, r + f).addScaledVector(side, s2);
+      q.y = this._ground(q.x, q.z);
+      return q;
+    };
+    // old offerings: faded trays, dead garlands, burnt-down candles, a few red soda bottles
+    for (const [k, f, s2] of [['offering_tray', 0.45, -0.3], ['red_soda_bottles', 0.4, 0.5], ['candles', 0.35, 0.1], ['zebra_statues', 0.6, -0.9], ['incense_pot', 0.5, 0.95]]) {
+      this._put(P.createDressing(k, { seed: it.seed + k.length, age: 1 }), at(f, s2), yaw + (s2 * 0.3), { near: true });
+    }
   }
 
   /** Banana grove: one old banana plant wrapped in cloth for นางตานี, offerings at its foot. */
@@ -901,6 +1006,9 @@ export class Placement {
           this._put(P.createDressing(it.kind, { seed: it.seed, fallen: it.seed % 3 === 0 }), p, yaw, { batch: true });
           break;
         }
+        case 'scare':
+          this._buildScare(it, sp);
+          break;
         case 'guardrail': {
           const pts = [];
           const tmpP = new THREE.Vector3();

@@ -93,6 +93,7 @@ import * as roadside from './roadside.js';
 import * as temple from './temple.js';
 import * as pond from './pond.js';
 import * as dressing from './dressing.js';
+import * as scares from './scares.js';
 import { prefetchSculpts, sculptsReady } from './lib/sculptPrefetch.js';
 
 // Mesh the SDF statues in a worker while the rest of the game boots (see sculptPrefetch.js).
@@ -135,6 +136,13 @@ export const createBuddhaStatue = lit(temple.createBuddhaStatue);
 export const createForestTemple = lit(temple.createForestTemple);
 export const createPond = pond.createPond;
 export const createDressing = lit(dressing.createDressing, 1);
+/**
+ * Unsettling roadside set dressing (front = local +Z, origin on the ground):
+ * kind 'abandoned_shrine' | 'bike_wreck' | 'school_chairs' | 'broken_shelter' | 'cctv_warning' |
+ * 'culvert' | 'empty_stall'; opts {seed, n, lights}. -> {object, colliders, lights, lampControllers}
+ */
+export const createRoadScare = lit(scares.createRoadScare);
+export const ROAD_SCARE_KINDS = scares.ROAD_SCARE_KINDS;
 export { LIGHT_PRESETS, lightSpec, flickerValue } from './lib/lights.js';
 export { loadPropAssets, propAssetsStatus, hasAsset as hasPropAsset, PROP_ASSETS } from './lib/assets.js';
 
@@ -182,7 +190,7 @@ export const PROP_FACTORIES = [
   'createElectricPole', 'createWireSpan', 'createStreetlight', 'createSpiritHouse', 'createSala', 'createShrineMaRuay',
   'createGarage', 'createBusStop', 'createNoodleStall', 'createBridge', 'createGuardrail', 'createBuddhaStatue',
   'createForestTemple', 'createAccidentMemorial', 'createGhostGate', 'createVillageStop', 'createSignPost',
-  'createConvexMirror', 'createIncensePot', 'createPond', 'createClothWrap', 'createDressing',
+  'createConvexMirror', 'createIncensePot', 'createPond', 'createClothWrap', 'createDressing', 'createRoadScare',
 ];
 
 /** The contract's dressing kinds (createDressing also accepts the extras listed in dressing.js). */

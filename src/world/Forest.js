@@ -751,6 +751,30 @@ export class Forest {
     return true;
   }
 
+  /**
+   * Yaw for a hero tree (makeSingle, already scaled) at (x, z), base height y, that keeps its
+   * low limbs off the road where possible (the best of 12 turns otherwise).
+   */
+  clearYaw(built, x, z, y, seed = 0) {
+    const T = this.world.terrain;
+    const nr = T?.nearestRoad?.(x, z);
+    if (!nr || !nr.sp || !nr.exact) return seed;
+    const e = nr.e, side = nr.side, tg = nr.sp.tangents[nr.i], hr = nr.hr;
+    const prof = this._profile({ built });
+    const theta = Math.atan2(-side * tg.x, side * tg.z);
+    let best = seed, bestNeed = Infinity;
+    for (let t = 0; t < 12; t++) {
+      const yw = seed + (t * Math.PI) / 6;
+      const need = this._clearNeed(prof, 1, 1, yw, theta, 0, y - hr);
+      if (need <= e) return yw;
+      if (need < bestNeed) {
+        bestNeed = need;
+        best = yw;
+      }
+    }
+    return best;
+  }
+
   /** Minimum asphalt-edge distance for this instance to keep the road clear (see _place). */
   _clearNeed(prof, sc, sy, yaw, theta, lean, dh) {
     const c = prof.cells, half = prof.half;
