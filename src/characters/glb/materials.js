@@ -386,6 +386,8 @@ const EYE_CATCHLIGHT = /* glsl */ `
   vec3 lit = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
   float irr = dot(lit, vec3(0.333)) / max(dot(diffuseColor.rgb, vec3(0.333)), 0.05);
   reflectedLight.directSpecular += vec3(1.0, 0.97, 0.92) * cl * 0.9 * clamp(irr, 0.0, 1.5) * (1.0 - uGhost.w);
+  float scl = smoothstep(0.35, 0.7, dot(diffuseColor.rgb, vec3(0.333))) * (1.0 - uGhost.w);
+  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.06 * scl; // the white of the eye never goes pitch black
 }
 `;
 

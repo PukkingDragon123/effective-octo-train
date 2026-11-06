@@ -760,7 +760,9 @@ export class HumanoidGLB {
     this._lod = l;
     if (this.isMH) {
       this.body.geometry = this._mhGeometry();
-      this.eyes.visible = l === 'hi';
+      // the MakeHuman LOD body has OPEN eye holes: its eyeballs must stay (hiding them showed the dark
+      // inside of the head: black eyes on every distant character)
+      this.eyes.visible = true;
       if (this.worn) this.worn.visible = l === 'hi';
       return;
     }
