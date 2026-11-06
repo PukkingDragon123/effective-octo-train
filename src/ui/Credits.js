@@ -44,8 +44,8 @@ const SECTIONS = [
   {
     th: 'แบบอักษร', en: 'Typefaces',
     lines: [
-      { role: { th: 'ตัวอักษรหัวเรื่อง', en: 'Titles' }, name: 'Noto Serif Thai', small: 'Google · SIL Open Font License 1.1' },
-      { role: { th: 'ตัวอักษรเนื้อความ', en: 'Text' }, name: 'IBM Plex Sans Thai Looped', small: 'IBM · Cadson Demak · SIL Open Font License 1.1' },
+      { role: { th: 'ตัวอักษรหัวเรื่อง', en: 'Titles' }, name: 'Kanit', small: 'Cadson Demak · SIL Open Font License 1.1' },
+      { role: { th: 'ตัวอักษรเนื้อความ', en: 'Text' }, name: 'IBM Plex Sans Thai', small: 'IBM · Cadson Demak · SIL Open Font License 1.1' },
     ],
   },
 ];

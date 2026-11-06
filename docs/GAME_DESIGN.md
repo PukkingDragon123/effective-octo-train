@@ -16,7 +16,7 @@ and by sunrise it is peaceful and emotional.
 * **The game is 100 % Thai** (`settings.language = 'th'` by default) with **almost zero
   text**. Information comes through the world, voices, sound and the rules paper.
   English exists only as an optional helper (`language = 'both'`).
-* **Typography (owner, latest): modern Thai fonts.** Kanit for titles and cards, a clean modern sans (Anuphan or IBM Plex Sans Thai) for body text. Grand, polished, never "AI-looking". (Replaces the earlier Srisakdi-only rule.)
+* **Typography (owner, latest): modern loopless Thai.** Kanit for titles and cards, IBM Plex Sans Thai for text. Grand, polished, never "AI-looking".
 * **Dialogue is interactive:** Ton replies through short Thai choices (with timeouts, and
   silence is a valid answer). Replies change what passengers say, reveal clues, can break
   rules (r7, r16), and decide the endings.

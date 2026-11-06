@@ -1,23 +1,27 @@
-// The game's typefaces (owner's choice: modern Thai WITH heads (looped), both SIL OFL 1.1, bundled
-// via @fontsource, Thai + Latin subsets only):
-//   Noto Serif Thai: titles and cards (grand, looped), 800 / 600 for big lines, 300 for secondary.
-//   IBM Plex Sans Thai Looped: body text, subtitles, menus, labels (clean modern looped Thai).
+// The game's typefaces (owner's choice, both SIL OFL 1.1, bundled via @fontsource, Thai + Latin
+// subsets only):
+//   Kanit (Cadson Demak): titles and cards, heavy 600 / 800 for the big lines, light 200 / 300
+//   for large secondary lines and numerals.
+//   IBM Plex Sans Thai (IBM / Cadson Demak): body text, subtitles, menus, labels; clean Thai with
+//   its own Latin.
 // Canvas-generated textures (signs, labels, the rules paper) must await loadFonts() before drawing.
-import '@fontsource/noto-serif-thai/thai-300.css';
-import '@fontsource/noto-serif-thai/latin-300.css';
-import '@fontsource/noto-serif-thai/thai-600.css';
-import '@fontsource/noto-serif-thai/latin-600.css';
-import '@fontsource/noto-serif-thai/thai-800.css';
-import '@fontsource/noto-serif-thai/latin-800.css';
-import '@fontsource/ibm-plex-sans-thai-looped/thai-400.css';
-import '@fontsource/ibm-plex-sans-thai-looped/latin-400.css';
-import '@fontsource/ibm-plex-sans-thai-looped/thai-500.css';
-import '@fontsource/ibm-plex-sans-thai-looped/latin-500.css';
-import '@fontsource/ibm-plex-sans-thai-looped/thai-600.css';
-import '@fontsource/ibm-plex-sans-thai-looped/latin-600.css';
+import '@fontsource/kanit/thai-200.css';
+import '@fontsource/kanit/latin-200.css';
+import '@fontsource/kanit/thai-300.css';
+import '@fontsource/kanit/latin-300.css';
+import '@fontsource/kanit/thai-600.css';
+import '@fontsource/kanit/latin-600.css';
+import '@fontsource/kanit/thai-800.css';
+import '@fontsource/kanit/latin-800.css';
+import '@fontsource/ibm-plex-sans-thai/thai-400.css';
+import '@fontsource/ibm-plex-sans-thai/latin-400.css';
+import '@fontsource/ibm-plex-sans-thai/thai-500.css';
+import '@fontsource/ibm-plex-sans-thai/latin-500.css';
+import '@fontsource/ibm-plex-sans-thai/thai-600.css';
+import '@fontsource/ibm-plex-sans-thai/latin-600.css';
 
-const KANIT = "'Noto Serif Thai', 'IBM Plex Sans Thai Looped', 'Leelawadee UI', 'Thonburi', serif";
-const PLEX = "'IBM Plex Sans Thai Looped', 'Noto Sans Thai Looped', 'Leelawadee UI', 'Thonburi', sans-serif";
+const KANIT = "'Kanit', 'IBM Plex Sans Thai', 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', sans-serif";
+const PLEX = "'IBM Plex Sans Thai', 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', sans-serif";
 
 /** Font stacks for canvas & CSS use. */
 export const FONTS = {
@@ -30,12 +34,12 @@ export const FONTS = {
 };
 
 /** Weights bundled per family (use only these). */
-export const FONT_WEIGHTS = { kanit: [300, 600, 800], plex: [400, 500, 600] }; // kanit = title family (now Noto Serif Thai)
+export const FONT_WEIGHTS = { kanit: [200, 300, 600, 800], plex: [400, 500, 600] };
 
 let promise = null;
 export function loadFonts() {
   if (promise) return promise;
-  const specs = ["800 32px 'Noto Serif Thai'", "600 32px 'Noto Serif Thai'", "300 32px 'Noto Serif Thai'", "400 32px 'IBM Plex Sans Thai Looped'", "500 32px 'IBM Plex Sans Thai Looped'", "600 32px 'IBM Plex Sans Thai Looped'"];
+  const specs = ["800 32px 'Kanit'", "600 32px 'Kanit'", "300 32px 'Kanit'", "200 32px 'Kanit'", "400 32px 'IBM Plex Sans Thai'", "500 32px 'IBM Plex Sans Thai'", "600 32px 'IBM Plex Sans Thai'"];
   const sample = 'กขคงจ ศาลเจ้ามารวย ABC 123';
   promise = Promise.race([
     Promise.all(specs.map((s) => document.fonts.load(s, sample).catch(() => null))),
