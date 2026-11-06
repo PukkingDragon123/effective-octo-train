@@ -97,7 +97,7 @@ export const SETTINGS_TABS = [
           { key: 'subtitles', type: 'seg', th: 'ภาษาคำบรรยาย', en: 'Subtitles', thMain: true, options: [['th', 'ไทย', 'Thai'], ['en', 'English', 'อังกฤษ'], ['both', 'ทั้งสอง', 'Both'], ['off', 'ปิด', 'Off']] },
           { key: 'subtitleSize', type: 'slider', th: 'ขนาดตัวอักษร', en: 'Subtitle size', min: 0.75, max: 1.6, step: 0.05, fmt: 'x' },
           {
-            key: 'voice', type: 'seg', th: 'เสียงพากย์', en: 'Voices', options: [['auto', 'Auto', 'อัตโนมัติ'], ['murmur', 'Murmur', 'เสียงพึมพำ'], ['off', 'Off', 'ปิด']],
+            key: 'voice', type: 'seg', th: 'เสียงพากย์', en: 'Voices', options: [['auto', 'Human', 'เสียงคน'], ['tts', 'Thai TTS', 'เสียงอ่านไทย'], ['off', 'Off', 'ปิด']],
             noteTh: 'อัตโนมัติ = ใช้เสียงภาษาไทยของเครื่องเมื่อมี', noteEn: 'Auto speaks Thai with your system voice when one is installed',
           },
         ],

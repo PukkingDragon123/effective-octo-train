@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS = {
   language: 'th', // 'th' = the whole game in Thai only (default) | 'both' = Thai with English helpers
   subtitles: 'th', // 'en' | 'th' | 'both' | 'off'
   subtitleSize: 1.0,
-  voice: 'auto', // 'auto' (Thai TTS when the OS has a Thai voice, else murmur) | 'murmur' | 'off'
+  voice: 'auto', // 'auto' (gibberish cut from real recorded voices) | 'tts' (OS Thai TTS when present) | 'murmur' | 'off'
   // audio
   volMaster: 0.9,
   volMusic: 0.7,
