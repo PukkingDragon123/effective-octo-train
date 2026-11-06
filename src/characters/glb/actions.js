@@ -108,10 +108,11 @@ export const ACTIONS = {
       const cig = h.held.cigarette?.cig;
       const st = c.st;
       st.corr = st.corr || new THREE.Vector3();
-      if (cig && h.jaw && toMouth > 0.3) {
+      // (learned only while the hand is AT the mouth: during the lift the gap is the path, not the offset)
+      if (cig && h.jaw && toMouth > 0.92) {
         const lips = h.jaw.getWorldPosition(new THREE.Vector3());
         const tip = cig.filterWorld(new THREE.Vector3());
-        st.corr.addScaledVector(lips.sub(tip), 0.65 * toMouth);
+        st.corr.addScaledVector(lips.sub(tip), 0.5);
         if (st.corr.length() > 0.2) st.corr.setLength(0.2);
       }
       pos.addScaledVector(st.corr, toMouth);
