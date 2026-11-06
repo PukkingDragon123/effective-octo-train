@@ -441,7 +441,7 @@ export class IncenseScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.9;
+    renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = false;
     renderer.setClearColor(0x000000, 1);
     this.renderer = renderer;
@@ -454,12 +454,12 @@ export class IncenseScene {
     const rng = makeRng(1331);
 
     // ---- light: the ember, a cold sliver of moon; once the ember dies the cold creeps in
-    this.emberLight = new THREE.PointLight(0xff6326, 0.014, 0.7, 2);
+    this.emberLight = new THREE.PointLight(0xff6326, 0.03, 1.1, 2);
     scene.add(this.emberLight);
     const moon = new THREE.DirectionalLight(0x8a96a8, 0.24);
     moon.position.set(0.9, 0.6, -0.5);
     // a faint cold wash from the road side, just enough to read the white glaze of the zebras
-    const road = new THREE.DirectionalLight(0x7d8aa0, 0.34);
+    const road = new THREE.DirectionalLight(0x7d8aa0, 0.55);
     road.position.set(0.5, 0.9, 0.8);
     scene.add(moon, road);
     scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
@@ -705,7 +705,7 @@ export class IncenseScene {
     const ember = this.emberWorld(this._ember);
     const smokeAt = this.smokeSource(this._smokeAt);
     this.emberLight.position.copy(ember).add(this._v.set(0.0012, 0.004, 0.003));
-    this.emberLight.intensity = 0.014 * heat * (1 - this.fade);
+    this.emberLight.intensity = 0.03 * heat * (1 - this.fade);
     this.halo.position.copy(ember);
     this.halo.material.opacity = (0.55 + 0.35 * heat) * Math.min(1, heat);
     this.halo.visible = heat > 0.01;

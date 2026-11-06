@@ -53,103 +53,132 @@ function sweep(pts, { rings = 40, radial = 16, r, coat }) {
 const ends = (t, e0, e1 = e0) => Math.sqrt(clamp(t / e0, 0.02, 1)) * Math.sqrt(clamp((1 - t) / e1, 0.02, 1));
 
 /**
- * One zebra (units: shoulder height ~1, nose to tail ~1.6, facing +X, hooves on y = 0).
- * pose.headDown 0..1 (grazing), pose.stride, rng for small proportion changes.
+ * One zebra figurine (units: shoulder height 1, nose to tail ~1.6, facing +X), standing on a small
+ * bevelled base plate (its underside at y = 0). Slim barrel, four straight distinct legs with
+ * knees and black hooves, a long arched neck with an upright striped mane, a defined head (brow,
+ * cheek, muzzle, black nose), upright ears, a tufted tail. pose.headDown 0..1, pose.stride.
  */
 export function zebraGeometry(rng, pose = {}) {
   const hd = pose.headDown ?? 0;
   const sw = pose.stride ?? 0;
-  const bulk = 0.95 + rng() * 0.1;
+  const bulk = 0.96 + rng() * 0.08;
+  const P = 0.05; // base plate thickness: everything stands on it
   const parts = [];
-  // torso: barrel body, deeper at the girth, a sloping croup, back flatter than the belly
-  parts.push(sweep([V(-0.56, 0.8), V(-0.4, 0.83), V(-0.05, 0.78), V(0.3, 0.8), V(0.52, 0.86)], {
+  // torso: a slim barrel, deepest at the girth, croup sloping to the tail
+  parts.push(sweep([V(-0.52, 0.8 + P), V(-0.36, 0.83 + P), V(-0.02, 0.79 + P), V(0.3, 0.82 + P), V(0.5, 0.88 + P)], {
     rings: 64, radial: 26,
     r: (t) => {
-      const girth = 0.2 + 0.05 * Math.sin(Math.PI * clamp(t * 1.1, 0, 1)) + 0.02 * sstep(0.6, 0.8, t);
-      return [girth * bulk * ends(t, 0.13, 0.1), girth * 0.74 * bulk * ends(t, 0.13, 0.1)];
+      const girth = 0.15 + 0.035 * Math.sin(Math.PI * clamp(t * 1.08, 0, 1)) + 0.015 * sstep(0.62, 0.82, t);
+      return [girth * bulk * ends(t, 0.14, 0.12), girth * 0.72 * bulk * ends(t, 0.14, 0.12)];
     },
     coat: (t, c, s, p) => {
-      // vertical stripes over the barrel, arcing chevrons over the haunch
-      const hip = Math.hypot(p.x + 0.42, p.y - 0.62);
-      const k = sstep(-0.1, -0.32, p.x);
-      return [(p.x * 6.4) * (1 - k) + (2.4 - hip * 7.5) * k, 0, sstep(-0.45, -0.85, c) * sstep(-0.35, 0.2, p.x)];
+      // vertical stripes over the barrel bending into chevrons over the haunch, white belly
+      const hip = Math.hypot(p.x + 0.4, p.y - 0.64 - P);
+      const k = sstep(-0.1, -0.3, p.x);
+      return [p.x * 7.0 * (1 - k) + (2.6 - hip * 8.0) * k, 0, sstep(-0.5, -0.85, c) * sstep(-0.3, 0.25, p.x)];
     },
   }));
-  // neck: deep and narrow, arched forward
-  const nTop = V(0.78, 1.28 - hd * 0.62);
-  parts.push(sweep([V(0.38, 0.86), V(0.55, 1.03 - hd * 0.18), V(0.68, 1.17 - hd * 0.42), nTop], {
-    rings: 36, radial: 18,
+  // neck: long, deep and narrow, arched up and forward
+  const nTop = V(0.8, 1.46 + P - hd * 0.62);
+  parts.push(sweep([V(0.36, 0.88 + P), V(0.52, 1.08 + P - hd * 0.18), V(0.68, 1.3 + P - hd * 0.42), nTop], {
+    rings: 40, radial: 18,
     r: (t) => {
-      const rr = 0.17 - 0.08 * t;
-      return [rr * bulk * ends(t, 0.04, 0.12), rr * 0.6 * bulk * ends(t, 0.04, 0.12)];
+      const rr = 0.13 - 0.06 * t;
+      return [rr * bulk * ends(t, 0.04, 0.1), rr * 0.58 * bulk * ends(t, 0.04, 0.1)];
     },
-    coat: (t) => [t * 4.2 + 0.3, 0, 0],
+    coat: (t) => [t * 5.0 + 0.3, 0, 0],
   }));
-  // mane: an erect striped crest along the top of the neck
-  parts.push(sweep([V(0.42, 1.02), V(0.56, 1.18 - hd * 0.18), V(0.68, 1.31 - hd * 0.42), V(0.76, 1.4 - hd * 0.62)], {
-    rings: 30, radial: 10,
-    r: (t) => [0.07 * ends(t, 0.15, 0.15), 0.022 * ends(t, 0.1, 0.1)],
-    coat: (t, c) => [t * 4.2 + 0.3, sstep(0.55, 0.9, c) * 0.85, 0],
+  // mane: an upright striped crest from withers to poll
+  parts.push(sweep([V(0.4, 1.02 + P), V(0.54, 1.22 + P - hd * 0.18), V(0.68, 1.42 + P - hd * 0.42), V(0.77, 1.56 + P - hd * 0.62)], {
+    rings: 36, radial: 10,
+    r: (t) => [0.075 * ends(t, 0.12, 0.12), 0.018 * ends(t, 0.08, 0.08)],
+    coat: (t, c) => [t * 5.0 + 0.3, sstep(0.6, 0.92, c) * 0.9, 0],
   }));
-  // head: a long tapering skull, the muzzle swelling slightly, black at the nose
-  const hDir = V(0.62, -0.78 - hd * 0.3).normalize();
-  const h0 = nTop.clone().add(V(-0.02, 0.06));
-  const h1 = h0.clone().addScaledVector(hDir, 0.24);
-  const h2 = h0.clone().addScaledVector(hDir, 0.47);
+  // head: brow, wide cheek, narrowing face, a slightly swollen muzzle with a black nose
+  const hDir = V(0.55, -0.83 - hd * 0.25).normalize();
+  const h0 = nTop.clone().add(V(-0.01, 0.05));
+  const h1 = h0.clone().addScaledVector(hDir, 0.22);
+  const h2 = h0.clone().addScaledVector(hDir, 0.46);
   parts.push(sweep([h0, h1, h2], {
-    rings: 36, radial: 18,
+    rings: 40, radial: 18,
     r: (t) => {
-      const rr = 0.095 - 0.045 * t + 0.022 * sstep(0.72, 0.92, t);
-      return [rr * 0.95 * ends(t, 0.1, 0.07), rr * 0.82 * ends(t, 0.1, 0.07)];
+      const cheek = 0.085 * Math.exp(-(((t - 0.22) / 0.2) ** 2));
+      const rr = 0.05 + cheek * 0.6 - 0.012 * t + 0.016 * sstep(0.72, 0.9, t);
+      return [rr * 1.05 * ends(t, 0.1, 0.06), rr * 0.78 * ends(t, 0.1, 0.06)];
     },
     coat: (t, c, s) => {
-      const eye = t > 0.16 && t < 0.3 && Math.abs(s) > 0.72 && c > 0.05 ? 1 : 0;
-      return [t * 5.2, Math.max(sstep(0.8, 0.88, t), eye), 0];
+      const eye = t > 0.18 && t < 0.3 && Math.abs(s) > 0.7 && c > 0.0 ? 1 : 0;
+      return [t * 6.0, Math.max(sstep(0.8, 0.86, t), eye), 0];
     },
   }));
-  // ears: tapered leaves, black-tipped
+  // ears: upright tapered leaves at the poll, black-tipped
   for (const z of [-1, 1]) {
-    const e0 = h0.clone().add(V(-0.03, 0.03, z * 0.045));
-    parts.push(sweep([e0, e0.clone().add(V(-0.03, 0.08, z * 0.03)), e0.clone().add(V(-0.05, 0.15, z * 0.05))], {
+    const e0 = h0.clone().add(V(-0.02, 0.02, z * 0.04));
+    parts.push(sweep([e0, e0.clone().add(V(-0.015, 0.08, z * 0.02)), e0.clone().add(V(-0.03, 0.16, z * 0.035))], {
       rings: 12, radial: 10,
       r: (t) => {
-        const w = Math.sin(Math.PI * clamp(t * 0.95 + 0.05, 0, 1)) * 0.032;
+        const w = Math.sin(Math.PI * clamp(t * 0.95 + 0.05, 0, 1)) * 0.03;
         return [w * 0.45, w];
       },
-      coat: (t) => [t * 2.5, sstep(0.7, 0.9, t), 0],
+      coat: (t) => [t * 2.5, sstep(0.72, 0.9, t), 0],
     }));
   }
-  // legs: shoulder / hip, knee or hock, cannon, fetlock, black hoof (flat-bottomed)
+  // legs: straight, well apart, a knee (front) or hock (hind), slim cannon, fetlock, black hoof
   const leg = (x, z, hind, phase) => {
-    const f = Math.sin(phase) * sw;
+    const f = Math.sin(phase) * sw * 0.05;
     const pts = hind
-      ? [V(x, 0.74, z), V(x + 0.07, 0.45, z), V(x - 0.06 + f * 0.05, 0.26, z), V(x - 0.03 + f * 0.1, 0.07, z), V(x - 0.02 + f * 0.11, 0, z)]
-      : [V(x, 0.74, z), V(x + 0.01, 0.46, z), V(x + 0.02 + f * 0.06, 0.27, z), V(x + 0.03 + f * 0.1, 0.07, z), V(x + 0.04 + f * 0.11, 0, z)];
+      ? [V(x, 0.74 + P, z), V(x + 0.04, 0.46 + P, z), V(x - 0.03 + f, 0.27 + P, z), V(x - 0.02 + f, 0.07 + P, z), V(x - 0.02 + f, P, z)]
+      : [V(x, 0.74 + P, z), V(x, 0.46 + P, z), V(x + 0.005 + f, 0.27 + P, z), V(x + 0.01 + f, 0.07 + P, z), V(x + 0.01 + f, P, z)];
     parts.push(sweep(pts, {
-      rings: 34, radial: 14,
+      rings: 36, radial: 14,
       r: (t) => {
-        const rr = 0.095 - 0.07 * sstep(0.0, 0.55, t) + 0.012 * Math.exp(-(((t - 0.52) / 0.05) ** 2)) + 0.014 * sstep(0.82, 0.92, t);
-        return [rr * ends(t, 0.06, 0.004), rr * 0.85 * ends(t, 0.06, 0.004)];
+        const rr = 0.068 - 0.04 * sstep(0.0, 0.5, t) + 0.01 * Math.exp(-(((t - 0.5) / 0.05) ** 2)) + 0.011 * sstep(0.84, 0.93, t);
+        return [rr * ends(t, 0.05, 0.003), rr * 0.9 * ends(t, 0.05, 0.003)];
       },
-      coat: (t, c, s, p) => [p.y * 9.0, sstep(0.9, 0.93, t), 0],
+      coat: (t, c, s, p) => [p.y * 11.0, sstep(0.9, 0.93, t), 0],
     }));
   };
-  leg(0.36, 0.1, false, 0);
-  leg(0.34, -0.1, false, Math.PI);
-  leg(-0.4, 0.1, true, Math.PI);
-  leg(-0.42, -0.1, true, 0);
+  leg(0.36, 0.085, false, 0);
+  leg(0.36, -0.085, false, Math.PI);
+  leg(-0.38, 0.085, true, Math.PI);
+  leg(-0.38, -0.085, true, 0);
   // tail: thin, hanging, a black tuft
-  parts.push(sweep([V(-0.6, 0.84), V(-0.7, 0.72, 0.02), V(-0.72, 0.52, 0.03), V(-0.71, 0.4, 0.03)], {
+  parts.push(sweep([V(-0.56, 0.86 + P), V(-0.64, 0.74 + P, 0.01), V(-0.66, 0.56 + P, 0.02), V(-0.65, 0.42 + P, 0.02)], {
     rings: 24, radial: 10,
     r: (t) => {
-      const rr = 0.022 - 0.01 * t + 0.022 * sstep(0.65, 0.85, t) * (1 - sstep(0.95, 1, t));
+      const rr = 0.018 - 0.008 * t + 0.02 * sstep(0.65, 0.85, t) * (1 - sstep(0.95, 1, t));
       return [rr, rr];
     },
     coat: (t) => [t * 4, sstep(0.66, 0.74, t), 0],
   }));
-  const g = mergeGeometries(parts);
-  for (const p of parts) p.dispose();
-  g.computeVertexNormals();
+  // base plate: a rounded slab under the hooves, plain glaze
+  const plate = new THREE.Shape();
+  const bw = 1.3, bd = 0.36, br = 0.08;
+  plate.moveTo(-bw / 2 + br, -bd / 2);
+  plate.lineTo(bw / 2 - br, -bd / 2);
+  plate.quadraticCurveTo(bw / 2, -bd / 2, bw / 2, -bd / 2 + br);
+  plate.lineTo(bw / 2, bd / 2 - br);
+  plate.quadraticCurveTo(bw / 2, bd / 2, bw / 2 - br, bd / 2);
+  plate.lineTo(-bw / 2 + br, bd / 2);
+  plate.quadraticCurveTo(-bw / 2, bd / 2, -bw / 2, bd / 2 - br);
+  plate.lineTo(-bw / 2, -bd / 2 + br);
+  plate.quadraticCurveTo(-bw / 2, -bd / 2, -bw / 2 + br, -bd / 2);
+  const pg = new THREE.ExtrudeGeometry(plate, { depth: P - 0.016, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.012, bevelSegments: 2, curveSegments: 6 });
+  pg.rotateX(-Math.PI / 2);
+  pg.translate(0, 0.008, 0);
+  pg.deleteAttribute('uv');
+  const pst = new Float32Array(pg.attributes.position.count * 3);
+  for (let i = 0; i < pg.attributes.position.count; i++) pst.set([0, 0, 1], i * 3);
+  pg.setAttribute('aSt', new THREE.BufferAttribute(pst, 3));
+  parts.push(pg);
+  // smooth normals per part (seamless sections), then one non-indexed buffer
+  const flat = parts.map((q) => {
+    if (q.index) q.computeVertexNormals();
+    else if (!q.attributes.normal) q.computeVertexNormals();
+    return q.index ? q.toNonIndexed() : q;
+  });
+  const g = mergeGeometries(flat);
+  for (const q of parts) q.dispose();
   g.computeBoundingBox();
   return g;
 }
@@ -437,28 +466,24 @@ export function buildZebraShrine(scene, rng, shelfY, { W = 1.6, D = 1.3, H = 0.2
   const figurines = [];
   const placed = [{ x: 0, z: 0, r: 0.1 }, ...avoid];
   const free = (x, z, r) => placed.every((q) => Math.hypot(q.x - x, q.z - z) > q.r + r);
-  // three sizes; the big ones stand at the back, the small ones crowd the front edge
-  const tiers = [[0.2, 7, -0.62, -0.25], [0.13, 11, -0.4, 0.0], [0.085, 14, -0.15, 0.12]];
+  // neat rows facing the road, smaller in front (shoulder 10-15 cm, 15-22 cm to the ears)
+  const rows = [[0.1, 0.045, 0.16, 0.098], [0.12, -0.23, 0.2, 0.112], [0.14, -0.55, 0.38, 0.13], [0.15, -0.86, 0.42, 0.14]];
   let n = 0;
-  for (const [h, count, z0, z1] of tiers) {
-    let made = 0;
-    for (let tries = 0; tries < 400 && made < count; tries++) {
-      const x = (rng() - 0.5) * (W - 0.14);
-      const z = z0 + rng() * (z1 - z0);
-      const r = h * 0.48;
-      if (z + h * 0.8 > zc + D / 2 - 0.02 || !free(x, z, r)) continue;
-      placed.push({ x, z, r });
-      const hh = h * (0.9 + rng() * 0.2);
-      const m = new THREE.Mesh(geos[n % 3], mats[(n * 7 + Math.floor(rng() * 3)) % 4]);
-      m.scale.setScalar(hh);
-      m.position.set(x, shelfY, z);
-      m.rotation.y = -Math.PI / 2 + (rng() - 0.5) * 0.7; // facing the road
-      scene.add(m);
-      figurines.push(new Figurine(m, m.position, hh, 0.42 * hh, 0.11 * hh));
-      made++;
-      n++;
-    }
-  }
+  for (const [h, z, xMin, step] of rows)
+    for (let x = xMin; x <= W / 2 - 0.06; x += step)
+      for (const sx of [-1, 1]) {
+        const px = sx * x + (rng() - 0.5) * 0.012;
+        const hh = h * (0.95 + rng() * 0.1);
+        if (!free(px, z, 0.035) || rng() < 0.08) continue;
+        placed.push({ x: px, z, r: 0.035 });
+        const m = new THREE.Mesh(geos[n % 3], mats[(n * 7 + Math.floor(rng() * 3)) % 4]);
+        m.scale.setScalar(hh);
+        m.position.set(px, shelfY, z);
+        m.rotation.y = -Math.PI / 2 + (rng() - 0.5) * 0.14; // facing the road
+        scene.add(m);
+        figurines.push(new Figurine(m, m.position, hh * 1.05, 0.62 * hh, 0.17 * hh));
+        n++;
+      }
   // a few big ones on the ground at the ledge's ends
   for (const [x, z, h] of [[-W / 2 - 0.16, zc + 0.2, 0.3], [W / 2 + 0.18, zc + 0.05, 0.34], [W / 2 + 0.12, zc + 0.45, 0.22]]) {
     const m = new THREE.Mesh(geos[n++ % 3], mats[n % 4]);
