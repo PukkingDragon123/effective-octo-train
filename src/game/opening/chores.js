@@ -5,7 +5,6 @@
 //               soda is lower, when nobody was looking)
 //   3 cloth     the three-colour cloth strips, tied on the taxi's rear-view mirror
 //   4 coins     count the fare tin: there is always one coin more than you counted (an old holed one)
-//   5 mirror    cover the old mirror at the back; look into it and a figure stands behind you (a scare)
 //   6 phone     the garage phone rings once while he is away; answer and a whisper says "ต้น…"
 // Props are small, built from the props kit and real profiles (lathes, traced shapes, swept strips).
 //
@@ -22,7 +21,6 @@ import { createSpiritHouse } from '../../props/shrines.js';
 import { Kit, lathe, tube } from '../../props/lib/kit.js';
 import { mat } from '../../props/lib/materials.js';
 import { bowl, can } from '../../props/lib/small.js';
-import { createHumanoid } from '../../characters/index.js';
 import { FONTS } from '../../ui/fonts.js';
 import { lm, sfx, ground, runLines, resolve, Stage } from './common.js';
 import { bus } from '../../core/Events.js';
@@ -117,127 +115,6 @@ function fareTin() {
 }
 const coinGeo = (r) => lathe([[0, 0], [r, 0], [r * 1.02, 0.001], [r, 0.002], [r * 0.86, 0.0018], [0, 0.0019]], 18);
 const holedCoinGeo = () => lathe([[0.004, 0], [0.012, 0], [0.0124, 0.0012], [0.012, 0.0022], [0.004, 0.0022], [0.0036, 0.0011]], 18);
-
-/** The cloth draped over the mirror: a ผ้าขาวม้า (checked cotton) with folds. */
-function mirrorCloth(w, h) {
-  const NU = 14, NV = 22;
-  const geo = new THREE.PlaneGeometry(w + 0.12, h + 0.08, NU, NV);
-  geo.translate(0, -(h + 0.08) / 2, 0);
-  const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i);
-    const t = -y / (h + 0.08);
-    p.setZ(i, 0.062 + Math.sin(x * 26 + t * 3) * 0.012 * t + noise.noise2D(x * 9, y * 7) * 0.008 + 0.02 * (1 - Math.min(1, Math.abs(x) / (w / 2))) * Math.sin(t * Math.PI));
-  }
-  geo.computeVertexNormals();
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const x = c.getContext('2d');
-  x.fillStyle = '#5a2a2a';
-  x.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 256; i += 32) {
-    x.fillStyle = 'rgba(40,70,110,0.55)';
-    x.fillRect(i, 0, 12, 256);
-    x.fillRect(0, i, 256, 12);
-    x.fillStyle = 'rgba(220,200,150,0.35)';
-    x.fillRect(i + 18, 0, 3, 256);
-    x.fillRect(0, i + 18, 256, 3);
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(2, 3);
-  return new THREE.Mesh(geo, paintedMaterial({ map: tex, roughness: 0.95, brush: 0.5, side: THREE.DoubleSide, name: 'paKhaoMa' }));
-}
-
-/** An old wardrobe mirror (arched teak frame) leaning on the back wall; its silvering is dark and dim. */
-function oldMirror() {
-  const W = 0.6, H = 1.45;
-  const arch = (w, h, inset = 0) => {
-    const s = new THREE.Shape();
-    const hw = w / 2 - inset, top = h - inset - hw * 0.55;
-    s.moveTo(-hw, inset);
-    s.lineTo(hw, inset);
-    s.lineTo(hw, top);
-    s.quadraticCurveTo(hw, h - inset, 0, h - inset);
-    s.quadraticCurveTo(-hw, h - inset, -hw, top);
-    s.closePath();
-    return s;
-  };
-  const frameShape = arch(W, H);
-  frameShape.holes.push(arch(W, H, 0.055));
-  const grp = new THREE.Group();
-  grp.name = 'oldMirror';
-  const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(frameShape, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 14 }), paintedMaterial({ color: 0x4a2c1a, map: null, roughness: 0.7, brush: 0.6, dirt: 0.5, name: 'mirrorFrame' }));
-  const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 512;
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const glassGeo = new THREE.ShapeGeometry(arch(W, H, 0.05), 14);
-  const uv = glassGeo.attributes.uv, gp = glassGeo.attributes.position;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, gp.getX(i) / W + 0.5, gp.getY(i) / H);
-  const glassMat = paintedMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.35, metalness: 0.6, roughness: 0.1, brush: 0.05, name: 'mirrorGlass' });
-  const glass = new THREE.Mesh(glassGeo, glassMat);
-  glass.position.z = 0.03;
-  grp.add(frame, glass);
-  const draw = (figure) => {
-    const x = c.getContext('2d');
-    const gr = x.createLinearGradient(0, 0, 0, 512);
-    gr.addColorStop(0, '#2a2620');
-    gr.addColorStop(0.5, '#141210');
-    gr.addColorStop(1, '#0a0908');
-    x.fillStyle = gr;
-    x.fillRect(0, 0, 256, 512);
-    // the tube's reflection, the shelves, the open front behind you
-    x.fillStyle = 'rgba(220,235,220,0.5)';
-    x.fillRect(40, 40, 120, 6);
-    x.fillStyle = 'rgba(60,70,60,0.35)';
-    x.fillRect(150, 120, 90, 300);
-    // Ton's own dark shape, low in the glass
-    x.fillStyle = '#060505';
-    x.beginPath();
-    x.ellipse(128, 300, 30, 36, 0, 0, Math.PI * 2);
-    x.moveTo(40, 512);
-    x.quadraticCurveTo(60, 360, 128, 350);
-    x.quadraticCurveTo(196, 360, 216, 512);
-    x.fill();
-    if (figure) {
-      // someone pale stands right behind his shoulder, hair over the face
-      x.fillStyle = 'rgba(200,198,186,0.85)';
-      x.beginPath();
-      x.moveTo(150, 512);
-      x.quadraticCurveTo(160, 330, 190, 300);
-      x.quadraticCurveTo(222, 330, 232, 512);
-      x.fill();
-      x.fillStyle = '#050404';
-      x.beginPath();
-      x.ellipse(190, 262, 22, 30, 0.05, 0, Math.PI * 2);
-      x.fill();
-      x.fillRect(170, 262, 40, 120);
-      x.fillStyle = 'rgba(210,205,190,0.6)';
-      x.fillRect(186, 270, 6, 18);
-    }
-    // dust and the silvering coming away at the edges
-    const rng = makeRng(5);
-    for (let i = 0; i < 260; i++) {
-      x.fillStyle = `rgba(${rng() < 0.6 ? '180,170,150' : '0,0,0'},${rng() * 0.25})`;
-      const px = rng() < 0.5 ? rng() * 30 : 226 + rng() * 30;
-      x.fillRect(rng() < 0.7 ? px : rng() * 256, rng() * 512, 2 + rng() * 4, 2 + rng() * 4);
-    }
-    tex.needsUpdate = true;
-  };
-  draw(false);
-  const cloth = mirrorCloth(W, H);
-  cloth.position.set(0, H + 0.02, 0.02);
-  cloth.scale.y = 0.14; // folded over the top bar
-  grp.add(cloth);
-  grp.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
-  const center = new THREE.Object3D();
-  center.position.set(0, H * 0.55, 0.04);
-  grp.add(center);
-  return { object: grp, draw, cloth, center, W, H };
-}
 
 /** An old black rotary telephone (Thai numerals on the dial), handset on its own pivot. */
 function rotaryPhone() {
@@ -376,6 +253,38 @@ export class Chores {
     this.active = true;
     this.t0 = g.engine.time;
   }
+  /** Ah Kong takes whatever Ton is holding out of his hands (it reappears where he puts it). */
+  takeFromPlayer() {
+    const H = this.held;
+    if (!H) return null;
+    this._dropHeld();
+    H.obj.visible = false;
+    return H.kind;
+  }
+  /** Where Ah Kong goes to do a chore himself: [{ at: Vector3, look: Vector3 }] in order. */
+  kongPlan(id) {
+    const wp = (o) => o?.getWorldPosition?.(new THREE.Vector3());
+    if (id === 'shrine' && this.shrine) return [{ at: this.shrine.object.localToWorld(V(0, 0, 0.95)), look: wp(this.shrine.object) }];
+    if (id === 'offering' && this.tray) return [{ at: wp(this.tray.object), look: wp(this.tray.object), stop: 0.6 }, { at: wp(this.gateSpot), look: wp(this.gateSpot), stop: 0.55 }];
+    if (id === 'cloth' && this.strips) {
+      const mir = g.taxi?.anchors?.rearviewMirror;
+      const win = g.taxi?.root ? g.taxi.root.localToWorld(V(1.35, 0, -0.45)) : null;
+      return [{ at: wp(this.strips), look: wp(this.strips), stop: 0.6 }, win && { at: win, look: wp(mir) }].filter(Boolean);
+    }
+    return [];
+  }
+  /** Hide the thing he is carrying to do `id` (shown again where it ends up). */
+  carry(id) {
+    const o = id === 'offering' ? this.tray?.object : id === 'cloth' ? this.strips : null;
+    if (o) o.visible = false;
+  }
+  /** Ah Kong finishes one chore (the result, right; the caller walked him there). */
+  finish(id) {
+    if (id === 'shrine') this._plantSticks(true, false);
+    else if (id === 'offering') this._placeOffering(true);
+    else if (id === 'cloth') this._tieCloth(true);
+    for (const o of [this.sticks?.object, this.tray?.object, this.strips]) if (o) o.visible = true;
+  }
   /** Ah Kong does what is left of the required ones himself. */
   finishRest() {
     if (!this.done('shrine')) this._plantSticks(true, false);
@@ -459,14 +368,6 @@ export class Chores {
       this.tin = tin;
       this._item('coins', table, [0.36, 0.05, -0.06], [0.14, 0.12, 0.14], 'นับเหรียญ', 'Count the coins', () => can1() && !this.done('coins') && !this._counting && !this.held, () => this._countCoins());
     }
-    if (this.has('mirror')) {
-      const m = oldMirror();
-      this.mirror = m;
-      this._local(m.object, 3.0, 0, -3.28, 0);
-      m.object.rotation.x = -0.1;
-      this._item('mirror', m.object, [0, m.H * 0.5, 0.06], [m.W, m.H, 0.12], 'คลุมผ้า', 'Cover it with the cloth', () => !this.done('mirror') && !this.held, () => this._coverMirror(false), 2.0);
-      if (this.done('mirror')) this._coverMirror(true);
-    }
     if (!this.only) {
       const ph = rotaryPhone();
       this.phone = ph;
@@ -479,6 +380,11 @@ export class Chores {
   _mark(id, value = 'done', silent = false) {
     if (this.flags['chore.' + id]) return;
     this.flags['chore.' + id] = value;
+    try {
+      this.onMark?.(id, value);
+    } catch (e) {
+      /* the listener is the garage's */
+    }
     try {
       g.persist?.();
     } catch (e) {
@@ -688,82 +594,6 @@ export class Chores {
     }, 6000);
   }
 
-  // ---------------------------------------------------------------- 5 the mirror
-  _coverMirror(instant) {
-    const M = this.mirror;
-    if (!M) return;
-    M.covered = true;
-    if (instant) M.cloth.scale.y = 1;
-    else {
-      M.clothT = 0;
-      sfx('paper_rustle', { object: M.object, volume: 0.6, rate: 0.55 });
-    }
-    this._mark('mirror', 'done', instant);
-  }
-  _mirrorScare() {
-    const M = this.mirror;
-    M.scared = true;
-    this.flags['k.mirrorLooked'] = (this.flags['k.mirrorLooked'] || 0) + 1;
-    try {
-      g.persist?.();
-    } catch (e) {
-      /* ignore */
-    }
-    M.draw(true);
-    sfx('sting_reveal', { volume: 0.7 });
-    sfx('breath_neck', { volume: 0.5, delay: 0.3 });
-    g.camfx?.flinch?.(0.7);
-    const h = this._figure;
-    if (h) {
-      const p = g.player.root.position;
-      const back = _v.copy(g.cameraRig.lookDirection).setY(0).normalize().multiplyScalar(-1.25).add(p);
-      back.y = ground(back.x, back.z);
-      h.root.position.copy(back);
-      h.root.rotation.y = Math.atan2(p.x - back.x, p.z - back.z) + Math.PI;
-      h.root.visible = true;
-      h.lookAt?.(g.player.eye, { weight: 1, speed: 4 });
-    }
-    M.scareT = 0;
-    say(D.MIRROR_SCARE.ton);
-  }
-  _endScare() {
-    const M = this.mirror;
-    M.scareT = null;
-    M.draw(false);
-    if (this._figure) this._figure.root.visible = false;
-    g.cine?.fade?.(0.85, 0.05).then(() => g.cine.fade(0, 0.3));
-    sfx('fluorescent_flicker', { volume: 0.4 });
-    if (this.active && g.ahKong?.root?.visible) say(D.MIRROR_SCARE.kong);
-  }
-  _makeFigure() {
-    if (this._figure || this._figureTried) return;
-    this._figureTried = true;
-    try {
-      const h = createHumanoid({
-        id: 'mirrorFigure', sex: 'f', age: 30, height: 1.6, build: 'thin', skinTone: 0.12,
-        hair: { style: 'long', color: '#0a0909' },
-        outfit: { type: 'dress', top: '#c4c0b4', bottom: '#b8b4a8', accent: '#1d1a18', shoes: 'barefoot' },
-        face: { seed: 4441, wrinkles: 0, smile: 0, eyeSize: 1.1, noseWidth: 0.95, jaw: 0.9, cheek: 0.9 },
-        ghost: { pale: 1, eyes: 'black', wet: 0.4, decay: 0.3, bloodStains: 0.1 },
-        noBlink: true,
-      });
-      g.engine.scene.add(h.root);
-      h.root.visible = false;
-      h.setMode?.('stand');
-      h.setGhost?.({ stare: 1, noBlink: 1, unlimited: 1, headRoll: 0.3 }, 50);
-      this._figure = h;
-      this.night.add(() => {
-        try {
-          h.dispose();
-        } catch (e) {
-          h.root.removeFromParent();
-        }
-      });
-    } catch (e) {
-      console.warn('[chores] mirror figure', e);
-    }
-  }
-
   // ---------------------------------------------------------------- 6 the phone
   ringPhone() {
     if (!this.phone || this.state.phone !== 'idle') return;
@@ -836,28 +666,6 @@ export class Chores {
       const a = g.taxi?._accLocal;
       this.strips.rotation.x = clamp((a?.z || 0) * 0.05, -0.6, 0.6) + Math.sin(t * 1.7) * 0.05;
       this.strips.rotation.z = clamp(-(a?.x || 0) * 0.05, -0.6, 0.6) + Math.sin(t * 1.3 + 1) * 0.04;
-    }
-    // the mirror: the cloth falls, the gaze, the figure
-    const M = this.mirror;
-    if (M) {
-      if (M.clothT !== undefined && M.clothT !== null) {
-        M.clothT += dt;
-        M.cloth.scale.y = 0.14 + 0.86 * easeInOut(clamp(M.clothT / 0.6));
-        if (M.clothT > 0.6) M.clothT = null;
-      }
-      const c = M.center.getWorldPosition(_v);
-      const near = g.player?.root?.position?.distanceTo(c) ?? 99;
-      if (near < 7) this._makeFigure();
-      if (!M.covered && !M.scared && g.actions?.onFoot && g.cameraRig.isLookingAt(c, 11, 4.5) && !g.cameraRig.inCinematic) {
-        M.gaze = (M.gaze || 0) + dt;
-        if (M.gaze > 1.6) this._mirrorScare();
-      } else M.gaze = Math.max(0, (M.gaze || 0) - dt * 0.5);
-      if (M.scareT !== null && M.scareT !== undefined) {
-        M.scareT += dt;
-        const f = this._figure;
-        const seen = f && g.cameraRig.isLookingAt(f.root.position.clone().add(V(0, 1.4, 0)), 25, 6);
-        if (M.scareT > (seen ? 0.35 : 6) || (seen && M.scareT > 0.6)) this._endScare();
-      }
     }
     // the phone: a few double rings, then nothing
     if (this.state.phone === 'ringing') {

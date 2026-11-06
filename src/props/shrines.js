@@ -176,7 +176,7 @@ export function createSpiritHouse(opts = {}) {
   out.groundOfferingAnchor = anchor(group, 'groundOffering', 0, 0, 0.6 * S);
   if (style !== 'chinese') for (const a of out.candleAnchors) out.lights.push(lightSpec('candle', a, { intensity: 0.5, offset: new THREE.Vector3(0, 0.05, 0.08) }));
   out.lightSpec = out.lights[0];
-  out.colliders.push(style === 'twin' ? { x: 0, z: 0, hx: 0.55 * S, hz: 0.35 * S, yaw: 0 } : style === 'thai' ? { x: 0, z: 0, hx: 0.2 * S, hz: 0.2 * S, yaw: 0 } : { x: 0, z: 0, hx: 0.42 * S, hz: 0.36 * S, yaw: 0 });
+  out.colliders.push(style === 'twin' ? { x: 0, z: 0, hx: 0.55 * S, hz: 0.35 * S, yaw: 0 } : style === 'thai' ? { x: 0, z: 0, hx: 0.48 * S, hz: 0.42 * S, yaw: 0 } : { x: 0, z: 0, hx: 0.42 * S, hz: 0.36 * S, yaw: 0 });
   return out;
 }
 

@@ -6,6 +6,8 @@
 //   Ride 9 ends in the finale (Finale.js) and A's EndingState({ id }).
 //   Every frame: the ride, C's encounter director (g.director.update unless director.selfUpdate),
 //   the ambience bed and the phase music.
+import { objectiveDone } from '../systems/Objectives.js';
+import { saveCheckpoint } from '../systems/Checkpoint.js';
 import { pickupLandmark } from '../ride/pickup.js';
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
@@ -76,8 +78,16 @@ export const ShiftState = {
     // ---- the taxi: keep it if it is already on the way to this pickup, else place it --------------
     const stopS = mainS(pickupLandmark(data.pickupAt || data.pickup).stopPos);
     const r = taxiRoad();
-    const keep = !params.debug && !params.free && r && r.id === 'main' && stopS - r.s > 20 && stopS - r.s < 900;
-    if (!keep) {
+    const cp = params.checkpoint && (params.checkpoint.kind === 'ride' || params.checkpoint.kind === 'fork') ? params.checkpoint : null;
+    this._cp = cp;
+    const keep = !cp && !params.debug && !params.free && r && r.id === 'main' && stopS - r.s > 20 && stopS - r.s < 900;
+    if (cp) {
+      // back at the checkpoint, under the black: in the lane, stopped, engine running
+      g.postfx.params.fade = 1;
+      placeTaxi('main', Number.isFinite(cp.s) ? cp.s : stopS + 4, 0);
+      ensureRunning(t);
+      g.cine.fade(0, 1.8);
+    } else if (!keep) {
       const back = params.free ? 520 : 170;
       const black = !params.debug;
       if (black) g.postfx.params.fade = 1;
@@ -149,23 +159,33 @@ export const ShiftState = {
         }
       }, 0);
       let ok = false;
+      const cp = i === startIdx ? this._cp : null;
+      this._cp = null;
       try {
-        ok = await ride.pickup();
+        if (cp) {
+          ride.resumeAt(cp);
+          ok = true;
+        } else ok = await ride.pickup();
       } finally {
         stainOff();
       }
       if (!ok || !alive()) return;
       bus.emit('ride:boarded', { index: i, id: data.id });
+      if (!cp) {
+        const rr = taxiRoad();
+        saveCheckpoint('ride', { ride: i, s: rr?.id === 'main' ? rr.s : undefined, progress: 0, dist: 0, tSeated: 0 });
+      }
       let res = 'retry';
       for (let attempt = 0; res === 'retry' && attempt < 3; attempt++) {
         // 'retry': the giant hand let them go once and the road folded back before the fork
-        const side = await ride.ride({ resume: attempt > 0 });
+        const side = await ride.ride({ resume: attempt > 0 || !!cp });
         if (!side || !alive()) return;
         bus.emit('ride:fork', { index: i, id: data.id, side });
         res = await resolveFork(ride, side);
         if (!alive()) return;
       }
       if (res !== 'next') return;
+      objectiveDone();
       bus.emit('ride:delivered', { index: i, id: data.id, side });
       this._retire(ride);
       // the next hour: chapter card, autosave

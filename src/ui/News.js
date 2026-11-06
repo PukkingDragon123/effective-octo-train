@@ -1,36 +1,33 @@
-// GAME OVER as a Thai late-night TV news break: the crash footage (a canvas the game hands us)
-// fills the screen with a slow push-in, compressed and scan-lined like a broadcast, under an
-// original news package: a red "ข่าวด่วน" tag, the channel bug of a fictional station (ราตรี),
-// a live clock, the lower-third headline and a ticker. After `hold` seconds it cuts to black.
+// The crash on the late-night news (the player then wakes at the last checkpoint; nothing on screen
+// says "game over"). A full 3D studio (NewsStudio.js): an anchor at the desk reads two or three
+// Thai sentences (gibberish voice through the radio band, subtitled), the crash photo on the studio
+// screen behind her. Then a hard cut to the footage itself, full screen with a lower third, and
+// a fade to black. No station logo. About 12-16 s; Esc / B skips after 3 s.
 //
-//   ui.newsReport({ th, sub?, image?, hold?, kicker?, place?, ticker?: [th], keepBlack? }) -> Promise
-//   (resolves once the screen is black; unless keepBlack it then fades out by itself, so the game
-//    can reset underneath; ui.fade(false) releases a kept black)
+//   ui.newsReport({ th (headline), sub? (a line the anchor reads), image? (crash photo: canvas /
+//                   image / URL), hold? (footage seconds, default 2.6), lines?: [th] (the anchor's
+//                   script, replaces the default), place?, keepBlack? }) -> Promise
+//   (resolves once the screen is black; unless keepBlack it then fades out by itself; ui.fade(false)
+//    releases a kept black)
 import { h, sleep, nextFrame } from './dom.js';
 import { screen } from './common.js';
+import { audio } from '../audio/index.js';
+import { NewsStudio } from './NewsStudio.js';
 
-/** Fictional ticker headlines (none of them real). */
+/** Fictional headlines other modules may use (none of them real). */
 export const NEWS_TICKER = [
   'กรมอุตุนิยมวิทยาเตือนหมอกหนาบนทางหลวงสายป่าช่วงกลางดึก ขอให้ขับขี่ด้วยความระมัดระวัง',
   'ตำรวจทางหลวงขอความร่วมมือผู้ขับขี่ งดจอดรับคนโบกรถริมทางหลังเที่ยงคืน',
   'ชาวบ้านร้องเรียนเสียงแตรดังต่อเนื่องหน้าศาลเจ้าริมทางทุกคืน',
-  'โรงพยาบาลประจำจังหวัดแจ้งปิดอาคารผู้ป่วยหลังเก่าเพื่อปรับปรุง',
-  'แขวงทางหลวงเร่งซ่อมราวกันตกช่วงโค้งอันตราย หลังเกิดเหตุซ้ำหลายครั้ง',
 ];
 
-const SIGNAL_ID = 'dlb-news-moon';
-
-/** Original channel mark: a waning moon over a road vanishing to a point. */
-function channelBug() {
-  const svg = `<svg viewBox="0 0 48 48" aria-hidden="true">
-    <defs><mask id="${SIGNAL_ID}"><rect width="48" height="48" fill="#fff"/><circle cx="30.5" cy="17" r="14.5" fill="#000"/></mask></defs>
-    <circle cx="24" cy="24" r="20" fill="currentColor" mask="url(#${SIGNAL_ID})"/>
-    <path d="M21.6 44 23.4 25h1.2l1.8 19z" fill="#c8161d"/>
-  </svg>`;
-  return h('div', { class: 'dlb-news__bug' },
-    h('span', { class: 'dlb-news__mark', html: svg }),
-    h('span', { class: 'dlb-news__name' }, h('b', { attrs: { lang: 'th' } }, 'ราตรี'), h('small', { attrs: { lang: 'th' } }, 'สถานีข่าว')));
-}
+/** The anchor's default script (she is a woman: ค่ะ). sub, when given, replaces the second line. */
+const SCRIPT = [
+  'ข่าวด่วนค่ะ เมื่อช่วงดึกที่ผ่านมา รถแท็กซี่คันหนึ่งเสียหลักพุ่งตกข้างทาง บนทางหลวงสายป่า',
+  'เจ้าหน้าที่กู้ภัยเข้าตรวจสอบที่เกิดเหตุ พบคนขับติดอยู่ภายในรถ',
+  'ส่วนผู้โดยสารที่พยานเห็นนั่งมาด้วย เจ้าหน้าที่ยังค้นหาไม่พบค่ะ',
+];
+const ANCHOR_VOICE = { gender: 'f', age: 34, pitch: 1.04, rate: 1.06 };
 
 function drawCover(g, src, W, H, sw, sh) {
   const s = Math.max(W / sw, H / sh);
@@ -119,111 +116,134 @@ export class NewsReport {
   constructor(ui) {
     this.ui = ui;
     this.el = null;
-    this._raf = 0;
+    this.studio = null;
   }
 
-  /** opts {th, sub?, image?, hold? (s, default 7), kicker?, place?, ticker?: [string], keepBlack?} */
   async show(o = {}) {
     const ui = this.ui;
     if (this.el) this._remove(this.el);
-    const hold = Math.max(1.5, Number(o.hold) || 7);
     const W = Math.round(Math.min(1280, Math.max(640, window.innerWidth * 0.62)));
     const H = Math.round(W * (window.innerHeight / Math.max(1, window.innerWidth)));
     const frame = await footage(o.image, W, H);
     frame.className = 'dlb-news__img';
-
-    // the clock follows the night's hour when the game told us, else the wall clock
     const hr = Number.isFinite(ui._hour) ? ui._hour : null;
-    const t0 = performance.now();
-    const base = hr != null ? Math.floor(((hr % 24) + 24) % 24 * 3600) + 37 : null;
-    const clockNow = () => {
-      if (base == null) {
-        const d = new Date();
-        return [d.getHours(), d.getMinutes(), d.getSeconds()];
-      }
-      const s = Math.floor(base + (performance.now() - t0) / 1000);
-      return [Math.floor(s / 3600) % 24, Math.floor(s / 60) % 60, s % 60];
-    };
-    const hhmm = h('span', { class: 'hm' });
-    const ss = h('span', { class: 'ss' });
-    const clock = h('div', { class: 'dlb-news__clock' }, hhmm, ss);
-    const tick = () => {
-      const [a, b, c] = clockNow();
-      hhmm.textContent = `${pad2(a)}:${pad2(b)}`;
-      ss.textContent = `:${pad2(c)}`;
-    };
-    tick();
+    const d = new Date();
+    const hh = hr != null ? Math.floor(((hr % 24) + 24) % 24) : d.getHours();
+    const mm = hr != null ? Math.floor((hr % 1) * 60) : d.getMinutes();
 
-    const items = [o.sub, ...(Array.isArray(o.ticker) && o.ticker.length ? o.ticker : NEWS_TICKER)].filter(Boolean);
-    const runItems = () => items.map((t) => h('span', { class: 'dlb-news__item', attrs: { lang: 'th' } }, h('i', { attrs: { 'aria-hidden': 'true' } }), t));
-    const run = h('div', { class: 'dlb-news__run' }, runItems(), runItems());
-    const [ch, cm] = clockNow();
-
+    const stage = h('div', { class: 'dlb-news__stage' });
     const el = screen('dlb-news',
-      h('div', { class: 'dlb-news__feed' }, frame, o.lights === false ? null : h('div', { class: 'dlb-news__lights' })),
-      h('div', { class: 'dlb-news__scan' }),
-      h('div', { class: 'dlb-news__gfx' },
-        channelBug(),
-        h('div', { class: 'dlb-news__live' },
-          h('span', { class: 'dlb-news__onair', attrs: { lang: 'th' } }, h('i'), 'สด'),
-          h('span', { class: 'dlb-news__place', attrs: { lang: 'th' } }, o.place || 'ภาพจากที่เกิดเหตุ')),
+      stage,
+      h('div', { class: 'dlb-news__studio' },
+        h('span', { class: 'dlb-news__tag', attrs: { lang: 'th' } }, 'ข่าวด่วน'),
+        h('span', { class: 'dlb-news__live', attrs: { lang: 'th' } }, h('i'), `สด  ${pad2(hh)}:${pad2(mm)}`)),
+      h('div', { class: 'dlb-news__cut' },
+        frame,
+        h('div', { class: 'dlb-news__vig' }),
         h('div', { class: 'dlb-news__lower' },
           h('div', { class: 'dlb-news__kicker' },
             h('span', { class: 'dlb-news__tag', attrs: { lang: 'th' } }, 'ข่าวด่วน'),
-            h('span', { class: 'dlb-news__kick', attrs: { lang: 'th' } }, o.kicker || `เมื่อเวลา ${pad2(ch)}.${pad2(cm)} น.`)),
-          h('div', { class: 'dlb-news__head' }, h('h2', { attrs: { lang: 'th' } }, o.th || ''))),
-        h('div', { class: 'dlb-news__ticker' }, clock, h('div', { class: 'dlb-news__track' }, run))),
-      h('div', { class: 'dlb-news__static' }),
+            h('span', { class: 'dlb-news__kick', attrs: { lang: 'th' } }, `${o.place || 'ภาพจากที่เกิดเหตุ'}  ·  ${pad2(hh)}.${pad2(mm)} น.`)),
+          h('div', { class: 'dlb-news__head' }, h('h2', { attrs: { lang: 'th' } }, o.th || '')))),
       h('div', { class: 'dlb-news__black' }));
-    el.style.setProperty('--push', `${hold + 2.4}s`);
     this.el = el;
     ui.layer.appendChild(el);
+    ui.root.classList.add('has-news');
     ui._refreshXhair?.();
     ui.bus?.emit?.('ui:news', { phase: 'in' });
 
-    // ticker + clock
-    let x = 0;
-    let last = performance.now();
-    let lastSec = -1;
-    const loop = (now) => {
-      this._raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      const sec = Math.floor(now / 1000);
-      if (sec !== lastSec) {
-        lastSec = sec;
-        tick();
-      }
-      if (el.closest('.dlb-still')) return; // frozen for headless screenshots
-      const half = run.scrollWidth / 2;
-      if (!el.classList.contains('is-rolling') || half <= 0) return;
-      x += dt * Math.max(70, window.innerWidth * 0.075);
-      if (x > half) x -= half;
-      run.style.transform = `translate3d(${-x.toFixed(1)}px,0,0)`;
+    // Esc / B skips, but only after 3 s (modal: the keys never reach the game meanwhile)
+    let skipped = false;
+    let wake = null;
+    const skipP = new Promise((r) => (wake = r));
+    const t0 = performance.now();
+    const ctx = ui.nav.push({
+      root: el, modal: true, name: 'news', items: () => [],
+      onBack: () => this._skip(),
+      onStart: () => this._skip(),
+      onAction: () => true,
+    });
+    this._skip = () => {
+      if (skipped || performance.now() - t0 < 3000) return;
+      skipped = true;
+      wake();
     };
-    cancelAnimationFrame(this._raf);
-    this._raf = requestAnimationFrame(loop);
+    const wait = (ms) => Promise.race([sleep(ms), skipP]);
 
+    // the studio (falls back to the footage alone if WebGL or the anchor is unavailable)
+    try {
+      this.studio = new NewsStudio(stage, { image: frame, headline: o.th });
+      await Promise.race([this.studio.ready, sleep(4000)]);
+      this.studio.start();
+    } catch (e) {
+      console.warn('[news] studio unavailable', e);
+      this.studio?.dispose();
+      this.studio = null;
+    }
     el.hidden = false;
     void el.offsetWidth;
     await nextFrame();
-    el.classList.add('is-in'); // cut in, the footage starts pushing in
-    await sleep(380);
-    el.classList.add('is-gfx'); // the graphics package wipes on
-    await sleep(900);
-    el.classList.add('is-rolling');
-    await sleep(Math.max(0, hold * 1000 - 1280));
-    el.classList.add('is-black');
-    await sleep(1700);
-    ui.bus?.emit?.('ui:news', { phase: 'black' });
-    cancelAnimationFrame(this._raf);
-    if (!o.keepBlack) {
-      setTimeout(() => this.release(1.6, el), 450);
+    el.classList.add('is-in', this.studio ? 'is-studio' : 'is-cutnow');
+
+    // the anchor reads the story, subtitled; the whole studio part is capped at ~11 s
+    const lines = Array.isArray(o.lines) && o.lines.length ? o.lines.slice(0, 3) : [SCRIPT[0], o.sub || SCRIPT[1], SCRIPT[2]];
+    const studioEnd = performance.now() + 11000;
+    this._cut = false;
+    this._cutWake = null;
+    const cutP = new Promise((r) => (this._cutWake = r));
+    if (this.studio) {
+      await wait(700);
+      for (const th of lines) {
+        if (skipped || performance.now() > studioEnd - 1500) break;
+        const est = audio.voice?.estimate?.({ th, voice: ANCHOR_VOICE }) ?? 3.5;
+        ui.subtitle({ speakerTH: 'ผู้ประกาศข่าว', speakerEN: 'News anchor', th, duration: est + 0.6 });
+        this.studio.setTalking(true);
+        let spoken;
+        try {
+          spoken = audio.voice.speak({ th, voice: ANCHOR_VOICE, fx: 'radio', volume: 0.95 });
+        } catch (e) {
+          spoken = null;
+        }
+        await Promise.race([spoken || sleep(est * 1000), sleep((est + 2) * 1000), skipP, cutP]);
+        this.studio.setTalking(false);
+        if (skipped || this._cut) break;
+        await Promise.race([wait(380), cutP]);
+      }
     }
+    ui.clearSubtitle();
+    // hard cut to the footage, the lower third wipes on, then black
+    if (!skipped) {
+      el.classList.add('is-cut');
+      el.classList.remove('is-studio');
+      this.studio?.dispose();
+      this.studio = null;
+      await wait(260);
+      el.classList.add('is-gfx');
+      await wait(Math.max(1.6, Number(o.hold) || 2.6) * 1000);
+    }
+    try {
+      audio.voice?.stop?.();
+    } catch (e) {
+      /* ignore */
+    }
+    ui.nav.remove(ctx);
+    el.classList.add('is-black');
+    await sleep(skipped ? 700 : 1300);
+    this.studio?.dispose();
+    this.studio = null;
+    ui.root.classList.remove('has-news');
+    ui.bus?.emit?.('ui:news', { phase: 'black' });
+    if (!o.keepBlack) setTimeout(() => this.release(1.4, el), 400);
+  }
+
+  /** Debug / harness: end the studio part now and cut to the footage. */
+  cut() {
+    this._cut = true;
+    this._cutWake?.();
   }
 
   /** Fade out a news screen held black (keepBlack), or the given one. */
-  release(secs = 1.6, el = this.el) {
+  release(secs = 1.4, el = this.el) {
     if (!el || el._released) return;
     el._released = true;
     el.style.transition = `opacity ${secs}s cubic-bezier(.65,0,.35,1)`;
@@ -235,8 +255,10 @@ export class NewsReport {
     el.remove();
     if (this.el === el) {
       this.el = null;
-      cancelAnimationFrame(this._raf);
+      this.studio?.dispose();
+      this.studio = null;
     }
+    this.ui.root?.classList.remove('has-news');
     this.ui._refreshXhair?.();
   }
 }

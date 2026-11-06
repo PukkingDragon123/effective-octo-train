@@ -21,7 +21,9 @@ import { ChunkBatcher } from './Batch.js';
 const TAG = 'world';
 const SMALL_PIECE_DIST = 85; // offerings / small shrines are not drawn beyond this (m)
 // small dressing that is a loose rigid body (World.loose): kicked, bumped, tipped over
-const LOOSE_KINDS = new Set(['plastic_chair', 'plastic_stool', 'crate', 'tire', 'cone', 'trash_bag', 'cans', 'cable_coil', 'oil_drum', 'water_jar']);
+// (heavy ones — drums, jars, tyres — stay static); chairs / stools / crates only nudge
+const LOOSE_KINDS = new Set(['plastic_chair', 'plastic_stool', 'crate', 'cone', 'trash_bag', 'cans', 'cable_coil']);
+const NUDGE_KINDS = new Set(['plastic_chair', 'plastic_stool', 'crate']);
 // footprint of each road scare: half extents along (hx) / away from (hz) the road, clearing, pad
 const SCARE_FOOT = {
   abandoned_shrine: { hx: 0.8, hz: 0.6, clear: 2.4, pad: 'gravel' },
@@ -503,7 +505,7 @@ export class Placement {
       if (k === 'garland') return;
       const p = this._roadPoint(it.id, it.s + along, it.lat + side * out, new THREE.Vector3());
       if (k === 'spirit') this._put(P.createSpiritHouse({ style: it.seed % 2 ? 'thai' : 'chinese', seed: it.seed + 3, size: 0.8, age: 0.85 }), p, faceYaw, { batch: true });
-      else this._put(P.createDressing(k, { seed: it.seed + i, fallen: k === 'broken_scooter' }), p, faceYaw + (i - 1) * 0.5, { batch: true, loose: LOOSE_KINDS.has(k) });
+      else this._put(P.createDressing(k, { seed: it.seed + i, fallen: k === 'broken_scooter' }), p, faceYaw + (i - 1) * 0.5, { batch: true, loose: LOOSE_KINDS.has(k), looseCls: NUDGE_KINDS.has(k) ? 'nudge' : 'light' });
     });
   }
 
@@ -549,12 +551,12 @@ export class Placement {
       o.traverse((m) => {
         if (m.isMesh) m.userData.noMerge = true;
       });
-      this.world.loose.add(o, { drop: true });
+      this.world.loose.add(o, { drop: true, cls: opts.looseCls || 'light' });
     } else if (result.colliders) this._colliders(result.colliders, pos, yaw, opts.colliderSpace === 'world');
     // loose parts of a set piece (garage chairs, buckets, tools; school chairs)
     if (result.looseProps && this.world.loose) {
       const floor = result.looseFloor != null ? o.getWorldPosition(new THREE.Vector3()).y + result.looseFloor : null;
-      for (const lp of result.looseProps) this.world.loose.add(lp, { floor, drop: !!result.looseDrop });
+      for (const lp of result.looseProps) this.world.loose.add(lp, { floor, drop: !!result.looseDrop, cls: lp.userData.looseCls || 'nudge' });
     }
     return this._track(result);
   }
@@ -705,7 +707,7 @@ export class Placement {
         stuff.forEach(([k, x, z, r], i) => {
           const p = pos.clone().addScaledVector(right, x).addScaledVector(toRoad, z);
           p.y = this._ground(p.x, p.z);
-          extra.push(add(P.createDressing(k, { seed: seed + i }), p, yaw + r, { batch: true, loose: LOOSE_KINDS.has(k) }));
+          extra.push(add(P.createDressing(k, { seed: seed + i }), p, yaw + r, { batch: true, loose: LOOSE_KINDS.has(k), looseCls: NUDGE_KINDS.has(k) ? 'nudge' : 'light' }));
         });
         const sgp = pos.clone().addScaledVector(right, -4.6).addScaledVector(toRoad, 0.8);
         sgp.y = this._ground(sgp.x, sgp.z);
@@ -1016,7 +1018,7 @@ export class Placement {
         case 'clutter': {
           const p = this._roadPoint(it.id, it.s, it.lat, new THREE.Vector3());
           const yaw = faceRoadYaw(sp.yawAt(it.s), it.side < 0 ? 'L' : 'R') + ((it.seed * 1.7) % 6.28);
-          this._put(P.createDressing(it.kind, { seed: it.seed, fallen: it.seed % 3 === 0 }), p, yaw, { batch: true, loose: LOOSE_KINDS.has(it.kind) });
+          this._put(P.createDressing(it.kind, { seed: it.seed, fallen: it.seed % 3 === 0 }), p, yaw, { batch: true, loose: LOOSE_KINDS.has(it.kind), looseCls: NUDGE_KINDS.has(it.kind) ? 'nudge' : 'light' });
           break;
         }
         case 'scare':

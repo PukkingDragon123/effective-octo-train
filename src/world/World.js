@@ -16,6 +16,7 @@ import { loadWorldAssets } from './assets.js';
 import { autoProgressive, menuRoute, nearRoute, storyKey, runInBackground, SYNC_RADIUS, SYNC_PROPS_RADIUS } from './Progressive.js';
 import { prefetchAtlas, atlasReady } from './atlasPrefetch.js';
 import { LooseProps } from './LooseProps.js';
+import { Moths } from './Moths.js';
 export { loadWorldAssets };
 
 // paint the leaf atlas in a worker while the rest of the game boots (see atlasPrefetch.js)
@@ -197,7 +198,12 @@ export class World {
       lap('props');
     }
     this.group.updateMatrixWorld(true);
-    // foliage particles (falling leaves, gusts, spores, fireflies, moths); world.ambience.setEnabled(false) to mute
+    // photo moths circling the lit lamps (instanced sprites + tiny shadows)
+    if (opts.ambience !== false && this.placement) {
+      this.moths = new Moths(this);
+      this.group.add(this.moths.group);
+    }
+    // foliage particles (falling leaves, gusts, spores, fireflies); world.ambience.setEnabled(false) to mute
     if (opts.ambience !== false) this.ambience = new Ambience(this);
 
     this._settingsOff = settings.onChange(({ key }) => {
@@ -329,6 +335,7 @@ export class World {
     if (this.forest) this.forest.update(dt, focus);
     if (this.placement) this.placement.update(dt, focus);
     if (this.loose) this.loose.update(dt, focus);
+    if (this.moths) this.moths.update(dt, focus);
     if (this.ambience) this.ambience.update(dt, focus);
   }
 

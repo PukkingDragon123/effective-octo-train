@@ -164,3 +164,12 @@ Rebuild: `python3 -I tools/photobash/fetch.py --raw <dir>` then
 | Rice paddy in Thailand.jpg | Wikimedia Commons | Eerin25 | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Rice_paddy_in_Thailand.jpg> | 2D printed: poster election, sticker drive_slow |
 | Rice paddy in Thailand (Boon Kho Ku Sui Bridge).jpg | Wikimedia Commons | Eerin25 | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Rice_paddy_in_Thailand_(Boon_Kho_Ku_Sui_Bridge).jpg> | 2D printed: newspaper classifieds, picture rice |
 | Wang Mai Pak Waterfall.jpg | Wikimedia Commons | ประสบโชคชัยลาภขุมทรัพย์วนาลี | CC0 1.0 | <https://commons.wikimedia.org/wiki/File:Wang_Mai_Pak_Waterfall.jpg> | 2D printed: picture waterfall |
+
+## Moth sprites (props / world: `public/assets/props/moths/moth_atlas.png`)
+
+Two real specimen photographs, cut out from their white background and packed into one sprite
+atlas (used by `src/world/Moths.js` for the moths circling the lamps). Both by 森津,
+Wikimedia Commons, released under **CC0 1.0** (public domain dedication):
+
+- *Erebus ephesperis* (オオトモエ), adult, Kōchi Prefecture — https://commons.wikimedia.org/w/index.php?curid=98202402
+- *Spodoptera depravata* (スジキリヨトウ), adult, Kōchi Prefecture — https://commons.wikimedia.org/w/index.php?curid=98141647

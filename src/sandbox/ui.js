@@ -167,7 +167,7 @@ export default async function ({ params, saves }) {
   const news = () => ui.newsReport({
     th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง ทางหลวงสายป่า คนขับเสียชีวิตคาที่',
     sub: 'เจ้าหน้าที่กู้ภัยเร่งค้นหาผู้โดยสารที่อาจติดอยู่ในรถ ญาติยังติดต่อคนขับไม่ได้ตั้งแต่ช่วงหัวค่ำ',
-    image: backdrop, hold: 999,
+    image: backdrop, hold: 30,
   });
   const playScene = () => {
     ui.setCrosshair(true);

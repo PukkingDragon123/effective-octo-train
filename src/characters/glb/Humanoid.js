@@ -22,6 +22,7 @@ import { makeCharUniforms, bodyMaterial, eyeMaterial, accessoryMaterial } from '
 import { eyeTexture, buildEyeGeometry } from './eyes.js';
 import { wornAccessoryGeometry, heldGeometry, heldMaterial } from './accessories.js';
 import { AnimController } from './anim.js';
+import { Cigarette } from './cigarette.js';
 import { ActionPlayer } from './actions.js';
 import { GhostLayer } from './ghost.js';
 import { MH } from './mhpack.js';
@@ -495,13 +496,25 @@ export class HumanoidGLB {
   /** Attach a held prop ('basket','lunchbox','umbrella','cigarette','garland','coins','paper','amulet','keys','coffee'). */
   holdItem(kind, side = 'R') {
     this.dropItem(kind);
-    const geo = heldGeometry(kind);
-    if (!geo) return null;
-    if (!this.materials.held) this.materials.held = heldMaterial(true);
-    const mesh = new THREE.Mesh(geo, this.materials.held);
+    let mesh, cig = null;
+    if (kind === 'cigarette') {
+      // a real, burning cigarette (cigarette.js): ember, ash, smoke
+      cig = new Cigarette(this);
+      mesh = cig.root;
+    } else {
+      const geo = heldGeometry(kind);
+      if (!geo) return null;
+      if (!this.materials.held) this.materials.held = heldMaterial(true);
+      mesh = new THREE.Mesh(geo, this.materials.held);
+      mesh.castShadow = true;
+    }
     mesh.name = 'held:' + kind;
-    mesh.castShadow = true;
-    const hand = this.rig.bone(side === 'L' ? 'hand_l' : 'hand_r');
+    let hand = this.rig.bone(side === 'L' ? 'hand_l' : 'hand_r');
+    // the cigarette rides the index finger's middle phalanx (it follows the finger curl, between index
+    // and middle), everything else the palm
+    const fingerName = side === 'L' ? 'index_02_l' : 'index_02_r';
+    const onFinger = kind === 'cigarette' && this.t.index[fingerName] !== undefined;
+    if (onFinger) hand = this.rig.bone(fingerName);
     const grip = new THREE.Object3D();
     hand.add(grip);
     grip.add(mesh);
@@ -509,24 +522,29 @@ export class HumanoidGLB {
     const sx = side === 'L' ? 1 : -1;
     // grip point in the hand's rest frame: palm centre, slightly under the palm
     const t = this.t;
-    const hi = t.index[side === 'L' ? 'hand_l' : 'hand_r'];
+    const hi = onFinger ? t.index[fingerName] : t.index[side === 'L' ? 'hand_l' : 'hand_r'];
     const inv = t.Gq[hi].clone().invert();
     const off = new THREE.Vector3(sx * 0.075, -0.03, 0.005);
-    if (kind === 'cigarette') off.set(sx * 0.115, -0.006, -0.012);
+    // between the index and middle fingers at their middle joints (index is the front finger, +Z)
+    if (kind === 'cigarette') off.set(onFinger ? sx * 0.011 : sx * 0.113, 0.0005, onFinger ? -0.0105 : 0.014);
     if (kind === 'umbrella') off.set(sx * 0.07, -0.025, 0.01);
     if (kind === 'paper' || kind === 'coins' || kind === 'amulet') off.set(sx * 0.085, -0.03, -0.01);
     grip.position.copy(off.applyQuaternion(inv)).multiplyScalar(1 / (hand.scale.x || 1));
     // base orientation (hand rest frame): items' +Y along the fingers' up-side
-    if (kind === 'cigarette') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(-Math.PI / 2, 0, 0))); // through the fingers, filter on the palm side
+    // through the gap between the fingers, across the palm plane: filter on the palm side (toward the
+    // lips when the palm faces the face), the ember out past the back of the hand
+    if (kind === 'cigarette') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(0, 0, sx * 0.12)));
     else if (kind === 'umbrella') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(0, 0, sx * -Math.PI / 2)));
     else grip.quaternion.copy(inv);
     if (this._layer !== undefined) grip.traverse((o) => o.layers.set(this._layer));
-    this.held[kind] = { mesh, grip, hand, side, hang, swing: new THREE.Vector2(), vel: new THREE.Vector2() };
+    this.held[kind] = { mesh, grip, hand, side, hang, cig, swing: new THREE.Vector2(), vel: new THREE.Vector2() };
+    if (cig) this._smokeT = 3 + Math.random() * 6;
     return mesh;
   }
   dropItem(kind) {
     const h = this.held?.[kind];
     if (!h) return;
+    h.cig?.dispose();
     h.grip.removeFromParent();
     delete this.held[kind];
   }
@@ -541,6 +559,7 @@ export class HumanoidGLB {
     if (this.person) releasePerson(this.person);
     releaseLookGeometry(this._geoHi);
     if (this._geoLo) releaseLookGeometry(this._geoLo);
+    for (const k in this.held || {}) this.held[k].cig?.dispose();
     releaseAtlas(this._atlas);
     releaseFace(this._faceTex);
     for (const m of Object.values(this.materials)) m.dispose();
@@ -557,6 +576,10 @@ export class HumanoidGLB {
     this.scale = src.scale;
     this.headScale = src.headScale;
     const clone = skeletonClone(src.root);
+    // the source's cigarette smoke is world-space (it shows in mirrors as it is): don't duplicate it
+    const smoke = [];
+    clone.traverse((o) => { if (o.name === 'cig-smoke') smoke.push(o); });
+    for (const o of smoke) o.removeFromParent();
     this.root.add(...clone.children);
     this.inner = this.root.children[0];
     // own uniforms (twist/face copies + overrides), shared textures and geometry
@@ -1103,7 +1126,9 @@ export class HumanoidGLB {
           this._spreadTwist(s, w);
         }
       }
-      if (grip > 0.01 || fingers) this._fingers(s, fingers || 'grip', grip || (req?.w ?? 1), req?.phase || 0);
+      const fw = grip > 0.01 || fingers;
+      if (fw) this._fingers(s, fingers || 'grip', grip || (req?.w ?? 1), req?.phase || 0);
+      (this._fingerSet || (this._fingerSet = {}))[s] = !!fw;
     }
   }
 
@@ -1152,7 +1177,9 @@ export class HumanoidGLB {
       case 'grip': for (const f of F) curl(f, 1.05, 1.25, 0.8); thumb(0.5, 0.4, 0.4); break;
       case 'point': curl('index', -0.05, -0.05, 0); for (const f of F.slice(1)) curl(f, 1.3, 1.4, 0.9); thumb(0.4, 0.5, 0.4); break;
       case 'flat': case 'wai': for (const f of F) curl(f, -0.15, -0.15, -0.1); thumb(-0.1, -0.1, 0); break;
-      case 'cig': curl('index', 0.25, 0.2, 0.1); curl('middle', 0.3, 0.25, 0.1); curl('ring', 1.1, 1.2, 0.8); curl('pinky', 1.2, 1.2, 0.8); thumb(0.3, 0.3, 0.2); break;
+      // cigarette between index and middle: those two relaxed and nearly straight, ring and pinky softly
+      // curled, the thumb loose
+      case 'cig': curl('index', 0.22, 0.28, 0.14); curl('middle', 0.26, 0.3, 0.14); curl('ring', 0.6, 0.65, 0.4); curl('pinky', 0.7, 0.62, 0.38); thumb(0.25, 0.2, 0.12); break;
       case 'beckon': {
         const b = 0.5 + 0.5 * Math.sin(phase);
         for (const f of F) curl(f, 0.3 + b * 0.9, 0.3 + b * 0.8, 0.2 + b * 0.5);
@@ -1290,6 +1317,25 @@ export class HumanoidGLB {
   _heldProps(dt) {
     for (const k in this.held) {
       const h = this.held[k];
+      if (h.cig) {
+        // the resting hold keeps the smoker's fingers (when no action poses them this frame)
+        if (!this._fingerSet?.[h.side]) this._fingers(h.side, 'cig', 1);
+        const S = this._smoke || {};
+        let mouth = null, fwd = null;
+        if ((S.exhale || 0) > 0.05 && this.jaw) {
+          mouth = this.jaw.getWorldPosition(new THREE.Vector3());
+          this.boneFrame(this.t.index.Head, _q);
+          fwd = new THREE.Vector3(0, -0.25, 1).normalize().applyQuaternion(_q);
+        }
+        h.cig.update(dt, S.drag || 0, S.exhale || 0, mouth, fwd);
+        this._smoke = null;
+        // the smoking cycle: a drag every 9-17 s while idle (gameplay may also play('smoke') itself)
+        if (this.autoSmoke !== false && !this.walk && !this.actions.list.length && !this.isDouble) {
+          this._smokeT = (this._smokeT ?? 6) - dt;
+          if (this._smokeT <= 0) { this._smokeT = 9 + Math.random() * 8; this.play('smoke', { side: h.side }); }
+        }
+        continue;
+      }
       if (!h.hang) continue;
       // hanging props keep their own "down" (damped pendulum) instead of rotating rigidly with the hand
       h.grip.getWorldQuaternion(_q);

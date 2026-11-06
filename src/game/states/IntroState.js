@@ -4,6 +4,8 @@
 // green-and-yellow taxi, nobody about (Ah Kong comes later). Park, get off -> GarageState.
 // The ride never strands anyone: after a while the bike rides itself the rest of the way.
 // Riding off the road edge at speed ends the game (systems/OffRoad.js: the crash, the TV news).
+import { setObjective, objectiveDone } from '../systems/Objectives.js';
+import { saveCheckpoint } from '../systems/Checkpoint.js';
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { wait } from '../util.js';
@@ -57,6 +59,8 @@ export const IntroState = {
     // the garage is waiting up ahead (first night: nothing has changed yet, and Ah Kong is out)
     LoopStaging.apply(0);
     this.garage = setupGarage(this.stage, { ahKong: 'none' });
+    saveCheckpoint('intro');
+    setTimeout(() => this.active && setObjective('ride'), params.fromMenu ? 4200 : 2600);
     ensureOffRoad(); // leaving the road at speed is a real death (the TV news, game over)
     // the bike, on the spur, engine running
     const s0 = 6;
@@ -190,6 +194,7 @@ export const IntroState = {
   async _arrive() {
     if (this.phase !== 'ride') return;
     this.phase = 'arrive';
+    objectiveDone();
     const S = guard(this);
     const bike = g.bike;
     try {

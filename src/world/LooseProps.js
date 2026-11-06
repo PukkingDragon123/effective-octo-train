@@ -1,10 +1,12 @@
-// Loose small props (chairs, stools, buckets, tools, tyres, cones, cans...) that rest on their
-// surface and get knocked about: the player walking into them or the taxi bumping them makes them
-// tip, slide and fall. A deliberately small rigid-box solver (gravity, ground contact with
+// Loose small props that rest on their surface and get knocked about. Two classes:
+//   'light'  small light things (cans, cones, bags, buckets, tools): pushed, tipped, sent sliding
+//   'nudge'  chairs, stools, crates, toolboxes: solid (static collider), shift a few cm at most
+// Heavy things (drums, jars, tyres, big set pieces) are never loose. A deliberately small rigid-box solver (gravity, ground contact with
 // friction, tipping torque toward the nearest stable face, pushes from a player capsule and the
 // taxi's box). Only bodies near the player are simulated; everything else sleeps.
 import * as THREE from 'three';
 import { g } from '../game/context.js';
+import { colliders } from '../core/Colliders.js';
 
 const _box = new THREE.Box3();
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _a = new THREE.Vector3(), _u = new THREE.Vector3();
@@ -51,9 +53,15 @@ export class LooseProps {
       awake: false, still: 0,
       start: null, support: 0, floor: opts.floor ?? null,
       mass: Math.max(0.5, half.x * half.y * half.z * 8 * (opts.density ?? 120)),
+      cls: opts.cls === 'nudge' ? 'nudge' : 'light',
+      home: null,
     };
+    b.maxShift = b.cls === 'nudge' ? 0.1 : 2.0;
     if (opts.drop) this._drop(b);
     b.start = b.pos.clone();
+    b.home = b.pos.clone();
+    // chairs and stools are solid: the player bumps into them instead of walking through
+    if (b.cls === 'nudge') colliders.addCircle(b.pos.x, b.pos.z, Math.max(0.12, Math.min(b.half.x, b.half.z) * 1.05), { tag: 'world' });
     b.support = this._lowest(b);
     this.bodies.push(b);
     return b;
@@ -133,13 +141,17 @@ export class LooseProps {
       if (pp && pv) {
         const ex = b.pos.x - pp.x, ez = b.pos.z - pp.z;
         const d = Math.hypot(ex, ez);
-        const reach = r * 0.8 + 0.3;
+        const nudge = b.cls === 'nudge';
+        const reach = nudge ? Math.min(b.half.x, b.half.z) * 1.05 + 0.38 : r * 0.7 + 0.28;
         const sp = Math.hypot(pv.x, pv.z);
         if (d < reach && sp > 0.3 && b.pos.y < pp.y + 1.2) {
           const nx = ex / (d || 1), nz = ez / (d || 1);
-          this._push(b, nx, nz, Math.min(3, sp) * (1.2 + 3 / b.mass), 0.45);
-          b.pos.x = pp.x + nx * reach;
-          b.pos.z = pp.z + nz * reach;
+          if (nudge) this._push(b, nx, nz, Math.min(0.35, sp * 0.15), 0.02);
+          else {
+            this._push(b, nx, nz, Math.min(1.6, sp) * 0.75, 0.22);
+            b.pos.x = pp.x + nx * reach;
+            b.pos.z = pp.z + nz * reach;
+          }
         }
       }
       // the taxi bumps it
@@ -154,10 +166,13 @@ export class LooseProps {
           _w.transformDirection(tx.matrixWorld);
           _w.y = 0;
           _w.normalize();
-          const sp = Math.max(1.5, tvel ? tvel.length() : 0);
-          this._push(b, _w.x, _w.z, sp * 1.3 + 0.5, 1.1);
-          if (tvel) b.vel.addScaledVector(tvel, 0.6);
-          b.pos.addScaledVector(_w, Math.min(ox, oz));
+          const sp = Math.max(1.0, tvel ? tvel.length() : 0);
+          if (b.cls === 'nudge') this._push(b, _w.x, _w.z, Math.min(0.6, sp * 0.1), 0.05);
+          else {
+            this._push(b, _w.x, _w.z, Math.min(6, sp * 0.8 + 0.4), 0.6);
+            if (tvel) b.vel.addScaledVector(tvel, 0.35);
+            b.pos.addScaledVector(_w, Math.min(ox, oz));
+          }
         }
       }
       if (b.awake) this._step(b, dt);
@@ -196,7 +211,7 @@ export class LooseProps {
       contact = true;
       b.pos.y += surf - lo;
       if (b.vel.y < 0) b.vel.y *= -0.15;
-      const f = Math.exp(-7 * dt);
+      const f = Math.exp((b.cls === 'nudge' ? -25 : -10) * dt); // rough ground, heavy-ish things
       b.vel.x *= f;
       b.vel.z *= f;
       // gravity torque: fall toward the nearest stable face (tip over past the critical angle)
@@ -221,6 +236,14 @@ export class LooseProps {
       b.ang.multiplyScalar(Math.exp(-3.5 * dt));
     } else {
       b.ang.multiplyScalar(Math.exp(-0.4 * dt));
+    }
+    // never further than its class allows from where it was placed
+    const hx = b.pos.x - b.home.x, hz = b.pos.z - b.home.z;
+    const hd = Math.hypot(hx, hz);
+    if (hd > b.maxShift) {
+      b.pos.x = b.home.x + (hx / hd) * b.maxShift;
+      b.pos.z = b.home.z + (hz / hd) * b.maxShift;
+      b.vel.x = b.vel.z = 0;
     }
     this._write(b);
     if (contact && b.vel.lengthSq() < 0.004 && b.ang.lengthSq() < 0.004) {

@@ -11,7 +11,12 @@ import { input } from '../../core/Input.js';
 import { interact } from '../../core/Interact.js';
 import { ensurePlayerActions } from '../systems/PlayerActions.js';
 import { LoopStaging } from '../systems/LoopStaging.js';
-import { setupGarage, ahKongFace, walkAroundTaxi, retireAhKong } from '../opening/garageSet.js';
+import { setupGarage, retireAhKong } from '../opening/garageSet.js';
+import { garageTaxiPose, parkTaxi } from '../opening/common.js';
+import { kongWalk, kongSay, scold, Nag, kongIdle } from '../opening/kong.js';
+import { KONG_REACT, KONG_TAKEOVER } from '../data/kongTalk.js';
+import { setObjective, objectiveDone, clearObjective } from '../systems/Objectives.js';
+import { objective } from '../../ui/Objective.js';
 import { Stage, guard, isAbort, runLines, resolve, music, taxiPoint, ground, yawTo, waitFor, releaseSky, hidePlayer, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
@@ -211,6 +216,34 @@ export const TutorialState = {
     g.cameraRig.setFocus(null);
     g.cameraRig.fovOffset = 0;
     this.stage = new Stage();
+    this._bumps = 0;
+    this._stalls = 0;
+    this._parking = false;
+    let bumpT = 0, engWas = !!g.taxi.state.engineOn;
+    this.stage.add(
+      bus.on('taxi:collision', (e) => {
+        if (!this.active || (e?.impulse ?? 0) < 450 || g.engine.time - bumpT < 2.5 || this._parking) return;
+        bumpT = g.engine.time;
+        this._bumps++;
+        if (this._bumps === 1) kongSay(KONG_REACT.bump, { queue: true });
+        else scold('badDrive', Math.min(3, this._bumps));
+        if (this._bumps >= 3) this._kongParks(guard(this));
+      }),
+    );
+    this.stage.update(() => {
+      const s = g.taxi.state;
+      const on = !!s.engineOn;
+      if (engWas && !on && s.ignition !== 'off' && s.keyInserted && g.actions?.inTaxi) {
+        this._stalls++;
+        if (this._stalls === 1) kongSay(KONG_REACT.stall, { queue: true });
+        else scold('stall', Math.min(3, this._stalls));
+        if (this._stalls >= 3) {
+          this._stalls = 0;
+          autoDo({ type: 'control', control: 'ignition', value: 'start' });
+        }
+      }
+      engWas = on;
+    }, 33);
     A.setEnabled(true);
     A.setAllowed({ paper: true, amulet: true, vehicle: true, inspect: true });
     g.input.setWantPointerLock(true);
@@ -281,13 +314,55 @@ export const TutorialState = {
   /** Ah Kong walks to where he teaches from: by the driver's door, or at the window. */
   async _kongTo(where, S) {
     const h = g.ahKong;
-    if (!h || h._seated) return;
+    if (!h) return;
     const target = where === 'door' ? taxiPoint(2.15, 0, 0.75, new THREE.Vector3()) : taxiPoint(1.5, 0, -0.2, new THREE.Vector3());
     target.y = ground(target.x, target.z);
-    const d = Math.hypot(target.x - h.root.position.x, target.z - h.root.position.z);
-    if (d > 0.5) await S.step(Promise.race([walkAroundTaxi(h, target, 14), wait(Math.min(16, d / 0.6 + 3))]));
-    ahKongFace(where === 'door' ? g.player.root.position : taxiPoint(0.37, 0, -0.1, _v));
+    const face = where === 'door' ? g.player.root.position.clone() : taxiPoint(0.37, 0, -0.1, new THREE.Vector3());
+    // he gets up if he is sitting, walks round the cab, turns to it (never a snap)
+    await S.step(kongWalk(target, { face }));
     h.lookAt(g.player.eye, { weight: 1, speed: 3 });
+  },
+
+  /** Level 3: "out of the way", he walks over and does the step himself. */
+  async _kongDoesStep(S, wf, demo, outside) {
+    try {
+      scold('slow', 3);
+      await this._kongTo(outside ? 'door' : 'window', S);
+      kongSay(KONG_TAKEOVER.tutorial, { queue: true });
+      if (demo) g.ahKong.play?.('point', { target: demo, side: 'R' })?.catch?.(() => {});
+      await S.wait(0.9);
+      await autoDo(wf);
+      kongSay(KONG_TAKEOVER.done.slice(1), { queue: true });
+    } catch (e) {
+      if (!isAbort(e)) console.warn('[tutorial] kong does', e);
+      await autoDo(wf);
+    }
+  },
+
+  /** Driving like that: he stops it and parks it back in front of the garage himself. */
+  async _kongParks(S) {
+    if (this._parking) return;
+    this._parking = true;
+    const t = g.taxi;
+    try {
+      scold('badDrive', 3);
+      t.setControlsEnabled(false);
+      t.setControl('handbrake', true);
+      await this._kongTo('window', S);
+      await S.step(g.cine.fade(1, 0.5));
+      const tp = garageTaxiPose();
+      parkTaxi(tp.pos, tp.yaw, { cold: false, headlights: t.state.headlights });
+      await S.wait(0.6);
+      g.cine.fade(0, 0.9);
+      kongSay(KONG_TAKEOVER.park, { queue: true });
+      await this._kongTo('window', S);
+      if (g.actions.inTaxi) t.setControlsEnabled(true);
+    } catch (e) {
+      if (!isAbort(e)) console.warn('[tutorial] park', e);
+    } finally {
+      this._parking = false;
+      this._bumps = 0;
+    }
   },
 
   async _steps(S) {
@@ -303,6 +378,8 @@ export const TutorialState = {
       const hint = pick(step.hint);
       const demo = demoTarget(wf, step);
       if (demo) this._demo(demo);
+      const nag = new Nag('slow', [14, 28, 42]);
+      if (hint) objective.set({ th: hint.th, en: hint.en });
       const outside = ['paper', 'interact', 'enterVehicle'].includes(wf?.type) && !A.inTaxi;
       const kongGo = this._kongTo(outside ? 'door' : 'window', S).catch(() => {});
       const waiter = makeWaiter(wf);
@@ -335,20 +412,27 @@ export const TutorialState = {
             flipHint = true;
             g.ui.hint({ th: 'พลิกดู', en: 'Turn it over', keys: ['F'], duration: 7 });
           }
-          // a nudge, then he does it for you
-          if (talkDone && !nudged && t > 24 && !waiter.w.done && firstLine) {
-            nudged = true;
-            runLines([firstLine]);
-          }
-          if (!auto && t > 55 && !waiter.w.done) {
-            auto = true;
-            autoDo(wf).then(() => (waiter.w.done = true));
+          // slow: a grumble, a proper scolding, then he does it himself
+          if (talkDone && !auto && !waiter.w.done && !this._parking) {
+            const lv = nag.update(dt);
+            if (lv === 1) {
+              scold('slow', 1);
+              if (firstLine && !nudged) {
+                nudged = true;
+                setTimeout(() => this.active && runLines([firstLine]), 2400);
+              }
+            } else if (lv === 2) scold('slow', 2);
+            else if (lv === 3) {
+              auto = true;
+              this._kongDoesStep(S, wf, demo, outside).then(() => (waiter.w.done = true));
+            }
           }
           return waiter.w.done && talkDone;
         }),
       );
       void ok;
       waiter.dispose();
+      objectiveDone();
       if (!flipHint || A.paper.flipped) g.ui.hint(null);
       await kongGo;
       S.chk();
@@ -396,6 +480,7 @@ export const TutorialState = {
   },
 
   exit(_g, next) {
+    clearObjective();
     g.ui.hint(null);
     this.stage?.clear();
     g.ahKong.lookAt(null);

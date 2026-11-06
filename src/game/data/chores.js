@@ -12,14 +12,13 @@
 //   SHRINE_PRAYER       Ton's murmured prayer during the wai
 //   COIN_COUNT          the count (one more coin than he counted)
 //   PHONE_CALL          answering the phone while Ah Kong is away (a whisper says Ton's name)
-//   MIRROR_SCARE        after looking into the uncovered mirror
-//   Flags (night): chore.shrine ('done'|'wrong'), chore.offering, chore.cloth, chore.coins, chore.mirror,
-//   phoneAnswered, phoneIgnored. Kept across loops: k.phoneAnswered, k.extraCoins, k.mirrorLooked, k.shrineWrong.
+//   Flags (night): chore.shrine ('done'|'wrong'), chore.offering, chore.cloth, chore.coins,
+//   phoneAnswered, phoneIgnored. Kept across loops: k.phoneAnswered, k.extraCoins, k.shrineWrong.
 const K = (th, en, x = {}) => ({ who: 'ahKong', th, en, ...x });
 const T = (th, en, x = {}) => ({ who: 'player', th, en, ...x });
 const TT = (th, en, x = {}) => ({ who: 'player', th, en, tone: 'thought', ...x });
 
-export const CHORE_IDS = ['shrine', 'offering', 'cloth', 'coins', 'mirror'];
+export const CHORE_IDS = ['shrine', 'offering', 'cloth', 'coins'];
 export const REQUIRED_CHORES = ['shrine', 'offering', 'cloth'];
 export const CHORE_SKIP_SECONDS = 180;
 
@@ -30,7 +29,6 @@ export const CHORES_INTRO = [
   K('แล้วเอาน้ำแดงกับข้าวไปวางไว้ที่ประตู ให้คนที่มาตอนเที่ยงคืน', 'Then put the red soda and the rice by the gate. For the one who comes at midnight.'),
   K('ผ้าสามสีบนโต๊ะ เอาไปผูกที่กระจกมองหลังในรถ', 'The three-colour cloth on the table. Tie it on the taxi’s mirror.'),
   K('เหรียญในกระป๋องค่าโดยสาร นับให้อากงด้วย', 'And count the coins in the fare tin for me.'),
-  K('กระจกบานหลังอู่ เอาผ้าคลุมไว้… แล้วอย่าส่องมันนะ', 'The mirror at the back. Cover it with the cloth… and don’t look into it.', { emotion: 'sad' }),
 ];
 
 export const CHORES_RESTART = [
@@ -43,16 +41,14 @@ export const CHORE_HINT = {
   offering: [K('น้ำแดงกับข้าว อยู่บนโต๊ะช่าง เอาไปวางที่ประตู', 'The soda and the rice are on the workbench. By the gate.')],
   cloth: [K('ผ้าสามสี ผูกที่กระจกในรถ', 'The cloth. On the mirror in the taxi.')],
   coins: [K('กระป๋องเหรียญอยู่บนโต๊ะ นับซะ', 'The coin tin is on the table. Count it.')],
-  mirror: [K('กระจกข้างหลัง คลุมผ้าซะ อย่าส่อง', 'The mirror at the back. Cover it. Don’t look.')],
 };
 
 export const CHORE_DONE = {
   shrine: [K('ดี ควันลอยขึ้นตรง ๆ เจ้าที่รับแล้ว', 'Good. The smoke goes straight up. They accepted it.')],
-  shrineWrong: [K('ควันมันลอยเข้าอู่… เราข้ามขั้นใช่มั้ย', 'The smoke is drifting into the garage… you skipped something, didn’t you.', { emotion: 'fear' }), K('ช่างมัน คืนนี้ระวังตัวไว้ก็แล้วกัน', 'Never mind. Just watch yourself tonight.')],
+  shrineWrong: [K('โง่เป็นควาย! ควันมันลอยเข้าอู่… ข้ามขั้นใช่มั้ย', 'Thick as a buffalo! The smoke’s drifting into the garage… you skipped a step, didn’t you.', { emotion: 'anger' }), K('ช่างมัน คืนนี้ระวังตัวไว้ก็แล้วกัน', 'Never mind. Just watch yourself tonight.')],
   offering: [K('วางไว้อย่างนั้นแหละ อย่าไปแตะอีก', 'Leave it like that. Don’t touch it again.')],
   cloth: [K('ผูกแน่น ๆ นะ หลุดเมื่อไหร่ให้รีบจอด', 'Tie it tight. If it ever comes loose, pull over.')],
   coins: [K('เกินมาเหรียญนึงทุกคืนแหละ', 'There’s always one too many.'), K('เหรียญนั้นอย่าเอาไปใช้ เก็บไว้ในกระป๋อง มันไม่ใช่ของเรา', 'Don’t spend that one. Keep it in the tin. It isn’t ours.')],
-  mirror: [K('ดีแล้ว คลุมไว้แบบนั้นทั้งคืน', 'Good. Keep it covered all night.')],
 };
 
 export const CHORES_KEYS = [K('เออ ครบแล้ว มานี่', 'Right, that’s done. Come here.')];
@@ -73,9 +69,4 @@ export const PHONE_CALL = {
   hello: [T('ฮัลโหล… อากงเหรอครับ', 'Hello… Ah Kong, is that you?')],
   whisper: [{ who: 'voice', th: 'ต้น…', en: 'Ton…', tone: 'whisper' }],
   after: [TT('…วางไปแล้ว', '…they hung up.')],
-};
-
-export const MIRROR_SCARE = {
-  ton: [TT('…ใคร', '…who’s there.')],
-  kong: [K('บอกแล้วไงว่าอย่าส่อง', 'I told you not to look.', { emotion: 'sad' })],
 };

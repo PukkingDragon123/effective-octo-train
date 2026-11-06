@@ -94,13 +94,27 @@ export const ACTIONS = {
     },
     ik(h, c) {
       const toMouth = env(c.k, 0.08, 0.22, 0.42, 0.55);
-      // resting hold: forearm up in front of the chest, cigarette out
+      // resting hold: forearm up in front of the chest, wrist relaxed, cigarette out
       const rest = bp(h, 'spine_03', -0.17, -0.02, 0.3);
       const restAlong = bd(h, 'spine_03', 0.1, 0.9, 0.35), restPalm = bd(h, 'spine_03', 0.6, 0, -0.4);
       // at the lips: palm toward the face, fingers up and out
-      const mouth = bp(h, 'Head', -0.018, 0.035, 0.155);
       const mAlong = bd(h, 'Head', -0.45, 0.85, 0.1), mPalm = bd(h, 'Head', 0.15, -0.1, -1);
+      // aim from the lips: the hand floats 3.5 cm in front of them (the palm faces the face) and a little
+      // low, so the cigarette between the fingers lands its filter on the lips
+      const lipsW = h.jaw ? h.jaw.getWorldPosition(new THREE.Vector3()) : null;
+      const mouth = lipsW ? lipsW.addScaledVector(mPalm, -0.035 * h.scale).addScaledVector(mAlong, -0.05 * h.scale) : bp(h, 'Head', -0.018, 0.035, 0.155);
       const pos = rest.lerp(mouth, easeInOut(toMouth));
+      // the FILTER (not the palm) must meet the lips: feed the remaining gap back into the target
+      const cig = h.held.cigarette?.cig;
+      const st = c.st;
+      st.corr = st.corr || new THREE.Vector3();
+      if (cig && h.jaw && toMouth > 0.3) {
+        const lips = h.jaw.getWorldPosition(new THREE.Vector3());
+        const tip = cig.filterWorld(new THREE.Vector3());
+        st.corr.addScaledVector(lips.sub(tip), 0.65 * toMouth);
+        if (st.corr.length() > 0.2) st.corr.setLength(0.2);
+      }
+      pos.addScaledVector(st.corr, toMouth);
       const al = restAlong.lerp(mAlong, toMouth), pa = restPalm.lerp(mPalm, toMouth);
       req(h, 'R', c.w, pos, al, pa, { fingers: 'cig' });
     },
@@ -109,6 +123,8 @@ export const ACTIONS = {
       o.squint += 0.5 * inh * c.w;
       o.eyesClosed = Math.max(o.eyesClosed, 0.45 * inh * c.w);
       o.jaw += 0.18 * exh * c.w;
+      // the cigarette reads these: the ember flares on the drag, the mouth puffs on the exhale
+      h._smoke = { drag: inh * c.w, exhale: exh * c.w };
       if (exh > 0.5 && !c.st.puffed) { c.st.puffed = true; h.onExhale?.(h.headPosition); }
     },
   },

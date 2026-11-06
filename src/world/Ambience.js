@@ -86,6 +86,7 @@ export class Ambience {
   /** Moths at the lit set pieces (at most 6 lamps; waits for a progressive build to finish). */
   _initMoths() {
     this._moths = true;
+    if (this.world.moths) return; // the world's photo moths (Moths.js) replace the particle moths
     const lm = this.world.landmarks || {};
     let n = 0;
     for (const L of Object.values(lm)) {

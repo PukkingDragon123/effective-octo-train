@@ -5,6 +5,7 @@
 // (dash tally, calendar, the radio already playing, the ash), then RESTART_LINES ->
 // DEATH_HINTS -> TIME_SKIP -> RESTART_KEYS (refuse from loop 3 -> ride the motorbike out:
 // ending ride_away) -> SEND_OFF; Ton walks to the taxi and gets in -> ShiftState {ride, hour}.
+import { saveCheckpoint } from '../systems/Checkpoint.js';
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { wait } from '../util.js';
@@ -18,6 +19,9 @@ import { setupGarage, ahKongFace, ahKongStand, ahKongSit, walkAroundTaxi, retire
 import { createChips } from '../opening/chips.js';
 import { Chores, nightStage } from '../opening/chores.js';
 import * as CH from '../data/chores.js';
+import { KONG_REACT, KONG_TAKEOVER } from '../data/kongTalk.js';
+import { kongTurn, kongWalk, kongSit, kongSay, kongIdle, scold, Nag } from '../opening/kong.js';
+import { setObjective, objectiveDone, clearObjective } from '../systems/Objectives.js';
 import { createVolumetricBeam, paintedMaterial } from '../../render/index.js';
 import { ensureOffRoad } from '../systems/OffRoad.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, runLines, resolve, music, sfx, ground, yawTo, roadPoint, roadYaw, roadLen, releaseSky, hidePlayer, waitFor, logic, taxiPoint, quietDirector } from '../opening/common.js';
@@ -92,12 +96,14 @@ export const GarageState = {
     this.kongAway = !this.restart && !params.skipTalk;
     ensureOffRoad();
     if (this.restart || !params.arrived) nightStage.clear(); // a new night: last night's offerings are gone
+    if (!params.checkpoint) saveCheckpoint('garage', { restart: this.restart });
     this.chores = null;
     this.set = setupGarage(this.stage, { ahKong: this.kongAway ? 'none' : where === 'stool' ? 'stool' : where === 'dark' ? 'none' : 'besideTaxi', interactions: true });
     this.where = where;
     this._parkBike();
     this._talkItem();
     this.stage.update((dt) => this._tick(dt), 1);
+    kongIdle(this.stage, () => ['chores', 'free'].includes(this.phase) && !this._kongBusy);
     try {
       if (this.restart) await this._restartFlow(S, loops);
       else await this._firstNight(S, params);
@@ -178,6 +184,7 @@ export const GarageState = {
     if (this.kongAway) await this._waitForKong(S);
     // walk to the old man
     this.phase = 'walkToKong';
+    if (!this._nearKong(2.0)) setObjective('talkKong');
     this.walkT = 0;
     const ok = await S.step(waitFor(() => this.talkWanted || this._nearKong(2.0) || this.walkT > 80 || !this.active));
     void ok;
@@ -195,7 +202,10 @@ export const GarageState = {
     const before = ki > 0 ? intro.slice(0, ki) : intro;
     const after = ki > 0 ? intro.slice(ki) : [];
     const alive = () => this.active;
-    await this._converse(S, () => runLines(resolve(before), { alive, onLine: (l) => this._onLine(l) }));
+    await this._converse(S, async () => {
+      if (this._arrivalReact?.length) await runLines(resolve(this._arrivalReact), { alive });
+      await runLines(resolve(before), { alive, onLine: (l) => this._onLine(l) });
+    });
     if (after.length) {
       await this._choresPhase(S, CH.CHORES_INTRO, null);
       this.phase = 'talk';
@@ -233,38 +243,97 @@ export const GarageState = {
     this.phase = 'talk';
     await this._converse(S, () => runLines(resolve(lines), { alive: () => this.active }));
     this.phase = 'chores';
-    this.choreT = 0;
-    this.choreNudge = 0;
+    // slow, then slower, then he does the next one himself (per chore: the meter resets on progress)
+    this.choreNag = new Nag('slow', [30, 60, 90]);
+    C.onMark = () => {
+      this.choreNag?.reset();
+      this._choreObjective();
+    };
     C.start();
+    this._choreObjective();
     A?.setAllowed({ paper: false, amulet: false, vehicle: false });
     g.player.setWalkEnabled(true);
-    if (!g.ahKong._seated) ahKongSit();
-    await S.step(waitFor(() => !this.active || C.requiredDone() || this.choreT > CH.CHORE_SKIP_SECONDS));
+    kongSit().catch(() => {}); // back to his stool to watch (he walks there and sits down)
+    await S.step(waitFor(() => !this.active || (C.requiredDone() && !this._kongBusy), CH.CHORE_SKIP_SECONDS + 240));
     if (!C.requiredDone()) {
-      // three minutes: he grumbles and does the rest himself
       await runLines(resolve(CH.CHORES_GRUMBLE), { alive: () => this.active });
       S.chk();
-      await S.step(g.cine.fade(1, 0.5));
-      C.finishRest();
-      await S.wait(0.4);
-      g.cine.fade(0, 0.8);
+      for (const id of CH.REQUIRED_CHORES) if (C.has(id) && !C.done(id)) await this._kongDoes(S, id);
     }
-    await S.wait(1.4);
+    this.choreNag = null;
+    setObjective('keys');
+    await S.wait(1.2);
+  },
+
+  /** The objective line follows the chores: the next one still to do. */
+  _choreObjective() {
+    const C = this.chores;
+    const next = C && [...CH.REQUIRED_CHORES, 'coins'].find((id) => C.has(id) && !C.done(id) && (id !== 'coins' || C.requiredDone()));
+    if (!next) return objectiveDone();
+    if (CH.REQUIRED_CHORES.includes(next) || !C.requiredDone()) setObjective(next);
+  },
+
+  /** Level 3: he gets up, walks over and does it himself (then back to the stool). */
+  async _kongDoes(S, id) {
+    const C = this.chores;
+    if (!C || C.done(id) || this._kongBusy) return;
+    this._kongBusy = true;
+    const h = g.ahKong;
+    try {
+      C.takeFromPlayer();
+      kongSay(KONG_TAKEOVER[id] || KONG_TAKEOVER.tutorial, { queue: true });
+      const plan = C.kongPlan(id);
+      for (let i = 0; i < plan.length; i++) {
+        const P = plan[i];
+        const at = P.at.clone();
+        // stop short of the thing, on his side of it
+        const away = _v.copy(h.root.position).sub(at).setY(0);
+        if (away.lengthSq() > 1e-4) at.addScaledVector(away.normalize(), P.stop ?? 0.75);
+        await kongWalk(at, { face: P.look });
+        S.chk();
+        if (i === 0) C.carry(id);
+      }
+      if (id === 'shrine') {
+        sfx('lighter', { object: h.root, volume: 0.5 });
+        h.play?.('wai')?.catch?.(() => {});
+        await S.wait(2.4);
+      } else {
+        h.play?.('point', { target: plan[plan.length - 1]?.look })?.catch?.(() => {});
+        await S.wait(1.1);
+      }
+      C.finish(id);
+      await S.wait(0.8);
+      kongSay(KONG_TAKEOVER.done.slice(0, 1), { queue: true });
+      kongSit().catch(() => {});
+    } catch (e) {
+      if (!isAbort(e)) console.warn('[garage] kong does', id, e);
+      try {
+        C.finish(id);
+      } catch (e2) {
+        /* ignore */
+      }
+    } finally {
+      this._kongBusy = false;
+      this.choreNag?.reset();
+    }
   },
 
   /** Talking to him while chores are left: what to do next. */
   _choreHint() {
     if (g.dialogue.busy) return;
     const C = this.chores;
-    const next = C && ['shrine', ...CH.REQUIRED_CHORES, 'coins', 'mirror'].find((id) => C.has(id) && !C.done(id));
+    const next = C && [...CH.REQUIRED_CHORES, 'coins'].find((id) => C.has(id) && !C.done(id));
     if (next) runLines(resolve(CH.CHORE_HINT[next] || []));
   },
   _idleNudgeChores(dt) {
-    this.choreT = (this.choreT || 0) + dt;
-    this.choreNudge = (this.choreNudge || 0) + dt;
-    if (this.choreNudge > 40 && !g.dialogue.busy) {
-      this.choreNudge = 0;
-      this._choreHint();
+    const lv = this._kongBusy ? 0 : this.choreNag?.update(dt) || 0;
+    if (lv === 1 || lv === 2) {
+      scold('slow', lv);
+      if (lv === 1) setTimeout(() => this.active && this.phase === 'chores' && this._choreHint(), 2600);
+    } else if (lv === 3) {
+      const C = this.chores;
+      const id = CH.REQUIRED_CHORES.find((x) => C?.has(x) && !C.done(x));
+      if (id) this._kongDoes(guard(this), id);
     }
   },
 
@@ -273,6 +342,7 @@ export const GarageState = {
   async _waitForKong(S) {
     this.phase = 'wait';
     this.waitT = 0;
+    setObjective('waitKong');
     const G = lm('garage');
     const A = G?.anchors || {};
     if (A.tableAnchor) {
@@ -295,7 +365,11 @@ export const GarageState = {
     await S.step(waitFor(() => !this.active || (!calling() && (this.waitT > startAt || (C && C.eaten >= 3 && g.engine.time - C.lastEatAt > 2.5))) || this.waitT > 200));
     this.phase = 'arrive';
     await this._kongArrives(S);
+    const ate = (this.chips?.eaten || 0) > 0;
     this.chips?.putAway?.();
+    objectiveDone();
+    // he noticed: the crisps, the phone
+    this._arrivalReact = [...(ate ? KONG_REACT.chips : []), ...(g.save?.flags?.phoneAnswered ? KONG_REACT.phone : [])];
   },
 
   /** A torch bobbing up the road out of the fog, footsteps on the tarmac, then he walks in. */
@@ -331,7 +405,7 @@ export const GarageState = {
       torch.off();
       h.stopWalking?.();
     }
-    ahKongFace(g.player.root.position);
+    await kongTurn(g.player.root.position);
   },
 
   /** Ah Kong's torch: a small lathed torch in his left hand, its beam, a pool of light ahead. */
@@ -411,7 +485,7 @@ export const GarageState = {
     g.player.setWalkEnabled(false);
     A?.setAllowed({ paper: false, amulet: false, vehicle: false });
     const ak = g.ahKong;
-    if (!ak._seated) ahKongFace(g.player.root.position);
+    if (!ak._seated) kongTurn(g.player.root.position);
     ak.lookAt(g.player.eye, { weight: 1, speed: 3 });
     await S.step(g.cine.converse(ak, { zoom: -9, strength: 0.55 }));
     try {
@@ -522,6 +596,8 @@ export const GarageState = {
     // free: walk to the taxi (or, if he refused, to the motorbike)
     this.phase = 'free';
     this.freeT = 0;
+    this.freeNag = new Nag('slow', [35, 70, 105]);
+    setObjective(this.refused ? 'getIn' : 'getIn');
     A.setAllowed({ paper: true, amulet: true, vehicle: true });
     g.player.setWalkEnabled(true);
     if (this.refused) this._bikeItem();
@@ -542,7 +618,10 @@ export const GarageState = {
   async _waitForTaxi(S) {
     try {
       await S.step(new Promise((res) => {
-        const off = bus.once('player:enterTaxi', () => res());
+        const off = bus.once('player:enterTaxi', () => {
+          objectiveDone();
+          res();
+        });
         this.stage.add(off);
         if (g.actions.inTaxi) res();
       }));
@@ -565,9 +644,7 @@ export const GarageState = {
     // he walks to the window
     if (!g.ahKong._seated) {
       const win = taxiPoint(1.55, 0, -0.35, new THREE.Vector3());
-      walkAroundTaxi(g.ahKong, win).then(() => {
-        if (this.active) ahKongFace(taxiPoint(0.4, 0, -0.3, _v));
-      });
+      kongWalk(win, { face: taxiPoint(0.4, 0, -0.3, new THREE.Vector3()) }).catch(() => {});
     }
     if (save?.flags?.refusedShift) {
       await S.wait(1.4);
@@ -699,7 +776,10 @@ export const GarageState = {
       }
       this._idleNudge(dt, 30);
       // never stranded: after a long while the night simply carries him to the wheel
-      if (this.freeT > 150 && !this.refused && !this._autoSeat && !g.actions.busy && !g.actions.inTaxi) {
+      const lv = this.refused ? 0 : this.freeNag?.update(dt) || 0;
+      if (lv === 1 || lv === 2) scold('slow', lv);
+      if ((lv === 3 || this.freeT > 150) && !this.refused && !this._autoSeat && !g.actions.busy && !g.actions.inTaxi) {
+        if (lv === 3) scold('slow', 3);
         this._autoSeat = true;
         g.cine.fade(1, 0.8).then(() => {
           if (!this.active || this.phase !== 'free') return;
@@ -733,6 +813,7 @@ export const GarageState = {
 
   exit(_g, next) {
     if (next === 'shift') retireAhKong();
+    if (next !== 'tutorial') clearObjective();
     g.ui.hint(null);
     g.cameraRig.lookEnabled = true;
     g.cine.blur(0, 0.3);

@@ -77,8 +77,8 @@ export const DEATH_CARDS = {
   // QTE deaths (no rule broken: you were just too slow)
   faceRat: { th: 'มันกัดไม่ปล่อย', en: 'It would not let go.', rule: null },
   doorRattle: { th: 'คุณปล่อยมือ', en: 'You let go.', rule: null },
-  // off the road edge: a real death (GAME OVER on the TV news, the night does not loop)
-  offRoad: { th: 'ถนนสายนี้ไม่ปล่อยคนที่ออกนอกทาง', en: 'This road keeps whoever leaves it.', rule: null, gameOver: true },
+  // off the road edge: the TV news, then back to the last checkpoint (not a loop death)
+  offRoad: { th: 'ถนนสายนี้ไม่ปล่อยคนที่ออกนอกทาง', en: 'This road keeps whoever leaves it.', rule: null, respawn: true },
 };
 
 /** The late-night TV news after an off-road death (ui.newsReport). Fictional; one per vehicle. */

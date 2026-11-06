@@ -12,6 +12,7 @@ import { clearNightFlags } from '../data/logic.js';
 import { resetNightWorld } from '../death/reset.js';
 import { crashReport, stageWreck, captureCrashShot, clearCrashScene } from '../death/offRoad.js';
 import { NEWS_REPORTS } from '../data/worldtext.js';
+import { restoreCheckpoint } from '../systems/Checkpoint.js';
 
 export { resetNightWorld };
 
@@ -22,7 +23,7 @@ export const DeathState = {
     const type = params.type || params.death || 'crash';
     const card = deathCardFor(type);
     const hour = params.hour ?? g.clock?.hour ?? 21;
-    if (card.gameOver) return this._gameOverSafe(type, card, params);
+    if (card.respawn) return this._newsSafe(type, card, params);
     // ---- hard cut to black: the night stops mid-breath ----------------------------------------
     const p = g.postfx.params;
     p.fadeColor.setRGB(0, 0, 0);
@@ -89,23 +90,25 @@ export const DeathState = {
     });
   },
   /**
-   * GAME OVER (off the road): the late-night TV news, then the run is cleared (what Ton has learnt,
-   * the endings seen and the settings stay) and the game returns to the main menu. No loop.
-   */
-  async _gameOverSafe(type, card, params) {
+  async _newsSafe(type, card, params) {
     try {
-      await this._gameOver(type, card, params);
+      await this._news(type, card, params);
     } catch (e) {
-      // never leave the player on a black screen: straight to the menu
-      console.error('[death] game over failed', e);
+      // never leave the player on a black screen: straight back to the last checkpoint
+      console.error('[death] news / respawn failed', e);
       clearDying();
       if (this.active) {
-        g.fsm.go('menu', { gameOver: true });
+        clearCrashScene();
+        restoreCheckpoint();
         g.ui.fade?.(false, 1.2);
       }
     }
   },
-  async _gameOver(type, card, params) {
+  /**
+   * Off the road: the late-night TV news over the wreck, then Ton is back at the last checkpoint
+   * (systems/Checkpoint.js) under a fade. Not a loop death: the loop count stays as it is.
+   */
+  async _news(type, card, params) {
     const p = g.postfx.params;
     p.fadeColor.setRGB(0, 0, 0);
     p.fade = 1;
@@ -122,16 +125,14 @@ export const DeathState = {
       t.physicsSim.v = 0;
     }
     g.bike?.setControlsEnabled(false);
-    // the run is over; knowledge (k.* flags, notes, rules learnt, memories, endings) is kept
+    // not a loop death: nothing of the night is lost, only counted
     const save = g.save;
     if (save) {
-      const keep = { knowledge: save.knowledge, rulesLearned: save.rulesLearned, memories: save.memories, endingsSeen: save.endingsSeen, playTime: save.playTime, createdAt: save.createdAt };
-      const flags = clearNightFlags(save.flags || {});
-      flags['k.newsDeaths'] = (flags['k.newsDeaths'] || 0) + 1;
-      Object.assign(save, { stage: 'intro', rideIndex: 0, hour: 21, loops: 0, deathHour: null, deathRide: 0, deaths: [], delivered: {}, lastDeath: null, flags }, keep);
+      save.flags ||= {};
+      save.flags['k.newsDeaths'] = (save.flags['k.newsDeaths'] || 0) + 1;
       g.persist();
     }
-    bus.emit('death:card', { type, card, gameOver: true });
+    bus.emit('death:card', { type, card, respawn: true });
     // the photograph of the wreck (staged now when the death came from a test hook / URL)
     let image = crashReport.image;
     const kind = crashReport.kind || 'bike';
@@ -160,9 +161,10 @@ export const DeathState = {
     if (!this.active) return clearDying();
     clearCrashScene();
     clearDying();
-    bus.emit('death:done', { type, gameOver: true });
-    g.fsm.go('menu', { gameOver: true });
-    g.ui.fade?.(false, 1.2);
+    bus.emit('death:done', { type, respawn: true });
+    g.postfx.params.fade = 1;
+    restoreCheckpoint();
+    g.ui.fade?.(false, 1.2); // releases the news screen held black; the state fades the scene in
   },
 
   exit() {

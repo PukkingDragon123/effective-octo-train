@@ -17,6 +17,8 @@
 // would reach the fork before minSeconds or before every essential beat has played, the road folds
 // back in the fog (stretch 'fog') / glowing mist ('mist'). Beats: progress/time beats queue, event
 // beats interrupt idle lines only; an interrupted beat resumes where it stopped.
+import { setObjective, objectiveDone } from '../systems/Objectives.js';
+import { saveCheckpoint } from '../systems/Checkpoint.js';
 import { installTalk } from './Talk.js';
 import { pickupLandmark } from './pickup.js';
 import * as THREE from 'three';
@@ -436,10 +438,25 @@ export class Ride {
   }
 
   // ------------------------------------------------------------------ pickup
+  /** Respawn at a checkpoint: passenger in the seat, progress restored, beats before it spent. */
+  resumeAt(cp = {}) {
+    setObjective(cp.kind === 'fork' ? 'fork' : 'deliver', { th: this.data.destination?.th || '', en: this.data.destination?.en || '' });
+    this.passenger.seatNow();
+    this.dist = cp.dist || 0;
+    this.tSeated = cp.tSeated || 0;
+    this.progress = cp.progress || 0;
+    for (const b of this.beats) if ((b.def.trigger?.type === 'progress' && b.def.trigger.at <= this.progress + 1e-3) || (b.def.trigger?.type === 'time' && b.def.trigger.seconds <= this.tSeated)) b.fired = b.done = true;
+    for (const e of this.encs) if (e.at <= this.progress) e.fired = true;
+    this.phase = 'riding';
+    this._lastS = undefined;
+    g.taxi.setControlsEnabled(true);
+  }
+
   async pickup() {
     const p = this.passenger;
     const t = g.taxi;
     this.phase = 'approach';
+    setObjective('pickup');
     let hailed = false;
     let passes = 0;
     while (this.alive) {
@@ -491,6 +508,9 @@ export class Ride {
     }
     if (!this.alive) return false;
     t.setControlsEnabled(true);
+    objectiveDone();
+    const dest = this.data.destination;
+    setTimeout(() => this.alive && setObjective('deliver', { th: dest?.th || '', en: dest?.en || '' }), 1600);
     // Boy M: the meter starts by itself
     if (this.data.id === 'boyM' && !t.state.meterOn) setTimeout(() => this.alive && t.setControl('meter', true), 1800);
     this.phase = 'riding';
@@ -543,6 +563,13 @@ export class Ride {
       if (!approachFired && (ready || this.progress >= DEP.forkApproachProgress) && remaining < 170 && remaining > -5) {
         approachFired = true;
         this.phase = 'forkApproach';
+        setObjective('fork');
+        try {
+          const rr = taxiRoad();
+          saveCheckpoint('fork', { ride: this.index, s: rr?.id === 'main' ? rr.s : undefined, progress: this.progress, dist: this.dist, tSeated: this.tSeated });
+        } catch (e) {
+          /* a checkpoint is a nicety */
+        }
         this.emit('forkApproach');
         bus.emit('ride:forkApproach', { ride: this.id });
         this._approachFx();

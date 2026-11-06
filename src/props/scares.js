@@ -242,6 +242,7 @@ export function createRoadScare(kind, opts = {}) {
         obj.traverse((o) => {
           if (o.isMesh) o.userData.noMerge = true;
         });
+        obj.userData.looseCls = 'nudge';
         group.add(obj);
         out.looseProps.push(obj);
       }

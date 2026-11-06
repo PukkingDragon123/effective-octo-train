@@ -193,6 +193,23 @@ export class Passenger {
 
   // ------------------------------------------------------------------ board / alight
   /** Walk to the door, door opens, sit, door shuts. Resolves when seated. */
+  /** Already aboard (checkpoint respawn): in the seat at once, the car's weight and fog as after board(). */
+  seatNow() {
+    const t = g.taxi;
+    const h = this.humanoid;
+    if (!h || h.disposed) return;
+    this.hail(false);
+    h.lookAt(null);
+    h.sitAt(t.seats[this.seatId], { pose: 'sitCar', blend: 0.01 });
+    this._seatBase = h.root.position.clone();
+    this.seated = true;
+    this.aboard = true;
+    this.boarding = false;
+    if (this.double) this.double.root.visible = true;
+    t.setSeatWeight(this.seatId, this.ghost ? 0 : this.clues.weightKg || 60);
+    if (this.ghost && this.data.id !== 'somchai') t.setFog(this.pane, 0.42);
+  }
+
   async board() {
     const t = g.taxi;
     const h = this.humanoid;
