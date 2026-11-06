@@ -687,3 +687,8 @@
 /* Thai-only mode (default, settings.language === 'th'): English helper spans are hidden. */
 .dlb-ui.thai-only .en,
 .dlb-ui.thai-only [lang='en'] { display: none !important; }
+
+/* owner: no red accents and no extra text (no clock or hour stamp, no English tagline).
+   Focus marks are a plain bone hairline; the TV news keeps its own on-screen graphics. */
+.dlb-ui { --red: rgba(235, 229, 216, 0.55); --red-hi: rgba(235, 229, 216, 0.8); }
+.dlb-stamp, .dlb-pause__time, .dlb-name-latin, .dlb-cr-made__mark, .dlb-death__sub::before, .dlb-ending__cap::after { display: none !important; }

@@ -37,8 +37,7 @@ export class MainMenu {
       stampW.textContent = thaiHourWords(hr);
     };
     tick();
-    clearInterval(this._clock);
-    this._clock = setInterval(tick, 15000);
+    clearInterval(this._clock); // no clock on screen (owner)
     this.el = screen('dlb-menu',
       h('div', { class: 'dlb-menu__shade' }),
       corners(),
