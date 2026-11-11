@@ -170,13 +170,15 @@ export class NewsReport {
     };
     const wait = (ms) => Promise.race([sleep(ms), skipP]);
 
-    // the studio (falls back to the footage alone if WebGL or the anchor is unavailable)
+    // the 3D studio; if WebGL, the characters or the anchor fail, the 2D version runs instead:
+    // the footage full screen with the breaking tag, the anchor's voice and subtitles over it
     try {
       this.studio = new NewsStudio(stage, { image: frame, headline: o.th });
-      await Promise.race([this.studio.ready, sleep(4000)]);
+      await Promise.race([this.studio.ready, sleep(4500)]);
+      if (!this.studio.person) throw new Error('no anchor');
       this.studio.start();
     } catch (e) {
-      console.warn('[news] studio unavailable', e);
+      console.warn('[news] 3D studio unavailable, using the 2D news', e);
       this.studio?.dispose();
       this.studio = null;
     }
@@ -191,13 +193,13 @@ export class NewsReport {
     this._cut = false;
     this._cutWake = null;
     const cutP = new Promise((r) => (this._cutWake = r));
-    if (this.studio) {
+    {
       await wait(700);
       for (const th of lines) {
         if (skipped || performance.now() > studioEnd - 1500) break;
         const est = audio.voice?.estimate?.({ th, voice: ANCHOR_VOICE }) ?? 3.5;
         ui.subtitle({ speakerTH: 'ผู้ประกาศข่าว', speakerEN: 'News anchor', th, duration: est + 0.6 });
-        this.studio.setTalking(true);
+        this.studio?.setTalking(true);
         let spoken;
         try {
           spoken = audio.voice.speak({ th, voice: ANCHOR_VOICE, fx: 'radio', volume: 0.95 });
@@ -205,7 +207,7 @@ export class NewsReport {
           spoken = null;
         }
         await Promise.race([spoken || sleep(est * 1000), sleep((est + 2) * 1000), skipP, cutP]);
-        this.studio.setTalking(false);
+        this.studio?.setTalking(false);
         if (skipped || this._cut) break;
         await Promise.race([wait(380), cutP]);
       }

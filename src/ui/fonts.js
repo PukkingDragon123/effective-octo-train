@@ -44,7 +44,7 @@ export const FONTS = {
 };
 
 /** Weights bundled per family (use only these). */
-export const FONT_WEIGHTS = { kanit: [200, 300, 600, 800], plex: [400, 500, 600] };
+export const FONT_WEIGHTS = { kanit: [200, 300, 600, 800], plex: [400, 500, 600], sarabun: [400, 700, 800], sriracha: [400] };
 
 let promise = null;
 export function loadFonts() {

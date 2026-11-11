@@ -23,7 +23,6 @@ const smooth = (a, b, x) => {
 };
 const easeInOut = (k) => k * k * (3 - 2 * k);
 const easeOut = (k) => 1 - (1 - k) ** 3;
-const easeIn = (k) => k * k * k;
 
 // periodic-in-angle lumps (sum of integer angular harmonics)
 function lumps(y, a, s) {
@@ -441,7 +440,7 @@ export class IncenseScene {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 0.95;
     renderer.shadowMap.enabled = false;
     renderer.setClearColor(0x000000, 1);
     this.renderer = renderer;
@@ -449,18 +448,18 @@ export class IncenseScene {
     host.appendChild(renderer.domElement);
 
     const scene = (this.scene = new THREE.Scene());
-    scene.fog = new THREE.FogExp2(0x020203, 0.2);
-    this.camera = new THREE.PerspectiveCamera(40, 1, 0.005, 5);
+    scene.fog = new THREE.FogExp2(0x020203, 1.25);
+    this.camera = new THREE.PerspectiveCamera(22, 1, 0.004, 5);
     const rng = makeRng(1331);
 
     // ---- light: the ember, a cold sliver of moon; once the ember dies the cold creeps in
     this.emberLight = new THREE.PointLight(0xff6326, 0.03, 1.1, 2);
     scene.add(this.emberLight);
-    const moon = new THREE.DirectionalLight(0x8a96a8, 0.24);
+    const moon = new THREE.DirectionalLight(0x8a96a8, 0.08);
     moon.position.set(0.9, 0.6, -0.5);
     // a faint cold wash from the road side, just enough to read the white glaze of the zebras
-    const road = new THREE.DirectionalLight(0x7d8aa0, 0.55);
-    road.position.set(0.5, 0.9, 0.8);
+    const road = new THREE.DirectionalLight(0x7d8aa0, 0.2);
+    road.position.set(-0.7, 0.45, -0.9); // a faint cold rim from behind
     scene.add(moon, road);
     scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
     this.cold = new THREE.PointLight(0x8796b4, 0, 1.6, 2);
@@ -546,8 +545,8 @@ export class IncenseScene {
     // the ember goes out on its own a few seconds in (or when the hand comes, if loading is quick)
     this.emberOutAt = 6.8;
     this.out = null;
-    this.camTarget = new THREE.Vector3(0, 0.62, -0.55);
-    this.camDist = 2.5;
+    this.camTarget = new THREE.Vector3(0, S.top - 0.01, 0);
+    this.camDist = 0.22;
     this.grab = null;
     this.hand = null;
     this.fade = 0;
@@ -709,7 +708,7 @@ export class IncenseScene {
     this.halo.position.copy(ember);
     this.halo.material.opacity = (0.55 + 0.35 * heat) * Math.min(1, heat);
     this.halo.visible = heat > 0.01;
-    this.cold.intensity = this.out ? 0.03 * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
+    this.cold.intensity = this.out ? 0.07 * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
     this.scene.traverse((o) => {
       if (o.material?.uniforms?.uSeed) o.material.uniforms.uTime.value = t;
     });
@@ -724,17 +723,18 @@ export class IncenseScene {
 
     // camera: the whole little shrine, the stick in the middle; drifting like a held breath
     const portrait = this.camera.aspect < 1;
-    // it opens wide on the whole shrine, then drifts in to the stick
-    const wide = 1 - smooth(1.0, 7.0, t);
-    const want = this.grab ? this.grab.camTarget : this._v.set(-0.02 * clamp((this.camera.aspect - 0.8) / 1.0, 0, 1) * (1 - wide), 0.05 + (this.tip - 0.03) * 0.5 + (0.62 - 0.05 - (this.tip - 0.03) * 0.5) * wide, -0.55 * wide);
-    this.camTarget.lerp(want, 1 - Math.exp(-dt * (this.grab ? 1.6 : 4)));
-    const dist = this.grab ? this.grab.camDist : 0.56 + (portrait ? 0.22 : 0) + (2.5 - 0.56) * wide - (this.out ? 0.05 * smooth(0, 4, since) : 0);
-    this.camDist += (dist - this.camDist) * (1 - Math.exp(-dt * (this.grab ? 1.4 : 4)));
-    const sx = Math.sin(t * 0.31) * 0.004 + Math.sin(t * 0.83) * 0.0015, sy = Math.sin(t * 0.27 + 1) * 0.003;
+    // macro on the burning tip: the stick and its ember fill the frame, the zebras are only shapes
+    // in the dark behind; while the hand comes the lens backs off to hold the hand and the stick
+    const want = this.grab ? this.grab.camTarget : this.stick.localToWorld(this._v.set(0, this.tip - 0.008, 0));
+    this.camTarget.lerp(want, 1 - Math.exp(-dt * (this.grab ? 1.6 : 3)));
+    const dist = this.grab ? this.grab.camDist : 0.22 + (portrait ? 0.08 : 0) - (this.out ? 0.02 * smooth(0, 4, since) : 0);
+    this.camDist += (dist - this.camDist) * (1 - Math.exp(-dt * (this.grab ? 1.4 : 3)));
+    const sx = Math.sin(t * 0.31) * 0.0016 + Math.sin(t * 0.83) * 0.0006, sy = Math.sin(t * 0.27 + 1) * 0.0012;
     const shake = this.grab?.shake || 0;
+    const g0 = this.grab ? 1 : 0;
     this.camera.position.set(
-      this.camTarget.x + 0.06 + sx + (Math.random() - 0.5) * shake,
-      this.camTarget.y + 0.07 + 0.18 * (this.grab ? 0 : wide) + sy + (Math.random() - 0.5) * shake,
+      this.camTarget.x + 0.022 + 0.04 * g0 + sx + (Math.random() - 0.5) * shake,
+      this.camTarget.y + 0.012 + 0.05 * g0 + sy + (Math.random() - 0.5) * shake,
       this.camTarget.z + this.camDist,
     );
     this.camera.lookAt(this.camTarget.x + sx * 0.3, this.camTarget.y, this.camTarget.z);
@@ -856,7 +856,7 @@ export class IncenseScene {
     this.handRoot.visible = true;
     this.hand.setCurl({ i: -0.15, m: -0.12, r: -0.1, p: -0.08, t: -0.05 }, 6);
     this.hand.spreadT = 1;
-    g.camTarget.set(grip.x + 0.01, (grip.y + this.tip) / 2 - 0.01, 0);
+    g.camTarget.set(grip.x + 0.015, grip.y + 0.03, grip.z);
     g.camDist = 0.5;
     return g.promise;
   }
@@ -883,87 +883,101 @@ export class IncenseScene {
       return;
     }
     const hr = this.handRoot;
-    if (T < 1.45) {
-      // reach in out of the dark (decelerating), fingers opening; she brushes a zebra
-      const k = easeOut(clamp((T - 0.25) / 1.2, 0, 1));
+    const H = this.hand;
+    // timeline (s): reach 0.2-1.9 with a hesitation at 1.0-1.3, close 1.9-2.45, pull 2.45-3.4
+    if (T < 1.9) {
+      // slowly out of the dark; two thirds of the way she hesitates, eases back a touch, goes on.
+      // The wrist leads, the relaxed fingers trail.
+      let k;
+      if (T < 1.0) k = 0.66 * easeOut(clamp((T - 0.2) / 0.8, 0, 1));
+      else if (T < 1.3) k = 0.66 - 0.035 * Math.sin((Math.PI * (T - 1.0)) / 0.3);
+      else k = 0.66 + 0.34 * easeInOut(clamp((T - 1.3) / 0.6, 0, 1));
       hr.position.lerpVectors(g.from, g.near, k);
-      hr.position.y += Math.sin(k * Math.PI) * 0.012;
+      hr.position.y += Math.sin(k * Math.PI) * 0.01;
+      H.wristBend = 0.3 * (1 - k);
       if (T > 0.3 && !g.breathed) {
         g.breathed = true;
         this._cue('reach');
       }
-      if (T > 0.8 && !g.brushed) {
+      if (T > 0.9 && !g.brushed) {
         g.brushed = true;
         this._knock(g.knock[0], 0.62);
       }
-      if (T > 1.05 && !g.opened) {
+      if (T > 1.4 && !g.opened) {
         g.opened = true;
-        this.hand.setCurl({ i: 0.12, m: 0.1, r: 0.12, p: 0.16, t: 0.15 }, 7);
+        H.setCurl({ i: 0.08, m: 0.06, r: 0.1, p: 0.14, t: 0.12 }, 3.5); // relaxed, slightly open
+        H.spreadT = 0.6;
       }
       for (const s of this.smoke) {
-        s.stir = Math.min(1, s.stir + dt * 0.8);
-        s.wind.set(-0.02 * k, 0.0, -0.01 * k);
+        s.stir = Math.min(1, s.stir + dt * 0.6);
+        s.wind.set(-0.016 * k, 0.0, -0.008 * k);
       }
-    } else if (T < 2.1) {
-      // close on the stem, fingers first, thumb last; the jolt snaps the ash off
-      const k = easeInOut(clamp((T - 1.45) / 0.22, 0, 1));
+    } else if (T < 2.45) {
+      // settle onto the stem; the fingers close one by one, the thumb last; the jolt snaps the ash
+      const k = easeInOut(clamp((T - 1.9) / 0.24, 0, 1));
       hr.position.lerpVectors(g.near, g.wristAt, k);
-      if (!g.closed) {
-        g.closed = true;
-        this._cue('grab');
-        this.hand.setCurl({ i: 0.8, m: 0.78, r: 0.76, p: 0.74, t: 0.5 }, 11);
-        this.hand.spreadT = 0.15;
-        g.shake = 0.0012;
-        g.whipV += 0.05;
+      H.wristBend = -0.05 * k;
+      const close = [['i', 1.95, 0.84], ['m', 2.02, 0.82], ['r', 2.09, 0.8], ['p', 2.16, 0.78], ['t', 2.24, 0.62]];
+      g.fing ||= {};
+      for (const [f, at, c] of close) if (T > at && !g.fing[f]) {
+        g.fing[f] = true;
+        H.setCurl({ [f]: c }, 10);
+        if (f === 'i') {
+          this._cue('grab');
+          H.spreadT = 0.15;
+          g.shake = 0.0009;
+          g.whipV += 0.04;
+        }
       }
-      if (T > 1.56 && !g.snapped) {
+      if (T > 2.12 && !g.snapped) {
         g.snapped = true;
         this._breakAsh(new THREE.Vector3(-0.05, 0.03, 0.02));
       }
-      if (T > 1.62 && !g.attached) {
+      if (T > 2.2 && !g.attached) {
         g.attached = true;
         hr.updateMatrixWorld(true);
         hr.attach(this.stickPivot);
-        this.hand.setCurl({ i: 0.86, m: 0.84, r: 0.82, p: 0.8, t: 0.62 }, 6);
       }
       g.shake *= Math.exp(-dt * 6);
-      // a tremble before the pull; the squeezed stem shivers with it
-      hr.position.x += Math.sin(T * 61) * 0.00035;
-      hr.position.y += Math.sin(T * 47) * 0.00025;
-      u.uBendBase.value.set(Math.sin(T * 61) * 0.0004, 0, 0);
+      u.uBendBase.value.set(Math.sin(T * 61) * 0.0004 * k, 0, 0);
     } else {
-      // pull it out of the ash and away, into the dark
-      const k = easeIn(clamp((T - 2.1) / 0.85, 0, 1));
+      // the pull: eased in and out, the wrist leading, into the dark
+      const k = easeInOut(clamp((T - 2.45) / 0.95, 0, 1));
       if (!g.pulled) {
         g.pulled = true;
         this._cue('pull');
       }
       hr.position.lerpVectors(g.wristAt, g.away, k);
-      hr.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), dt * k * 0.9);
+      hr.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), dt * k * 0.7);
+      H.wristBend = -0.05 - 0.2 * Math.sin(Math.PI * k);
       // the ash holds the foot of the stick for a moment: it bows, then springs free and whips
-      const hold = clamp((T - 2.1) / 0.26, 0, 1);
-      const bow = T < 2.36 ? Math.sin(Math.PI * hold) : 0;
+      const hold = clamp((T - 2.45) / 0.24, 0, 1);
+      const bow = T < 2.69 ? Math.sin(Math.PI * hold) : 0;
       u.uBendBase.value.set(-0.006 * bow, -0.002 * bow, 0.003 * bow);
-      if (T >= 2.36 && !g.freed) {
+      if (T >= 2.69 && !g.freed) {
         g.freed = true;
         g.whipV += 0.16;
       }
-      if (T > 2.3 && !g.toppled) {
+      if (T > 2.6 && !g.toppled) {
         g.toppled = true;
         this._knock(g.knock[1], 1.6);
       }
-      g.shake = 0.0006 * k;
-      g.camTarget.y += dt * 0.03 * k;
+      g.shake = 0.0005 * k;
+      g.camTarget.y += dt * 0.025 * k;
       for (const s of this.smoke) {
         s.stir = 1;
         s.wind.set(0.03 * k, 0.01 * k, 0.015 * k);
       }
-      this.fade = clamp((T - 2.6) / 0.75, 0, 1);
-      if (T > 3.4 && !g.done) {
+      this.fade = clamp((T - 3.0) / 0.7, 0, 1);
+      if (T > 3.75 && !g.done) {
         g.done = true;
         g.resolve();
       }
     }
+    // a slight tremble all through: faint while reaching, strongest on the grip, fading in the pull
+    const tr = T < 1.9 ? 0.00016 : T < 2.45 ? 0.00034 : 0.00034 * Math.max(0, 1 - (T - 2.45) / 0.6);
+    hr.position.x += (Math.sin(T * 61) * 0.6 + Math.sin(T * 37 + 1) * 0.4) * tr;
+    hr.position.y += (Math.sin(T * 47 + 2) * 0.6 + Math.sin(T * 29) * 0.4) * tr;
     // the free end of the stick: a damped spring
     g.whipV += (-220 * g.whip - 7 * g.whipV) * dt;
     g.whip += g.whipV * dt;

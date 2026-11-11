@@ -723,7 +723,7 @@ function forkDoodle(g, rng, x, y, s, labels = PAPER_DEFAULT.forkSketch) {
   // the shrine: little roof
   handLine(g, rng, x - 9 * s, y + 10 * s, x, y + 2 * s, { ...o, width: 1.6 });
   handLine(g, rng, x, y + 2 * s, x + 9 * s, y + 10 * s, { ...o, width: 1.6 });
-  const f = `500 ${Math.round(19 * s)}px ${FONTS.hand}`;
+  const f = `400 ${Math.round(19 * s)}px ${FONTS.hand}`;
   const lt = labels.left?.th || 'ผี';
   g.font = f;
   write(g, rng, lt, x - 50 * s - g.measureText(lt).width, y - 16 * s, { font: f, size: 19 * s, color: INK, seed: 3, alpha: 0.9 });
@@ -797,8 +797,8 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   let fonts = null;
   for (let attempt = 0; attempt < 7; attempt++) {
     fonts = {
-      th: `500 ${thSize}px ${FONTS.hand}`, en: `400 ${enSize}px ${FONTS.hand}`,
-      pTh: `italic 300 ${pTh}px ${FONTS.hand}`, pEn: `italic 300 ${pEn}px ${FONTS.hand}`,
+      th: `400 ${thSize}px ${FONTS.hand}`, en: `400 ${enSize}px ${FONTS.hand}`,
+      pTh: `400 ${pTh}px ${FONTS.hand}`, pEn: `400 ${pEn}px ${FONTS.hand}`,
     };
     const noteW = (n) => Math.max(n.th ? measure(ink, n.th, fonts.pTh) : 0, n.en ? measure(ink, n.en, fonts.pEn) : 0);
     rows = [];
@@ -858,7 +858,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   // ---- header ---------------------------------------------------------------
   {
     const hs = 52;
-    const r = write(ink, rng, paper.title.th, 150, 108, { font: `600 ${hs}px ${FONTS.hand}`, size: hs, color: INK, seed: 1.3, slope: -0.01, wave: 1.2, alpha: 0.95, pressure: 0.92 });
+    const r = write(ink, rng, paper.title.th, 150, 108, { font: `400 ${hs}px ${FONTS.hand}`, size: hs, color: INK, seed: 1.3, slope: -0.01, wave: 1.2, alpha: 0.95, pressure: 0.92 });
     handLine(ink, rng, 146, 122, Math.min(r.x + 8, 740), 117, { width: 2.6, alpha: 0.85 });
     handLine(ink, rng, 160, 130, Math.min(r.x - 18, 720), 126, { width: 2, alpha: 0.7 });
     write(ink, rng, paper.title.en, 158, 158, { font: `400 21px ${FONTS.hand}`, size: 21, color: INK_EN, seed: 2.1, alpha: 0.8, wave: 0.8 });
@@ -866,7 +866,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
       ink.save();
       ink.translate(Math.max(r.x + 36, 730), 80);
       ink.rotate(-0.05);
-      write(ink, rng, paper.subtitle.th, 0, 0, { font: `500 23px ${FONTS.hand}`, size: 23, color: INK, seed: 5.2, alpha: 0.9 });
+      write(ink, rng, paper.subtitle.th, 0, 0, { font: `400 23px ${FONTS.hand}`, size: 23, color: INK, seed: 5.2, alpha: 0.9 });
       write(ink, rng, paper.subtitle.en, 4, 25, { font: `400 15px ${FONTS.hand}`, size: 15, color: INK_EN, seed: 6.4, alpha: 0.75 });
       ink.restore();
     }
@@ -900,7 +900,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
       const num = /^r(\d+)$/.exec(r.id || '') ? parseInt(r.id.slice(1), 10) : rules.indexOf(r) + 1;
       const isThree = num === 3;
       if (row.first) {
-        write(ink, rng, `${num}.`, num >= 10 ? 58 : 72, y, { font: `600 ${Math.round(thSize + 3)}px ${FONTS.hand}`, size: thSize, color: INK, seed: num * 1.7, alpha: 0.95, heavy: isThree });
+        write(ink, rng, `${num}.`, num >= 10 ? 58 : 72, y, { font: `400 ${Math.round(thSize + 3)}px ${FONTS.hand}`, size: thSize, color: INK, seed: num * 1.7, alpha: 0.95, heavy: isThree });
         if (isThree) {
           for (let k = 0; k < 2; k++) {
             ink.save();
@@ -959,7 +959,7 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
         }
         x = res.x;
       }
-      if (isThree && row.last) x = write(ink, rng, '!!', x + 10, y, { font: `600 ${Math.round(thSize + 4)}px ${FONTS.hand}`, size: thSize, color: INK, seed: 9, heavy: true }).x;
+      if (isThree && row.last) x = write(ink, rng, '!!', x + 10, y, { font: `400 ${Math.round(thSize + 4)}px ${FONTS.hand}`, size: thSize, color: INK, seed: 9, heavy: true }).x;
       if (row.ann) pencil(row.ann, Math.max(x + 52, XR + 4 - (Math.max(measure(pen, row.ann.th || '', fonts.pTh), measure(pen, row.ann.en || '', fonts.pEn)))), y - 2);
     } else if (row.kind === 'en') {
       const res = write(ink, rng, row.text, X0 + 24, y - 2, { font: fonts.en, size: enSize, color: INK_EN, seed: i * 2.1 + 5, alpha: 0.8, pressure: 0.78, jy: 1.2, wave: 1.0, rot: 0.04, track: 0.2 });
@@ -992,12 +992,12 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
     const name = (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim() || 'อากง';
     const roomRows = capacity - 1 - rows.length;
     if (lineTh && roomRows >= 2) {
-      write(ink, rng, lineTh, 560, sy0 - 46, { font: `500 ${Math.round(thSize - 3)}px ${FONTS.hand}`, size: thSize - 3, color: INK, seed: 33, alpha: 0.9, slope: -0.02 });
+      write(ink, rng, lineTh, 560, sy0 - 46, { font: `400 ${Math.round(thSize - 3)}px ${FONTS.hand}`, size: thSize - 3, color: INK, seed: 33, alpha: 0.9, slope: -0.02 });
     }
     ink.save();
     ink.translate(800, sy0);
     ink.rotate(-0.06);
-    const r = write(ink, rng, `— ${name}`, 0, 0, { font: `600 38px ${FONTS.hand}`, size: 38, color: INK, seed: 31, alpha: 0.95, rot: 0.06 });
+    const r = write(ink, rng, `— ${name}`, 0, 0, { font: `400 38px ${FONTS.hand}`, size: 38, color: INK, seed: 31, alpha: 0.95, rot: 0.06 });
     ink.strokeStyle = INK;
     ink.globalAlpha = 0.75;
     ink.lineWidth = 1.8;

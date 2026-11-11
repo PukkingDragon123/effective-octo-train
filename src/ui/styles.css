@@ -540,7 +540,7 @@
 .dlb-news.is-black .dlb-news__black { opacity: 1; }
 .dlb-news__tag { display: inline-flex; align-items: center; padding: 0.04em 0.7em 0.1em; background: var(--n-red); color: #fff; font-family: var(--f-title); font-weight: 600; line-height: 1.4; }
 .dlb-news__studio { position: absolute; top: var(--pad-y); left: var(--pad-x); display: flex; align-items: center; gap: 14px; font-size: clamp(14px, 1.05vw, 18px); opacity: 0; transform: translateX(-8px); transition: opacity 0.4s 0.6s var(--ease), transform 0.4s 0.6s var(--ease); }
-.dlb-news.is-studio .dlb-news__studio { opacity: 1; transform: none; }
+.dlb-news.is-studio .dlb-news__studio, .dlb-news.is-cutnow:not(.is-gfx) .dlb-news__studio { opacity: 1; transform: none; }
 .dlb-news__live { display: inline-flex; align-items: center; gap: 0.5em; font-weight: 600; color: rgba(255, 255, 255, 0.9); font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); white-space: pre; }
 .dlb-news__live i { width: 0.5em; height: 0.5em; border-radius: 50%; background: var(--n-red); }
 .dlb-news__lower { position: absolute; left: var(--pad-x); right: var(--pad-xr); bottom: calc(var(--pad-yb) + 2vh); }
