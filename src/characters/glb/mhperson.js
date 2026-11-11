@@ -302,7 +302,10 @@ export function buildPerson(recipe) {
     if (px.hideA && !(recipe.keepSkin || []).includes(key)) for (const t of px.hideA) hide.add(t);
   }
   const headParts = [];
-  if (recipe.hair && proxyData('hair_' + recipe.hair)) headParts.push({ key: 'hair_' + recipe.hair, px: proxyData('hair_' + recipe.hair), part: PART.hair });
+  // hair cards shade as part 2 (photo strand texture); our own procedural bun / combed-back hair is part 9
+  // in the pack (no texture: forcing it to 2 cut it away completely, a bald Sri)
+  const hairPart = (px) => (px.part === 9 ? 9 : PART.hair);
+  if (recipe.hair && proxyData('hair_' + recipe.hair)) headParts.push({ key: 'hair_' + recipe.hair, px: proxyData('hair_' + recipe.hair), part: hairPart(proxyData('hair_' + recipe.hair)) });
   if (recipe.brows && proxyData('brows_' + recipe.brows)) headParts.push({ key: 'brows_' + recipe.brows, px: proxyData('brows_' + recipe.brows), part: PART.brows, rect: rects['brows_' + recipe.brows] });
   if (recipe.lashes && proxyData('lashes_' + recipe.lashes)) headParts.push({ key: 'lashes_' + recipe.lashes, px: proxyData('lashes_' + recipe.lashes), part: PART.lashes, rect: rects['lashes_' + recipe.lashes] });
   if (recipe.veil && proxyData('hair_veil')) headParts.push({ key: 'hair_veil', px: proxyData('hair_veil'), part: PART.veil });
@@ -538,7 +541,7 @@ export function personLod(person) {
   if (!px) return (person.lo = person.geo);
   const parts = [{ px, part: 0 }];
   for (const k of r.shells || []) { const s = proxyData(k); if (s) parts.push({ px: s, part: s.part, key: k }); }
-  if (r.hair && proxyData('hair_' + r.hair)) parts.push({ px: proxyData('hair_' + r.hair), part: 2 });
+  if (r.hair && proxyData('hair_' + r.hair)) parts.push({ px: proxyData('hair_' + r.hair), part: proxyData('hair_' + r.hair).part === 9 ? 9 : 2 });
   let total = 0;
   for (const p of parts) total += p.px.nv;
   const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3), uv = new Float32Array(total * 2);
