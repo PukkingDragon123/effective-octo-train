@@ -8,6 +8,7 @@ const M_BASE = [[0.03, 0], [0.03, 0.02], [0.018, 0.03], [0.022, 0.045], [0.008, 
 const M_CAP = [[0, 0], [0.006, 0.006], [0.02, 0.018], [0.016, 0.03], [0.03, 0.042], [0.036, 0.06], [0.036, 0.072], [0.02, 0.076]];
 const M_CORNICE = [[0, 0], [0.008, 0.008], [0.008, 0.016], [0.022, 0.026], [0.03, 0.04], [0.03, 0.05], [0.0, 0.05]];
 import { mat, glowMat, signMat } from './lib/materials.js';
+import { hangCloth } from './lib/cloth.js';
 import { lightSpec } from './lib/lights.js';
 import { G, PAL, bottle, candle, incensePot, garland, flowerString, fruitPlate, zebras, dancers, plate, glassWater, teacup, offeringTray, lantern, useAsset } from './lib/small.js';
 import { elderGeo, dancerGeo } from './lib/figures.js';
@@ -371,14 +372,14 @@ function wrapBands(k, r, y0, y1, rng, colors, opts = {}) {
   const ky = y0 + (y1 - y0) * 0.6;
   const kr = opts.square ? r * 1.02 : r;
   k.add(mat('cloth_static'), G('knot', () => sphere(0.035, 8, 6)), { p: [0, ky, kr + 0.02], s: [r / 0.12, 0.8, 0.8], color: colors[0], jitter: 0.01, jitterFreq: 30, w: false });
-  for (let i = 0; i < 2; i++) {
-    const L = 0.25 + rng() * 0.3;
-    k.add(mat(opts.wind ? 'cloth' : 'cloth_static'), G('tail:' + L.toFixed(2), () => {
-      const q = quad(0.06, L, 1, 6);
-      q.translate(0, -L / 2, 0);
-      return q;
-    }), {
-      p: [(i - 0.5) * 0.04, ky - 0.02, kr + 0.03], r: [0.12, (i - 0.5) * 0.6, (i - 0.5) * 0.25], color: colors[(i + 1) % colors.length], uv: 'keep', w: { grime: 0.2, vary: 0.25 },
+  // hanging tails: verlet cloth (lib/cloth.js) that sways in the wind near the camera
+  const nt = opts.tails ?? 2;
+  for (let i = 0; i < nt; i++) {
+    const L = (0.25 + rng() * 0.3) * (opts.tailLen ?? 1);
+    const f = nt > 1 ? i / (nt - 1) - 0.5 : 0;
+    hangCloth(k, mat('cloth_static'), 0.06 + (opts.tailLen > 1 ? 0.03 : 0), L, {
+      p: [f * 0.04 * Math.min(nt, 4), ky - 0.02, kr + 0.03], r: [0.12, f * 0.6, f * 0.25], color: colors[(i + 1) % colors.length], w: { grime: 0.2, vary: 0.25 },
+      nu: 1, nv: Math.max(5, Math.round(L / 0.08)), wind: opts.wind ? 1 : 0.6, back: 0.01,
       deform: (p) => { p.z += Math.sin(p.y * 12) * 0.015 + p.y * p.y * 0.25; },
     });
   }
@@ -410,13 +411,13 @@ export function createIncensePot(opts = {}) {
 // ---------------------------------------------------------------------------
 // Cloth wrap (ผ้าแพรสามสี) for sacred trees
 // ---------------------------------------------------------------------------
-/** Colourful cloth wrapped around a trunk of radius r between heights y0..y1. opts {seed, colors, garland=true} -> Object3D */
+/** Colourful cloth wrapped around a trunk of radius r between heights y0..y1. opts {seed, colors, garland=true, tails=2, tailLen=1} -> Object3D (tails are verlet cloth) */
 export function createClothWrap(radius = 0.8, y0 = 0.8, y1 = 1.6, opts = {}) {
   const rng = makeRng((opts.seed ?? 1) * 5 + 2);
   const k = new Kit(opts.seed ?? 1, { grime: 0, vary: 0.2 });
   const palettes = [[0xd84a7a, 0xe0b830, 0x2a9a5a], [0xc82a2a, 0xe8c040, 0x3a8a3a, 0xd86aa0], [0xe07090, 0xd8c040, 0x30a060]];
   const colors = opts.colors || palettes[Math.floor(rng() * palettes.length)];
-  wrapBands(k, radius * 1.03 + 0.012, y0, y1, rng, colors, { wind: true });
+  wrapBands(k, radius * 1.03 + 0.012, y0, y1, rng, colors, { wind: true, tails: opts.tails, tailLen: opts.tailLen });
   if (opts.garland !== false) {
     // a jasmine/marigold garland hung on the cloth knot
     const ky = y0 + (y1 - y0) * 0.6;

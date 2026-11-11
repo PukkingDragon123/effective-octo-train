@@ -208,5 +208,6 @@ export default async function ({ engine, cameraRig, params }) {
     GLOBAL_UNIFORMS.uHeadlightDir.value.copy(look).sub(hl).normalize();
     GLOBAL_UNIFORMS.uHeadlightOn.value = 1;
   }
+  engine.onUpdate((dt) => P.updateCloth(dt));
   window.__props = { placed, P, ITEMS };
 }

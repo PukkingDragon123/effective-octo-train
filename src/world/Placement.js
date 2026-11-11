@@ -841,7 +841,7 @@ export class Placement {
     this.group.add(tree);
     this.pieces.push({ object: tree, x: base.x, z: base.z, r: 40 });
     const r = trunkRadius(tree.userData.built.lods[0], 1.0, 1.9) || 0.8;
-    const wrap = P.createClothWrap(r, 1.0, 1.75, { seed: it.seed, colors: [0xe8e4da, 0xdedad0, 0xd4cfc2], garland: true });
+    const wrap = P.createClothWrap(r, 1.0, 1.75, { seed: it.seed, colors: [0xe8e4da, 0xdedad0, 0xd4cfc2], garland: true, tails: 4, tailLen: 2.2 });
     wrap.position.copy(base);
     wrap.rotation.y = yaw;
     this.group.add(wrap);

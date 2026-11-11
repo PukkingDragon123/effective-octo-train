@@ -70,6 +70,8 @@ const DEFS = {
   cloth: { map: 'fabric_cotton', normalMap: 'fabric_cotton_normal', roughness: 1, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.6, shadows: false },
   cloth_static: { map: 'fabric_cotton', normalMap: 'fabric_cotton_normal', roughness: 1, uv: 1.5, side: THREE.DoubleSide },
   silk: { map: 'fabric_silk', normalMap: 'fabric_silk_normal', roughnessMap: 'fabric_silk_rough', rough: 0.55, uv: 1.5, side: THREE.DoubleSide, wind: 'cloth', windStrength: 0.4, shadows: false },
+  // silk moved by the verlet cloth (lib/cloth.js), not by the vertex-shader wind
+  silk_static: { map: 'fabric_silk', normalMap: 'fabric_silk_normal', roughnessMap: 'fabric_silk_rough', rough: 0.55, uv: 1.5, side: THREE.DoubleSide, shadows: false },
   // cardboard / newsprint / talismans: crumpled paper + corrugated board, tide-lines, mould freckles
   paper: { map: 'paper_worn', normalMap: 'paper_worn_normal', roughnessMap: 'paper_worn_rough', rough: 0.9, eff: 0.6, uv: 1.5, side: THREE.DoubleSide },
   ash: { map: 'incense_ash', normalMap: 'soil_normal', roughness: 1, uv: 3.0 },

@@ -17,6 +17,7 @@ import { autoProgressive, menuRoute, nearRoute, storyKey, runInBackground, SYNC_
 import { prefetchAtlas, atlasReady } from './atlasPrefetch.js';
 import { LooseProps } from './LooseProps.js';
 import { Moths } from './Moths.js';
+import { updateCloth } from '../props/index.js';
 export { loadWorldAssets };
 
 // paint the leaf atlas in a worker while the rest of the game boots (see atlasPrefetch.js)
@@ -336,6 +337,7 @@ export class World {
     if (this.placement) this.placement.update(dt, focus);
     if (this.loose) this.loose.update(dt, focus);
     if (this.moths) this.moths.update(dt, focus);
+    updateCloth(dt); // hanging verlet cloth near the camera (src/props/lib/cloth.js)
     if (this.ambience) this.ambience.update(dt, focus);
   }
 

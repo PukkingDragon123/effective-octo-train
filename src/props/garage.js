@@ -12,6 +12,7 @@ import { addAsset, hasAsset, assetShelves, assetSize } from './lib/assets.js';
 import { useAsset } from './lib/small.js';
 import { card, findPrint, snackBag, noodleCup, posterStack, litter, printedPack } from './lib/print.js';
 import { hangingFluorescent } from './sala.js';
+import { hangCloth } from './lib/cloth.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const sagCurveG = (a, b) => { const pts = []; for (let i = 0; i <= 10; i++) { const t = i / 10; const p = new THREE.Vector3().lerpVectors(a, b, t); p.y -= 4 * t * (1 - t) * 0.12; pts.push(p); } return pts; };
@@ -459,7 +460,8 @@ export function createGarage(opts = {}) {
     k.add(mat('paper'), G('cardboardfloor', () => bbox(0.9, 0.01, 1.6, 0.002, 0.3)), { p: [1.3, 0.0, 2.3], r: 0.35, color: 0x9a7a52, w: { grime: 0.8, grimeH: 0.05 } });
     // clothesline with rags across the back-left corner
     k.add(mat('dark'), tube(sagCurveG(V(xL + 0.15, 2.5, zB + 0.8), V(xL + 2.2, 2.5, zB + 0.15)), 0.004, 3), { color: 0x2a2a2a, w: false });
-    for (let i = 0; i < 3; i++) k.add(mat('cloth_static'), G('ragh' + i, () => quad(0.3, 0.42, 2, 3).translate(0, -0.21, 0)), { p: [xL + 0.55 + i * 0.6, 2.44 - i * 0.02, zB + 0.68 - i * 0.2], r: [0, 0.32, 0], color: [0x6a7a8a, 0xb8a888, 0x8a3a2a][i], uv: 'keep', w: { vary: 0.3 }, deform: (p) => { p.z += Math.sin(p.x * 12) * 0.02; } });
+    // rags pegged by their corners: verlet cloth, swaying in the draught from the open front
+    for (let i = 0; i < 3; i++) hangCloth(k, mat('cloth_static'), 0.3, 0.42, { p: [xL + 0.55 + i * 0.6, 2.47 - i * 0.02, zB + 0.68 - i * 0.2], r: [0, 0.32, 0], color: [0x6a7a8a, 0xb8a888, 0x8a3a2a][i], w: { vary: 0.3 }, nu: 3, nv: 5, pin: 'corners', wind: 0.35, deform: (p) => { p.z += Math.sin(p.x * 12) * 0.02; } });
   });
 
   // ---- real (CC0) models when loaded: steel rack on the right wall, propane tank by the bench,

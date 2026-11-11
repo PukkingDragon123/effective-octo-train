@@ -41,6 +41,7 @@ class ClothSet {
     this.k.weather = parent.weather;
     this.strips = []; // {start, nu, nv, pin, back, plane}
     this.wind = 1;
+    this.hide = 0; // metres from the camera beyond which the cloth is not drawn
     this.mesh = null;
   }
 
@@ -60,6 +61,7 @@ class ClothSet {
     const normal = new THREE.Vector3(0, 0, 1).transformDirection(m);
     this.strips.push({ start, nu, nv, pin: o.pin || 'top', back: o.back ?? Infinity, origin, normal });
     if (o.wind != null) this.wind = o.wind;
+    this.hide = Math.max(this.hide, o.hide ?? 50);
   }
 
   finish() {
@@ -130,10 +132,42 @@ class ClothSet {
     this.ca = Uint32Array.from(ca);
     this.cl = Float32Array.from(cl);
     this.cw = Float32Array.from(cw);
+    // grid normals (central differences) instead of computeVertexNormals: same winding as built
+    this.nor = geo.attributes.normal.array;
+    for (const s of this.strips) {
+      this._gridNormals(s, 1);
+      const o = s.start * 3;
+      s.sgn = this.nor[o] * this.N0[o] + this.nor[o + 1] * this.N0[o + 1] + this.nor[o + 2] * this.N0[o + 2] < 0 ? -1 : 1;
+    }
+    this.nor.set(this.N0);
     this.center = geo.boundingSphere.center.clone();
     this.phase = (this.parent.seed * 0.6180339) % 1 * 40;
     this.attached = false;
     this.idle = 0;
+  }
+
+  _gridNormals(s, sgn) {
+    const P = this.P, N = this.nor, row = s.nu + 1;
+    for (let j = 0; j <= s.nv; j++) {
+      const j0 = j > 0 ? j - 1 : j, j1 = j < s.nv ? j + 1 : j;
+      for (let i = 0; i <= s.nu; i++) {
+        const i0 = i > 0 ? i - 1 : i, i1 = i < s.nu ? i + 1 : i;
+        const a = (s.start + j * row + i1) * 3, b = (s.start + j * row + i0) * 3;
+        const c = (s.start + j1 * row + i) * 3, d = (s.start + j0 * row + i) * 3;
+        const ux = P[a] - P[b], uy = P[a + 1] - P[b + 1], uz = P[a + 2] - P[b + 2];
+        const vx = P[c] - P[d], vy = P[c + 1] - P[d + 1], vz = P[c + 2] - P[d + 2];
+        let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        const l = sgn / (Math.sqrt(nx * nx + ny * ny + nz * nz) || 1);
+        const o = (s.start + j * row + i) * 3;
+        N[o] = nx * l;
+        N[o + 1] = ny * l;
+        N[o + 2] = nz * l;
+      }
+    }
+  }
+
+  normals() {
+    for (const s of this.strips) this._gridNormals(s, s.sgn);
   }
 
   /** One fixed step in mesh-local space. gL/wL: gravity and wind (local accel), t: time. */
@@ -207,7 +241,8 @@ function hiddenUp(o) {
  * Add a hanging cloth strip (w wide, L long, hanging down from its top edge at o.p) to kit k.
  * o: Kit.add options (p, r, s ignored, color, w, uv, deform, colorFn) +
  *    nu/nv grid segments, pin 'top'|'corners'|'left'|'right', wind (0..1.5, per prop),
- *    back (metres it may swing behind its hanging plane; default unlimited).
+ *    back (metres it may swing behind its hanging plane; default unlimited),
+ *    hide (draw distance in metres for this prop's cloth, default 50).
  */
 export function hangCloth(k, material, w, L, o = {}) {
   const detail = !!(k.detail || o.detail);
@@ -252,6 +287,8 @@ export function updateCloth(dt, camPos = GLOBAL_UNIFORMS.uCameraPos.value) {
     s.idle = 0;
     _c.copy(s.center).applyMatrix4(mesh.matrixWorld);
     const d2 = _c.distanceToSquared(camPos);
+    // small cloth is sub-pixel in the fog long before this: skip its draw call
+    mesh.visible = d2 < s.hide * s.hide;
     if (d2 > SIM_DIST * SIM_DIST) continue;
     s._d2 = d2;
     s._wx = _c.x + _c.z * 0.7;
@@ -276,8 +313,9 @@ export function updateCloth(dt, camPos = GLOBAL_UNIFORMS.uCameraPos.value) {
     const flutterK = 2.4 * wk;
     for (let i = 0; i < steps; i++) s.step(STEP, t - (steps - 1 - i) * STEP, _gL, _wL, s._wx, flutterK);
     const g = s.mesh.geometry;
+    s.normals();
     g.attributes.position.needsUpdate = true;
-    g.computeVertexNormals();
+    g.attributes.normal.needsUpdate = true;
   }
 }
 

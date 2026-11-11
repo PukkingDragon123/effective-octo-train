@@ -12,6 +12,7 @@ import {
 import { brokenScooter } from './dressing.js';
 import { chineseRoof, thaiRoofTier } from './shrines.js';
 import { posterStack, litter, card, findPrint, missingPoster, snackBag, noodleCup, jossPaper } from './lib/print.js';
+import { hangCloth } from './lib/cloth.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function anchor(parent, name, x, y, z, yaw = 0) {
@@ -772,18 +773,15 @@ export function createGhostGate(opts = {}) {
   k.add(mat('wood'), bbox(1.6, 0.6, 0.06, 0.01, 0.2), { p: [0, Hh - 0.35, 0.16], color: 0x5a4a3a, w: { moss: 0.5, streak: 0.6 } });
   // sacred white thread (sai sin) zig-zagging between the posts
   k.add(mat('cloth_static'), tube(sagCurve(V(-px + 0.2, Hh - 0.9, 0.2), V(px - 0.2, Hh - 0.9, 0.2), 0.5, 24), 0.006, 3), { color: 0xe8e4d8, w: false });
-  // white cloth strips hanging from the lintel (ragged lengths) — sway in the wind
+  // white cloth strips hanging from the lintel (ragged lengths): verlet cloth swaying in the wind
   const nStrips = 34;
   for (let i = 0; i < nStrips; i++) {
     const x = -Wd / 2 + 0.4 + (i / (nStrips - 1)) * (Wd - 0.8) + (rng() - 0.5) * 0.15;
     const L = 0.9 + rng() * 1.9;
     const w = 0.07 + rng() * 0.07;
-    k.add(mat('cloth'), G(`strip:${L.toFixed(1)}:${w.toFixed(2)}`, () => {
-      const g = quad(w, L, 1, 8);
-      g.translate(0, -L / 2, 0);
-      return g;
-    }), {
-      p: [x, Hh + 0.02, 0.2 + (rng() - 0.5) * 0.06], r: [(rng() - 0.5) * 0.08, (rng() - 0.5) * 0.6, (rng() - 0.5) * 0.06], color: rng() < 0.85 ? 0xe8e4da : 0xd8c8a8, uv: 'keep',
+    hangCloth(k, mat('cloth_static'), w, L, {
+      nu: 1, nv: Math.round(5 + L * 2.5), wind: 1, hide: 150,
+      p: [x, Hh + 0.02, 0.2 + (rng() - 0.5) * 0.06], r: [(rng() - 0.5) * 0.08, (rng() - 0.5) * 0.6, (rng() - 0.5) * 0.06], color: rng() < 0.85 ? 0xe8e4da : 0xd8c8a8,
       w: { grime: 0.3, grimeH: 0.6, ground: Hh - L, vary: 0.3 },
       deform: (p) => {
         p.z += Math.sin(p.y * 4 + x) * 0.04 + Math.sin(p.y * 11 + x * 7) * 0.012;
@@ -798,8 +796,9 @@ export function createGhostGate(opts = {}) {
   for (let i = 0; i < 14; i++) {
     const x = -Wd / 2 + 0.6 + (i / 13) * (Wd - 1.2) + (rng() - 0.5) * 0.2;
     const L = 0.35 + rng() * 0.6;
-    k.add(mat('cloth'), G(`strip2:${L.toFixed(1)}`, () => quad(0.06, L, 1, 4).translate(0, -L / 2, 0)), {
-      p: [x, Hh - 0.65, 0.12], r: [(rng() - 0.5) * 0.1, (rng() - 0.5) * 0.8, (rng() - 0.5) * 0.1], color: 0xd8d2c4, uv: 'keep', w: { vary: 0.3 },
+    hangCloth(k, mat('cloth_static'), 0.06, L, {
+      nu: 1, nv: 5, wind: 1, hide: 150,
+      p: [x, Hh - 0.65, 0.12], r: [(rng() - 0.5) * 0.1, (rng() - 0.5) * 0.8, (rng() - 0.5) * 0.1], color: 0xd8d2c4, w: { vary: 0.3 },
       deform: (p) => { p.z += Math.sin(p.y * 6 + x) * 0.03; },
     });
   }
@@ -903,7 +902,7 @@ export function createVillageStop(opts = {}) {
   k.at([wx, wy, wz], 0.15, null, () => {
     k.add(glowMat('window'), G('vwindow', () => quad(0.8, 0.6, 1, 1)), { color: 0xffffff, uv: 'keep', w: false, colorFn: (p, n, c, lp) => { if (Math.abs(lp.x) < 0.02 || Math.abs(lp.y) < 0.02) c.multiplyScalar(0.15); else if (lp.x < -0.1) c.multiplyScalar(0.7); } });
     k.add(mat('wood'), G('vwinframe', () => bbox(0.92, 0.72, 0.04, 0.01, 0.1)), { p: [0, -0.36, -0.03], color: 0x3a2a1c, w: false });
-    k.add(mat('cloth_static'), G('vcurtain', () => quad(0.3, 0.55, 3, 2)), { p: [-0.24, 0.0, 0.01], color: 0xc89a6a, uv: 'keep', w: false, deform: (p) => { p.z += Math.sin(p.x * 30) * 0.01; } });
+    hangCloth(k, mat('cloth_static'), 0.3, 0.55, { p: [-0.24, 0.275, 0.01], color: 0xc89a6a, w: false, nu: 4, nv: 5, wind: 0.3, back: 0.004, deform: (p) => { p.z += Math.sin(p.x * 30) * 0.01; } });
   });
   out.windowAnchor = anchor(group, 'window', wx, wy, wz + 0.3);
   out.lights.push(lightSpec('window', out.windowAnchor, { intensity: 3.5 }));

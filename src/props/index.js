@@ -81,7 +81,9 @@
 // createConvexMirror({seed, height, size}) -> {object, mirrorAnchor, mirror, colliders}
 // createIncensePot({seed, size, stand, sticks, metal}) -> {object, smokeAnchor, colliders}
 // createPond({seed, radius=6, lotus, reeds}) -> {object, waterMesh, waterLevel, colliders}
-// createClothWrap(radius, y0, y1, {seed, colors, garland}) -> Object3D
+// createClothWrap(radius, y0, y1, {seed, colors, garland, tails=2, tailLen=1}) -> Object3D
+// updateCloth(dt, camPos?)  steps the hanging verlet cloth (rags, cloth tails, gate strips,
+//   curtains, ribbons) near the camera; call once a frame (World.update does). clothStats().
 // createDressing(kind, opts) -> {object, colliders, lights}  (kinds: DRESSING_KINDS + extras)
 import { lightPool } from '../render/index.js';
 import * as poles from './poles.js';
@@ -99,6 +101,7 @@ import { prefetchSculpts, sculptsReady } from './lib/sculptPrefetch.js';
 // Mesh the SDF statues in a worker while the rest of the game boots (see sculptPrefetch.js).
 prefetchSculpts();
 export { prefetchSculpts, sculptsReady };
+export { updateCloth, clothStats } from './lib/cloth.js';
 
 /** Wrap a factory so `opts.lights === true` registers its lights right away. */
 function lit(fn, optsIndex = 0) {

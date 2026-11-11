@@ -13,6 +13,7 @@ import { flowerHead } from './lib/flowers.js';
 import { jossPaper, card, findPrint, litter } from './lib/print.js';
 import { deityHeadGeo, deityBodyGeo, lionGeo } from './lib/figures.js';
 import { chineseRoof } from './shrines.js';
+import { hangCloth } from './lib/cloth.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function anchor(parent, name, x, y, z, yaw = 0) {
@@ -167,7 +168,7 @@ function forkSignpost(k, p, side, rng) {
     forkPlank(k, signMat('fork_sign', { side: side < 0 ? 'left' : 'right' }), { p: [side * (pw / 2 - 0.02) - lean[2] * 1.82, 1.82, 0.065], r: [0, 0, side * -0.03], w: pw, dir: side, color: 0x7a6448 });
     // nails, a faded ribbon tied to the post
     k.add(mat('cloth_static'), G('postribbon', () => cyl(0.068, 0.068, 0.06, 8, 0, 1, false)), { p: [0, 1.25, 0], color: side < 0 ? 0xe8e4dc : 0xc83a2a, w: { vary: 0.3 } });
-    k.add(mat('cloth'), G('postribbonTail', () => quad(0.04, 0.4, 1, 4).translate(0, -0.2, 0)), { p: [0.04, 1.25, 0.07], r: [0.1, 0.3, 0.1], color: side < 0 ? 0xe8e4dc : 0xc83a2a, uv: 'keep', w: false });
+    hangCloth(k, mat('cloth_static'), 0.04, 0.4, { p: [0.04, 1.25, 0.07], r: [0.1, 0.3, 0.1], color: side < 0 ? 0xe8e4dc : 0xc83a2a, w: false, nu: 1, nv: 5, wind: 0.9, back: 0.01 });
   });
 }
 
@@ -336,8 +337,9 @@ export function createShrineMaRuay(opts = {}) {
   k.add(mat('gold'), bbox(2.0, 0.22, 0.3, 0.02, 0.3), { p: [0, y0 + 3.0, dz + 0.4], color: GOLD, w: false, colorFn: (p, n, c, lp) => { if (Math.sin(lp.x * 30) > 0.6) c.multiplyScalar(0.6); } });
   for (const s of [-1, 1]) {
     k.add(mat('gold'), bbox(0.14, 2.45, 0.3, 0.02, 0.3), { p: [s * 0.95, y0 + DAIS, dz + 0.4], color: GOLD, w: false });
-    k.add(mat('silk'), G('curtain', () => quad(0.55, 1.9, 6, 4).translate(0, -0.95, 0)), {
-      p: [s * 0.72, y0 + 3.0, dz + 0.5], color: 0xa01a18, uv: 'keep', w: { vary: 0.25 },
+    hangCloth(k, mat('silk_static'), 0.55, 1.9, {
+      nu: 5, nv: 10, wind: 0.25, back: 0.02,
+      p: [s * 0.72, y0 + 3.0, dz + 0.5], color: 0xa01a18, w: { vary: 0.25 },
       deform: (p) => { p.z += Math.sin(p.x * 22) * 0.04; p.x *= 1 - (p.y < -1.2 ? 0.45 * (-1.2 - p.y) : 0); },
     });
   }
