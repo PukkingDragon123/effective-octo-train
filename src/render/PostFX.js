@@ -12,13 +12,15 @@
 //  -> bloom from QUARTER resolution: 5 x 13-tap down (1/4 .. 1/64) + 4 x tent up
 //  -> light shafts (sun at dawn, moon through the canopy; quarter res, only when visible)
 //  -> grade (exposure, WB, ACES, lift/gamma/gain, split tone, contrast, saturation,
-//     vignette, horror, amulet, menu blur, distortion, flash) -> sRGB + dither -> 8-bit RT
+//     horror, amulet, menu blur, distortion, flash; no vignette) -> sRGB + dither -> 8-bit RT
 //  -> output to the canvas: (FXAA-lite on low) + contrast-adaptive sharpening, which is
 //     also the upscaler when the internal size is below the canvas, + blood, fade, letterbox.
 //
 //  Removed on the owner's order (no GPU cost left): painterly Kuwahara + structure tensor,
-//  paper / canvas overlay, film grain, lens chromatic aberration. `params.painterly`,
-//  `params.grain` and `params.chroma` are still accepted (no-ops).
+//  paper / canvas overlay, lens chromatic aberration, vignette. `params.painterly`,
+//  `params.chroma` and `params.vignette` are still accepted (no-ops). A fine, sharp,
+//  luminance-only film grain (FILM_GRAIN, x params.grain) is added in the output pass.
+//  Half-res AO (Shadows/AO_FRAG) is kept but off unless settings.ambientOcclusion === true.
 import * as THREE from 'three';
 import { LAYERS } from '../core/layers.js';
 import { settings } from '../core/Settings.js';
@@ -35,6 +37,8 @@ const GLASS_BIT = 1 << LAYERS.GLASS;
 /** bloom mips: 1/4, 1/8, 1/16, 1/32, 1/64 of the internal size */
 const BLOOM_LEVELS = 5;
 const MSAA_BY_PRESET = { low: 0, medium: 2, high: 4, ultra: 4 };
+/** Fine luminance-only film grain (horror texture); `params.grain` multiplies it. */
+const FILM_GRAIN = 0.12;
 
 function makeRT(w, h, opts = {}) {
   const rt = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), {
@@ -73,8 +77,8 @@ class PostFX {
   constructor() {
     /**
      * Animatable by gameplay. Multipliers (1 = the player's settings / the hour's grade):
-     *   exposure, bloom, vignette, sharpen, saturation, contrast, tint (Color multiply).
-     *   (painterly, grain, chroma: accepted, no effect — those filters are removed.)
+     *   exposure, bloom, grain, sharpen, saturation, contrast, tint (Color multiply).
+     *   (painterly, chroma, vignette: accepted, no effect — those filters are removed.)
      * Absolute: temperature (added), letterbox 0..1, fade 0..1 + fadeColor, horror 0..1, amulet 0..1,
      *   blur 0..1, distortion 0..1, blood 0..1 (blood splatter + runs on the lens; see bloodSplash()).
      */
@@ -171,7 +175,7 @@ class PostFX {
     this.matShaftBlur = passMaterial(SHAFT_BLUR_FRAG, { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uLength: { value: 0.6 }, uJitter: { value: 1 } });
     const fu = {
       tScene: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tShafts: { value: null },
-      tAO: { value: null }, tDirt: { value: lensDirtTexture() }, uAO: { value: 0 }, uDirt: { value: 0 }, uFilmic: { value: 0.2 },
+      tAO: { value: null }, tDirt: { value: lensDirtTexture() }, uAO: { value: 0 }, uDirt: { value: 0 }, uFilmic: { value: 0 },
       uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 },
       uExposure: { value: 1 }, uSaturation: { value: 1 }, uContrast: { value: 1 }, uTemperature: { value: 0 }, uTint: { value: 0 },
       uLift: { value: new THREE.Vector3() }, uGamma: { value: new THREE.Vector3(1, 1, 1) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
@@ -179,7 +183,6 @@ class PostFX {
       uHiSat: { value: 0 },
       uColorMul: { value: new THREE.Color(1, 1, 1) },
       uBloom: { value: 0.05 }, uShafts: { value: 0 }, uShaftCol: { value: new THREE.Color() },
-      uVignette: { value: 0.6 },
       uHorror: { value: 0 }, uAmulet: { value: 0 }, uBlur: { value: 0 }, uDistortion: { value: 0 },
       uFlash: { value: new THREE.Vector4() },
     };
@@ -187,7 +190,7 @@ class PostFX {
     this.matFinal = passMaterial(FINAL_FRAG, fu);
     const ou = {
       tSrc: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uTexel: { value: new THREE.Vector2(1, 1) },
-      uTime: { value: 0 }, uSharp: { value: 0.5 },
+      uTime: { value: 0 }, uSharp: { value: 0.5 }, uGrain: { value: 0 },
       uFade: { value: 0 }, uFadeColor: { value: new THREE.Color() }, uLetterbox: { value: 0 },
       uBlood: { value: 0 }, uBloodSeed: { value: 0 }, uBloodRun: { value: 0 }, uGore: GORE_UNIFORM,
     };
@@ -211,7 +214,8 @@ class PostFX {
     this._settingsDirty = false;
     const preset = settings.get('graphicsPreset') || 'medium';
     const samples = MSAA_BY_PRESET[preset] ?? 2;
-    const ao = (settings.get('ambientOcclusion') ?? preset !== 'low') !== false;
+    // AO stays in the code but is OFF unless explicitly enabled (owner: no dark contact halos)
+    const ao = settings.get('ambientOcclusion') === true;
     if (samples !== this._samples || ao !== this._ao) {
       this._samples = samples;
       this._ao = ao;
@@ -219,7 +223,6 @@ class PostFX {
     }
     this.cfg = {
       bloom: clamp(settings.get('bloom') ?? 0.8, 0, 2),
-      vignette: clamp(settings.get('vignette') ?? 0.6, 0, 1),
       sharpen: clamp(settings.get('sharpen') ?? 0.5, 0, 1),
       brightness: clamp(settings.get('brightness') ?? 1, 0.3, 2),
       reduceFlashes: !!settings.get('reduceFlashes'),
@@ -550,7 +553,6 @@ class PostFX {
     fu.uBloom.value = clamp(bloomAmt * 0.04, 0, 0.3); // a touch of glow, no halos smearing the lamps
     fu.uShafts.value = shafts * 1.6;
     if (sky) fu.uShaftCol.value.copy(useSun ? sky.sunColor : sky.moonColor);
-    fu.uVignette.value = cfg.vignette * P.vignette;
     fu.uHorror.value = P.horror;
     fu.uAmulet.value = P.amulet;
     fu.uBlur.value = P.blur;
@@ -569,6 +571,7 @@ class PostFX {
     // below full resolution the sharpening also restores the upscaled detail
     const upSharp = (1 - this.renderScale) * 0.8;
     ou.uSharp.value = clamp((cfg.sharpen * (P.sharpen ?? 1) + upSharp) * (1 - clamp(P.blur, 0, 1)), 0, 1);
+    ou.uGrain.value = FILM_GRAIN * (P.grain ?? 1);
     ou.uFade.value = P.fade;
     ou.uFadeColor.value.copy(P.fadeColor).convertLinearToSRGB();
     ou.uLetterbox.value = P.letterbox;

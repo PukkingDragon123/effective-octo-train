@@ -216,7 +216,6 @@ uniform vec3 uColorMul;
 uniform float uBloom;
 uniform float uShafts;
 uniform vec3 uShaftCol;
-uniform float uVignette;
 uniform float uHorror;
 uniform float uAmulet;
 uniform float uBlur;
@@ -325,9 +324,11 @@ void main() {
     float pulse = 0.5 + 0.5 * sin(uTime * 2.4);
     col = mix(col, col * vec3(1.35, 0.72, 0.7), edge * uHorror * (0.35 + 0.3 * pulse));
   }
-  // vignette
-  float vig = smoothstep(0.25, 1.15, r);
-  col *= 1.0 - vig * vig * (uVignette * 0.85 + uHorror * 0.4);
+  // no vignette / edge darkening (owner); only a horror scare darkens the edges, while it lasts
+  if (uHorror > 0.0) {
+    float vig = smoothstep(0.25, 1.15, r);
+    col *= 1.0 - vig * vig * uHorror * 0.4;
+  }
   // dither (8-bit target)
   col = toSRGB(col) + (dlbHash12(gl_FragCoord.xy + 0.5) - 0.5) / 255.0;
   gl_FragColor = vec4(col, 1.0);
@@ -348,6 +349,7 @@ uniform vec2 uRes;        // output (canvas) size in pixels
 uniform vec2 uTexel;      // 1 / source size
 uniform float uTime;
 uniform float uSharp;     // 0..1 (0 = off)
+uniform float uGrain;     // fine film grain (luminance only, per output pixel, animated)
 uniform float uFade;
 uniform vec3 uFadeColor;
 uniform float uLetterbox;
@@ -396,6 +398,14 @@ void main() {
   }
   // ---- blood on the lens (death / attacks): painterly splatter, thick dried rims, runs ---------
   if (uBlood > 0.001) col = applyBlood(col, vUv);
+  // ---- film grain: fine, sharp (one value per screen pixel, new every frame), luminance only,
+  //      strongest in the mid-tones; added after sharpening so it is never amplified
+  if (uGrain > 0.0) {
+    vec2 gp = gl_FragCoord.xy + fract(uTime * 13.7) * vec2(311.0, 173.0);
+    float n = dlbHash12(gp) + dlbHash12(gp * 1.37 + 57.0) - 1.0; // triangular, -1..1
+    float gl = L(col);
+    col += n * uGrain * 0.25 * (0.2 + gl) * (1.0 - gl);
+  }
   // fade to colour
   col = mix(col, uFadeColor, clamp(uFade, 0.0, 1.0));
   // letterbox bars (2.39:1 at letterbox = 1)
