@@ -103,3 +103,27 @@ export function passengerSpec(E, fallback) {
 }
 
 export { THREE, S, g, engine, bus };
+
+/** Run a QTE through g.qte (sandbox without it: a short wait, then success). Returns { ok, reason }. */
+export async function qte(E, spec) {
+  const q = g.qte;
+  if (!q?.run) {
+    await E.wait(Math.min(2, (spec.time ?? 3) * 0.5));
+    return { ok: true, reason: 'noqte' };
+  }
+  try {
+    return await q.run(spec);
+  } catch (e) {
+    console.warn('[encounter] qte failed', e);
+    return { ok: true, reason: 'error' };
+  }
+}
+
+/** Has the taxi been (nearly) stopped for `secs`? Stateful checker fn(dt) -> bool. */
+export function stoppedFor(secs = 1.5, kmh = 3) {
+  let t = 0;
+  return (dt) => {
+    t = S.speedKmh() < kmh ? t + dt : 0;
+    return t >= secs;
+  };
+}

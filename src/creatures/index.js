@@ -112,4 +112,6 @@ export async function prewarmCreatures(kinds = ['hand', 'dog', 'rat', 'elephant'
 
 export { createAnimal, createFaceRat, createEgretFlock, EgretFlock, Quadruped, FaceRat, DOG_COATS, HandRig, handGeometry, SPECS as CREATURE_SPECS, human as createCreatureHumanoid };
 export { paneFrame, panePoint, toBody, dirToBody, bodyOf, humanoidFacing };
+export { DynamicTube, Rope, tubeGeometry } from './util.js';
+export { createCoffin, createKrathong, createFloodWater } from './Ritual.js';
 export { YaiSpeed, Krasue, Krahang, NangTani, WireCrawler, ForestGiant, GiantHand, PhiTaiHong, WindowGhost };

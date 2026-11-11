@@ -514,6 +514,86 @@ export const DEATHS = {
   },
 };
 
+// ---------------------------------------------------------------- deaths of the new rule encounters
+Object.assign(DEATHS, {
+  /** Drove into the funeral procession / kept the engine running: they take you into the coffin's place. */
+  async procession(ctx = {}) {
+    const t = g.taxi;
+    const saved = freezeTaxi();
+    letterbox(true);
+    sky.setFogBoost?.(1.8, 1.2);
+    t?.setCabinOverride?.(0.0, 0);
+    const people = [];
+    const body = bodyOf(t);
+    const spots = [[-1.25, -0.2], [-1.3, 0.75], [1.3, 0.7], [1.25, -0.25], [0.2, -2.5], [-0.4, 2.7]];
+    for (let i = 0; i < spots.length; i++) {
+      const h = createCreatureHumanoid(CREATURE_SPECS.mourner(i), { layer: LAYERS.DEFAULT });
+      body.add(h.root);
+      const [x, z] = spots[i];
+      h.root.position.set(x, 0, z);
+      h.root.rotation.y = Math.atan2(x, z) ;
+      h.setGhost({ stare: 1, noBlink: 1, mouthStretch: 0.2, headRoll: (i % 2 ? 1 : -1) * 0.2 }, 100);
+      h.lookAt(engine.camera, { speed: 12, unlimited: true });
+      h.setOpacity(0);
+      people.push(h);
+    }
+    povShot(() => S.fromTaxi(-1.2, 1.2, 0.0), { blend: 0.5 });
+    S.sfx('gong', { volume: 1, rate: 0.55 });
+    await anim(1.2, (k) => people.forEach((h, i) => h.setOpacity(Math.min(1, k * 2 - i * 0.12))));
+    // palms on every pane, the white thread drawn tight around the car
+    for (const [pane, u, v] of [['fl', 0.4, 0.5], ['rl', 0.5, 0.55], ['rr', 0.5, 0.5], ['fr', 0.45, 0.55], ['windshield', 0.3, 0.45], ['windshield', 0.75, 0.5]]) {
+      try {
+        t.addGlassMark(pane, 'handprint', new THREE.Vector2(u, v), { size: 1.25, drag: true });
+      } catch (e) { /* optional */ }
+      S.sfx('knock', { object: t?.root, volume: 0.7, rate: 0.6 });
+      await sleep(0.14);
+    }
+    t?.setFog?.('all', 0.85);
+    povShot(() => people[3].headPosition.clone(), { blend: 0.4, fov: 58 });
+    S.sfx('monk_chant', { volume: 0.8, rate: 0.7 });
+    await sleep(1.1);
+    people[3].setGhost({ mouthStretch: 1, jitter: 0.7 }, 8);
+    S.sfx('scream_close', { volume: 0.9, rate: 0.7 });
+    shake(0.7);
+    splash(0.6);
+    await blackout(0.35);
+    unfreezeTaxi(saved);
+    restore(people);
+  },
+
+  /** Drove into the flood without asking passage and could not tear free: the water keeps you. */
+  async flood(ctx = {}) {
+    const t = g.taxi;
+    const saved = freezeTaxi();
+    const sim = t?.physicsSim;
+    const y0 = sim?.pos.y ?? 0;
+    povShot(() => S.fromTaxi(0.37, 1.1, -1.2), { blend: 0.4, fov: 62 });
+    S.sfx('splash', { volume: 1, rate: 0.6 });
+    S.sfx('rumble_sub', { volume: 0.9 });
+    t?.setFog?.('all', 0.4);
+    // the car is pulled down, nose first, the black water climbing the glass
+    await anim(2.6, (k) => {
+      if (sim) {
+        sim.pos.y = y0 - k * k * 1.6;
+        sim.groundPitch = (saved?.pitch || 0) - k * 0.35;
+      }
+      if (k > 0.3) shake(0.03);
+    });
+    for (const [u, v] of [[0.3, 0.6], [0.55, 0.45], [0.75, 0.62]]) {
+      try {
+        t.addGlassMark('windshield', 'handprint', new THREE.Vector2(u, v), { size: 1.3, drag: true });
+      } catch (e) { /* optional */ }
+      S.sfx('knock', { object: t?.root, volume: 0.6, rate: 0.5 });
+      await sleep(0.2);
+    }
+    postfx.flash?.(0x020806, 0.4);
+    S.sfx('scream_close', { volume: 0.6, rate: 0.6 });
+    await blackout(0.6);
+    unfreezeTaxi(saved);
+    restore([]);
+  },
+});
+
 /** Play a death locally (sandbox / when B's death module is missing). */
 export async function playDeath(type, ctx = {}) {
   const fn = DEATHS[type];
