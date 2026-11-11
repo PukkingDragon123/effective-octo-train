@@ -70,6 +70,19 @@ export const SPECS = {
     hair: { style: 'messy', color: 0x030303 }, outfit: { type: 'farmer', top: '#0d0d0f', bottom: '#0b0b0c' },
     face: { seed: 1111 }, ghost: { pale: 0, eyes: 'black', decay: 0.2 }, noBlink: true, quality: 0.5,
   },
+  // funeral procession: mourners in white shirts / black, grey faces, eyes down
+  mourner: (i) => ({
+    id: 'mourner' + i, sex: i % 3 === 1 ? 'f' : 'm', age: [58, 34, 71, 45, 26, 63, 39, 50][i % 8], build: ['thin', 'average', 'thin', 'heavy'][i % 4],
+    skinTone: 0.35 + (i % 4) * 0.08, hair: { style: i % 3 === 1 ? 'bun' : ['short', 'gray-short', 'messy'][i % 3], color: i % 3 === 2 ? 0x9a968e : 0x0f0d0c },
+    outfit: i % 3 === 1 ? { type: 'dress', top: '#1a1918', shoes: 'barefoot' } : { type: 'shirt-slacks', top: '#e4e0d6', bottom: '#191919', shoes: 'barefoot' },
+    face: { seed: 3300 + i * 37, wrinkles: 0.5 }, ghost: { pale: 0.7, decay: 0.15, wet: 0.2 }, noBlink: true, quality: 0.6,
+  }),
+  // ผีปอบ: an old village woman who eats the living from inside; red eyes, a wet grin
+  phiPop: {
+    id: 'phiPop', sex: 'f', age: 76, height: 1.48, build: 'thin', skinTone: 0.58,
+    hair: { style: 'long', color: 0x7a766e, wet: 0.3 }, outfit: { type: 'old-woman-sarong', top: '#4a4238', bottom: '#2a2420', shoes: 'barefoot' },
+    face: { seed: 7676, wrinkles: 1, smile: 0.6, eyeSize: 0.92, cheek: 0.85 }, ghost: { pale: 0.45, eyes: 'glow', decay: 0.35, bloodStains: 0.3 }, noBlink: true,
+  },
   alms: (i) => ({
     id: 'almsMonk' + i, sex: 'm', age: [62, 38, 24, 12, 45][i % 5], height: [1.66, 1.72, 1.7, 1.42, 1.68][i % 5], build: 'thin', skinTone: 0.5 + (i % 3) * 0.08,
     hair: { style: 'shaved' }, outfit: { type: 'monk-robe', top: ['#c9671e', '#b85c1c', '#d07a2a', '#c46a24', '#b9601f'][i % 5] },

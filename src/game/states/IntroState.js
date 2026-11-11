@@ -92,14 +92,9 @@ export const IntroState = {
     // out of the fog (from the menu dive) or out of black
     if (params.fromMenu) g.cine.fade(0, 3.4, fogColor());
     else g.cine.fade(0, 2.2);
-    // the text that started it all, on a cracked phone screen
+    // (no phone: the night starts on the road)
     try {
       await S.wait(2.2);
-      const P = g.data?.worldtext?.PHONE_MESSAGE;
-      if (P) {
-        sfx('switch_click', { volume: 0.25, pan: 0.4 });
-        g.ui.subtitle({ speakerTH: `${P.fromTH} · ${P.time}`, speakerEN: `${P.fromEN} · ${P.time}`, th: P.th, en: P.en, tone: 'thought', duration: 6.5 });
-      }
       this._forestCalls();
     } catch (e) {
       if (!isAbort(e)) console.error('[intro]', e);

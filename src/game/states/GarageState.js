@@ -385,15 +385,14 @@ export const GarageState = {
     }
     const startAt = 30 + Math.random() * 14; // he walks in ~25 s later: 55-70 s in all
     const C = this.chips;
-    const calling = () => this.chores?.state?.phone === 'call';
-    await S.step(waitFor(() => !this.active || (!calling() && (this.waitT > startAt || (C && C.eaten >= 3 && g.engine.time - C.lastEatAt > 2.5))) || this.waitT > 200));
+    await S.step(waitFor(() => !this.active || (this.waitT > startAt || (C && C.eaten >= 3 && g.engine.time - C.lastEatAt > 2.5)) || this.waitT > 200));
     this.phase = 'arrive';
     await this._kongArrives(S);
     const ate = (this.chips?.eaten || 0) > 0;
     this.chips?.putAway?.();
     objectiveDone();
-    // he noticed: the crisps, the phone
-    this._arrivalReact = [...(ate ? KONG_REACT.chips : []), ...(g.save?.flags?.phoneAnswered ? KONG_REACT.phone : [])];
+    // he noticed: the crisps
+    this._arrivalReact = ate ? KONG_REACT.chips : [];
   },
 
   /** Footsteps on the tarmac out of the fog, then he walks in. */
@@ -721,11 +720,6 @@ export const GarageState = {
     if (this.phase !== 'talk' && this.phase !== 'setup') LoopStaging.update(dt);
     if (this.phase === 'wait' || this.phase === 'arrive') {
       this.waitT = (this.waitT || 0) + dt;
-      // the garage phone rings once while he is away
-      if (this.phase === 'wait' && !this._rang && this.waitT > 13) {
-        this._rang = true;
-        this.chores?.ringPhone();
-      }
     } else if (this.phase === 'chores') {
       this._idleNudgeChores(dt);
     } else if (this.phase === 'walkToKong') {

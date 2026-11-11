@@ -28,7 +28,7 @@ export const CAR = {
   auto: [2.8, 1.55, 1.0, 0.72],
   autoR: -2.4,
   brakeForce: 9200,
-  handbrakeForce: 3600,
+  handbrakeForce: 5200,
   cdA: 0.55,
   roll: 170,
   maxSteer: 0.6,
@@ -114,7 +114,7 @@ export class CarPhysics {
     const kmh = speed * 3.6;
 
     // ---- steering --------------------------------------------------------------------------
-    const maxA = CAR.maxSteer * lerp(1, 0.2, smoothstep(0, 32, speed));
+    const maxA = CAR.maxSteer * lerp(1, 0.16, smoothstep(0, 28, speed)); // quick in the yard, calm at speed
     const target = -inp.steer * maxA;
     const rate = 2.6;
     this.wheelAngle += clamp(target - this.wheelAngle, -rate * dt, rate * dt);
@@ -182,8 +182,9 @@ export class CarPhysics {
     // ---- longitudinal forces ---------------------------------------------------------------
     const surfaceDrag = this.offRoad * 900 + this.wallContact * 2600;
     const resist = CAR.cdA * 0.6 * this.v * Math.abs(this.v) + Math.sign(this.v) * (CAR.roll + surfaceDrag) * Math.min(1, speed * 2);
-    let brakeF = inp.brake * CAR.brakeForce + (state.handbrake ? CAR.handbrakeForce : 0);
     const mass = CAR.mass + this.totalSeatKg();
+    // progressive service brake (~7.8 m/s² at full), the handbrake on top; never past ~9.5 m/s²
+    let brakeF = Math.min(inp.brake * CAR.brakeForce + (state.handbrake ? CAR.handbrakeForce : 0), mass * 9.5);
     let F = driveF - resist;
     const a = F / mass;
     this.v += a * dt;
@@ -191,6 +192,8 @@ export class CarPhysics {
     const dvB = (brakeF / mass) * dt;
     if (Math.abs(this.v) <= dvB) this.v = 0;
     else this.v -= Math.sign(this.v) * dvB;
+    // reverse is a crawl (backing out of a verge), not a race
+    if (state.gear === 'R' && this.v < -4.2) this.v = -4.2;
     this.accLong = damp(this.accLong, (this.v - (this._lastV ?? this.v)) / dt, 10, dt);
     this._lastV = this.v;
 

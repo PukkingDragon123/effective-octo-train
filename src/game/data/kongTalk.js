@@ -4,7 +4,7 @@
 // harsh and rude, never slurs. Lines follow SCHEMA.md ({ who, th, en, tone?, emotion? }).
 //
 //   KONG_IDLE        while he waits or watches (one at a time, between his cigarettes)
-//   KONG_REACT[ev]   chips (Ton ate his crisps), phone (Ton answered the phone), shrineWrong, stall,
+//   KONG_REACT[ev]   chips (Ton ate his crisps), shrineWrong, stall,
 //                    bump (the taxi hit something), offRoadScrape
 //   KONG_SCOLD[ctx]  [level1[], level2[], level3[]]  ctx: slow, wrong, stall, badDrive
 //   KONG_TAKEOVER[task]  what he says as he does it himself (shrine, offering, cloth, tutorial, park)
@@ -23,7 +23,6 @@ export const KONG_IDLE = [
 
 export const KONG_REACT = {
   chips: [K('ขนมกรุบกรอบของอั๊วหายไปไหน… ลื้อกินใช่มั้ย ไอ้เด็กบ้า', 'Where did my crisps go… you ate them, didn’t you, you little fool.', { emotion: 'anger' })],
-  phone: [K('เมื่อกี้โทรศัพท์ดังใช่มั้ย… ลื้อรับรึเปล่า', 'The phone rang just now, didn’t it… did you answer it?'), K('ทีหลังอย่ารับ ตอนกลางคืนไม่มีใครโทรมาที่นี่หรอก', 'Don’t, next time. Nobody calls here at night.', { emotion: 'sad' })],
   shrineWrong: [K('โง่เป็นควาย! บอกแล้วว่าห้ามข้ามขั้น', 'Thick as a buffalo! I told you not to skip a step.', { emotion: 'anger', tone: 'shout' })],
   stall: [K('ดับอีกแล้ว! เหยียบคลัตช์ให้มันสุดสิวะ', 'Stalled again! Push the clutch all the way down!', { emotion: 'anger' })],
   bump: [K('ไอ้เวร! รถอั๊วนะเว้ย ไม่ใช่รถชน', 'You wretch! That’s my cab, not a bumper car!', { emotion: 'anger', tone: 'shout' })],

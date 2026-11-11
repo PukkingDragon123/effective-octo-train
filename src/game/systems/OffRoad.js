@@ -1,35 +1,33 @@
-// Off-road detector: riding the bike or driving the taxi past the shoulder into the ditch (or off a
-// bridge, over the guardrail line) at speed kills Ton: g.kill('offRoad') -> the crash, the TV news,
-// GAME OVER (see death/offRoad.js and DeathState). Only while the player is in control (no
-// autopilot, no cutscene), never on a set-piece pad (the garage apron, the stalls), never at a
-// road's open end. A slow roll onto the verge just meets the brush (the vehicles' own corridor).
+// Off-road crash detector. Running onto the verge, the shoulder or a shallow ditch is recoverable:
+// slow down and back out (the taxi's automatic reverses when you hold the brake at a standstill;
+// the bike paddles back). A crash (g.kill('offRoad') -> the crash, the TV news, back to the last
+// checkpoint) happens only on
+//   * a real fall: the vehicle well below the road surface beside it (off a bridge, over the edge
+//     into a ravine, a big drop), or
+//   * a high-speed impact: more than ~45 km/h straight into the brush wall / a tree line (taxi
+//     'taxi:collision', bike 'bike:impact' with a hard outward component, not a scrape).
+// Only while the player is in control (no autopilot, no cutscene).
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
-import { LAYOUT } from '../../world/layout.js';
 import { kill } from '../death/index.js';
 import '../death/offRoad.js';
+import './FirstHints.js';
 
 const STATES = new Set(['intro', 'garage', 'tutorial', 'shift']);
 const CFG = {
-  bike: { margin: 0.3, kmh: 10 },
-  taxi: { margin: 0.32, kmh: 14 },
-  dwell: 0.12, // s beyond the edge before it counts
+  fallDrop: 1.8, // m below the road surface beside it
+  fallDwell: 0.18, // s
+  impactKmh: 45,
+  impactOutward: { taxi: 4.5, bike: 3.5 }, // m/s straight into it (a glancing scrape is less)
 };
 let installed = false;
-let over = 0;
+let falling = 0;
 let pr = null;
+const lastKmh = { taxi: 0, bike: 0 };
 
-function onPad(x, z, grow) {
-  const pads = g.world?.terrain?.pads || [];
-  for (const p of pads) {
-    const dx = x - p.x, dz = z - p.z;
-    if (Math.abs(dx) > p.r + grow || Math.abs(dz) > p.r + grow) continue;
-    const ux = dx * p.cos - dz * p.sin, uz = dx * p.sin + dz * p.cos;
-    if (Math.abs(ux) <= p.hx + grow && Math.abs(uz) <= p.hz + grow) return true;
-  }
-  return false;
+function active() {
+  return !!g.fsm && !!g.world?.road && STATES.has(g.fsm.currentName) && !g.isDying?.() && !g.godMode;
 }
-
 function controlled() {
   const v = g.player?.vehicle;
   if (!v) return null;
@@ -37,29 +35,31 @@ function controlled() {
   if (v === g.taxi && g.taxi.controlsEnabled && !g.taxi.autopilotSpec && !g.taxi.physicsSim?.frozen) return 'taxi';
   return null;
 }
+function crash(kind, cause) {
+  falling = 0;
+  kill('offRoad', { vehicle: kind, noLastChance: true, cause });
+}
 
 function tick(dt) {
-  if (!(dt > 0) || !g.fsm || !g.world?.road || !STATES.has(g.fsm.currentName) || g.isDying?.() || g.godMode) {
-    over = 0;
-    return;
-  }
-  const kind = controlled();
-  if (!kind) {
-    over = 0;
+  const kind = active() ? controlled() : null;
+  if (!(dt > 0) || !kind) {
+    falling = 0;
     return;
   }
   const veh = kind === 'bike' ? g.bike : g.taxi;
   const pos = veh.root.position;
   pr = g.world.road.project(pos, veh.physics?.roadRef?.id ?? null, pr);
-  const sp = g.world.road.get(pr.id);
-  const atEnd = sp && !sp.closed && (pr.s < 1 || pr.s > sp.length - 1);
-  const C = CFG[kind];
-  const edge = pr.width / 2 + LAYOUT.shoulder + C.margin;
-  const out = !atEnd && Math.abs(pr.lateral) > edge && Math.abs(veh.speedKmh || 0) > C.kmh && !onPad(pos.x, pos.z, 1.2);
-  over = out ? over + dt : Math.max(0, over - dt * 2);
-  if (over < CFG.dwell) return;
-  over = 0;
-  kill('offRoad', { vehicle: kind, noLastChance: true, cause: 'offRoad' });
+  const beyond = Math.abs(pr.lateral) > pr.width / 2 + 0.3;
+  const drop = pr.y + 0.03 - pos.y;
+  falling = beyond && drop > CFG.fallDrop ? falling + dt : 0;
+  if (falling > CFG.fallDwell) return crash(kind, 'fall');
+  lastKmh[kind] = Math.abs(veh.speedKmh || 0);
+}
+
+function onImpact(kind, kmhNow, outward) {
+  if (!active() || controlled() !== kind) return;
+  const kmh = Math.max(kmhNow || 0, lastKmh[kind]); // the speed going in, before the hit took it
+  if (kmh > CFG.impactKmh && (outward ?? 0) > CFG.impactOutward[kind]) crash(kind, 'impact');
 }
 
 /** Install once (idempotent). */
@@ -68,6 +68,8 @@ export function ensureOffRoad() {
   installed = true;
   if (!g.kill) g.kill = kill;
   g.engine.onUpdate(tick, 36);
+  bus.on('taxi:collision', (e) => onImpact('taxi', 0, e?.speed ?? (e?.impulse ?? 0) / 1150));
+  bus.on('bike:impact', (e) => onImpact('bike', e?.kmh, e?.outward));
 }
 
 bus.on('game:state', () => ensureOffRoad());

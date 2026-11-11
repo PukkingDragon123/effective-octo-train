@@ -5,12 +5,11 @@
 //               soda is lower, when nobody was looking)
 //   3 cloth     the three-colour cloth strips, tied on the taxi's rear-view mirror
 //   4 coins     count the fare tin: there is always one coin more than you counted (an old holed one)
-//   6 phone     the garage phone rings once while he is away; answer and a whisper says "ต้น…"
 // Props are small, built from the props kit and real profiles (lathes, traced shapes, swept strips).
 //
-//   new Chores(stage, { only?: [ids], phone?: bool })
+//   new Chores(stage, { only?: [ids] })
 //     .start() (chores become doable) · .done(id) · .requiredDone() · .missing() · .finishRest()
-//     .ringPhone() · .update runs on the stage
+//     .update runs on the stage
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { interact } from '../../core/Interact.js';
@@ -117,91 +116,6 @@ function fareTin() {
 const coinGeo = (r) => lathe([[0, 0], [r, 0], [r * 1.02, 0.001], [r, 0.002], [r * 0.86, 0.0018], [0, 0.0019]], 18);
 const holedCoinGeo = () => lathe([[0.004, 0], [0.012, 0], [0.0124, 0.0012], [0.012, 0.0022], [0.004, 0.0022], [0.0036, 0.0011]], 18);
 
-/** An old black rotary telephone (Thai numerals on the dial), handset on its own pivot. */
-function rotaryPhone() {
-  const k = new Kit(53, { grime: 0.3, dust: 0.5 });
-  const side = new THREE.Shape();
-  side.moveTo(-0.1, 0);
-  side.lineTo(0.1, 0);
-  side.quadraticCurveTo(0.1, 0.05, 0.08, 0.075);
-  side.lineTo(0.035, 0.1);
-  side.lineTo(-0.05, 0.1);
-  side.quadraticCurveTo(-0.1, 0.09, -0.1, 0.05);
-  side.closePath();
-  const body = new THREE.ExtrudeGeometry(side, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 3, curveSegments: 10 });
-  body.translate(0, 0, -0.075);
-  body.rotateY(-Math.PI / 2);
-  k.add(mat('plastic'), body, { color: 0x1a1816, w: { dust: 0.4 } });
-  for (const sx of [-1, 1]) k.add(mat('plastic'), lathe([[0, 0], [0.012, 0], [0.01, 0.022], [0.006, 0.026], [0, 0.026]], 10), { p: [sx * 0.06, 0.1, -0.03], color: 0x1a1816 });
-  const grp = k.build({ name: 'rotaryPhone' });
-  // dial face (canvas: finger holes and Thai digits)
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const x = c.getContext('2d');
-  x.fillStyle = '#e8e0cc';
-  x.beginPath();
-  x.arc(64, 64, 64, 0, Math.PI * 2);
-  x.fill();
-  x.font = `700 13px ${FONTS.lcd}`;
-  x.textAlign = 'center';
-  x.textBaseline = 'middle';
-  const digits = '๑๒๓๔๕๖๗๘๙๐';
-  for (let i = 0; i < 10; i++) {
-    const a = -Math.PI * 0.35 - (i / 12) * Math.PI * 2;
-    x.fillStyle = '#1a1816';
-    x.fillText(digits[i], 64 + Math.cos(a) * 34, 64 + Math.sin(a) * 34);
-  }
-  const dialTex = new THREE.CanvasTexture(c);
-  dialTex.colorSpace = THREE.SRGBColorSpace;
-  const dialFace = new THREE.Mesh(new THREE.CircleGeometry(0.045, 28), paintedMaterial({ map: dialTex, roughness: 0.5, brush: 0.1, name: 'phoneDial' }));
-  const wheel = new THREE.Mesh(lathe([[0.012, 0], [0.05, 0], [0.052, 0.006], [0.046, 0.008], [0.012, 0.007]], 28), paintedMaterial({ color: 0x1c1a18, metalness: 0.2, roughness: 0.35, brush: 0.1, name: 'phoneWheel' }));
-  const dial = new THREE.Group();
-  wheel.rotation.x = Math.PI / 2;
-  dial.add(dialFace, wheel);
-  dial.position.set(0, 0.083, 0.062);
-  dial.rotation.x = -0.62;
-  grp.add(dial);
-  // the handset on its cradle
-  const hk = new Kit(54, { grime: 0.2 });
-  hk.add(mat('plastic'), tube([V(-0.085, 0.012, 0), V(-0.04, 0.026, 0), V(0.04, 0.026, 0), V(0.085, 0.012, 0)], 0.013, 8), { color: 0x1a1816 });
-  for (const sx of [-1, 1]) hk.add(mat('plastic'), lathe([[0, 0], [0.026, 0], [0.028, 0.01], [0.018, 0.024], [0, 0.026]], 14), { p: [sx * 0.085, -0.012, 0], color: 0x1a1816 });
-  const handset = hk.build({ name: 'handset' });
-  handset.position.set(0, 0.125, -0.03);
-  grp.add(handset);
-  // coiled cord
-  class Helix extends THREE.Curve {
-    getPoint(t, out = new THREE.Vector3()) {
-      const a = V(-0.1, 0.11, -0.03), b = V(-0.11, 0.02, 0.06);
-      out.lerpVectors(a, b, t);
-      out.y -= Math.sin(t * Math.PI) * 0.05;
-      const ph = t * Math.PI * 2 * 24;
-      return out.add(V(Math.cos(ph) * 0.006, Math.sin(ph) * 0.006, 0));
-    }
-  }
-  grp.add(new THREE.Mesh(new THREE.TubeGeometry(new Helix(), 360, 0.002, 4, false), paintedMaterial({ color: 0x1a1816, roughness: 0.6, brush: 0.1, name: 'phoneCord' })));
-  grp.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
-  return { object: grp, handset, home: handset.position.clone() };
-}
-
-let ringBuf = null;
-function ringBuffer() {
-  if (ringBuf) return ringBuf;
-  const sr = 22050, len = Math.floor(sr * 1.25);
-  try {
-    ringBuf = new AudioBuffer({ length: len, sampleRate: sr, numberOfChannels: 1 });
-  } catch (e) {
-    return null;
-  }
-  const d = ringBuf.getChannelData(0);
-  for (let i = 0; i < len; i++) {
-    const t = i / sr;
-    const burst = (t < 0.42 || (t > 0.62 && t < 1.04) ? 1 : 0) * Math.pow(Math.abs(Math.sin(Math.PI * 2 * 21 * t)), 0.6);
-    const f = 760;
-    d[i] = burst * (Math.sin(t * f * 6.283) * 0.5 + Math.sin(t * f * 2.76 * 6.283) * 0.25 + Math.sin(t * f * 5.4 * 6.283) * 0.1 + Math.sin(t * 940 * 6.283) * 0.3) * 0.55;
-  }
-  return ringBuf;
-}
-
 // ------------------------------------------------------------------------------ the chores
 export class Chores {
   constructor(stage, opts = {}) {
@@ -211,7 +125,7 @@ export class Chores {
     this.active = false;
     this.flags = g.save?.flags || (g.save ? (g.save.flags = {}) : {});
     this.held = null;
-    this.state = { sticks: 'none', lit: false, waied: false, offering: 'bench', cloth: 'table', phone: 'idle' };
+    this.state = { sticks: 'none', lit: false, waied: false, offering: 'bench', cloth: 'table' };
     const G = (this.G = lm('garage'));
     this.go = G?.prop?.object || null;
     this._needed = this.only || D.CHORE_IDS;
@@ -389,12 +303,6 @@ export class Chores {
       this.night.add(() => tin.removeFromParent());
       this.tin = tin;
       this._item('coins', table, [0.36, 0.05, -0.06], [0.14, 0.12, 0.14], 'นับเหรียญ', 'Count the coins', () => can1() && !this.done('coins') && !this._counting && !this.held, () => this._countCoins());
-    }
-    if (!this.only) {
-      const ph = rotaryPhone();
-      this.phone = ph;
-      this._local(ph.object, -1.06, 0.895, -2.98, 0.35);
-      this._item('phone', ph.object, [0, 0.08, 0], [0.26, 0.2, 0.24], 'รับโทรศัพท์', 'Answer the phone', () => this.state.phone === 'ringing', () => this._answer());
     }
   }
 
@@ -616,42 +524,6 @@ export class Chores {
     }, 6000);
   }
 
-  // ---------------------------------------------------------------- 6 the phone
-  ringPhone() {
-    if (!this.phone || this.state.phone !== 'idle') return;
-    this.state.phone = 'ringing';
-    this._ringT = 0;
-    this._rings = 0;
-  }
-  async _answer() {
-    if (this.state.phone !== 'ringing') return;
-    this.state.phone = 'call';
-    const P = this.phone;
-    sfx('switch_click', { object: P.object, volume: 0.4 });
-    this.flags.phoneAnswered = true;
-    this.flags['k.phoneAnswered'] = true;
-    this.flags['k.phoneCalls'] = (this.flags['k.phoneCalls'] || 0) + 1;
-    try {
-      g.persist?.();
-    } catch (e) {
-      /* ignore */
-    }
-    g.player?.reach?.(P.handset, { hand: 'R', duration: 0.4, hold: 5.5, press: false });
-    P.lift = 0;
-    const hiss = g.audio?.loop?.('radio_static', { volume: 0.12 });
-    try {
-      await say(D.PHONE_CALL.hello);
-      await new Promise((r) => setTimeout(r, 1200));
-      await say(D.PHONE_CALL.whisper);
-      await new Promise((r) => setTimeout(r, 500));
-    } finally {
-      hiss?.stop?.(0.05);
-      sfx('switch_click', { volume: 0.5, rate: 0.8 });
-      this.state.phone = 'done';
-    }
-    await say(D.PHONE_CALL.after);
-  }
-
   /** The planted sticks' smoke: straight up, or leaning at Ton if a step was skipped. */
   _smokeWind() {
     const sm = this._smoke?.object?.material?.uniforms?.uWindV;
@@ -688,38 +560,6 @@ export class Chores {
       const a = g.taxi?._accLocal;
       this.strips.rotation.x = clamp((a?.z || 0) * 0.05, -0.6, 0.6) + Math.sin(t * 1.7) * 0.05;
       this.strips.rotation.z = clamp(-(a?.x || 0) * 0.05, -0.6, 0.6) + Math.sin(t * 1.3 + 1) * 0.04;
-    }
-    // the phone: a few double rings, then nothing
-    if (this.state.phone === 'ringing') {
-      this._ringT -= dt;
-      if (this._ringT <= 0) {
-        if (this._rings >= 4) {
-          this.state.phone = 'done';
-          this.flags.phoneIgnored = true;
-        } else {
-          this._rings++;
-          this._ringT = 3;
-          const buf = ringBuffer();
-          try {
-            if (buf && g.audio?.playBuffer) g.audio.playBuffer(buf, { object: this.phone.object, volume: 0.75, bus: 'sfx' });
-            else sfx('indicator_tick', { object: this.phone.object, volume: 0.6, count: 8, interval: 0.05 });
-          } catch (e) {
-            /* audio optional */
-          }
-          this.phone.handset.position.y = this.phone.home.y + 0.002;
-        }
-      } else this.phone.handset.position.y = this.phone.home.y + (this._ringT > 2.0 ? Math.abs(Math.sin(t * 130)) * 0.0015 : 0);
-    }
-    if (this.phone && this.state.phone === 'call') {
-      const P = this.phone;
-      P.lift = Math.min(1, (P.lift || 0) + dt / 0.5);
-      P.handset.position.y = P.home.y + 0.12 * easeInOut(P.lift);
-      P.handset.rotation.x = -0.5 * P.lift;
-    } else if (this.phone && this.state.phone === 'done' && this.phone.lift) {
-      const P = this.phone;
-      P.lift = Math.max(0, P.lift - dt / 0.4);
-      P.handset.position.y = P.home.y + 0.12 * easeInOut(P.lift);
-      P.handset.rotation.x = -0.5 * P.lift;
     }
   }
 }

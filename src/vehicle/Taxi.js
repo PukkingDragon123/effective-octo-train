@@ -515,6 +515,56 @@ export class Taxi {
   }
 
   // ---------------------------------------------------------------------------
+  // driver input (keyboard, pad and touch alike)
+  // ---------------------------------------------------------------------------
+  /**
+   * Pedals and wheel, smoothed: keys ramp in, pads stay analog through the same filter; the brake is
+   * progressive. Automatic box: hold the brake at a standstill to engage R (then S drives back and
+   * W brakes); press the throttle at a standstill to go back to D. So a car on the verge backs out.
+   */
+  _driverInput(dt) {
+    const s = this.state, sim = this.physicsSim;
+    const I = (this._in ||= { thr: 0, brk: 0, steer: 0, rev: 0, fwd: 0 });
+    const tIn = clamp(input.axis.throttle || 0, 0, 1), bIn = clamp(input.axis.brake || 0, 0, 1), sIn = clamp(input.axis.steer || 0, -1, 1);
+    const auto = settings.get('transmission') !== 'manual';
+    const stopped = Math.abs(sim.v) < 0.35;
+    let thr = tIn, brk = bIn;
+    if (auto && s.engineOn && !s.handbrake && ['D', '2', 'L', 'R'].includes(s.gear)) {
+      if (s.gear !== 'R') {
+        I.rev = stopped && bIn > 0.4 && tIn < 0.05 ? I.rev + dt : 0;
+        if (I.rev > 0.5) {
+          this._autoGear('R');
+          I.rev = 0;
+        }
+      } else {
+        thr = bIn;
+        brk = tIn;
+        I.fwd = stopped && tIn > 0.4 && bIn < 0.05 ? I.fwd + dt : 0;
+        if (I.fwd > 0.2) {
+          this._autoGear('D');
+          I.fwd = 0;
+        }
+      }
+    }
+    const step = (cur, to, up, down) => cur + clamp(to - cur, -down * dt, up * dt);
+    I.thr = step(I.thr, thr, 2.2, 4.5);
+    I.brk = step(I.brk, brk, 3.4, 6);
+    const back = Math.abs(sIn) < Math.abs(I.steer) || Math.sign(sIn) !== Math.sign(I.steer);
+    I.steer = step(I.steer, sIn, back ? 3.6 : 2.4, back ? 3.6 : 2.4);
+    sim.input.throttle = Math.pow(I.thr, 1.35);
+    sim.input.brake = Math.pow(I.brk, 1.2);
+    sim.input.steer = I.steer * (0.6 + 0.4 * Math.abs(I.steer)); // calm around the centre
+  }
+  _autoGear(gear) {
+    const s = this.state;
+    if (s.gear === gear) return;
+    s.gear = gear;
+    audio.play('gear_shift', { object: this.root, volume: 0.5 });
+    bus.emit('taxi:gear', { gear });
+    bus.emit('taxi:control', { control: 'gear', value: gear, source: 'auto' });
+  }
+
+  // ---------------------------------------------------------------------------
   // per frame
   // ---------------------------------------------------------------------------
   update(dt) {
@@ -525,9 +575,7 @@ export class Taxi {
     // ---- inputs ----
     if (this.autopilotSpec) this._autopilotStep(dt);
     else if (this.controlsEnabled) {
-      sim.input.throttle = input.axis.throttle;
-      sim.input.brake = input.axis.brake;
-      sim.input.steer = input.axis.steer;
+      this._driverInput(dt);
       this.controls.hotkeys(dt);
     } else {
       sim.input.throttle = 0;
@@ -789,7 +837,7 @@ export class Taxi {
   _onCollision(c) {
     audio.play('collision_thud', { position: c.point, volume: clamp(c.speed / 6, 0.3, 1) });
     audio.play('bush_scrape', { position: c.point, volume: clamp(c.speed / 5, 0.3, 1) });
-    bus.emit('taxi:collision', { impulse: c.impulse, point: c.point });
+    bus.emit('taxi:collision', { impulse: c.impulse, point: c.point, speed: c.speed });
     if (this.controlsEnabled || this.isCameraInside()) cameraRig.shake(clamp(c.speed / 8, 0.12, 0.6));
     this._bumpKick = (this._bumpKick || 0) + 2;
   }

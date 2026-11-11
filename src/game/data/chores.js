@@ -11,9 +11,8 @@
 //   CHORES_GRUMBLE      3 minutes on, he does the rest himself
 //   SHRINE_PRAYER       Ton's murmured prayer during the wai
 //   COIN_COUNT          the count (one more coin than he counted)
-//   PHONE_CALL          answering the phone while Ah Kong is away (a whisper says Ton's name)
-//   Flags (night): chore.shrine ('done'|'wrong'), chore.offering, chore.cloth, chore.coins,
-//   phoneAnswered, phoneIgnored. Kept across loops: k.phoneAnswered, k.extraCoins, k.shrineWrong.
+//   Flags (night): chore.shrine ('done'|'wrong'), chore.offering, chore.cloth, chore.coins.
+//   Kept across loops: k.extraCoins, k.shrineWrong.
 const K = (th, en, x = {}) => ({ who: 'ahKong', th, en, ...x });
 const T = (th, en, x = {}) => ({ who: 'player', th, en, ...x });
 const TT = (th, en, x = {}) => ({ who: 'player', th, en, tone: 'thought', ...x });
@@ -65,8 +64,3 @@ export const COIN_COUNT = {
   extra: [TT('สิบ… สาม?', 'Thir… teen?')],
 };
 
-export const PHONE_CALL = {
-  hello: [T('ฮัลโหล… อากงเหรอครับ', 'Hello… Ah Kong, is that you?')],
-  whisper: [{ who: 'voice', th: 'ต้น…', en: 'Ton…', tone: 'whisper' }],
-  after: [TT('…วางไปแล้ว', '…they hung up.')],
-};

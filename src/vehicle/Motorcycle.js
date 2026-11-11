@@ -545,6 +545,9 @@ export class Motorcycle {
       // steer in steadily, centre a little faster (no twitch on tapped keys)
       const back = Math.abs(sIn) < Math.abs(I.steer) || Math.sign(sIn) !== Math.sign(I.steer);
       I.steer = approach(I.steer, sIn, (back ? 4.2 : 2.6) * dt);
+      // stopped on the verge: hold the brake to paddle the bike backwards
+      I.back = Math.abs(this.v) < 0.35 && bIn > 0.4 && tIn < 0.05 ? (I.back || 0) + dt : bIn > 0.4 && I.back > 0.5 ? I.back + dt : 0;
+      this._backing = I.back > 0.5;
       throttle = Math.pow(I.thr, 1.5); // soft first half of the twist grip
       brake = Math.pow(I.brk, 1.3);
       steer = I.steer * (0.55 + 0.45 * Math.abs(I.steer)); // gentle near the centre
@@ -556,9 +559,11 @@ export class Motorcycle {
     const drive = engine_ ? throttle * RIDE.drive * clamp(1 - this.v / RIDE.vMax, 0, 1) : 0;
     const F = drive - this.v * Math.abs(this.v) * 0.4 - Math.sign(this.v) * 45;
     this.v += (F / RIDE.mass) * dt;
+    if (this._backing && this.controlsEnabled) brake = 0;
     const dB = (brake * RIDE.brake + (engine_ && throttle < 0.05 ? RIDE.engineBrake : 0)) * dt;
     this.v = Math.abs(this.v) <= dB ? 0 : this.v - Math.sign(this.v) * dB;
-    this.v = Math.max(-1, this.v);
+    if (this._backing && this.controlsEnabled) this.v = Math.max(-1.1, this.v - 2.5 * dt);
+    this.v = Math.max(-1.2, this.v);
     // steering & lean: the angle the bars may take shrinks with v² (constant lateral grip)
     const speed = Math.abs(this.v);
     const maxS = Math.min(RIDE.maxSteer, Math.atan((RIDE.latMax * BIKE.wheelbase) / Math.max(1e-3, speed * speed)));
@@ -581,8 +586,15 @@ export class Motorcycle {
         this.physics.lateral = pr.lateral;
         this.physics.roadWidth = pr.width;
         const wall = (pr.width ?? 6.2) / 2 + LAYOUT.shoulder + 1.0;
+        this._impactCd = Math.max(0, (this._impactCd || 0) - dt);
         if (Math.abs(pr.lateral) > wall) {
           const pen = Math.abs(pr.lateral) - wall;
+          // how hard it went into the brush / the wall (the off-road check decides if that is a crash)
+          const outward = this.v * (this.forward.x * pr.right.x + this.forward.z * pr.right.z) * Math.sign(pr.lateral);
+          if (outward > 1.5 && this._impactCd <= 0) {
+            this._impactCd = 0.8;
+            bus.emit('bike:impact', { kmh: Math.abs(this.v) * 3.6, outward });
+          }
           this.pos.addScaledVector(pr.right, -Math.sign(pr.lateral) * pen);
           this.v *= 0.97;
         }

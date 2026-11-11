@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { g } from '../context.js';
 import { wait } from '../util.js';
 import { CineCam, Stage, ctx as saveCtx, logic, runLines, music, holdSky, releaseSky, showPlayerHead, hidePlayer, isAbort } from '../opening/common.js';
-import { SCENES, genericScene, phoneInTheDark } from './scenes.js';
+import { SCENES, genericScene } from './scenes.js';
 import { attachToLatestRoll } from './credits.js';
 
 const MOOD = { 'song:wayHome': 'dawn', dread: 'dread', surreal: 'surreal', nostalgic: 'nostalgic', calm: 'calm', dawn: 'dawn', ending: 'ending' };
@@ -57,7 +57,7 @@ export async function playEnding(id, state, S) {
     close: (secs = 1.2, color) => S.step(g.cine.fade(1, secs, color ? new THREE.Color(color) : null)),
     radioSong: () => radioSong(stage),
     goldMist: (on) => goldMist(on, stage),
-    phone: () => phoneInTheDark(X),
+    phone: () => Promise.resolve(), // no phones in the game
   };
   // the screen is black between scenes; every scene reveals itself
   await S.step(g.cine.fade(1, 1.2));
