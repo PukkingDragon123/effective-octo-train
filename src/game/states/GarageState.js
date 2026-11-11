@@ -19,16 +19,13 @@ import { setupGarage, ahKongFace, ahKongStand, ahKongSit, walkAroundTaxi, retire
 import { createChips } from '../opening/chips.js';
 import { Chores, nightStage } from '../opening/chores.js';
 import * as CH from '../data/chores.js';
-import { KONG_REACT, KONG_TAKEOVER } from '../data/kongTalk.js';
-import { kongTurn, kongWalk, kongSit, kongSay, kongIdle, scold, Nag } from '../opening/kong.js';
-import { setObjective, objectiveDone, clearObjective } from '../systems/Objectives.js';
-import { createVolumetricBeam, paintedMaterial } from '../../render/index.js';
+import { KONG_REACT, KONG_TAKEOVER, KONG_ASK, CHORES_ALREADY, OBJECTIVES } from '../data/kongTalk.js';
+import { kongTurn, kongWalk, kongSit, kongSay, kongIdle, kongAsk, scold, Nag } from '../opening/kong.js';
+import { setObjective, objectiveDone, clearObjective, setChecklist, tickObjective, setObjectiveTarget } from '../systems/Objectives.js';
 import { ensureOffRoad } from '../systems/OffRoad.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, runLines, resolve, music, sfx, ground, yawTo, roadPoint, roadYaw, roadLen, releaseSky, hidePlayer, waitFor, logic, taxiPoint, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
-const paintedMat = (color, metalness, roughness, emissive = 0x000000, emissiveIntensity = 0) =>
-  paintedMaterial({ color, metalness, roughness, emissive, emissiveIntensity, brush: 0.3, name: 'kongTorch' });
 
 export const GarageState = {
   name: 'garage',
@@ -142,8 +139,8 @@ export const GarageState = {
     this.talkWanted = false;
     const item = interact.register({
       id: 'garage.ahKong', object: box, labelTH: 'คุยกับอากง', labelEN: 'Talk to Ah Kong', icon: 'talk', reach: 2.8,
-      enabled: () => (this.phase === 'walkToKong' || this.phase === 'chores') && g.ahKong.root.visible,
-      onUse: () => (this.phase === 'chores' ? this._choreHint() : (this.talkWanted = true)),
+      enabled: () => ['walkToKong', 'chores', 'free'].includes(this.phase) && g.ahKong.root.visible && !this._kongBusy && !g.dialogue.busy,
+      onUse: () => (this.phase === 'walkToKong' ? (this.talkWanted = true) : this._askKong()),
     });
     this.stage.add(() => {
       interact.unregister(item);
@@ -192,7 +189,7 @@ export const GarageState = {
       // he comes over himself
       const p = g.player.root.position;
       const dir = _v.copy(g.ahKong.root.position).sub(p).setY(0).normalize();
-      await S.step(Promise.race([g.ahKong.walkTo(p.clone().addScaledVector(dir, 1.3)), wait(8)]));
+      await S.step(Promise.race([g.ahKong.walkTo(p.clone().addScaledVector(dir, 1.3), { speed: 1.3 }), wait(8)]));
     }
     this.phase = 'talk';
     g.ui.hint(null);
@@ -239,9 +236,16 @@ export const GarageState = {
         return;
       }
     }
-    if (C.requiredDone()) return;
+    C._kongOn = () => !!this._kongBusy;
     this.phase = 'talk';
-    await this._converse(S, () => runLines(resolve(lines), { alive: () => this.active }));
+    // what Ton has already done (early, out of order) is not asked for again
+    const left = lines.filter((l) => !l.chore || !C.done(l.chore));
+    const all = C.requiredDone();
+    await this._converse(S, () => runLines(resolve(all ? CHORES_ALREADY : left), { alive: () => this.active }));
+    if (C.requiredDone()) {
+      this._choreObjective();
+      return;
+    }
     this.phase = 'chores';
     // slow, then slower, then he does the next one himself (per chore: the meter resets on progress)
     this.choreNag = new Nag('slow', [30, 60, 90]);
@@ -261,6 +265,7 @@ export const GarageState = {
       for (const id of CH.REQUIRED_CHORES) if (C.has(id) && !C.done(id)) await this._kongDoes(S, id);
     }
     this.choreNag = null;
+    setObjectiveTarget(null);
     setObjective('keys');
     await S.wait(1.2);
   },
@@ -268,9 +273,28 @@ export const GarageState = {
   /** The objective line follows the chores: the next one still to do. */
   _choreObjective() {
     const C = this.chores;
-    const next = C && [...CH.REQUIRED_CHORES, 'coins'].find((id) => C.has(id) && !C.done(id) && (id !== 'coins' || C.requiredDone()));
-    if (!next) return objectiveDone();
-    if (CH.REQUIRED_CHORES.includes(next) || !C.requiredDone()) setObjective(next);
+    if (!C) return;
+    const ids = CH.REQUIRED_CHORES.filter((id) => C.has(id));
+    if (ids.every((id) => C.done(id))) {
+      for (const id of ids) tickObjective(id);
+      setObjectiveTarget(null);
+      return objectiveDone();
+    }
+    setChecklist(OBJECTIVES.chores, ids.map((id) => ({ id, th: OBJECTIVES[id].th, en: OBJECTIVES[id].en, done: C.done(id) })));
+    for (const id of ids) if (C.done(id)) tickObjective(id);
+    setObjectiveTarget(() => C.target(), { minDist: 1.6 });
+  },
+
+  /** Ton asks him: what next (the current task), why pray, where he was (first night). */
+  _askKong() {
+    const C = this.chores;
+    let next = [];
+    if (this.phase === 'chores' && C) {
+      const id = [...CH.REQUIRED_CHORES, 'coins'].find((x) => C.has(x) && !C.done(x));
+      next = id ? CH.CHORE_HINT[id] || [] : [];
+    } else if (this.phase === 'free') next = KONG_ASK.getIn;
+    kongTurn(g.player.root.position);
+    kongAsk(next, { where: !this.restart });
   },
 
   /** Level 3: he gets up, walks over and does it himself (then back to the stool). */
@@ -338,7 +362,7 @@ export const GarageState = {
   },
 
   // ------------------------------------------------------------------ first night: the wait
-  /** Nobody here. The tube flickers, a bag of crisps on the table; after a while a torch up the road. */
+  /** Nobody here. The tube flickers, a bag of crisps on the table; after a while footsteps up the road. */
   async _waitForKong(S) {
     this.phase = 'wait';
     this.waitT = 0;
@@ -372,7 +396,7 @@ export const GarageState = {
     this._arrivalReact = [...(ate ? KONG_REACT.chips : []), ...(g.save?.flags?.phoneAnswered ? KONG_REACT.phone : [])];
   },
 
-  /** A torch bobbing up the road out of the fog, footsteps on the tarmac, then he walks in. */
+  /** Footsteps on the tarmac out of the fog, then he walks in. */
   async _kongArrives(S) {
     const h = g.ahKong;
     const G = lm('garage');
@@ -381,7 +405,6 @@ export const GarageState = {
     const start = roadPoint('main', gS + 19, -3.75);
     ahKongStand(start, roadPoint('main', gS, -3.75));
     h.setOpacity?.(1);
-    const torch = this._torch(h);
     const prevStep = h.onFootstep;
     h.onFootstep = () => {
       const surf = g.world?.surfaceAt?.(h.root.position.x, h.root.position.z) || 'asphalt';
@@ -389,76 +412,21 @@ export const GarageState = {
     };
     this.stage.add(() => (h.onFootstep = prevStep));
     const near = () => waitFor(() => this._nearKong(2.3));
-    const leg = (to, secs, speed = 1.0) => S.step(Promise.race([h.walkTo(to, { speed }), wait(secs), near()]));
+    const leg = (to, secs, speed = 1.3) => S.step(Promise.race([h.walkTo(to, { speed }), wait(secs), near()]));
     try {
       await leg(roadPoint('main', gS + 3.2, -3.85), 26);
       const front = A.playerArrive ? wpos(A.playerArrive, new THREE.Vector3()) : roadPoint('main', gS, -6.2);
-      if (!this._nearKong(2.3)) await leg(front, 10, 0.95);
-      torch.off();
+      if (!this._nearKong(2.3)) await leg(front, 10);
       if (!this._nearKong(2.3)) {
         const p = g.player.root.position;
         const dir = _v.copy(h.root.position).sub(p).setY(0).normalize();
         h.lookAt(g.player.eye, { weight: 0.8, speed: 2 });
-        await leg(p.clone().addScaledVector(dir, 1.3), 10, 0.9);
+        await leg(p.clone().addScaledVector(dir, 1.3), 10);
       }
     } finally {
-      torch.off();
       h.stopWalking?.();
     }
     await kongTurn(g.player.root.position);
-  },
-
-  /** Ah Kong's torch: a small lathed torch in his left hand, its beam, a pool of light ahead. */
-  _torch(h) {
-    const grp = new THREE.Group();
-    const mk = (pts, mat) => {
-      const geo = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 16);
-      geo.rotateX(-Math.PI / 2);
-      const m = new THREE.Mesh(geo, mat);
-      m.castShadow = true;
-      return m;
-    };
-    const body = paintedMat(0x34302a, 0.5, 0.55);
-    grp.add(mk([[0, -0.02], [0.015, -0.02], [0.016, 0.0], [0.016, 0.1], [0.021, 0.115], [0.025, 0.14], [0.025, 0.16], [0, 0.16]], body));
-    const lensMat = paintedMat(0xfff4dc, 0, 0.2, 0xfff0d0, 3);
-    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.022, 18), lensMat);
-    lens.position.z = -0.161;
-    lens.rotation.y = Math.PI;
-    grp.add(lens);
-    const beam = createVolumetricBeam?.({ color: 0xfff0d0, length: 9, angle: 0.2, intensity: 0.22, noise: 0.85 });
-    if (beam) {
-      beam.position.z = -0.17;
-      grp.add(beam);
-    }
-    this.stage.mesh(grp);
-    const aim = new THREE.Object3D();
-    aim.position.set(0, 0, -2.2);
-    grp.add(aim);
-    const light = this.stage.light({ object: aim, color: 0xfff0d8, intensity: 4.5, distance: 8, glow: false, pool: true, poolRadius: 1.4, priority: 6, name: 'kongTorch' });
-    let on = true;
-    const hand = h.rig?.bone?.('hand_l');
-    const off = this.stage.update(() => {
-      if (!on) return;
-      const yaw = h.root.rotation.y;
-      if (hand) hand.getWorldPosition(_v);
-      else _v.copy(h.root.position).add(new THREE.Vector3(-0.25, 0.9, -0.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
-      grp.position.copy(_v);
-      const t = g.engine.time;
-      const dir = new THREE.Vector3(-Math.sin(yaw + Math.sin(t * 1.3) * 0.12), -0.42 + Math.sin(t * 2.1) * 0.05, -Math.cos(yaw + Math.sin(t * 1.3) * 0.12));
-      grp.lookAt(_v.sub(dir));
-      beam?.userData?.setGroundY?.(ground(grp.position.x, grp.position.z) + 0.02);
-    }, 47);
-    return {
-      off() {
-        if (!on) return;
-        on = false;
-        off();
-        sfx('switch_click', { object: grp, volume: 0.35 });
-        light.setOn?.(false);
-        lensMat.emissiveIntensity = 0;
-        if (beam) beam.visible = false;
-      },
-    };
   },
 
   _nearKong(r) {
@@ -543,7 +511,7 @@ export const GarageState = {
     if (this.where === 'dark') {
       const p = g.player.root.position;
       const dir = _v.copy(g.ahKong.root.position).sub(p).setY(0).normalize();
-      await S.step(Promise.race([g.ahKong.walkTo(p.clone().addScaledVector(dir, 1.4)), wait(7)]));
+      await S.step(Promise.race([g.ahKong.walkTo(p.clone().addScaledVector(dir, 1.4), { speed: 1.3 }), wait(7)]));
     }
     // the talk
     let keys = null;
@@ -620,6 +588,7 @@ export const GarageState = {
       await S.step(new Promise((res) => {
         const off = bus.once('player:enterTaxi', () => {
           objectiveDone();
+          if (g.dialogue.busy) g.dialogue.interrupt(); // Ton is in the car: the old man lets him go
           res();
         });
         this.stage.add(off);
@@ -647,8 +616,7 @@ export const GarageState = {
       kongWalk(win, { face: taxiPoint(0.4, 0, -0.3, new THREE.Vector3()) }).catch(() => {});
     }
     if (save?.flags?.refusedShift) {
-      await S.wait(1.4);
-      await runLines(resolve(AK.REFUSE_RETURN || []), { alive: () => this.active });
+      await S.wait(0.6); // (no more talk once he is in the car)
       save.flags.refusedShift = false;
       save.flags.hasKeys = true;
       S.chk();

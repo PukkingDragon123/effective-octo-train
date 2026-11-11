@@ -225,11 +225,6 @@ export function createGarage(opts = {}) {
     out.colliders.push({ x, z: zF - 0.1, r: 0.12 });
   }
   k.add(mat('metal'), G('ibeam:' + W, () => steelSection(W + 0.3, 0.26, 0.14, 0.012, 0.008).rotateZ(Math.PI / 2).translate((W + 0.3) / 2, 0, 0)), { p: [0, HF - 0.1 + 0.13, zF - 0.1], r: [Math.PI / 2, 0, 0], color: 0x3a4a52, w: { grime: 0, streak: 0.7, streakColor: 0x6a3a1a } });
-  // painted sign board on the fascia
-  // garage_sign texture is 2.0 x 0.78 -> 2.5 x 0.975 face on a riveted steel board
-  k.add(mat('metal'), bbox(2.66, 1.1, 0.06, 0.01, 0.3), { p: [-0.6, HF + 0.02, zF + 0.0], color: 0xd8d0b8, w: { grime: 0, streak: 0.9, streakColor: 0x5a3a20 } });
-  for (const sx of [-1, 1]) for (const sy of [0.06, 1.04]) k.add(mat('rust'), G('rivet', () => sphere(0.012, 6, 4)), { p: [-0.6 + sx * 1.28, HF + 0.02 + sy, zF + 0.035], color: 0x6a4a30, w: false });
-  k.add(signMat('garage_sign', { th: 'อู่ กม.9', en: 'KM 9 GARAGE' }), G('gsign', () => quad(2.5, 0.975, 2, 1)), { p: [-0.6, HF + 0.57, zF + 0.035], color: 0xe0d8c4, uv: 'keep', w: { vary: 0.25, grime: 0, streak: 0.4 } });
   // accordion folding gate bunched on the left
   for (let i = 0; i < 9; i++) {
     k.add(mat('metal'), G('gatebar', () => bbox(0.03, HF - 0.3, 0.03, 0.004, 0.4)), { p: [xL + 0.32 + i * 0.045, 0.02, zF - 0.05 + (i % 2) * 0.05], color: 0x4a5a5a, w: { grime: 0.6, streak: 0.6 } });

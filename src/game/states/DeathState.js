@@ -89,7 +89,7 @@ export const DeathState = {
       loops: save?.loops ?? 1,
     });
   },
-  /**
+  /** The off-road news, guarded: any failure goes straight back to the last checkpoint. */
   async _newsSafe(type, card, params) {
     try {
       await this._news(type, card, params);

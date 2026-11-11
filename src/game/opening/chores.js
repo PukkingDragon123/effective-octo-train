@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { g } from '../context.js';
 import { interact } from '../../core/Interact.js';
 import { LAYERS } from '../../core/layers.js';
+import { colliders } from '../../core/Colliders.js';
 import { clamp, smoothstep, easeInOut, makeRng, noise } from '../../core/math.js';
 import { paintedMaterial } from '../../render/index.js';
 import { createSpiritHouse } from '../../props/shrines.js';
@@ -253,6 +254,19 @@ export class Chores {
     this.active = true;
     this.t0 = g.engine.time;
   }
+  /** Where the objective marker points: where the held thing goes, else the next chore's thing. */
+  target() {
+    const wp = (o) => o?.getWorldPosition?.(new THREE.Vector3()) || null;
+    const k = this.held?.kind;
+    if (k === 'sticks') return wp(this.state.lit && !this.state.waied ? this.shrine?.object : this.shrine?.incenseAnchor || this.shrine?.object)?.add(V(0, this.state.lit && !this.state.waied ? 1.2 : 0, 0));
+    if (k === 'offering') return wp(this.gateSpot);
+    if (k === 'cloth') return wp(g.taxi?.anchors?.rearviewMirror);
+    if (this.has('shrine') && !this.done('shrine')) return wp(this.shrine?.offeringAnchor || this.shrine?.object);
+    if (this.has('offering') && !this.done('offering')) return wp(this.tray?.object);
+    if (this.has('cloth') && !this.done('cloth')) return wp(this.strips);
+    return null;
+  }
+
   /** Ah Kong takes whatever Ton is holding out of his hands (it reappears where he puts it). */
   takeFromPlayer() {
     const H = this.held;
@@ -310,7 +324,7 @@ export class Chores {
     box.layers.set(LAYERS.INTERACT);
     box.position.set(pos[0], pos[1], pos[2]);
     parent.add(box);
-    const it = interact.register({ id: 'chore.' + id, object: box, labelTH: th, labelEN: en, icon, reach, enabled: () => !g.actions?.busy && !g.dialogue?.busy && enabled(), onUse });
+    const it = interact.register({ id: 'chore.' + id, object: box, labelTH: th, labelEN: en, icon, reach, enabled: () => !g.actions?.busy && !this._kongOn?.(id) && enabled(), onUse });
     this.stage.add(() => {
       interact.unregister(it);
       box.removeFromParent();
@@ -320,22 +334,30 @@ export class Chores {
   }
   _build() {
     const S = this.state;
-    const can1 = () => this.active && this.done('shrine');
+    const can1 = () => true; // any order, any time (early counts too)
     if (this.has('shrine')) {
       const sh = createSpiritHouse({ style: 'thai', size: 0.8, seed: 23, offerings: true, age: 0.8 });
       this.shrine = sh;
       this._local(sh.object, 3.55, 0, 4.85, Math.PI + 0.5);
       sh.object.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
+      // solid: you walk round the post, not through it
+      try {
+        const wp = sh.object.getWorldPosition(new THREE.Vector3());
+        const col = colliders.addCircle(wp.x, wp.z, 0.42, { tag: 'spiritHouse' });
+        this.night.add(() => colliders.remove(col));
+      } catch (e) {
+        /* collision optional */
+      }
       if (sh.candleAnchor) this.night.light({ kind: 'candle', object: sh.candleAnchor, intensity: 2.2, distance: 3.2, glow: { size: 0.16, opacity: 0.6 } });
       const bundle = incenseSticks(9, 11).object;
       bundle.rotation.set(0, 0.3, Math.PI / 2);
       bundle.position.set(-0.04, 0.012, 0.04);
       (sh.offeringAnchor || sh.object).add(bundle);
       const ay = sh.incenseAnchor?.position.y ?? 1.1, az = sh.incenseAnchor?.position.z ?? 0.1;
-      this._item('sticks', sh.offeringAnchor || sh.object, [-0.05, 0.02, 0.04], [0.16, 0.07, 0.1], 'หยิบธูปสามดอก', 'Take three incense sticks', () => this.active && S.sticks === 'none' && !this.held, () => this._takeSticks());
-      this._item('light', sh.candleAnchor || sh.object, [0, 0.03, 0], [0.12, 0.14, 0.12], 'จุดธูป', 'Light the incense', () => this.held?.kind === 'sticks' && !S.lit, () => this._lightSticks());
-      this._item('wai', sh.object, [0, ay + 0.32, az - 0.14], [0.4, 0.32, 0.22], 'ไหว้', 'Wai', () => this.held?.kind === 'sticks' && !S.waied && !this._wai, () => this._doWai(), 2.2, 'pray');
-      this._item('plant', sh.incenseAnchor || sh.object, [0, 0.04, 0], [0.16, 0.12, 0.16], 'ปักธูป', 'Plant the incense', () => this.held?.kind === 'sticks' && !this._wai, () => this._plantSticks(false));
+      this._item('sticks', sh.offeringAnchor || sh.object, [0.02, 0.06, 0.06], [0.42, 0.22, 0.3], 'หยิบธูปสามดอก', 'Take three incense sticks', () => S.sticks === 'none' && !this.held, () => this._takeSticks(), 2.3);
+      this._item('light', sh.candleAnchor || sh.object, [0.04, 0.05, 0.03], [0.16, 0.2, 0.2], 'จุดธูป', 'Light the incense', () => this.held?.kind === 'sticks' && !S.lit, () => this._lightSticks(), 2.3);
+      this._item('wai', sh.object, [0, ay + 0.38, az - 0.12], [0.62, 0.5, 0.42], 'ไหว้', 'Wai', () => this.held?.kind === 'sticks' && !S.waied && !this._wai, () => this._doWai(), 2.6, 'pray');
+      this._item('plant', sh.incenseAnchor || sh.object, [-0.04, 0.06, 0.02], [0.18, 0.2, 0.22], 'ปักธูป', 'Plant the incense', () => this.held?.kind === 'sticks' && !this._wai, () => this._plantSticks(false), 2.3);
       if (this.done('shrine')) this._plantSticks(true, this.flags['chore.shrine'] === 'wrong', true);
     }
     if (this.has('offering')) {

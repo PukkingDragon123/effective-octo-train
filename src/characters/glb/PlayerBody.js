@@ -24,22 +24,15 @@ function splitHead(geo, t) {
   const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, part = geo.attributes.apart;
   const head = new Set([t.index.Head, t.index.neck_01, t.index.eye_l, t.index.eye_r, ...['hair_1', 'hair_2', 'hair_3', 'hairL_1', 'hairL_2', 'hairR_1', 'hairR_2'].map((n) => t.index[n])]);
   const hw = (i) => { let w = 0; for (let k = 0; k < 4; k++) if (head.has(si.getComponent(i, k))) w += sw.getComponent(i, k); return w; };
-  // shoulder caps (clavicle / upper-arm skin and sleeve within ~8.5 cm above the shoulder joint) bulge up
-  // beside the eye when the hands reach forward: they go with the head (mirrors only, never in view)
-  // (owner: the shoulders and neck base still bugged into view; the whole top of the shoulders, the
-  // trapezius and the collar above the arm joints now go with the head too)
-  const shoulderBones = new Set(['clavicle_l', 'clavicle_r', 'upperarm_l', 'upperarm_r', 'spine_03'].map((n) => t.index[n]).filter((i) => i !== undefined));
-  const joints = ['upperarm_l', 'upperarm_r'].map((n) => t.Gp[t.index[n]]).filter(Boolean);
+  // first-person body (the proven FPS cut): everything above the CHEST LINE goes with the head (mirrors
+  // only): head, neck, shoulders, upper chest and back, and the upper arms out to their midpoint. The arms
+  // from mid-upper-arm down, the hands, the lower torso, legs and feet stay. One clean region test in the
+  // bind pose (T-pose, arms along ±X): no partial caps, nothing pops in or out with the pose.
   const pos = geo.attributes.position;
-  const sh = (i) => {
-    let w = 0;
-    for (let k = 0; k < 4; k++) if (shoulderBones.has(si.getComponent(i, k))) w += sw.getComponent(i, k);
-    if (w < 0.35) return 0;
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    let d = Infinity;
-    for (const j of joints) d = Math.min(d, Math.hypot(x - j.x, y - j.y, z - j.z));
-    return d < 0.15 && y > (joints[0]?.y ?? 0) - 0.03 ? 1 : 0; // everything that can rise beside the eye
-  };
+  const ua = t.Gp[t.index.upperarm_l], la = t.Gp[t.index.lowerarm_l], sp3 = t.Gp[t.index.spine_03];
+  const chestY = sp3 ? sp3.y + 0.035 : 1.36;
+  const midArmX = ua && la ? Math.abs(ua.x) + 0.5 * Math.abs(la.x - ua.x) : 0.3;
+  const sh = (i) => (pos.getY(i) > chestY && Math.abs(pos.getX(i)) < midArmX ? 1 : 0);
   const idx = geo.index.array;
   const A = [], B = [], M = [];
   for (let i = 0; i < idx.length; i += 3) {
@@ -78,6 +71,8 @@ export class PlayerBodyGLB {
     // Ton is an average Thai man (about 1.70 m): taller bodies put his hair through the taxi's roof
     const look = { ...PRESETS.ton, id: 'player', ...spec };
     look.height = Math.min(look.height ?? 1.7, 1.7);
+    // Ton's own high-top sneakers (sneakers.js: an original, unbranded design)
+    look.accessories = [...new Set([...(look.accessories || []), 'sneakers'])];
     this.humanoid = new HumanoidGLB(look);
     const h = this.humanoid;
     this.root = h.root;
@@ -121,6 +116,15 @@ export class PlayerBodyGLB {
     h.eyes.layers.set(LAYERS.PLAYER_HEAD);
     if (h.worn) h.worn.layers.set(LAYERS.PLAYER_HEAD);
     h.body.frustumCulled = false;
+    // the first-person body draws FRONT faces only: looking down past the chest-line cut never shows the
+    // inside of the torso or the sleeves (the head mesh keeps the double-sided material for its hair)
+    const fpMat = h.materials.body.clone();
+    fpMat.onBeforeCompile = h.materials.body.onBeforeCompile;
+    fpMat.customProgramCacheKey = h.materials.body.customProgramCacheKey;
+    fpMat.side = THREE.FrontSide;
+    fpMat.userData = { ...h.materials.body.userData };
+    h.materials.fpBody = fpMat;
+    h.body.material = fpMat;
     this._off = engine.onUpdate((dt) => this.update(dt), 15);
     // eye point relative to the head bone (between the eyes, slightly forward)
     this._eyeLocal = new THREE.Vector3();

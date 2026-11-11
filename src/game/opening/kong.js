@@ -10,8 +10,34 @@ import { g } from '../context.js';
 import { wait } from '../util.js';
 import { easeInOut } from '../../core/math.js';
 import { lm, wpos, yawTo, ground, runLines, resolve } from './common.js';
-import { walkAroundTaxi } from './garageSet.js';
-import { KONG_IDLE, KONG_SCOLD } from '../data/kongTalk.js';
+import { KONG_IDLE, KONG_SCOLD, KONG_ASK } from '../data/kongTalk.js';
+import { C, O, SIL } from '../data/lines.js';
+
+const SPEED = 1.3; // m/s: brisk for his age
+
+/** Walk to a world point around the parked taxi (never through it), at his pace. */
+async function walkRound(h, target, timeout) {
+  const t = g.taxi;
+  const pts = [];
+  if (t?.root) {
+    t.root.updateWorldMatrix(true, false);
+    const inv = new THREE.Matrix4().copy(t.root.matrixWorld).invert();
+    const a = h.root.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv);
+    const b = target.clone().applyMatrix4(inv);
+    const inside = (z) => z > -2.6 && z < 2.6;
+    if (Math.sign(a.x) !== Math.sign(b.x) && (inside(a.z) || inside(b.z)) && Math.abs(a.x) < 4 && Math.abs(b.x) < 4) {
+      const zEnd = a.z + b.z > -0.4 ? 3.0 : -3.1;
+      for (const sx of [Math.sign(a.x), Math.sign(b.x)]) pts.push(new THREE.Vector3(sx * 1.45, 0, zEnd).applyMatrix4(t.root.matrixWorld));
+    }
+  }
+  pts.push(target);
+  const end = g.engine.time + timeout;
+  for (const p of pts) {
+    p.y = ground(p.x, p.z);
+    const left = Math.max(0.5, end - g.engine.time);
+    await Promise.race([h.walkTo(p, { speed: SPEED }), wait(left)]);
+  }
+}
 
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const kong = () => g.ahKong;
@@ -60,7 +86,7 @@ export async function kongStand() {
   h.root.position.copy(p);
   h.root.rotation.set(0, yaw, 0);
   h.setMode?.('stand');
-  await wait(0.7);
+  await wait(0.4);
 }
 
 /** Walk somewhere (round the parked taxi when it is in the way), then face something. */
@@ -73,8 +99,8 @@ export async function kongWalk(pos, o = {}) {
   target.y = ground(target.x, target.z);
   if (h.root.position.distanceTo(target) > 0.3) {
     await kongTurn(target, 0.5);
-    const timeout = o.timeout ?? Math.min(24, h.root.position.distanceTo(target) / 0.7 + 4);
-    const go = o.aroundTaxi === false ? h.walkTo(target, { speed: o.speed }) : walkAroundTaxi(h, target, timeout);
+    const timeout = o.timeout ?? Math.min(24, h.root.position.distanceTo(target) / 1.0 + 3);
+    const go = o.aroundTaxi === false ? h.walkTo(target, { speed: o.speed ?? SPEED }) : walkRound(h, target, timeout);
     await Promise.race([go, wait(timeout)]);
     if (h.walk) h.stopWalking?.();
   }
@@ -92,15 +118,32 @@ export async function kongSit() {
   const approach = sp.clone().addScaledVector(fwd, 0.42);
   await kongWalk(approach, { face: approach.clone().addScaledVector(fwd, 2) });
   if (h._seated) return;
-  h.sitAt(seat, { pose: 'sit', blend: 0.9 });
-  await wait(0.9);
+  h.sitAt(seat, { pose: 'sit', blend: 0.55 });
+  await wait(0.55);
 }
 
 /** Say lines (skipped when someone is already talking, unless queue). */
 export function kongSay(lines, o = {}) {
   if (!lines?.length) return Promise.resolve();
+  // once Ton is in the car (outside the tutorial, where he instructs through the window) he lets him go
+  if (!o.inCar && g.actions?.inTaxi && g.fsm?.currentName !== 'tutorial') return Promise.resolve();
   if (!o.queue && g.dialogue?.busy) return Promise.resolve();
   return runLines(resolve(lines), { alive: o.alive });
+}
+
+/**
+ * Ton asks him something: "what next?" (answered with `nextLines`), "why pray?", "where were you?"
+ * (opts.where), or nothing. Short answers through the dialogue system.
+ */
+export function kongAsk(nextLines, opts = {}) {
+  if (g.dialogue?.busy) return Promise.resolve();
+  const A = KONG_ASK.options;
+  const opt = [O('next', A.next.th, A.next.en), O('whyPray', A.whyPray.th, A.whyPray.en)];
+  if (opts.where) opt.push(O('where', A.where.th, A.where.en));
+  opt.push(SIL());
+  const next = nextLines?.length ? nextLines : KONG_ASK.nothingLeft;
+  const line = C(opt, { id: 'askKong', timeout: 8, branches: { next: [{ who: 'player', th: A.next.th, en: A.next.en }, ...next], whyPray: [{ who: 'player', th: A.whyPray.th, en: A.whyPray.en }, ...KONG_ASK.whyPray], where: [{ who: 'player', th: A.where.th, en: A.where.en }, ...KONG_ASK.where], silent: [] } });
+  return runLines(resolve([line]));
 }
 
 /** Scold, level 1..3 (data/kongTalk.js KONG_SCOLD[ctx]). */
@@ -114,7 +157,7 @@ export function kongIdle(stage, enabled) {
   let next = 16 + Math.random() * 10;
   let i = Math.floor(Math.random() * KONG_IDLE.length);
   stage.update((dt) => {
-    if (!enabled() || g.dialogue?.busy || !kong()?.root?.visible) return;
+    if (!enabled() || g.dialogue?.busy || !kong()?.root?.visible || g.actions?.inTaxi) return;
     next -= dt;
     if (next > 0) return;
     next = 30 + Math.random() * 20;

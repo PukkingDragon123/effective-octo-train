@@ -23,6 +23,8 @@ import { eyeTexture, buildEyeGeometry } from './eyes.js';
 import { wornAccessoryGeometry, heldGeometry, heldMaterial } from './accessories.js';
 import { AnimController } from './anim.js';
 import { Cigarette } from './cigarette.js';
+import { buildPhone } from './phone.js';
+import { sneakerGeometry } from './sneakers.js';
 import { ActionPlayer } from './actions.js';
 import { GhostLayer } from './ghost.js';
 import { MH } from './mhpack.js';
@@ -256,6 +258,18 @@ export class HumanoidGLB {
       this.worn.castShadow = true;
       this.inner.add(this.worn);
     }
+    // high-top sneakers (sneakers.js), their own skinned draw: visible in first person too
+    if (look.acc.includes('sneakers')) {
+      const sg = sneakerGeometry(t, person.geo, person.key);
+      if (sg) {
+        this.materials.shoes = accessoryMaterial(U, { roughness: 0.62 });
+        this.shoes = new THREE.SkinnedMesh(sg, this.materials.shoes);
+        this.shoes.name = 'sneakers';
+        this.shoes.bind(rig.skeleton, new THREE.Matrix4());
+        this.shoes.castShadow = true;
+        this.inner.add(this.shoes);
+      }
+    }
     this._setupCulling();
     this.held = {};
     this._initRuntime();
@@ -295,7 +309,7 @@ export class HumanoidGLB {
   _setupCulling() {
     const h = this.t.height;
     const sphere = (this._cullSphere = new THREE.Sphere(new THREE.Vector3(0, h * 0.48, 0), h * 0.85));
-    for (const m of [this.body, this.eyes, this.worn]) {
+    for (const m of [this.body, this.eyes, this.worn, this.shoes]) {
       if (!m) continue;
       m.boundingSphere = sphere;
       m.frustumCulled = true;
@@ -496,11 +510,15 @@ export class HumanoidGLB {
   /** Attach a held prop ('basket','lunchbox','umbrella','cigarette','garland','coins','paper','amulet','keys','coffee'). */
   holdItem(kind, side = 'R') {
     this.dropItem(kind);
-    let mesh, cig = null;
+    let mesh, cig = null, phone = null;
     if (kind === 'cigarette') {
       // a real, burning cigarette (cigarette.js): ember, ash, smoke
       cig = new Cigarette(this);
       mesh = cig.root;
+    } else if (kind === 'phone') {
+      // a modelled smartphone with a lit, cracked screen (phone.js)
+      phone = buildPhone();
+      mesh = phone.root;
     } else {
       const geo = heldGeometry(kind);
       if (!geo) return null;
@@ -529,15 +547,21 @@ export class HumanoidGLB {
     if (kind === 'cigarette') off.set(onFinger ? sx * 0.011 : sx * 0.113, 0.0005, onFinger ? -0.0105 : 0.014);
     if (kind === 'umbrella') off.set(sx * 0.07, -0.025, 0.01);
     if (kind === 'paper' || kind === 'coins' || kind === 'amulet') off.set(sx * 0.085, -0.03, -0.01);
+    if (kind === 'phone') off.set(sx * 0.072, -0.03, 0.004); // lying in the palm, back against it
     grip.position.copy(off.applyQuaternion(inv)).multiplyScalar(1 / (hand.scale.x || 1));
     // base orientation (hand rest frame): items' +Y along the fingers' up-side
     // through the gap between the fingers, across the palm plane: filter on the palm side (toward the
     // lips when the palm faces the face), the ember out past the back of the hand
     if (kind === 'cigarette') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(0, 0, sx * 0.12)));
     else if (kind === 'umbrella') grip.quaternion.copy(inv).multiply(_q.setFromEuler(_e.set(0, 0, sx * -Math.PI / 2)));
+    else if (kind === 'phone') {
+      // screen (+Z) away from the palm (palm faces -Y at rest), top of the phone (+Y) toward the fingertips
+      const zA = new THREE.Vector3(0, -1, 0), yA = new THREE.Vector3(sx, 0, 0), xA = new THREE.Vector3().crossVectors(yA, zA);
+      grip.quaternion.copy(inv).multiply(_q.setFromRotationMatrix(_m.makeBasis(xA, yA, zA)));
+    }
     else grip.quaternion.copy(inv);
     if (this._layer !== undefined) grip.traverse((o) => o.layers.set(this._layer));
-    this.held[kind] = { mesh, grip, hand, side, hang, cig, swing: new THREE.Vector2(), vel: new THREE.Vector2() };
+    this.held[kind] = { mesh, grip, hand, side, hang, cig, phone, swing: new THREE.Vector2(), vel: new THREE.Vector2() };
     if (cig) this._smokeT = 3 + Math.random() * 6;
     return mesh;
   }
@@ -545,6 +569,7 @@ export class HumanoidGLB {
     const h = this.held?.[kind];
     if (!h) return;
     h.cig?.dispose();
+    h.phone?.dispose();
     h.grip.removeFromParent();
     delete this.held[kind];
   }
@@ -559,7 +584,7 @@ export class HumanoidGLB {
     if (this.person) releasePerson(this.person);
     releaseLookGeometry(this._geoHi);
     if (this._geoLo) releaseLookGeometry(this._geoLo);
-    for (const k in this.held || {}) this.held[k].cig?.dispose();
+    for (const k in this.held || {}) { this.held[k].cig?.dispose(); this.held[k].phone?.dispose(); }
     releaseAtlas(this._atlas);
     releaseFace(this._faceTex);
     for (const m of Object.values(this.materials)) m.dispose();
@@ -1198,6 +1223,7 @@ export class HumanoidGLB {
       }
       case 'spread': for (const f of F) curl(f, -0.3, -0.2, -0.1); break;
       case 'claw': for (const f of F) curl(f, 0.3, 0.9, 1.0); thumb(0.3, 0.5, 0.6); break;
+      case 'phone': for (const f of F) curl(f, 0.85, 0.75, 0.35); thumb(0.35, 0.15, 0.05); break;
       case 'pinch': curl('index', 0.6, 0.6, 0.4); for (const f of F.slice(1)) curl(f, 0.9, 1.0, 0.7); thumb(0.5, 0.3, 0.3); break;
       default: break;
     }
@@ -1327,6 +1353,11 @@ export class HumanoidGLB {
   _heldProps(dt) {
     for (const k in this.held) {
       const h = this.held[k];
+      if (h.phone) {
+        // fingers wrap the phone's edge, the thumb rests over the screen
+        if (!this._fingerSet?.[h.side]) this._fingers(h.side, 'phone', 1);
+        continue;
+      }
       if (h.cig) {
         // the resting hold keeps the smoker's fingers (when no action poses them this frame)
         if (!this._fingerSet?.[h.side]) this._fingers(h.side, 'cig', 1);

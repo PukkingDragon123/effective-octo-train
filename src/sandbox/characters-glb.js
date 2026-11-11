@@ -198,6 +198,7 @@ export default async function ({ engine, cameraRig, params }) {
     player = new PlayerBodyGLB(SPEC('player'));
     scene.add(player.root);
     player.enterVehicle({ kind: 'taxi', anchors: { driverSeat: seat, steeringWheel: wheel.anchor, pedalThrottle: pedT, pedalClutch: pedC }, parts: { steering: { spin: wheel.spin } }, steeringRadius: 0.19 });
+    if (params.get('hold')) player.hold(params.get('hold')); // e.g. &hold=phone
     if (params.get('hold')) player.hold(params.get('hold'));
     chars.push(player.humanoid);
   }

@@ -163,8 +163,7 @@ function emptyStall(k, group, out, o = {}) {
     p: [0, Hr + 0.05, 0.12], r: [0.12, 0, 0], color: 0x8a7a68, w: { streak: 0.9, grime: 0.4, moss: 0.4 },
     deform: (p) => { p.y -= 0.05 * (1 - (p.x / (W / 2 + 0.3)) ** 2); },
   });
-  // a faded photo price board, a few empty jars, a tipped stool
-  k.add(signMat('noodle_menu', { variant: 'board' }), G('stallBoard', () => quad(0.42, 0.58, 2, 2)), { p: [-W / 2 + 0.3, Hc + 0.36, -D / 2 + 0.05], r: [0, 0, 0.04], color: 0xb8b0a0, uv: 'keep', w: { vary: 0.4, grime: 0.3 } });
+  // a few empty jars, a tipped stool (no boards on stalls)
   for (let i = 0; i < 3; i++) bottle(k, { kind: 'water', p: [0.2 + i * 0.16, Hc + 0.02, 0.05], color: 0xc8d8d0 });
   plasticStool(k, { p: [0.6, 0.0, 0.85], r: [Math.PI / 2 - 0.15, 0.4, 0], color: PAL.chairRed });
   useAsset(k, 'cardboard_box_01', { p: [-0.5, 0, -0.65], r: 0.4 }, { fit: { h: 0.32 }, w: { grime: 0.4, dust: 0.4 } });

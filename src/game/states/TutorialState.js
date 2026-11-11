@@ -9,14 +9,14 @@ import { wait } from '../util.js';
 import { bus } from '../../core/Events.js';
 import { input } from '../../core/Input.js';
 import { interact } from '../../core/Interact.js';
+import { LAYERS } from '../../core/layers.js';
 import { ensurePlayerActions } from '../systems/PlayerActions.js';
 import { LoopStaging } from '../systems/LoopStaging.js';
 import { setupGarage, retireAhKong } from '../opening/garageSet.js';
 import { garageTaxiPose, parkTaxi } from '../opening/common.js';
-import { kongWalk, kongSay, scold, Nag, kongIdle } from '../opening/kong.js';
+import { kongWalk, kongSay, kongAsk, kongTurn, scold, Nag } from '../opening/kong.js';
 import { KONG_REACT, KONG_TAKEOVER } from '../data/kongTalk.js';
-import { setObjective, objectiveDone, clearObjective } from '../systems/Objectives.js';
-import { objective } from '../../ui/Objective.js';
+import { objectiveDone, clearObjective, setChecklist, tickObjective, setObjectiveTarget } from '../systems/Objectives.js';
 import { Stage, guard, isAbort, runLines, resolve, music, taxiPoint, ground, yawTo, waitFor, releaseSky, hidePlayer, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
@@ -44,6 +44,30 @@ function demoTarget(wf, step) {
   if (/brake/.test(step?.id || '')) return A.pedalBrake || null;
   if (/steer/.test(step?.id || '')) return A.steeringWheel || null;
   return null;
+}
+
+/** Tutorial steps in small groups (a checklist each, any order inside a group). */
+const GROUPS = [
+  { th: 'อ่านกฎ', en: 'Read the rules', ids: ['readPaper'] },
+  { th: 'ขึ้นรถ', en: 'Get in', ids: ['openDoor', 'sit'] },
+  { th: 'เตรียมรถ', en: 'Ready the car', ids: ['insertKey', 'startEngine', 'headlights', 'handbrake', 'gear'] },
+  { th: 'ลองขับ', en: 'Try driving', ids: ['accelerate', 'brake', 'steer'] },
+  { th: 'ของในรถ', en: 'In the cab', ids: ['indicator', 'wipers', 'cabinLight', 'radio', 'meterOn', 'meterOff', 'window'] },
+  { th: 'กระจกกับพระ', en: 'Mirrors and the amulet', ids: ['mirrorRear', 'mirrorLeft', 'mirrorRight', 'amulet'] },
+];
+/** Steps that only make sense after another one. */
+const STEP_DEP = { meterOff: 'meterOn', sit: 'openDoor', startEngine: 'insertKey', brake: 'accelerate' };
+const STEP_LABEL = { readPaper: 'อ่านกระดาษกฎ', openDoor: 'เปิดประตูคนขับ', sit: 'ขึ้นนั่ง', insertKey: 'เสียบกุญแจ', startEngine: 'บิดกุญแจ', mirrorRear: 'ดูกระจกหลัง', mirrorLeft: 'ดูกระจกซ้าย', mirrorRight: 'ดูกระจกขวา', amulet: 'กำพระ' };
+function groupSteps(steps) {
+  const out = GROUPS.map((G) => ({ th: G.th, en: G.en, steps: [] }));
+  let last = 0;
+  for (const st of steps) {
+    let gi = GROUPS.findIndex((G) => G.ids.includes(st.id));
+    if (gi < 0) gi = last;
+    last = gi;
+    out[gi].steps.push(st);
+  }
+  return out.filter((G) => G.steps.length);
 }
 
 /** The live check for one step's waitFor (see ahkong.js header). */
@@ -218,6 +242,11 @@ export const TutorialState = {
     this.stage = new Stage();
     this._bumps = 0;
     this._stalls = 0;
+    this._drivenOff = false;
+    this._ending = false;
+    this._shifted = false;
+    this._p0 = null;
+    this._cur = null;
     this._parking = false;
     let bumpT = 0, engWas = !!g.taxi.state.engineOn;
     this.stage.add(
@@ -243,7 +272,33 @@ export const TutorialState = {
         }
       }
       engWas = on;
+      // drove off: the lesson is over
+      const t = g.taxi;
+      if (g.actions?.inTaxi && s.engineOn && !this._parking) {
+        if (!this._p0) this._p0 = t.root.position.clone();
+        else if (t.root.position.distanceTo(this._p0) > 40) this._driveOff();
+      }
     }, 33);
+    // ask him (through the window too): what next, why pray
+    {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.75, 0.6), new THREE.MeshBasicMaterial());
+      box.layers.set(LAYERS.INTERACT);
+      box.position.set(0, 0.9, 0);
+      g.ahKong.root.add(box);
+      const item = interact.register({
+        id: 'tutorial.ahKong', object: box, labelTH: 'คุยกับอากง', labelEN: 'Talk to Ah Kong', icon: 'talk', reach: 2.8,
+        enabled: () => this.active && !this._drivenOff && !g.dialogue.busy && !this._parking && g.ahKong.root.visible,
+        onUse: () => {
+          kongTurn(g.player.root.position);
+          kongAsk((pick(this._cur?.step?.lines) || []).slice(0, 1));
+        },
+      });
+      this.stage.add(() => {
+        interact.unregister(item);
+        box.removeFromParent();
+        box.geometry.dispose();
+      });
+    }
     A.setEnabled(true);
     A.setAllowed({ paper: true, amulet: true, vehicle: true, inspect: true });
     g.input.setWantPointerLock(true);
@@ -281,6 +336,7 @@ export const TutorialState = {
     }, 3);
     try {
       await this._steps(S);
+      if (this._drivenOff) return;
       // let a memory moment (Knowledge) finish before the old man speaks again
       await S.wait(1.2);
       await S.step(waitFor(() => !g.dialogue.busy, 14));
@@ -298,6 +354,8 @@ export const TutorialState = {
   },
 
   _toShift() {
+    if (this._shifted) return;
+    this._shifted = true;
     const save = g.save;
     if (save) {
       save.stage = 'shift';
@@ -367,84 +425,122 @@ export const TutorialState = {
 
   async _steps(S) {
     const A = g.actions;
-    const steps = g.data?.ahkong?.TUTORIAL_STEPS || [];
-    for (const step of steps) {
+    const alive = () => this.active && !this._drivenOff;
+    for (const G of groupSteps(g.data?.ahkong?.TUTORIAL_STEPS || [])) {
       S.chk();
-      const wf = pick(step.waitFor);
-      // one action at a time: one short line, his demonstration, then Ton's turn; the rest after
-      const all = pick(step.lines) || [];
-      const lines = all.slice(0, 1);
-      const afterLines = [...all.slice(1), ...(step.after || [])];
-      const hint = pick(step.hint);
-      const demo = demoTarget(wf, step);
-      if (demo) this._demo(demo);
-      const nag = new Nag('slow', [14, 28, 42]);
-      if (hint) objective.set({ th: hint.th, en: hint.en });
-      const outside = ['paper', 'interact', 'enterVehicle'].includes(wf?.type) && !A.inTaxi;
-      const kongGo = this._kongTo(outside ? 'door' : 'window', S).catch(() => {});
-      const waiter = makeWaiter(wf);
-      let talkDone = false;
-      runLines(resolve(lines), { alive: () => this.active }).then(() => (talkDone = true));
-      let t = 0;
-      let hinted = false;
-      let nudged = false;
+      const items = G.steps.map((step) => {
+        const wf = pick(step.waitFor);
+        return { step, wf, waiter: makeWaiter(wf), done: false, hint: pick(step.hint), dep: STEP_DEP[step.id] || null };
+      });
+      const byId = (id) => items.find((x) => x.step.id === id);
+      const depOk = (it) => !it.dep || !byId(it.dep) || byId(it.dep).done;
+      setChecklist(G, items.map((it) => ({ id: it.step.id, th: it.hint?.th || STEP_LABEL[it.step.id] || it.step.id, en: it.hint?.en })));
+      let cur = null;
+      let talking = false;
       let auto = false;
       let flipHint = false;
-      const firstLine = resolve(lines).find((l) => !l.choice);
-      const ok = await S.step(
+      const after = [];
+      const nag = new Nag('slow', [14, 28, 42]);
+      await S.step(
         waitFor((dt) => {
-          if (!this.active) return true;
-          t += dt;
-          waiter.update(dt);
-          // hotkey alternatives the cab itself has no key for
-          if (!waiter.w.done && input.pressed('interact') && !interact.current && !A.paper.up) {
-            if (wf?.type === 'control' && wf.control === 'key' && A.inTaxi) g.taxi.setControl('key', true, { source: 'hotkey' });
-            else if (wf?.type === 'control' && wf.control === 'ignition' && A.inTaxi) g.taxi.setControl('ignition', 'start', { source: 'hotkey' });
-            else if (wf?.type === 'interact' && wf.id === 'taxi.door.fr.out' && A.canEnter()) g.taxi.setControl('door', { door: 'fr', open: 1 }, { source: 'hotkey' });
+          if (!alive()) return true;
+          // every step of the group is live: done early, or out of order, it counts
+          for (const it of items) {
+            if (it.done || !depOk(it)) continue;
+            it.waiter.update(dt);
+            if (!it.waiter.w.done) continue;
+            it.done = true;
+            tickObjective(it.step.id);
+            nag.reset();
+            auto = false;
+            if (it.wf?.type === 'enterVehicle') {
+              g.taxi.setControlsEnabled(true);
+              g.player.setWalkEnabled(false);
+            }
+            // he only finishes the thought he started (no lecture about things already done)
+            if (it === cur) {
+              const al = [...(pick(it.step.lines) || []).slice(1), ...(it.step.after || [])];
+              if (al.length) after.push(al);
+              cur = null;
+              g.ui.hint(null);
+            }
+            if (it.step.memory) this._memory(it.step.memory);
           }
-          // the hint, once his voice has had its say
-          if (talkDone && !hinted && hint && t > 0.3 && !waiter.w.done) {
-            hinted = true;
-            g.ui.hint({ th: hint.th, en: hint.en, keys: hint.keys, duration: 0, tutorial: true });
+          if (talking) return false;
+          if (after.length && !g.dialogue.busy) {
+            talking = true;
+            runLines(resolve(after.shift()), { alive }).then(() => (talking = false));
+            return false;
           }
-          // read the front... then turn it over
-          if (wf?.type === 'paper' && A.paper.up && A.paper.seconds > 2.4 && !A.paper.flipped && !flipHint) {
-            flipHint = true;
-            g.ui.hint({ th: 'พลิกดู', en: 'Turn it over', keys: ['F'], duration: 7 });
-          }
-          // slow: a grumble, a proper scolding, then he does it himself
-          if (talkDone && !auto && !waiter.w.done && !this._parking) {
-            const lv = nag.update(dt);
-            if (lv === 1) {
-              scold('slow', 1);
-              if (firstLine && !nudged) {
-                nudged = true;
-                setTimeout(() => this.active && runLines([firstLine]), 2400);
-              }
-            } else if (lv === 2) scold('slow', 2);
-            else if (lv === 3) {
-              auto = true;
-              this._kongDoesStep(S, wf, demo, outside).then(() => (waiter.w.done = true));
+          // the next thing he explains: the first one not done yet
+          if (!cur) {
+            cur = items.find((it) => !it.done && depOk(it)) || null;
+            this._cur = cur;
+            if (cur) {
+              talking = true;
+              nag.reset();
+              this._explain(S, cur).then(() => (talking = false));
             }
           }
-          return waiter.w.done && talkDone;
+          if (cur && !cur.done) {
+            // hotkey alternatives the cab itself has no key for
+            const wf = cur.wf;
+            if (input.pressed('interact') && !interact.current && !A.paper.up) {
+              if (wf?.type === 'control' && wf.control === 'key' && A.inTaxi) g.taxi.setControl('key', true, { source: 'hotkey' });
+              else if (wf?.type === 'control' && wf.control === 'ignition' && A.inTaxi) g.taxi.setControl('ignition', 'start', { source: 'hotkey' });
+              else if (wf?.type === 'interact' && wf.id === 'taxi.door.fr.out' && A.canEnter()) g.taxi.setControl('door', { door: 'fr', open: 1 }, { source: 'hotkey' });
+            }
+            if (wf?.type === 'paper' && A.paper.up && A.paper.seconds > 2.4 && !A.paper.flipped && !flipHint) {
+              flipHint = true;
+              g.ui.hint({ th: 'พลิกดู', en: 'Turn it over', keys: ['F'], duration: 7, tutorial: true });
+            }
+            // slow: a grumble, a proper scolding, then he does it himself
+            if (!auto && !this._parking) {
+              const lv = nag.update(dt);
+              if (lv === 1 || lv === 2) scold('slow', lv);
+              else if (lv === 3) {
+                auto = true;
+                const it = cur;
+                const outside = ['paper', 'interact', 'enterVehicle'].includes(it.wf?.type) && !A.inTaxi;
+                this._kongDoesStep(S, it.wf, demoTarget(it.wf, it.step), outside).then(() => (it.waiter.w.done = true));
+              }
+            }
+          }
+          return items.every((it) => it.done) && !after.length;
         }),
       );
-      void ok;
-      waiter.dispose();
+      for (const it of items) it.waiter.dispose();
+      g.ui.hint(null);
+      setObjectiveTarget(null);
       objectiveDone();
-      if (!flipHint || A.paper.flipped) g.ui.hint(null);
-      await kongGo;
-      S.chk();
-      if (wf?.type === 'enterVehicle') {
-        g.taxi.setControlsEnabled(true);
-        g.player.setWalkEnabled(false);
-      }
-      if (afterLines.length) await runLines(resolve(afterLines), { alive: () => this.active });
-      S.chk();
-      if (step.memory) await this._memory(step.memory);
-      await S.wait(0.35);
+      await S.wait(0.4);
     }
+  },
+
+  /** One step: walk to the door or window, point at it, one short line, then the key hint. */
+  async _explain(S, it) {
+    try {
+      const outside = ['paper', 'interact', 'enterVehicle'].includes(it.wf?.type) && !g.actions.inTaxi;
+      this._kongTo(outside ? 'door' : 'window', S).catch(() => {});
+      const demo = demoTarget(it.wf, it.step);
+      if (demo) this._demo(demo);
+      setObjectiveTarget(outside ? g.taxi.anchors.doorFR : null, { minDist: 2.5 });
+      await runLines(resolve((pick(it.step.lines) || []).slice(0, 1)), { alive: () => this.active && !this._drivenOff });
+      if (!it.done && it.hint) g.ui.hint({ th: it.hint.th, en: it.hint.en, keys: it.hint.keys, duration: 0, tutorial: true });
+    } catch (e) {
+      if (!isAbort(e)) console.warn('[tutorial] explain', e);
+    }
+  },
+
+  /** Driving off ends the lesson there and then: no more talk, the night starts. */
+  _driveOff() {
+    if (this._ending || !this.active) return;
+    this._ending = true;
+    this._drivenOff = true;
+    if (g.dialogue.busy) g.dialogue.interrupt();
+    g.ui.hint(null);
+    clearObjective();
+    this._toShift();
   },
 
   /** Ah Kong shows where first: he points at it, it catches the light, the view eases toward it. */

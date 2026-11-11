@@ -606,6 +606,10 @@ const EYE_MAP = /* glsl */ `
   }
   vec4 tex = texture2D(map, uv);
   vec3 c = tex.rgb;
+  // the MakeHuman eye map is dull: a grey sclera (0.6) and a near-black iris. Whiten the sclera and lift
+  // the iris to a readable brown, so eyes read as eyes in night light (never black holes)
+  if (r >= R) c = c * 1.34;
+  else if (r > p1 * 1.08) c = c * 2.1 + vec3(0.03, 0.017, 0.008);
   int style = int(uGhost2.w + 0.5);
   if (style == 1) c = mix(c, vec3(0.006), 0.96);                                   // black
   else if (style == 3) c = mix(c, vec3(0.78, 0.8, 0.8), 0.72 * smoothstep(0.0, R * 1.1, R * 1.4 - r * 0.4)); // milky
@@ -613,8 +617,8 @@ const EYE_MAP = /* glsl */ `
   vec3 e = vBind.x > 0.0 ? uLmEyeC[0] : uLmEyeC[1];
   vec3 n = normalize(vBind - e);
   float open = vBind.x > 0.0 ? uEye.x : uEye.y;
-  c *= 0.55 + 0.45 * smoothstep(-0.2, 0.75, n.z);
-  c *= 1.0 - 0.45 * smoothstep(0.15, 0.55, n.y) * open;
+  c *= 0.74 + 0.26 * smoothstep(-0.2, 0.75, n.z);
+  c *= 1.0 - 0.3 * smoothstep(0.15, 0.55, n.y) * open;
   diffuseColor.rgb = c;
 }
 `;

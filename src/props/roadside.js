@@ -63,8 +63,6 @@ export function createNoodleStall(opts = {}) {
     // body: stainless counter on a wooden cabinet
     k.add(mat('wood'), bbox(1.7, 0.72, 0.72, 0.015, 0.25), { p: [0, 0.12, 0], color: 0x7a3a24, w: { grime: 0.6, grimeH: 0.4, ground: 0.12, streak: 0.4 }, colorFn: (p, n, c, lp) => { if (n.z > 0.5 && (Math.abs(lp.y - 0.36) < 0.02 || Math.abs(lp.x) < 0.01)) c.multiplyScalar(0.4); } });
     k.add(mat('galv'), bbox(1.78, 0.03, 0.78, 0.006, 0.3), { p: [0, 0.84, 0], color: 0xc0c0b8, w: { grime: 0, dust: 0.2 } });
-    // painted boat-noodle sign on the front panel
-    k.add(signMat('shop_sign', { th: 'ก๋วยเตี๋ยวเรือ ป้าเล็ก', en: "Auntie Lek's Boat Noodles" }), G('cartsign', () => quad(1.34, 0.42)), { p: [0, 0.45, 0.365], color: 0xe0d4b8, uv: 'keep', w: { vary: 0.25, grime: 0.2, grimeH: 0.2, ground: 0.24 } });
     // wheels (two bicycle-like + a small front castor)
     for (const sx of [-1, 1]) {
       k.add(mat('rubber'), G('cartwheel', () => torus(0.26, 0.022, 5, 22).rotateY(Math.PI / 2)), { p: [sx * 0.6, 0.27, -0.42], color: 0x1a1a1a, w: false });
@@ -97,9 +95,6 @@ export function createNoodleStall(opts = {}) {
     // LPG tank under the cart
     if (!useAsset(k, 'small_lpg_tank', { p: [-1.08, 0, 0.15], r: 2.4 }, { fit: { h: 0.58 }, w: { grime: 0.5, streak: 0.4 } })) k.add(mat('metal'), G('lpg', () => cyl(0.16, 0.16, 0.55, 14, 0.06, 2)), { p: [-1.05, 0, 0.15], color: 0xb02a1a, w: { grime: 0.6, streak: 0.5 } });
     k.add(mat('dark'), tube(smoothPath([V(-1.05, 0.58, 0.15), V(-0.95, 0.75, 0.25), V(-0.75, 0.8, 0.2), V(-0.62, 0.9, 0.1)], 8), 0.008, 4), { color: 0x1a1a1a, w: false });
-    // menu board hanging off the case
-    k.add(signMat('noodle_menu', { variant: 'board' }), G('menu', () => quad(0.55, 0.75)), { p: [0.95, 1.2, 0.18], r: [0, -0.5, 0.03], color: 0xd8d0b8, uv: 'keep', w: { vary: 0.3 } });
-    k.add(mat('wood'), G('menuframe', () => bbox(0.6, 0.8, 0.02, 0.006, 0.2)), { p: [0.955, 0.8, 0.17], r: [0, -0.5, 0.03], color: 0x5a3a20, w: false });
     // dish rack + cooler + water bucket at the side
     k.add(mat('plastic'), G('cooler', () => bbox(0.6, 0.42, 0.4, 0.03, 0.1)), { p: [1.25, 0, -0.1], r: 0.2, color: 0x2a5a9a, w: { grime: 0.5 } });
     k.add(mat('plastic'), G('coolerlid', () => bbox(0.62, 0.06, 0.42, 0.02, 0.1)), { p: [1.25, 0.42, -0.1], r: 0.2, color: 0xe8e4dc, w: { grime: 0.2 } });

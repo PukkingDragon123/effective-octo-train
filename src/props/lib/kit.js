@@ -43,7 +43,7 @@ function toColor(c, out = new THREE.Color()) {
   return out.set(c);
 }
 
-function makeMatrix(p, r, s, out = new THREE.Matrix4()) {
+export function makeMatrix(p, r, s, out = new THREE.Matrix4()) {
   if (p) {
     if (Array.isArray(p)) _t.set(p[0], p[1], p[2]);
     else _t.copy(p);
@@ -300,6 +300,8 @@ export class Kit {
    * detailDistance (three updates LODs automatically during render).
    */
   build(opts = {}) {
+    // late parts (e.g. hanging cloth sets from lib/cloth.js) bake themselves into objects first
+    if (this.beforeBuild) for (const f of this.beforeBuild.splice(0)) f(this);
     const g = new THREE.Group();
     if (opts.name) g.name = opts.name;
     const mk = (b, parent, shadowsDefault) => {

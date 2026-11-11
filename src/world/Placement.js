@@ -709,9 +709,7 @@ export class Placement {
           p.y = this._ground(p.x, p.z);
           extra.push(add(P.createDressing(k, { seed: seed + i }), p, yaw + r, { batch: true, loose: LOOSE_KINDS.has(k), looseCls: NUDGE_KINDS.has(k) ? 'nudge' : 'light' }));
         });
-        const sgp = pos.clone().addScaledVector(right, -4.6).addScaledVector(toRoad, 0.8);
-        sgp.y = this._ground(sgp.x, sgp.z);
-        extra.push(add(P.createSignPost('shop_sign', { th: 'ตลาดเช้า', en: 'MORNING MARKET', seed: seed + 20 }), sgp, yaw, { batch: true }));
+        // (no shop / market boards: the owner wants stalls unsigned)
         break;
       }
       case 'lone_streetlight': {

@@ -25,10 +25,10 @@ export const CHORE_SKIP_SECONDS = 180;
 export const CHORES_INTRO = [
   K('เดี๋ยวก่อน กุญแจยังไม่ให้', 'Not yet. No keys yet.'),
   K('ขับรถเส้นนี้ตอนกลางคืน ต้องทำของพวกนี้ให้ครบก่อน กันไว้ก่อน', 'You drive this road at night, you do these first. To be safe.'),
-  K('อย่างแรก ไปไหว้ศาลพระภูมิหน้าอู่ จุดธูปสามดอก ไหว้ให้ดี แล้วค่อยปัก ห้ามข้ามขั้นตอน', 'First, the spirit house out front. Light three sticks, wai properly, then plant them. Skip nothing.'),
-  K('แล้วเอาน้ำแดงกับข้าวไปวางไว้ที่ประตู ให้คนที่มาตอนเที่ยงคืน', 'Then put the red soda and the rice by the gate. For the one who comes at midnight.'),
-  K('ผ้าสามสีบนโต๊ะ เอาไปผูกที่กระจกมองหลังในรถ', 'The three-colour cloth on the table. Tie it on the taxi’s mirror.'),
-  K('เหรียญในกระป๋องค่าโดยสาร นับให้อากงด้วย', 'And count the coins in the fare tin for me.'),
+  K('อย่างแรก ไปไหว้ศาลพระภูมิหน้าอู่ จุดธูปสามดอก ไหว้ให้ดี แล้วค่อยปัก ห้ามข้ามขั้นตอน', 'First, the spirit house out front. Light three sticks, wai properly, then plant them. Skip nothing.', { chore: 'shrine' }),
+  K('แล้วเอาน้ำแดงกับข้าวไปวางไว้ที่ประตู ให้คนที่มาตอนเที่ยงคืน', 'Then put the red soda and the rice by the gate. For the one who comes at midnight.', { chore: 'offering' }),
+  K('ผ้าสามสีบนโต๊ะ เอาไปผูกที่กระจกมองหลังในรถ', 'The three-colour cloth on the table. Tie it on the taxi’s mirror.', { chore: 'cloth' }),
+  K('เหรียญในกระป๋องค่าโดยสาร นับให้อากงด้วย', 'And count the coins in the fare tin for me.', { chore: 'coins' }),
 ];
 
 export const CHORES_RESTART = [

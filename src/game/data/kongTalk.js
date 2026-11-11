@@ -61,6 +61,16 @@ export const KONG_TAKEOVER = {
   done: [K('เห็นมั้ย ง่ายนิดเดียว', 'See? Easy as anything.'), K('คราวหน้าทำเองนะ ไอ้หนู', 'Next time you do it yourself, boy.')],
 };
 
+/** Ton asks him (interact on Ah Kong). `next` is filled in from the current task at the time. */
+export const KONG_ASK = {
+  options: { next: { th: 'ต้องทำอะไรต่อครับ', en: 'What do I do next?' }, whyPray: { th: 'ทำไมต้องไหว้ครับ', en: 'Why do I have to pray?' }, where: { th: 'อากงไปไหนมาครับ', en: 'Where were you, Ah Kong?' } },
+  whyPray: [K('เจ้าที่เขาดูแลถนนเส้นนี้ ไม่ไหว้ก็เหมือนเข้าบ้านคนอื่นไม่ถอดรองเท้า', 'The spirits look after this road. Not praying is like walking into a house with your shoes on.'), K('คืนนี้ลื้อต้องพึ่งเขา จำไว้', 'Tonight you’ll need them. Remember that.')],
+  where: [K('ไปส่งของให้ตาหวัดท้ายหมู่บ้าน… อย่าถามมาก', 'Taking something to old Wat at the end of the village… don’t ask so much.')],
+  nothingLeft: [K('ไม่มีอะไรแล้ว ไปได้แล้ว', 'Nothing more. Go on, then.')],
+  getIn: [K('ขึ้นรถสิ จะยืนรออะไร', 'Get in the car. What are you waiting for?')],
+};
+export const CHORES_ALREADY = [K('ทำเองหมดแล้วเหรอ… ไม่เลวนี่ไอ้หนู', 'Did it all yourself already… not bad, boy.', { emotion: 'smile' })];
+
 /** One short Thai objective per task (ui Objective, top-left). */
 export const OBJECTIVES = {
   ride: { th: 'ขี่ไปที่อู่ กม.๙', en: 'Ride to the KM 9 garage' },
@@ -71,6 +81,7 @@ export const OBJECTIVES = {
   cloth: { th: 'ผูกผ้าสามสีที่กระจกรถ', en: 'Tie the cloth on the taxi mirror' },
   coins: { th: 'นับเหรียญในกระป๋อง', en: 'Count the coins in the tin' },
   keys: { th: 'รับกุญแจจากอากง', en: 'Take the keys from Ah Kong' },
+  chores: { th: 'ทำตามที่อากงสั่ง', en: 'Do what Ah Kong asked' },
   getIn: { th: 'ขึ้นรถแท็กซี่', en: 'Get into the taxi' },
   pickup: { th: 'ขับไปรับลูกค้า', en: 'Drive to the customer' },
   deliver: { th: 'ไปส่งที่ {dest}', en: 'Take them to {dest}' },
