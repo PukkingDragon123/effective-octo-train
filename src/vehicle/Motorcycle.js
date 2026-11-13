@@ -34,7 +34,7 @@ const BIKE = { wheelR: 0.285, wheelbase: 1.2, axleF: -0.62, axleR: 0.58 };
 // Ride feel (an old 110 cc step-through on a narrow forest spur): top speed ~52 km/h, gentle
 // throttle and brake curves, steering that is quick at walking pace and calm at speed (the
 // steering angle is limited so the lateral grip never exceeds ~6 m/s²), auto-centring, lean.
-const RIDE = { vMax: 14.5, drive: 640, mass: 160, engineBrake: 0.7, brake: 6.4, latMax: 6.2, maxSteer: 0.6, leanMax: 0.62 };
+const RIDE = { vMax: 14.5, drive: 640, mass: 160, engineBrake: 0.35, brake: 6.4, latMax: 6.2, maxSteer: 0.6, leanMax: 0.62 };
 const approach = (cur, target, rate) => cur + clamp(target - cur, -rate, rate);
 
 let mats = null;
@@ -599,7 +599,7 @@ export class Motorcycle {
           this.v *= 0.97;
         }
         this._offRoad = Math.abs(pr.lateral) > (pr.width ?? 6.2) / 2;
-        if (this._offRoad) this.v *= 1 - 0.25 * dt;
+        if (this._offRoad) this.v *= 1 - 0.06 * dt; // the shoulder is rough, not glue
       }
     }
     if (this.world?.getHeight) this.pos.y = damp(this.pos.y, this.world.getHeight(this.pos.x, this.pos.z), 16, dt);

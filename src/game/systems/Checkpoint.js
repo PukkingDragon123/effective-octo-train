@@ -29,6 +29,19 @@ export function getCheckpoint() {
   return mem || g.save?.checkpoint || null;
 }
 
+/** No usable checkpoint: the start of the current ride (on shift), else the garage. */
+export function restoreFallback() {
+  try {
+    const s = g.save || {};
+    if (s.stage === 'shift' || g.ride) g.fsm.go('shift', { ride: s.rideIndex ?? 0, hour: s.hour ?? 21, respawn: true });
+    else g.fsm.go('garage', { restart: (s.loops || 0) > 0, arrived: false });
+    return true;
+  } catch (e) {
+    console.error('[checkpoint] fallback failed', e);
+    return false;
+  }
+}
+
 export function restoreCheckpoint() {
   const cp = getCheckpoint() || { kind: g.save?.stage === 'shift' ? 'ride' : 'intro', ride: g.save?.rideIndex ?? 0, hour: g.save?.hour ?? 21 };
   try {
@@ -39,7 +52,8 @@ export function restoreCheckpoint() {
         break;
       case 'ride':
       case 'fork':
-        g.fsm.go('shift', { ride: cp.ride ?? 0, hour: cp.hour, checkpoint: cp });
+        // the ride starts over: the passenger back at their pickup, the taxi on the road before it
+        g.fsm.go('shift', { ride: cp.ride ?? 0, hour: cp.hour, respawn: true });
         break;
       case 'intro':
       default:

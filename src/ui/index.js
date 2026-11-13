@@ -1,7 +1,7 @@
 // UI overlay (HTML/CSS over the canvas) — menus, subtitles, minimal prompts
 // (contract: docs/ARCHITECTURE.md "ui").
 //
-// Design: "almost no UI", like a film title sequence. Kanit titles over IBM Plex Sans Thai
+// Design: "almost no UI", like a film title sequence. Noto Serif Thai titles over Sarabun
 // text, bone on deep black, thin metal rules, one incense red for focus. No grain, glow or blur.
 // Every screen works with mouse, keyboard (arrows/WASD + Enter/Esc) and gamepad
 // (d-pad/stick + A/B, LB/RB tabs) through ./nav.js.

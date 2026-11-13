@@ -760,9 +760,26 @@ export class HumanoidGLB {
     this._updateMouth(dt);
     this._hair(dt);
     this._heldProps(dt);
+    this._idleLife(dt);
     if (this.ghostLayer.v.stutter > 0.01) this._stutter(dt);
     this.inner.updateMatrixWorld(true);
     this._outputs();
+  }
+
+  /**
+   * Idle life for NPCs left alone (not the player, not ghosts, nothing scripted): every 10-24 s a glance
+   * around (the lookAround action), on top of the breathing, weight shifts and saccades. Anything gameplay
+   * does (an action, a walk, a look target) pauses it.
+   */
+  _idleLife(dt) {
+    if (this.idleLife === false || this.noThrottle || this.isDouble || this.look?.ghost || dt <= 0) return;
+    if (this.walk || this.actions.list.length || this.lookS.target) { this._idleT = Math.max(this._idleT ?? 0, 4); return; }
+    if (!['stand', 'sit', 'sitCar', 'idle'].includes(this.mode)) return;
+    this._idleT = (this._idleT ?? 6 + Math.random() * 8) - dt;
+    if (this._idleT <= 0) {
+      this._idleT = 10 + Math.random() * 14;
+      this.play('lookAround');
+    }
   }
 
   /** stutter-frame motion: hold the whole pose for a few frames, then jump to the live one */
@@ -1136,8 +1153,20 @@ export class HumanoidGLB {
         palm = _vp[s].set(0, -1, 0).applyQuaternion(_q);
       }
       let grip = slot.gripW, fingers = slot.fingers;
+      let reqK = 0, reqFingers = null, reqGrip = 0;
       if (req && req.w > 0.001) {
-        if (!pos || req.w >= w) { pos = req.pos; along = req.along; palm = req.palm; pole = req.pole || null; fingers = req.fingers || null; grip = req.grip ?? 0; }
+        if (!pos) { pos = req.pos; along = req.along; palm = req.palm; pole = req.pole || null; fingers = req.fingers || null; grip = req.grip ?? 0; }
+        else {
+          // a reach / interact request BLENDS out of the held grip (position, orientation, pole and finger
+          // pose): no snap when its weight crosses the grip's
+          reqK = smoothstep(0, 1, req.w / Math.max(1e-3, Math.max(w, req.w)));
+          pos = _vb[s].copy(pos).lerp(req.pos, reqK);
+          if (along && req.along) along = _va2[s].copy(along).lerp(req.along, reqK).normalize(); else along = req.along || along;
+          if (palm && req.palm) palm = _vp2[s].copy(palm).lerp(req.palm, reqK).normalize(); else palm = req.palm || palm;
+          if (req.pole && reqK > 0.5) pole = req.pole;
+          reqFingers = req.fingers || null;
+          reqGrip = req.grip ?? 0;
+        }
         w = Math.max(w, req.w);
       }
       if (pos && w > 0.002) {
@@ -1157,12 +1186,18 @@ export class HumanoidGLB {
         }
         solveTwoBone(rig, ch, _v, pole, w, this.scale);
         if (along && palm) {
-          setEndRotation(rig, this.handBasis[s], along, palm, w);
-          this._spreadTwist(s, w);
+          // soft wrists: the hand takes 88 % of the target orientation (a held wheel or bar still reads
+          // gripped, but the wrist never locks rigidly against the forearm)
+          setEndRotation(rig, this.handBasis[s], along, palm, w * 0.88);
+          this._spreadTwist(s, w * 0.88);
         }
       }
-      const fw = grip > 0.01 || fingers;
-      if (fw) this._fingers(s, fingers || 'grip', grip || (req?.w ?? 1), req?.phase || 0);
+      const fw = grip > 0.01 || fingers || reqK > 0;
+      if (reqK > 0) {
+        // cross-fade the finger poses of the grip and the request
+        if (grip > 0.01 || fingers) this._fingers(s, fingers || 'grip', (grip || 1) * (1 - reqK), 0);
+        this._fingers(s, reqFingers || 'grip', (reqGrip || 1) * reqK, req?.phase || 0);
+      } else if (fw) this._fingers(s, fingers || 'grip', grip || (req?.w ?? 1), req?.phase || 0);
       (this._fingerSet || (this._fingerSet = {}))[s] = !!fw;
     }
   }
@@ -1390,6 +1425,7 @@ export class HumanoidGLB {
 
 const _vd = new THREE.Vector3();
 const _va = { L: new THREE.Vector3(), R: new THREE.Vector3() }, _vp = { L: new THREE.Vector3(), R: new THREE.Vector3() };
+const _vb = { L: new THREE.Vector3(), R: new THREE.Vector3() }, _va2 = { L: new THREE.Vector3(), R: new THREE.Vector3() }, _vp2 = { L: new THREE.Vector3(), R: new THREE.Vector3() };
 const _fa = {}, _ta = {};
 
 /** pelvis model position at the start of a clip (template units) */

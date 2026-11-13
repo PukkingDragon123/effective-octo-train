@@ -40,6 +40,7 @@ export class Loading {
       this.stage = h('div', { class: 'dlb-loading__3d', attrs: { 'aria-hidden': 'true' } });
       this.el.insertBefore(this.stage, this.el.firstChild);
       this.scene3d = new IncenseScene(this.stage);
+      window.__dlbIntro = this.scene3d; // QA handle (headless traces)
       this.el.classList.add('has-3d');
     } catch (e) {
       console.warn('[loading] 3D incense unavailable', e);

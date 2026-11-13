@@ -431,7 +431,6 @@ export class Ride {
 
   _speedCap() {
     let cap = this.data.pacing?.speedCapKmh;
-    if (this.phase === 'forkApproach') cap = Math.min(cap ?? 999, 42);
     if (!cap || !g.taxi.controlsEnabled) return;
     const over = g.taxi.speedKmh - cap;
     if (over > 0) input.axis.throttle *= clamp(1 - over / 8, 0, 1);

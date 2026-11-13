@@ -85,11 +85,11 @@ export function installRendering(engine) {
   applyQuality();
   settings.onChange(applyQuality);
   scene.add(sky.group, lightPool.group, particles.group);
-  // Pixel ratio: never above 1.0 x resolutionScale (a 2x / 3x HiDPI screen would otherwise
-  // shade 4-9x the pixels; the CSS size stays the same, the browser scales the canvas).
+  // Pixel ratio: native (devicePixelRatio, at most 2) x resolutionScale. Owner: the image must
+  // be sharp at native resolution; never above 2x (a 3x phone would shade 9x the pixels).
   const capPixelRatio = () => {
     const scale = clamp(settings.get('resolutionScale') ?? 1, 0.25, 1);
-    const pr = Math.min(window.devicePixelRatio || 1, 1) * scale;
+    const pr = Math.min(window.devicePixelRatio || 1, 2) * scale;
     if (Math.abs(renderer.getPixelRatio() - pr) > 1e-4) renderer.setPixelRatio(pr);
     engine.pixelRatio = pr;
   };

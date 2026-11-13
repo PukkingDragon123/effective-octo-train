@@ -365,8 +365,7 @@ export function buildMonitor(opts) {
     const db = new MergeBuilder();
     const tape = decalPlane(REG.tape, 0.088, 0.0179);
     db.add('d', xform(tape, [-0.031, bandY + 0.0004, FRONT + 0.0002], [0, 0, 0.035]));
-    const st = decalPlane(REG.sticker, 0.0215, 0.0215);
-    db.add('d', xform(st, [SW / 2 - 0.0035, SH / 2 - 0.004, FRONT + 0.0003], [0, 0, -0.32]));
+    // (no cat sticker: the owner removed it)
     const silk = decalPlane(REG.silk, 0.068, 0.0074);
     db.add('d', xform(silk, [0.0535, bandY - 0.0045, FRONT + 0.0001]));
     mon.add(db.build({ d: mats.decal }));

@@ -12,7 +12,7 @@
 //    persisted through the settings API (`settings.autoQuality`), so it never runs again.
 //
 // Both are off for deterministic captures (`?manual=1`, used by tools/shot.mjs), with
-// `?dynres=0` / `?autoq=0`, and dynamic resolution also with settings.dynamicResolution = false.
+// `?dynres=0` / `?autoq=0`. Dynamic resolution runs only with settings.dynamicResolution === true.
 import { settings } from '../core/Settings.js';
 import { bus } from '../core/Events.js';
 
@@ -62,7 +62,7 @@ export class DynamicResolution {
   }
 
   get active() {
-    return this.enabled && settings.get('dynamicResolution') !== false;
+    return this.enabled && settings.get('dynamicResolution') === true; // off by default (sharpness)
   }
 
   reset() {
@@ -185,13 +185,19 @@ export class AutoQuality {
     const p75 = s[Math.floor(s.length * 0.75)];
     const preset = settings.get('graphicsPreset') || 'medium';
     const idx = PRESET_ORDER.indexOf(preset);
-    // slow: clearly below ~45 fps most of the time (dynamic resolution handles small dips)
+    // slow: clearly below ~45 fps most of the time. Never below medium unless it runs under
+    // 25 fps (40 ms), and never lowering the resolution scale (the image stays sharp).
+    const floor = PRESET_ORDER.indexOf('medium');
     const slow = median > 22 || p75 > 30;
-    if (slow && idx > 0 && this._steps < 3) {
+    const verySlow = median > 40;
+    const canStep = idx > floor ? slow : idx > 0 && verySlow;
+    if (canStep && this._steps < 3) {
       this._steps++;
       const next = PRESET_ORDER[idx - 1];
+      const scale = settings.get('resolutionScale') ?? 1;
       console.info(`[render] auto quality: ${preset} median ${median.toFixed(1)} ms -> ${next}`);
       settings.set('graphicsPreset', next);
+      if ((settings.get('resolutionScale') ?? 1) < scale) settings.set('resolutionScale', scale);
       this._start(); // re-measure at the new preset
       return;
     }

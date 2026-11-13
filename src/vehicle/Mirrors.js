@@ -87,6 +87,7 @@ class Mirror {
     this.id = id;
     this.mount = mount;
     const [w, h] = mount.userData.size || [0.2, 0.06];
+    this.resScale = opts?.resScale ?? 1;
     this.w = w;
     this.h = h;
     this.convex = opts.convex ?? 1;
@@ -116,7 +117,7 @@ class Mirror {
     this.resize();
   }
   resize() {
-    const res = settings.get('mirrorResolution') || 256;
+    const res = (settings.get('mirrorResolution') || 256) * (this.resScale || 1);
     const W = Math.max(32, Math.round(res));
     const H = Math.max(16, Math.round(res * (this.h / this.w)));
     if (this.rt && this.rt.width === W && this.rt.height === H) return;
@@ -177,7 +178,7 @@ export class MirrorSystem {
       this.list.push(m);
       this.byId[id] = m;
     };
-    add('mirror_rear', mounts.rear, { convex: 1, dirt: 0.35, round: 0.4 });
+    add('mirror_rear', mounts.rear, { convex: 1, dirt: 0.18, round: 0.4, resScale: 1.75 }); // big, clean, sharp
     add('mirror_left', mounts.left, { convex: 0.55, dirt: 0.75, round: 0.35, far: 60 });
     add('mirror_right', mounts.right, { convex: 0.6, dirt: 0.7, round: 0.35, far: 60 });
     this.rr = 0;

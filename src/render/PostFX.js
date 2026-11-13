@@ -27,7 +27,7 @@ import { settings } from '../core/Settings.js';
 import { bus } from '../core/Events.js';
 import { clamp } from '../core/math.js';
 import { FS_VERT, GAUSS_FRAG } from './Painterly.js';
-import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG, AO_FRAG, AO_BLUR_FRAG } from './PostShaders.js';
+import { COPY_FRAG, BLOOM_DOWN_FRAG, BLOOM_UP_FRAG, SHAFT_MASK_FRAG, SHAFT_BLUR_FRAG, FINAL_FRAG, OUTPUT_FRAG, AO_FRAG, AO_BLUR_FRAG, MOTION_BLUR_FRAG } from './PostShaders.js';
 import { lensDirtTexture } from './noiseTex.js';
 import { GORE_UNIFORM } from './Blood.js';
 import { GLOBAL_UNIFORMS } from './uniforms.js';
@@ -72,6 +72,8 @@ const _size = new THREE.Vector2();
 const _mat4 = new THREE.Matrix4();
 const _frustum = new THREE.Frustum();
 const _sphere = new THREE.Sphere();
+const _vp = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
 
 class PostFX {
   constructor() {
@@ -172,6 +174,14 @@ class PostFX {
       uNear: { value: 0.1 }, uFar: { value: 1000 }, uRadius: { value: 0.55 }, uIntensity: { value: 1.0 }, uPxPerM: { value: 500 },
     });
     this.matAOBlur = passMaterial(AO_BLUR_FRAG, { tAO: { value: null }, uTexel: { value: new THREE.Vector2() } });
+    this.matMB = passMaterial(MOTION_BLUR_FRAG, {
+      tColor: { value: null }, tDepth: { value: null }, uInvViewProj: { value: new THREE.Matrix4() }, uPrevViewProj: { value: new THREE.Matrix4() },
+      uTexel: { value: new THREE.Vector2() }, uScale: { value: 0.35 }, uMaxPx: { value: 24 }, uNear: { value: 0.1 }, uFar: { value: 1000 },
+    });
+    this._prevVP = new THREE.Matrix4();
+    this._prevPos = new THREE.Vector3();
+    this._prevQuat = new THREE.Quaternion();
+    this._mbHasPrev = false;
     this.matShaftBlur = passMaterial(SHAFT_BLUR_FRAG, { tSrc: { value: null }, uSun: { value: new THREE.Vector2() }, uLength: { value: 0.6 }, uJitter: { value: 1 } });
     const fu = {
       tScene: { value: null }, tBloom: { value: null }, tBlur: { value: null }, tShafts: { value: null },
@@ -216,9 +226,12 @@ class PostFX {
     const samples = MSAA_BY_PRESET[preset] ?? 2;
     // AO stays in the code but is OFF unless explicitly enabled (owner: no dark contact halos)
     const ao = settings.get('ambientOcclusion') === true;
-    if (samples !== this._samples || ao !== this._ao) {
+    // camera motion blur: on unless the low preset / the player turns it off
+    const mb = (settings.get('motionBlur') ?? preset !== 'low') !== false;
+    if (samples !== this._samples || ao !== this._ao || mb !== this._mb) {
       this._samples = samples;
       this._ao = ao;
+      this._mb = mb;
       this._sizeDirty = true;
     }
     this.cfg = {
@@ -242,6 +255,8 @@ class PostFX {
     dispose(this.glassBlurB);
     dispose(this.aoRT);
     dispose(this.aoBlurRT);
+    dispose(this.mbRT);
+    this.mbRT = null;
     this.shaftA = this.shaftB = this.copyRT = this.glassBlurA = this.glassBlurB = this.aoRT = this.aoBlurRT = null;
   }
 
@@ -262,9 +277,12 @@ class PostFX {
     const samples = Math.min(this._samples, renderer.capabilities.maxSamples || 0);
     this._msaa = samples;
     this.sceneRT = makeRT(w, h, { depth: true, samples, name: 'dlbScene' });
-    if (this._ao) {
-      // depth as a texture (resolved from the MSAA buffer after the opaque pass only) for AO
+    if (this._ao || this._mb) {
+      // depth as a texture (resolved from the MSAA buffer after the opaque pass, only on
+      // frames that use it) for AO / motion blur
       this.sceneRT.depthTexture = new THREE.DepthTexture(w, h);
+    }
+    if (this._ao) {
       const hw = Math.max(1, Math.ceil(w / 2)), hh = Math.max(1, Math.ceil(h / 2));
       this.aoRT = makeRT(hw, hh, { name: 'dlbAO' });
       this.aoBlurRT = makeRT(hw, hh, { name: 'dlbAOBlur' });
@@ -339,6 +357,29 @@ class PostFX {
     return false;
   }
 
+  /**
+   * Shutter fraction for this frame's camera motion blur (0 = no pass, no depth resolve).
+   * Only fast motion counts: a quick head turn or speed; never while paused, at rest, on a
+   * camera cut or on the first frame. Also computes the current view-projection into _vp.
+   */
+  _motionBlurAmount(camera, dt) {
+    if (!camera.isPerspectiveCamera) return 0;
+    camera.updateMatrixWorld();
+    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    if (!this._mb || !this._mbHasPrev || !this.sceneRT.depthTexture || !(dt > 0) || !this.clock.valid) return 0;
+    const pos = _v3.setFromMatrixPosition(camera.matrixWorld);
+    const move = pos.distanceTo(this._prevPos);
+    _q.setFromRotationMatrix(camera.matrixWorld);
+    const ang = this._prevQuat.angleTo(_q);
+    const fovY = THREE.MathUtils.degToRad(camera.fov || 60);
+    // largest on-screen motion this frame (px): rotation, or travel seen at ~6 m
+    const px = Math.max(ang / fovY, move / (6 * 2 * Math.tan(fovY / 2))) * this._h;
+    if (move > 4 || px > this._h * 0.4) return 0; // a cut / teleport, not motion
+    // shutter: ~1/170 s of exposure, whatever the frame rate (0.35 of a 60 fps frame)
+    const k = clamp(0.0058 / Math.max(this.clock.ms / 1000, 1e-3), 0, 0.6);
+    return px * k > 3 ? k : 0; // fast motion only
+  }
+
   render(renderer, scene, camera, dt = 1 / 60) {
     if (!this._built) this._build(renderer);
     if (this._settingsDirty) this._readSettings();
@@ -372,7 +413,8 @@ class PostFX {
     camera.layers.mask = mask & ~GLASS_BIT;
     renderer.autoClear = true;
     if (sky) sky.uniforms.uSkyAlpha.value = 0;
-    this.sceneRT.resolveDepthBuffer = !!this.sceneRT.depthTexture;
+    const mbK = this._motionBlurAmount(camera, dt);
+    this.sceneRT.resolveDepthBuffer = !!this.sceneRT.depthTexture && (!!this.aoRT || mbK > 0);
     renderer.setRenderTarget(this.sceneRT);
     renderer.render(scene, camera);
     this.sceneRT.resolveDepthBuffer = false; // the glass pass never re-resolves depth
@@ -444,6 +486,31 @@ class PostFX {
     }
     renderer.autoClear = true;
 
+    // ---- 2b. camera motion blur (fast motion only; stills and slow motion stay sharp) ---------
+    let sceneTex = this.sceneRT.texture;
+    if (mbK > 0) {
+      if (!this.mbRT) this.mbRT = makeRT(w, h, { name: 'dlbMotion' });
+      const m = this.matMB.uniforms;
+      m.tColor.value = this.sceneRT.texture;
+      m.tDepth.value = this.sceneRT.depthTexture;
+      m.uInvViewProj.value.copy(_vp).invert();
+      m.uPrevViewProj.value.copy(this._prevVP);
+      m.uTexel.value.set(1 / w, 1 / h);
+      m.uScale.value = mbK;
+      m.uMaxPx.value = 22 * (h / 1080);
+      m.uNear.value = camera.near;
+      m.uFar.value = camera.far;
+      this._pass(renderer, this.matMB, this.mbRT);
+      sceneTex = this.mbRT.texture;
+    }
+    this.stats.motionBlur = mbK > 0;
+    if (camera.isPerspectiveCamera) {
+      this._prevVP.copy(_vp);
+      this._prevPos.setFromMatrixPosition(camera.matrixWorld);
+      this._prevQuat.setFromRotationMatrix(camera.matrixWorld);
+      this._mbHasPrev = true;
+    }
+
     const exposure = (grade?.exposure ?? 1.6) * P.exposure * Math.pow(cfg.brightness, 1.4);
     const ou = this.outputUniforms;
     const fu = this.finalUniforms;
@@ -452,7 +519,7 @@ class PostFX {
     const bloomAmt = cfg.bloom * P.bloom;
     const needBloomChain = bloomAmt > 0.001 || P.blur > 0.001;
     if (needBloomChain) {
-      let src = this.sceneRT.texture, sw = w, sh = h;
+      let src = sceneTex, sw = w, sh = h;
       const d = this.matDown.uniforms;
       for (let i = 0; i < BLOOM_LEVELS; i++) {
         // level 0 reads the full-size frame into 1/4: the 13 taps at source-texel spacing
@@ -520,7 +587,7 @@ class PostFX {
     this.stats.shafts = shafts > 0.01;
 
     // ---- 5. grade -> 8-bit ---------------------------------------------------------------------
-    fu.tScene.value = this.sceneRT.texture;
+    fu.tScene.value = sceneTex;
     fu.tBloom.value = needBloomChain ? this.bloomUp[0].texture : this._black;
     fu.tBlur.value = needBloomChain ? this.bloomUp[0].texture : this._black;
     fu.tShafts.value = shafts > 0.01 ? this.shaftA.texture : this._black;

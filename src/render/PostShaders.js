@@ -15,7 +15,11 @@ uniform vec2 uTexel; // source texel size
 uniform float uKaris;
 uniform float uClampMax;
 varying vec2 vUv;
-vec3 T(vec2 o) { return min(texture2D(tSrc, vUv + o * uTexel).rgb, vec3(uClampMax)); }
+vec3 T(vec2 o) {
+  vec3 c = texture2D(tSrc, vUv + o * uTexel).rgb;
+  if (any(isnan(c)) || any(isinf(c))) c = vec3(0.0); // one bad pixel must never bloom into a flickering block
+  return min(c, vec3(uClampMax));
+}
 float kw(vec3 c) { return 1.0 / (1.0 + dot(c, vec3(0.2126, 0.7152, 0.0722))); }
 void main() {
   vec3 a = T(vec2(-2.0, -2.0)), b = T(vec2(0.0, -2.0)), c = T(vec2(2.0, -2.0));
@@ -183,6 +187,49 @@ void main() {
 `;
 
 /**
+ * Camera motion blur by depth reprojection (previous view-projection): rotation and travel
+ * smear the world only during FAST motion (a 2 px dead zone keeps slow motion and stills
+ * perfectly sharp), the cabin / hood / held items within ~3 m move with the camera and are
+ * never smeared, nor smeared into the view. 8 jittered taps + the centre.
+ */
+export const MOTION_BLUR_FRAG = /* glsl */ `
+#include <dlb_common>
+uniform sampler2D tColor;
+uniform sampler2D tDepth;
+uniform mat4 uInvViewProj;
+uniform mat4 uPrevViewProj;
+uniform vec2 uTexel;
+uniform float uScale;
+uniform float uMaxPx;
+uniform float uNear;
+uniform float uFar;
+varying vec2 vUv;
+float nearK(float d) { float z = (uNear * uFar) / ((uFar - uNear) * d - uFar); return smoothstep(2.2, 4.5, -z); }
+void main() {
+  vec4 c0 = texture2D(tColor, vUv);
+  float d = texture2D(tDepth, vUv).x;
+  vec4 wp = uInvViewProj * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+  wp /= wp.w;
+  vec4 pp = uPrevViewProj * vec4(wp.xyz, 1.0);
+  vec2 vpx = (vUv - (pp.xy / pp.w * 0.5 + 0.5)) * uScale * nearK(d) / uTexel;
+  float len = length(vpx);
+  float eff = clamp(len - 2.0, 0.0, uMaxPx);
+  if (eff < 0.5 || pp.w <= 0.0) { gl_FragColor = c0; return; }
+  vec2 vel = vpx / len * eff * uTexel;
+  float j = dlbIGN(gl_FragCoord.xy) - 0.5;
+  vec3 acc = c0.rgb;
+  float ws = 1.0;
+  for (int i = 0; i < 8; i++) {
+    vec2 suv = vUv + vel * ((float(i) + 0.5 + j) / 8.0 - 0.5);
+    float w = nearK(texture2D(tDepth, suv).x);
+    acc += texture2D(tColor, suv).rgb * w;
+    ws += w;
+  }
+  gl_FragColor = vec4(acc / ws, c0.a);
+}
+`;
+
+/**
  * Final composite + grade -> display-referred sRGB, dithered and stored in an 8-bit target
  * (the dither is applied here, before the 8-bit store, so the night gradients never band).
  * The OUTPUT pass then sharpens / upscales it and adds blood / fade / letterbox.
@@ -271,10 +318,12 @@ void main() {
   } else {
     col = texture2D(tScene, uv).rgb;
   }
+  if (any(isnan(col)) || any(isinf(col))) col = vec3(0.0);
   // ---- ambient occlusion (contact darkening), bloom, lens dirt, shafts, menu blur, flash ------
   if (uAO > 0.0) col *= mix(1.0, texture2D(tAO, uv).r, uAO);
   vec3 bloom = texture2D(tBloom, uv).rgb;
-  col = mix(col, bloom, uBloom);
+  // glow only where the halo is brighter than the pixel: never softens texture detail
+  col += max(bloom - col, vec3(0.0)) * uBloom;
   // sharp specks of lens dirt that only light up around bright lamps (the dirt texture is
   // crisp; the bloom buffer only says how much light is falling on that part of the lens)
   if (uDirt > 0.0) col += bloom * texture2D(tDirt, vUv).r * uDirt;

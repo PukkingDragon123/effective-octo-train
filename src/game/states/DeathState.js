@@ -12,7 +12,10 @@ import { clearNightFlags } from '../data/logic.js';
 import { resetNightWorld } from '../death/reset.js';
 import { crashReport, stageWreck, captureCrashShot, clearCrashScene } from '../death/offRoad.js';
 import { NEWS_REPORTS } from '../data/worldtext.js';
-import { restoreCheckpoint } from '../systems/Checkpoint.js';
+import { restoreCheckpoint, restoreFallback } from '../systems/Checkpoint.js';
+
+/** Real-time timeout (the news runs in real time; the game may be paused). */
+const within = (p, ms) => Promise.race([Promise.resolve(p).catch((e) => console.warn('[death] news step', e)), new Promise((r) => setTimeout(r, ms))]);
 
 export { resetNightWorld };
 
@@ -96,13 +99,52 @@ export const DeathState = {
     } catch (e) {
       // never leave the player on a black screen: straight back to the last checkpoint
       console.error('[death] news / respawn failed', e);
-      clearDying();
-      if (this.active) {
-        clearCrashScene();
-        restoreCheckpoint();
-        g.ui.fade?.(false, 1.2);
-      }
+      if (this.active) this._respawn(type);
     }
+  },
+
+  /** Back in the night: the checkpoint (or the ride start / the garage), the black lifted, a watchdog. */
+  _respawn(type) {
+    try {
+      clearCrashScene();
+    } catch (e) {
+      console.warn('[death] clear crash', e);
+    }
+    clearDying();
+    bus.emit('death:done', { type, respawn: true });
+    g.postfx.params.fade = 1;
+    let ok = false;
+    try {
+      ok = restoreCheckpoint();
+    } catch (e) {
+      console.error('[death] checkpoint restore', e);
+    }
+    if (!ok) restoreFallback();
+    try {
+      g.ui.fade?.(false, 1.2); // releases the news screen held black; the state fades the scene in
+    } catch (e) {
+      /* ignore */
+    }
+    // a watchdog: whatever went wrong above, Ton is back within a few seconds
+    setTimeout(() => {
+      if (g.fsm.is('death')) {
+        console.warn('[death] still on the death state after the news: falling back');
+        restoreFallback();
+      }
+    }, 4000);
+    setTimeout(() => {
+      try {
+        if (g.fsm.is('death')) restoreFallback();
+        if (g.postfx.params.fade > 0.9) g.cine.fade(0, 1.2);
+        g.ui.fade?.(false, 0.6);
+        g.actions?.setEnabled?.(!['menu', 'intro', 'ending', 'death'].includes(g.fsm.currentName));
+        g.ui.setCrosshair?.(true);
+        g.input?.setWantPointerLock?.(true);
+        if (g.cameraRig?.inCinematic && !g.cine?._conv) g.cameraRig.release(0.4);
+      } catch (e) {
+        console.warn('[death] watchdog', e);
+      }
+    }, 7500);
   },
   /**
    * Off the road: the late-night TV news over the wreck, then Ton is back at the last checkpoint
@@ -138,33 +180,32 @@ export const DeathState = {
     const kind = crashReport.kind || 'bike';
     if (!image) {
       try {
-        image = await captureCrashShot(stageWreck(kind));
+        image = await within(captureCrashShot(stageWreck(kind)), 6000);
       } catch (e) {
         console.warn('[death] news photo', e);
       }
     }
     if (!this.active) return clearDying();
-    resetNightWorld();
+    try {
+      resetNightWorld();
+    } catch (e) {
+      console.warn('[death] reset', e);
+    }
     p.fade = 1;
     const N = crashReport.news || NEWS_REPORTS[kind] || NEWS_REPORTS.bike;
     const both = (g.settings.get('language') ?? 'th') === 'both';
     g.ui.fade?.(false, 0.01); // the news screen draws its own black
+    // the news (a rejected or hung news screen never strands the player: 40 s at most)
     try {
-      if (typeof g.ui.newsReport === 'function') {
-        await g.ui.newsReport({ th: N.th, sub: both ? `${N.sub} · ${N.subEN}` : N.sub, image, hold: 8, place: N.place, keepBlack: true });
-      } else {
-        await g.ui.deathCard({ th: N.th, en: both ? N.en : '', sub: N.sub, hold: 5, keepBlack: true });
-      }
+      const show = typeof g.ui.newsReport === 'function'
+        ? g.ui.newsReport({ th: N.th, sub: both ? `${N.sub} · ${N.subEN}` : N.sub, image, hold: 8, place: N.place, keepBlack: true })
+        : g.ui.deathCard({ th: N.th, en: both ? N.en : '', sub: N.sub, hold: 5, keepBlack: true });
+      await within(show, 40000);
     } catch (e) {
       console.error('[death] news report', e);
     }
     if (!this.active) return clearDying();
-    clearCrashScene();
-    clearDying();
-    bus.emit('death:done', { type, respawn: true });
-    g.postfx.params.fade = 1;
-    restoreCheckpoint();
-    g.ui.fade?.(false, 1.2); // releases the news screen held black; the state fades the scene in
+    this._respawn(type);
   },
 
   exit() {

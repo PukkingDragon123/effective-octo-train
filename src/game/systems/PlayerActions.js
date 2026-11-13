@@ -33,6 +33,7 @@ const _v3 = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
+const wrapYaw = (a) => a - Math.PI * 2 * Math.floor((a + Math.PI) / (Math.PI * 2));
 const PAPER_W = 0.205;
 // Ton's eyes relative to his head bone, in the carrier's frame (up, forward)
 const EYE_UP = 0.085;
@@ -623,6 +624,7 @@ export class PlayerActions {
       this.eyeObj = new THREE.Object3D();
       this.eyeObj.name = 'fp-eye';
       g.engine.onUpdate((dt) => this._eyeUpdate(dt), 48, { always: true });
+      g.engine.onUpdate(() => this._yawGuard(), 47, { always: true });
     }
     const e = this.eyeObj;
     if (e.parent !== carrier) carrier.add(e);
@@ -699,6 +701,26 @@ export class PlayerActions {
     const maxStep = (this._settleT < 1.2 ? 2.5 : 0.9) * dt;
     if (_v2.lengthSq() > maxStep * maxStep) _v2.setLength(maxStep);
     e.position.add(_v2);
+  }
+
+  /**
+   * No spins: on foot the look yaw is unbounded (the rig adds mouse input forever); keep it within
+   * ±π, and put it on the near side of a focus target (the rig eases toward one without wrapping,
+   * which turned the head the long way round, several times).
+   */
+  _yawGuard() {
+    const rig = g.cameraRig;
+    if (!rig?.eye) return;
+    const L = rig.limits;
+    if (!rig.base && L.yawMax - L.yawMin > 100) {
+      rig.yaw = wrapYaw(rig.yaw);
+      if (rig.focusTarget && rig.focusStrength > 0) {
+        const eye = rig.eye.getWorldPosition(_v2);
+        const d = _v3.copy(rig.focusTarget).sub(eye);
+        const ty = Math.atan2(-d.x, -d.z);
+        rig.yaw = ty + wrapYaw(rig.yaw - ty);
+      }
+    } else if (rig.yaw > L.yawMax + 0.5 || rig.yaw < L.yawMin - 0.5) rig.yaw = clamp(wrapYaw(rig.yaw), L.yawMin, L.yawMax);
   }
 
   /** World position of Ton's head bone, or null. */

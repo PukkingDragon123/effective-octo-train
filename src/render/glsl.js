@@ -153,7 +153,7 @@ vec3 dlbInscatter(vec3 ro, vec3 rd, float d, float sigma, vec2 fragXY) {
     float tmax = min(d, range + 4.0);
     int steps = int(dlbHeadlightCone.w);
     float dt = tmax / float(max(steps, 1));
-    float jit = dlbIGN(fragXY + fract(dlbTime * 7.0) * 37.0);
+    float jit = dlbIGN(fragXY); // static dither: no per-frame shimmer in the beam haze
     float sum = 0.0;
     for (int i = 0; i < 16; i++) {
       if (i >= steps) break;
@@ -238,9 +238,9 @@ vec3 dlbApplyFog(vec3 col, vec3 wp, vec2 fragXY) {
   // ground mist rolls in drifts: much stronger contrast than the fog above it
   float nmG = mix(1.0, 0.08 + 2.0 * nn * nn, min(dlbFogNoise * 1.3, 1.0));
   vec2 o2 = dlbFogOptical2(ro, rd, d);
-  // clearer air right around the viewer: the cabin, the hood and the first metres of road
-  // stay crisp; the fog builds up beyond ~8 m
-  o2 = max(o2 - dlbFogOptical2(ro, rd, min(d, 8.0)) * 0.8, vec2(0.0));
+  // slightly clearer air right around the viewer (cabin, hood, first metres of road); beyond
+  // ~5 m the density is the physical one, so fog thickens naturally with distance
+  o2 = max(o2 - dlbFogOptical2(ro, rd, min(d, 5.0)) * 0.5, vec2(0.0));
   float od = o2.x * nm + o2.y * nmG;
   float T = exp(-od);
 #ifdef DLB_FOG_ADDITIVE

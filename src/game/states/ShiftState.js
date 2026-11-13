@@ -80,7 +80,7 @@ export const ShiftState = {
     const r = taxiRoad();
     const cp = params.checkpoint && (params.checkpoint.kind === 'ride' || params.checkpoint.kind === 'fork') ? params.checkpoint : null;
     this._cp = cp;
-    const keep = !cp && !params.debug && !params.free && r && r.id === 'main' && stopS - r.s > 20 && stopS - r.s < 900;
+    const keep = !cp && !params.respawn && !params.debug && !params.free && r && r.id === 'main' && stopS - r.s > 20 && stopS - r.s < 900;
     if (cp) {
       // back at the checkpoint, under the black: in the lane, stopped, engine running
       g.postfx.params.fade = 1;
@@ -103,7 +103,7 @@ export const ShiftState = {
     const A = g.actions;
     if (A?.seatInTaxi) {
       // Ton's body in the driver's seat (hands on the wheel), the view in the cab
-      if (!A.inTaxi) A.seatInTaxi();
+      if (!A.inTaxi || params.respawn) A.seatInTaxi();
       else if (!onTaxi()) A.seatCamera?.();
       A.setEnabled?.(true);
       A.setAllowed?.({ paper: true, amulet: true, vehicle: true, inspect: true });

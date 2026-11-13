@@ -5,28 +5,29 @@ const KEY = 'dlbih.settings.v1';
 
 // Render cost per preset (src/render): MSAA low 0 (FXAA-lite) / medium 2x / high + ultra 4x;
 // real pooled lamp lights low 2 / medium 3 / high 4 / ultra 6 (hard cap 8); sun shadow map
-// 1024 (medium) .. 2048 (never larger). The canvas pixel ratio is capped at
-// 1.0 x resolutionScale, and dynamic resolution (down to 0.7, only while frames are over
-// 16.7 ms) runs on top unless `dynamicResolution` is false. On the first run the menu
-// samples ~2 s of frame times and steps the preset down if slow (`autoQuality` records it).
+// 1024 (medium) .. 2048 (never larger). Native resolution by default (resolutionScale 1.0 on
+// medium and up, pixel ratio = devicePixelRatio up to 2). Dynamic resolution (down to 0.7
+// while frames are over 16.7 ms) is OFF unless `dynamicResolution` is true. On the first run
+// the menu samples ~2 s of frame times and steps the preset down if slow, never below medium
+// unless it runs under 25 fps and never lowering resolutionScale (`autoQuality` records it).
 export const GRAPHICS_PRESETS = {
   low: {
-    resolutionScale: 0.6, painterly: 0, painterlyQuality: 'low', bloom: 0.5, shadows: false, ambientOcclusion: false,
+    resolutionScale: 0.6, painterly: 0, painterlyQuality: 'low', bloom: 0.5, shadows: false, ambientOcclusion: false, motionBlur: false,
     shadowMapSize: 512, mirrorResolution: 192, glassReflections: false, foliageDensity: 0.65,
     particles: 0.45, drawDistance: 90, volumetrics: false,
   },
   medium: {
-    resolutionScale: 0.8, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true, ambientOcclusion: false,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true, ambientOcclusion: false, motionBlur: true,
     shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 1.0,
     particles: 0.75, drawDistance: 120, volumetrics: true,
   },
   high: {
-    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.8, shadows: true, ambientOcclusion: false,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.8, shadows: true, ambientOcclusion: false, motionBlur: true,
     shadowMapSize: 2048, mirrorResolution: 384, glassReflections: true, foliageDensity: 1.2,
     particles: 1.0, drawDistance: 150, volumetrics: true,
   },
   ultra: {
-    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true, ambientOcclusion: false,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true, ambientOcclusion: false, motionBlur: true,
     shadowMapSize: 2048, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.45,
     particles: 1.3, drawDistance: 190, volumetrics: true,
   },
@@ -36,7 +37,8 @@ export const DEFAULT_SETTINGS = {
   // graphics
   graphicsPreset: 'medium',
   ...GRAPHICS_PRESETS.medium,
-  dynamicResolution: true, // lower the internal render size (to 0.7) only while frames are over budget
+  dynamicResolution: false, // true: lower the internal render size (to 0.7) while frames are over budget
+  settingsRev: 2,
   sharpen: 0.5, // contrast-adaptive sharpening after the painterly pass (0..1)
   filmGrain: 0,
   chromaticAberration: 0,
@@ -78,6 +80,24 @@ class Settings {
     } catch (e) {
       /* storage unavailable: defaults only */
     }
+    this._migrate();
+  }
+  /**
+   * rev 2 (sharpness fix): native resolution by default, dynamic resolution off, and an
+   * auto-quality decision that dropped to `low` is undone (it re-runs with the medium floor).
+   */
+  _migrate() {
+    const v = this.values;
+    if ((v.settingsRev ?? 0) >= 2) return;
+    let preset = GRAPHICS_PRESETS[v.graphicsPreset] ? v.graphicsPreset : 'medium';
+    const auto = typeof v.autoQuality === 'string' && v.autoQuality.startsWith('done');
+    if (auto && preset === 'low') preset = 'medium';
+    v.graphicsPreset = preset;
+    v.resolutionScale = Math.max(v.resolutionScale ?? 1, GRAPHICS_PRESETS[preset].resolutionScale);
+    v.dynamicResolution = false;
+    delete v.autoQuality;
+    v.settingsRev = 2;
+    this.save();
   }
   get(key) {
     return this.values[key];

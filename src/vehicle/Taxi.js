@@ -202,7 +202,20 @@ export class Taxi {
     // ---- systems -----------------------------------------------------------------------------
     this.glass = new GlassSystem(this, ext.panes);
     this._setupWiperMasks();
+    this._enlargeRearMirror();
     this.mirrors = new MirrorSystem({ rear: this.parts.rearviewMount, left: ext.mirrorMounts.left, right: ext.mirrorMounts.right });
+    // the head unit comes on with the engine: the screen lights up, the radio plays its song
+    bus.on('taxi:engine', (e) => {
+      if (e?.on && !this.state.radioOn) {
+        setTimeout(() => {
+          try {
+            if (this.state.engineOn && !this.state.radioOn) this.setControl('radio', true, { source: 'auto' });
+          } catch (err) {
+            /* the radio is a nicety */
+          }
+        }, 900);
+      }
+    });
     this.lights = new TaxiLights(this, this.bodyInner, ext.lenses, this.parts);
     this.physicsSim = new CarPhysics(this);
     this.physicsSim.onCollision = (c) => this._onCollision(c);
@@ -514,6 +527,40 @@ export class Taxi {
     return { pane: hits[0].object.userData.glassId, point: hits[0].point };
   }
 
+  /**
+   * The rear-view mirror, bigger and nearer: housing and glass scaled 1.4× about their centre and
+   * moved toward the driver (RHD: +X) and back toward his eye, so it reads from the driver's seat.
+   */
+  _enlargeRearMirror() {
+    try {
+      const rv = this.parts.rearview, mount = this.parts.rearviewMount;
+      const ref = rv || mount;
+      if (!ref?.parent) return;
+      this.root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(ref);
+      const c = box.isEmpty() ? ref.getWorldPosition(new THREE.Vector3()) : box.getCenter(new THREE.Vector3());
+      const parent = ref.parent;
+      const pivot = new THREE.Group();
+      pivot.name = 'rearMirrorPivot';
+      parent.add(pivot);
+      pivot.position.copy(parent.worldToLocal(c.clone()));
+      pivot.updateMatrixWorld(true);
+      for (const o of [rv, mount]) if (o && !pivot.children.includes(o)) {
+        let inside = false;
+        for (let a = o.parent; a; a = a.parent) if (a === rv && o !== rv) inside = true;
+        if (!inside) pivot.attach(o);
+      }
+      for (const k of ['rearviewMirror', 'amuletHang']) if (this.anchors[k]) pivot.attach(this.anchors[k]);
+      pivot.scale.setScalar(1.4);
+      // toward the driver and his eye, in the body's frame
+      const dW = this.bodyInner.localToWorld(new THREE.Vector3(0.07, -0.02, 0.06)).sub(this.bodyInner.localToWorld(new THREE.Vector3()));
+      pivot.position.add(parent.worldToLocal(c.clone().add(dW)).sub(parent.worldToLocal(c.clone())));
+      pivot.updateMatrixWorld(true);
+    } catch (e) {
+      console.warn('[taxi] rear mirror', e);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // driver input (keyboard, pad and touch alike)
   // ---------------------------------------------------------------------------
@@ -545,6 +592,12 @@ export class Taxi {
           I.fwd = 0;
         }
       }
+    }
+    // pulling away against the handbrake: let it off (no mystery braking)
+    I.hb = s.handbrake && s.engineOn && thr > 0.5 && s.gear !== 'P' && s.gear !== 'N' ? (I.hb || 0) + dt : 0;
+    if (I.hb > 0.5) {
+      I.hb = 0;
+      this.setControl?.('handbrake', false);
     }
     const step = (cur, to, up, down) => cur + clamp(to - cur, -down * dt, up * dt);
     I.thr = step(I.thr, thr, 2.2, 4.5);

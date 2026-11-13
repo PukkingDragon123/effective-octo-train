@@ -636,15 +636,8 @@ class Sky {
         _v.z = Math.round(_v.z / texel) * texel;
         this.sun.target.position.copy(_v);
         this.sun.position.copy(_v).addScaledVector(this.sunDir, 120);
-        // re-render the map every frame while the snapped focus or the sun moves, every
-        // second frame otherwise (animated casters only)
-        const moved = !this._shadowAt || this._shadowAt.distanceToSquared(_v) > 1e-6 || this._shadowDir.dot(this.sunDir) < 0.999999;
-        this._shadowFrame = (this._shadowFrame || 0) + 1;
-        if (moved || this._shadowFrame % 2 === 0) {
-          this.sun.shadow.needsUpdate = true;
-          (this._shadowAt || (this._shadowAt = new THREE.Vector3())).copy(_v);
-          (this._shadowDir || (this._shadowDir = new THREE.Vector3())).copy(this.sunDir);
-        }
+        // every frame while the sun is up (animated shadows must never stutter)
+        this.sun.shadow.needsUpdate = true;
       }
     }
   }

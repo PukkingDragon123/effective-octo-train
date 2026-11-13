@@ -417,6 +417,10 @@ export class PlayerBodyGLB {
     A.last.copy(_v);
     A.has = true;
     h.bodyLean = A.lean;
+    // grip pressure: relaxed on a straight road, firmer when steering hard (wheel or bars)
+    const steer = Math.abs(this.vehicle?.physics?.steer ?? 0);
+    const g = 0.8 + 0.2 * clamp(steer * 2, 0, 1);
+    for (const sd of ['L', 'R']) if (h.ik.hand[sd].target) h.ik.hand[sd].grip = g;
   }
 
   _actionsUpdate(dt) {
