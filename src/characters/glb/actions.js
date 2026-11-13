@@ -31,9 +31,12 @@ function bo(h, bone, x, y, z, out = new THREE.Vector3()) {
 }
 function target(h, t, out) { return t ? h._target(t, out) : null; }
 function req(h, side, w, pos, along, palm, extra = {}) {
+  const r = { w, pos: pos.clone(), along: along ? along.clone().normalize() : null, palm: palm ? palm.clone().normalize() : null, ...extra };
+  // overlapping actions on one hand BLEND (weighted, slerped) instead of the heavier one snapping in
+  if (h._mergeReq) { h._mergeReq(side, r); return; }
   const cur = h.req[side];
   if (cur && cur.w > w) return;
-  h.req[side] = { w, pos: pos.clone(), along: along ? along.clone().normalize() : null, palm: palm ? palm.clone().normalize() : null, ...extra };
+  h.req[side] = r;
 }
 
 export const ACTIONS = {

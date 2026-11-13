@@ -751,7 +751,7 @@ export class HumanoidGLB {
     this._rootInv.copy(this.inner.matrixWorld).invert();
     // ---- 3. look-at, IK
     this.actions.applyIK(dt);
-    this._extraReqs();
+    this._extraReqs(dt);
     this._look(dt);
     this._legIK(dt);
     this._armIK(dt);
@@ -1105,26 +1105,51 @@ export class HumanoidGLB {
   }
 
   /** player / external per-frame requests: reach for a control, hold an item in view */
-  _extraReqs() {
+  /**
+   * Merge an IK request into this frame's request for a hand: weighted position, slerped hand frame,
+   * finger pose / pole of whichever dominates. Several actions, a reach and a held item on the same hand
+   * blend instead of the heaviest one winning outright (which snapped between them).
+   */
+  _mergeReq(side, r) {
+    const cur = this.req[side];
+    if (!r || !(r.w > 0.001)) return;
+    if (!cur || !(cur.w > 0.001)) { this.req[side] = r; return; }
+    const k = r.w / (r.w + cur.w);
+    const m = { ...(k > 0.5 ? r : cur), w: Math.max(cur.w, r.w), pos: cur.pos.clone().lerp(r.pos, k) };
+    if (cur.along && cur.palm && r.along && r.palm) {
+      frameQuat(cur.along, cur.palm, _fq1).slerp(frameQuat(r.along, r.palm, _fq2), k);
+      m.along = new THREE.Vector3(0, 0, 1).applyQuaternion(_fq1);
+      m.palm = new THREE.Vector3(0, 1, 0).applyQuaternion(_fq1);
+    }
+    this.req[side] = m;
+  }
+
+  _extraReqs(dt = 1 / 60) {
     const R = this.reachReq;
     if (R && R.w > 0.001) {
-      const cur = this.req[R.side];
-      if (!cur || cur.w < R.w) {
-        this.boneFrame(this.t.index.spine_03, _q);
-        const along = _v.set(R.side === 'L' ? 0.3 : -0.3, -0.1, 1).normalize().applyQuaternion(_q).clone();
-        const palm = _v2.set(0, -0.3, 1).normalize().applyQuaternion(_q).clone();
-        this.req[R.side] = { w: R.w, pos: R.pos.clone(), along, palm, fingers: R.fingers };
-      }
+      this.boneFrame(this.t.index.spine_03, _q);
+      const along = _v.set(R.side === 'L' ? 0.3 : -0.3, -0.1, 1).normalize().applyQuaternion(_q).clone();
+      const palm = _v2.set(0, -0.3, 1).normalize().applyQuaternion(_q).clone();
+      this._mergeReq(R.side, { w: R.w, pos: R.pos.clone(), along, palm, fingers: R.fingers });
     }
+    // held items in view: each hand fades in / out over ~0.35 s (switching items or hands never snaps)
     const H = this.holdReq;
-    if (H) {
+    const HS = this._holdS || (this._holdS = { L: { w: 0, at: null }, R: { w: 0, at: null } });
+    const want = H ? (H.at === 'read' ? 'L' : H.at === 'clasp' ? 'R' : H.side) : null;
+    const k = 1 - Math.exp(-Math.max(dt, 1 / 240) / 0.12);
+    for (const sd of ['L', 'R']) {
+      const st = HS[sd];
+      if (sd === want) st.at = H.at;
+      st.w += ((sd === want ? 1 : 0) - st.w) * k;
+      if (st.w < 0.002 || !st.at) continue;
       const I = this.t.index;
       this.boneFrame(I.spine_03, _q);
       const pt = (x, y, z) => this.rig.worldPos(I.spine_03, new THREE.Vector3()).add(_v.set(x, y, z).multiplyScalar(this.scale).applyQuaternion(_q));
       const dir = (x, y, z) => new THREE.Vector3(x, y, z).normalize().applyQuaternion(_q);
-      if (H.at === 'read') this.req.L = { w: 1, pos: pt(0.02, 0.22, 0.36), along: dir(-0.1, 0.9, -0.2), palm: dir(0, 0.2, -1), fingers: 'pinch' };
-      else if (H.at === 'clasp') this.req.R = { w: 1, pos: pt(-0.02, 0.1, 0.24), along: dir(0.2, 0.9, 0.2), palm: dir(0.8, 0, -0.2), fingers: 'grip' };
-      else this.req[H.side] = { w: 1, pos: pt(-0.08, 0.02, 0.34), along: dir(0, 0.3, 1), palm: dir(0, 1, 0.2), fingers: 'pinch' };
+      const w = smoothstep(0, 1, st.w);
+      if (st.at === 'read') this._mergeReq('L', { w, pos: pt(0.02, 0.22, 0.36), along: dir(-0.1, 0.9, -0.2), palm: dir(0, 0.2, -1), fingers: 'pinch' });
+      else if (st.at === 'clasp') this._mergeReq('R', { w, pos: pt(-0.02, 0.1, 0.24), along: dir(0.2, 0.9, 0.2), palm: dir(0.8, 0, -0.2), fingers: 'grip' });
+      else this._mergeReq(sd, { w, pos: pt(sd === 'L' ? 0.08 : -0.08, 0.02, 0.34), along: dir(0, 0.3, 1), palm: dir(0, 1, 0.2), fingers: 'pinch' });
     }
   }
 
@@ -1267,11 +1292,11 @@ export class HumanoidGLB {
     H.updateMatrixWorld(true);
   }
 
-  /** Keep a hand target out of the torso (a capsule from the lower spine to the neck). */
+  /** Keep a hand target out of the torso (a capsule from the lower spine to the upper chest). */
   _clearTorso(p) {
     const I = this.t.index, rig = this.rig;
-    if (I.spine_01 === undefined || I.neck_01 === undefined) return;
-    const a = rig.worldPos(I.spine_01, _ct1), b = rig.worldPos(I.neck_01, _ct2);
+    if (I.spine_01 === undefined || I.spine_03 === undefined) return;
+    const a = rig.worldPos(I.spine_01, _ct1), b = rig.worldPos(I.spine_03, _ct2); // up to the chest (mouth / face gestures stay free)
     const ab = _ct3.copy(b).sub(a);
     const k = clamp(_ct4.copy(p).sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
     const c = a.addScaledVector(ab, k);
