@@ -324,7 +324,7 @@ function policeTape(a, b) {
   return { mesh, update };
 }
 
-/** A handheld news microphone with the station's flag (lathed body, extruded flag). */
+/** A handheld news microphone with a plain red flag (lathed body, extruded flag). */
 function microphone() {
   const g = new THREE.Group();
   const prof = [[0, -0.2], [0.012, -0.2], [0.014, -0.17], [0.017, -0.06], [0.019, -0.02], [0.022, -0.005], [0.024, 0.0]].map(([x, y]) => new THREE.Vector2(x, y));
@@ -339,11 +339,9 @@ function microphone() {
   const flagTex = canvasTex(256, 128, (x, w, h) => {
     x.fillStyle = '#b3121b';
     x.fillRect(0, 0, w, h);
-    x.fillStyle = '#fff';
-    x.font = `800 46px ${FONTS.title}`;
-    x.textAlign = 'center';
-    x.textBaseline = 'middle';
-    x.fillText('ราตรีทีวี', w / 2, h / 2 + 4);
+    // a plain flag: no station name or logo (owner)
+    x.fillStyle = 'rgba(0,0,0,0.18)';
+    x.fillRect(0, h - 10, w, 10);
   });
   const sq = new THREE.Shape();
   const r = 0.008, a2 = 0.034;

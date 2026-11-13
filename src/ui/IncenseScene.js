@@ -719,7 +719,7 @@ export class IncenseScene {
     this._updateFalling(dt);
     this._updateSparks(dt, ember, heat);
     if (this.grab) this._updateGrab(dt);
-    if (this.hand) this.hand.update(dt);
+    if (this.hand) this.hand.update(this.grab ? this._rawDt ?? dt : dt);
     this.shrine.update(dt);
 
     for (const s of this.smoke) s.update(dt, t, smokeAt, this.camera.position, emitting);
@@ -857,8 +857,14 @@ export class IncenseScene {
     g.knock = this.shrine.nearest(mid, 2);
     this.handRoot.position.copy(g.from);
     this.handRoot.visible = true;
-    this.hand.setCurl({ i: -0.15, m: -0.12, r: -0.1, p: -0.08, t: -0.05 }, 6);
+    // start already in the reaching pose (no visible settling the moment she appears)
+    const pose = { i: -0.15, m: -0.12, r: -0.1, p: -0.08, t: -0.05 };
+    this.hand.setCurl(pose, 6);
+    Object.assign(this.hand.curl, pose);
     this.hand.spreadT = 1;
+    this.hand.spread = 1;
+    this.hand.wristBend = 0.3;
+    this.hand.update(0);
     g.camTarget.set(grip.x + 0.015, grip.y + 0.03, grip.z);
     g.camDist = 0.5;
     return g.promise;
@@ -893,11 +899,11 @@ export class IncenseScene {
       // The wrist leads, the relaxed fingers trail.
       let k;
       if (T < 1.0) k = 0.66 * easeOut(clamp((T - 0.2) / 0.8, 0, 1));
-      else if (T < 1.3) k = 0.66 - 0.035 * Math.sin((Math.PI * (T - 1.0)) / 0.3);
+      else if (T < 1.3) k = 0.66 - 0.03 * Math.sin((Math.PI * (T - 1.0)) / 0.3) ** 2;
       else k = 0.66 + 0.34 * easeInOut(clamp((T - 1.3) / 0.6, 0, 1));
       hr.position.lerpVectors(g.from, g.near, k);
       hr.position.y += Math.sin(k * Math.PI) * 0.01;
-      H.wristBend = 0.3 * (1 - k);
+      g.wrist = 0.3 * (1 - k);
       if (T > 0.3 && !g.breathed) {
         g.breathed = true;
         this._cue('reach');
@@ -919,12 +925,12 @@ export class IncenseScene {
       // settle onto the stem; the fingers close one by one, the thumb last; the jolt snaps the ash
       const k = easeInOut(clamp((T - 1.9) / 0.24, 0, 1));
       hr.position.lerpVectors(g.near, g.wristAt, k);
-      H.wristBend = -0.05 * k;
+      g.wrist = -0.05 * k;
       const close = [['i', 1.95, 0.84], ['m', 2.02, 0.82], ['r', 2.09, 0.8], ['p', 2.16, 0.78], ['t', 2.24, 0.62]];
       g.fing ||= {};
       for (const [f, at, c] of close) if (T > at && !g.fing[f]) {
         g.fing[f] = true;
-        H.setCurl({ [f]: c }, 10);
+        H.setCurl({ [f]: c }, 7);
         if (f === 'i') {
           this._cue('grab');
           H.spreadT = 0.15;
@@ -952,7 +958,7 @@ export class IncenseScene {
       }
       hr.position.lerpVectors(g.wristAt, g.away, k);
       hr.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), dt * k * 0.7);
-      H.wristBend = -0.05 - 0.2 * Math.sin(Math.PI * k);
+      g.wrist = -0.05 - 0.2 * Math.sin(Math.PI * k);
       // the ash holds the foot of the stick for a moment: it bows, then springs free and whips
       const hold = clamp((T - 2.45) / 0.24, 0, 1);
       const bow = T < 2.69 ? Math.sin(Math.PI * hold) : 0;
@@ -977,8 +983,13 @@ export class IncenseScene {
         g.resolve();
       }
     }
+    const rdt = this._rawDt ?? dt;
+    H.wristBend += ((g.wrist ?? 0.3) - H.wristBend) * (1 - Math.exp(-rdt * 10));
     // a slight tremble all through: faint while reaching, strongest on the grip, fading in the pull
-    const tr = T < 1.9 ? 0.00016 : T < 2.45 ? 0.00034 : 0.00034 * Math.max(0, 1 - (T - 2.45) / 0.6);
+    // (its amplitude eases between the phases, so it never steps)
+    const trT = T < 1.9 ? 0.00016 : T < 2.45 ? 0.00034 : 0.00034 * Math.max(0, 1 - (T - 2.45) / 0.6);
+    g.tr = (g.tr ?? trT) + (trT - (g.tr ?? trT)) * (1 - Math.exp(-rdt * 8));
+    const tr = g.tr;
     hr.position.x += (Math.sin(T * 61) * 0.6 + Math.sin(T * 37 + 1) * 0.4) * tr;
     hr.position.y += (Math.sin(T * 47 + 2) * 0.6 + Math.sin(T * 29) * 0.4) * tr;
     // the free end of the stick: a damped spring

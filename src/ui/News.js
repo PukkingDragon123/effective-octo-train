@@ -1,6 +1,6 @@
 // The crash on the late-night news, a full (parody) Thai TV station; the player then wakes at the
 // last checkpoint and nothing on screen says "game over". About 33 s, Esc / B skips after 3 s:
-//   1. the programme sting      เรื่องเล่าตีสาม on ราตรีทีวี (both invented, parodying the genre)
+//   1. a short breaking-news sting (no station name, logo or clock anywhere: owner)
 //   2. the studio               a wide shot of the set and crew gear, then a medium on the anchor
 //                               (อรอุมา แสงเดือน) opening the story                   3D, NewsStudio.js
 //   3. the big screen           the crash photo on the studio screen, the headline lower third
@@ -30,7 +30,6 @@ export const NEWS_TICKER = [
 
 const ANCHOR = { name: 'อรอุมา แสงเดือน', role: 'ผู้ประกาศข่าว', voice: { gender: 'f', age: 34, pitch: 1.04, rate: 1.06 } };
 const REPORTER = { name: 'ชนินทร์ กล้าลุย', role: 'ผู้สื่อข่าว', voice: { gender: 'm', age: 31, pitch: 0.98, rate: 1.1 } };
-const SHOW = { th: 'เรื่องเล่าตีสาม', station: 'ราตรีทีวี' };
 const SCRIPT = {
   anchor: 'เอาล่ะค่ะ ข่าวด่วนคืนนี้ รถเสียหลักตกข้างทางบนถนนสายป่าค่ะ',
   reporter: ['ครับ ผมอยู่ที่จุดเกิดเหตุ รถพุ่งตกข้างทาง สภาพยับเยินครับ', 'พยานยืนยันว่ามีผู้โดยสาร แต่ในรถไม่พบใครเลยครับ'],
@@ -118,10 +117,7 @@ async function footage(image, W, H) {
   return c;
 }
 
-const pad2 = (n) => String(n).padStart(2, '0');
 
-const TH_D = '๐๑๒๓๔๕๖๗๘๙';
-const thd = (s) => String(s).replace(/[0-9]/g, (d) => TH_D[d]);
 
 export class NewsReport {
   constructor(ui) {
@@ -137,12 +133,6 @@ export class NewsReport {
     const H = Math.round(W * (window.innerHeight / Math.max(1, window.innerWidth)));
     const frame = await footage(o.image, W, H);
     frame.className = 'dlb-news__img';
-    const hr = Number.isFinite(ui._hour) ? ui._hour : null;
-    const d = new Date();
-    const hh = hr != null ? Math.floor(((hr % 24) + 24) % 24) : d.getHours();
-    const mm = hr != null ? Math.floor((hr % 1) * 60) : d.getMinutes();
-    const clock = `${pad2(hh)}:${pad2(mm)}`;
-    const place = o.place || 'ทางหลวงสายป่า';
     const [subTh, subEn] = String(o.sub || '').split(' · ');
 
     // ---- the overlay package -------------------------------------------------------------------
@@ -150,17 +140,10 @@ export class NewsReport {
     const strapName = h('b', { attrs: { lang: 'th' } });
     const strapRole = h('span', { attrs: { lang: 'th' } });
     const strap = h('div', { class: 'dlb-news__strap' }, h('i'), h('div', null, strapName, strapRole));
-    const live = h('div', { class: 'dlb-news__live2', attrs: { lang: 'th' } }, h('span', { class: 'chip' }, h('i'), 'สด'), h('span', null, `${place}`));
-    const bug = h('div', { class: 'dlb-news__bug2' },
-      h('span', { class: 'mark', html: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="currentColor"/><circle cx="31" cy="17" r="14.5" fill="#0b0d12"/><path d="M21.6 44 23.4 25h1.2l1.8 19z" fill="#c8161d"/></svg>' }),
-      h('span', { class: 'name', attrs: { lang: 'th' } }, SHOW.th),
-      h('span', { class: 'time' }, thd(clock)));
     const sting = h('div', { class: 'dlb-news__sting' },
       h('div', { class: 'st-bars' }, h('i'), h('i'), h('i')),
       h('div', { class: 'st-title' },
-        h('div', { class: 'st-station', attrs: { lang: 'th' } }, SHOW.station, h('span', null, 'เสนอ')),
-        h('div', { class: 'st-show', attrs: { lang: 'th' } }, SHOW.th),
-        h('div', { class: 'st-breaking', attrs: { lang: 'th' } }, 'ข่าวด่วนกลางดึก')));
+        h('div', { class: 'st-show', attrs: { lang: 'th' } }, 'ข่าวด่วน')));
     const el = screen('dlb-news',
       stage,
       h('div', { class: 'dlb-news__cut' },
@@ -169,9 +152,9 @@ export class NewsReport {
         h('div', { class: 'dlb-news__lower' },
           h('div', { class: 'dlb-news__kicker' },
             h('span', { class: 'dlb-news__tag', attrs: { lang: 'th' } }, 'ข่าวด่วน'),
-            h('span', { class: 'dlb-news__kick', attrs: { lang: 'th' } }, `${o.place || 'ภาพจากที่เกิดเหตุ'}  ·  ${thd(pad2(hh))}.${thd(pad2(mm))} น.`)),
+            h('span', { class: 'dlb-news__kick', attrs: { lang: 'th' } }, o.place || 'ภาพจากที่เกิดเหตุ')),
           h('div', { class: 'dlb-news__head' }, h('h2', { attrs: { lang: 'th' } }, o.th || '')))),
-      bug, live, strap, sting,
+      strap, sting,
       h('div', { class: 'dlb-news__black' }));
     this.el = el;
     ui.layer.appendChild(el);
@@ -214,7 +197,7 @@ export class NewsReport {
     const showStrap = (who) => {
       if (who) {
         strapName.textContent = who.name;
-        strapRole.textContent = `${who.role} · ${SHOW.th}`;
+        strapRole.textContent = who.role;
       }
       strap.classList.toggle('is-on', !!who);
     };
@@ -259,7 +242,7 @@ export class NewsReport {
     el.hidden = false;
     void el.offsetWidth;
     await nextFrame();
-    el.classList.add('is-in', studio ? 'is-3d' : 'is-2d', 'has-bug');
+    el.classList.add('is-in', studio ? 'is-3d' : 'is-2d');
     const L = { anchor: o.lines?.anchor || SCRIPT.anchor, reporter: o.lines?.reporter || [SCRIPT.reporter[0], subTh || SCRIPT.reporter[1]], wrap: o.lines?.wrap || SCRIPT.wrap };
 
     // 1. sting
@@ -298,13 +281,11 @@ export class NewsReport {
       studio?.setShot('field');
       await wait(200);
       showStrap(REPORTER);
-      live.classList.add('is-on');
       for (let i = 0; i < L.reporter.length && !skipped; i++) {
         await say(REPORTER, L.reporter[i], i === 1 ? subEn : '', 5, 'reporter');
         if (!skipped && !o._hold) await segWait(250);
       }
       nextSeg();
-      live.classList.remove('is-on');
       showStrap(null);
     }
     // 5. back to the studio
@@ -318,7 +299,6 @@ export class NewsReport {
       showStrap(null);
     }
     ui.clearSubtitle();
-    el.classList.remove('has-bug');
     // ---- out ---------------------------------------------------------------------------------------
     try {
       audio.voice?.stop?.();

@@ -359,6 +359,8 @@ export class HumanoidGLB {
     this.footBasis = { L: makeEndBasis(rig, 'foot_l', Z, Y), R: makeEndBasis(rig, 'foot_r', Z, Y) };
     this.ik = { hand: { L: this._slot(), R: this._slot() }, foot: { L: this._slot(), R: this._slot() } };
     this.req = { L: null, R: null, FL: null, FR: null }; // per-frame procedural IK requests (actions)
+    this._ikPrev = { L: { p: new THREE.Vector3(), has: false }, R: { p: new THREE.Vector3(), has: false } };
+    this._poleS = { L: { d: new THREE.Vector3(), has: false }, R: { d: new THREE.Vector3(), has: false } };
     this.lookS = { target: null, weight: 0, w: 0, speed: 4, eyesOnly: false, unlimited: false, yaw: 0, pitch: 0, eyeYaw: 0, eyePitch: 0, sacT: 0, sacY: 0, sacP: 0, pos: new THREE.Vector3(), has: false, lock: 0 };
     this.faceS = { blinkT: 1 + Math.random() * 3, blinking: 0, jaw: 0, jawT: 0, talkT: 0, talk: false, amp: 1, expr: { smile: 0, sad: 0, fear: 0, anger: 0, creepy: 0, surprise: 0 }, closed: 0 };
     this.groundFn = null;
@@ -760,10 +762,26 @@ export class HumanoidGLB {
     this._updateMouth(dt);
     this._hair(dt);
     this._heldProps(dt);
+    this._applyFingers(dt);
     this._idleLife(dt);
     if (this.ghostLayer.v.stutter > 0.01) this._stutter(dt);
     this.inner.updateMatrixWorld(true);
     this._outputs();
+  }
+
+  /** Ease every finger joint toward this frame's accumulated curl target (≈ 80 ms), then apply it. */
+  _applyFingers(dt) {
+    const acc = this._fAcc || (this._fAcc = new Map());
+    const cur = this._fCur || (this._fCur = new Map());
+    const k = dt > 0 ? 1 - Math.exp(-dt / 0.08) : 1;
+    for (const [key, e] of acc) if (!cur.has(key)) cur.set(key, { i: e.i, axis: e.axis, a: 0 });
+    for (const [key, c] of cur) {
+      const target = acc.get(key)?.a ?? 0;
+      c.a += (target - c.a) * k;
+      if (Math.abs(c.a) < 1e-4 && !acc.has(key)) { cur.delete(key); continue; }
+      this.rig.addAxis(c.i, c.axis, c.a);
+    }
+    acc.clear();
   }
 
   /**
@@ -1161,8 +1179,12 @@ export class HumanoidGLB {
           // pose): no snap when its weight crosses the grip's
           reqK = smoothstep(0, 1, req.w / Math.max(1e-3, Math.max(w, req.w)));
           pos = _vb[s].copy(pos).lerp(req.pos, reqK);
-          if (along && req.along) along = _va2[s].copy(along).lerp(req.along, reqK).normalize(); else along = req.along || along;
-          if (palm && req.palm) palm = _vp2[s].copy(palm).lerp(req.palm, reqK).normalize(); else palm = req.palm || palm;
+          if (along && palm && req.along && req.palm) {
+            // slerp the whole hand frame (a lerp of two near-opposite directions collapses: a wrist flip)
+            frameQuat(along, palm, _fq1).slerp(frameQuat(req.along, req.palm, _fq2), reqK);
+            along = _va2[s].set(0, 0, 1).applyQuaternion(_fq1);
+            palm = _vp2[s].set(0, 1, 0).applyQuaternion(_fq1);
+          } else { along = req.along || along; palm = req.palm || palm; }
           if (req.pole && reqK > 0.5) pole = req.pole;
           reqFingers = req.fingers || null;
           reqGrip = req.grip ?? 0;
@@ -1171,6 +1193,12 @@ export class HumanoidGLB {
       }
       if (pos && w > 0.002) {
         const ch = this.chains[s];
+        // a target that TELEPORTS (> 12 cm in one frame: a new request, a respawned prop) is eased in; a grip
+        // riding a moving wheel / bar (a few cm a frame) is followed exactly, so hands never float off it
+        const prev = this._ikPrev[s];
+        if (prev.has && prev.p.distanceTo(pos) > 0.12 * this.scale) pos = _vb[s].copy(prev.p).lerp(pos, 0.45);
+        prev.p.copy(pos);
+        prev.has = true;
         // wrist target: back off from the grip point along the hand
         _v.copy(pos);
         if (along) {
@@ -1178,18 +1206,26 @@ export class HumanoidGLB {
           _v.addScaledVector(along, -hl);
           if (palm) _v.addScaledVector(palm, -0.02 * this.scale);
         }
+        this._clearTorso(_v);
+        rig.worldPos(ch.ia, _v2);
         if (!pole) {
+          // elbows down, out and a little back
           this.boneFrame(I.spine_03, _q);
-          rig.worldPos(ch.ia, _v2);
           _v3.set(s === 'L' ? 0.4 : -0.4, -0.5, -0.35).applyQuaternion(_q).add(_v2);
           pole = _v3;
         }
+        // the pole direction (from the shoulder) is smoothed: the elbow never jumps to the other side
+        const ps = this._poleS[s];
+        _v4.copy(pole).sub(_v2).normalize();
+        if (!ps.has) { ps.d.copy(_v4); ps.has = true; } else ps.d.lerp(_v4, 1 - Math.exp(-14 * Math.max(dt, 1 / 120))).normalize();
+        pole = _vpole[s].copy(_v2).addScaledVector(ps.d, 0.4 * this.scale);
         solveTwoBone(rig, ch, _v, pole, w, this.scale);
         if (along && palm) {
-          // soft wrists: the hand takes 88 % of the target orientation (a held wheel or bar still reads
-          // gripped, but the wrist never locks rigidly against the forearm)
-          setEndRotation(rig, this.handBasis[s], along, palm, w * 0.88);
-          this._spreadTwist(s, w * 0.88);
+          // the hand takes the full target orientation (on its grip), then the wrist is kept inside human
+          // limits: no flips, no wrung forearm
+          setEndRotation(rig, this.handBasis[s], along, palm, w);
+          this._spreadTwist(s, w);
+          this._limitWrist(s);
         }
       }
       const fw = grip > 0.01 || fingers || reqK > 0;
@@ -1207,6 +1243,46 @@ export class HumanoidGLB {
    * wrapper. Half of the hand's twist about the forearm axis goes to the forearm (rotating about its own
    * axis keeps the elbow and wrist in place) and the wrist keeps at most ±80° of it.
    */
+  /** Clamp the wrist (hand vs forearm): swing at most ~80°, twist at most ~85° (after the forearm roll). */
+  _limitWrist(s) {
+    const t = this.t, rig = this.rig, I = t.index;
+    const ih = I[s === 'L' ? 'hand_l' : 'hand_r'];
+    if (ih === undefined) return;
+    const H = rig.bones[ih];
+    const ax = _v4.copy(t.restPos[ih]).normalize();
+    const dev = _q.copy(H.quaternion).multiply(_q2.copy(t.restQuat[ih]).invert()); // deviation in the forearm frame
+    const d = dev.x * ax.x + dev.y * ax.y + dev.z * ax.z;
+    const tw = _q3.set(ax.x * d, ax.y * d, ax.z * d, dev.w);
+    if (tw.lengthSq() < 1e-12) tw.identity(); else tw.normalize();
+    const swing = _fq1.copy(dev).multiply(_fq2.copy(tw).invert());
+    const sAng = 2 * Math.acos(Math.min(1, Math.abs(swing.w)));
+    let tAng = 2 * Math.atan2(d, dev.w);
+    if (tAng > Math.PI) tAng -= Math.PI * 2;
+    if (tAng < -Math.PI) tAng += Math.PI * 2;
+    const S_MAX = 1.4, T_MAX = 1.5;
+    if (sAng <= S_MAX && Math.abs(tAng) <= T_MAX) return;
+    if (sAng > S_MAX) swing.slerp(_fq2.identity(), 1 - S_MAX / sAng);
+    if (Math.abs(tAng) > T_MAX) tw.setFromAxisAngle(ax, Math.sign(tAng) * T_MAX);
+    H.quaternion.copy(swing).multiply(tw).multiply(t.restQuat[ih]);
+    H.updateMatrixWorld(true);
+  }
+
+  /** Keep a hand target out of the torso (a capsule from the lower spine to the neck). */
+  _clearTorso(p) {
+    const I = this.t.index, rig = this.rig;
+    if (I.spine_01 === undefined || I.neck_01 === undefined) return;
+    const a = rig.worldPos(I.spine_01, _ct1), b = rig.worldPos(I.neck_01, _ct2);
+    const ab = _ct3.copy(b).sub(a);
+    const k = clamp(_ct4.copy(p).sub(a).dot(ab) / Math.max(1e-6, ab.lengthSq()), 0, 1);
+    const c = a.addScaledVector(ab, k);
+    const r = 0.12 * this.scale;
+    const off = _ct4.copy(p).sub(c);
+    const dd = off.length();
+    if (dd >= r) return;
+    if (dd < 1e-4) { this.boneFrame(I.spine_03, _q); off.set(0, 0, 1).applyQuaternion(_q); } else off.multiplyScalar(1 / dd);
+    p.copy(c).addScaledVector(off, r);
+  }
+
   _spreadTwist(s, w) {
     const t = this.t, rig = this.rig, I = t.index;
     const ia = I[s === 'L' ? 'lowerarm_l' : 'lowerarm_r'], ih = I[s === 'L' ? 'hand_l' : 'hand_r'];
@@ -1230,9 +1306,13 @@ export class HumanoidGLB {
 
   /** finger poses (additive local curls). preset: grip | point | flat | wai | cig | beckon | spread | claw */
   _fingers(s, preset, w, phase = 0) {
-    const rig = this.rig, I = this.t.index;
+    const I = this.t.index;
     const sx = s === 'L' ? 1 : -1;
     const ax = _fa[s] || (_fa[s] = new THREE.Vector3(0, 0, -sx));
+    // every curl goes into this frame's TARGET (accumulated per joint); _applyFingers() eases the joints
+    // toward it, so presets cross-fade instead of snapping
+    const acc = this._fAcc || (this._fAcc = new Map());
+    const rig = { addAxis: (i, axis, a) => { if (i === undefined || !a) return; const key = i * 2 + (axis === ax ? 0 : 1); const e = acc.get(key); if (e) e.a += a; else acc.set(key, { i, axis, a }); } };
     const curl = (f, a1, a2, a3) => {
       const n = (k) => I[`${f}_0${k}_${s.toLowerCase()}`];
       rig.addAxis(n(1), ax, a1 * w); rig.addAxis(n(2), ax, a2 * w); rig.addAxis(n(3), ax, a3 * w);
@@ -1425,6 +1505,18 @@ export class HumanoidGLB {
 
 const _vd = new THREE.Vector3();
 const _va = { L: new THREE.Vector3(), R: new THREE.Vector3() }, _vp = { L: new THREE.Vector3(), R: new THREE.Vector3() };
+const _vpole = { L: new THREE.Vector3(), R: new THREE.Vector3() };
+const _fq1 = new THREE.Quaternion(), _fq2 = new THREE.Quaternion(), _fm = new THREE.Matrix4();
+const _ct1 = new THREE.Vector3(), _ct2 = new THREE.Vector3(), _ct3 = new THREE.Vector3(), _ct4 = new THREE.Vector3();
+/** quaternion of the frame (x = palm x along, y = palm made orthogonal, z = along) */
+function frameQuat(along, palm, out) {
+  const z = _ct1.copy(along).normalize();
+  const y = _ct2.copy(palm).addScaledVector(z, -palm.dot(z));
+  if (y.lengthSq() < 1e-10) y.set(z.y, z.z, z.x).addScaledVector(z, -z.dot(_ct3.set(z.y, z.z, z.x)));
+  y.normalize();
+  const x = _ct3.crossVectors(y, z);
+  return out.setFromRotationMatrix(_fm.makeBasis(x, y, z));
+}
 const _vb = { L: new THREE.Vector3(), R: new THREE.Vector3() }, _va2 = { L: new THREE.Vector3(), R: new THREE.Vector3() }, _vp2 = { L: new THREE.Vector3(), R: new THREE.Vector3() };
 const _fa = {}, _ta = {};
 
