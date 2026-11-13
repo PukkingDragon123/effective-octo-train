@@ -178,7 +178,7 @@ export function createNoodleStall(opts = {}) {
   // ---- clutter: crates, trash bag, bucket, broom, a sleeping dog's mat ----------------------------
   k.details(() => {
     crate(k, { p: [2.4, 0, -1.6], kind: 'plastic', color: 0xa82a1a, r: 0.3 });
-    crate(k, { p: [2.4, 0.3, -1.6], kind: 'plastic', color: 0x2a6a3a, r: 0.1 });
+    crate(k, { p: [2.4, 0.3, -1.6], kind: 'plastic', color: 0x2a6a3a, r: 0.1, alt: true });
     trashBag(k, { p: [-2.6, 0, -1.5], s: 0.7 });
     k.add(mat('plastic'), G('bucketN', () => lathe([[0, 0], [0.13, 0], [0.15, 0.28], [0.145, 0.28], [0.125, 0.01], [0, 0.01]], 14)), { p: [-1.75, 0, -1.4], color: 0x2a8a9a, w: { grime: 0.5 } });
     k.add(mat('cloth_static'), G('dogmat', () => bevelBox(0.7, 0.03, 0.5, 0.015, 0.1)), { p: [2.3, 0, 0.6], r: 0.3, color: 0x6a5a48, jitter: 0.01, jitterFreq: 12, w: { grime: 0.4 } });

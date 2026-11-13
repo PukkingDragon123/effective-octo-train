@@ -30,7 +30,7 @@ const CLEAR_HEIGHT = 4.5; // nothing below this hangs over the asphalt (m above 
 const CLEAR_THIN_E = 6; // undergrowth within this of the asphalt edge is thinned ...
 const CLEAR_THIN = 0.15; // ... by this fraction (owner: keep it dense)
 const CLEAR_KNEE_E = 5; // grass this close to the road is knee high
-const UNDERGROWTH = new Set(['fern', 'grass', 'shrub', 'elephantEar', 'banana', 'treeFern', 'understory', 'bamboo', 'palm']);
+const UNDERGROWTH = new Set(['fern', 'grass', 'shrub', 'elephantEar', 'ginger', 'banana', 'treeFern', 'understory', 'bamboo', 'palm']);
 const cellKey = (ix, iz) => (ix + 4096) * 8192 + (iz + 4096);
 
 /** Undo three's back-face normal flip so crown-bent normals light both card sides alike. */
@@ -216,7 +216,7 @@ export class Forest {
 
   _leafMatFor(name) {
     if (name.startsWith('edge')) return this.mats.ground;
-    if (name === 'fern' || name === 'grass' || name === 'elephantEar' || name === 'shrub') return this.mats.ground;
+    if (name === 'fern' || name === 'grass' || name === 'elephantEar' || name === 'shrub' || name === 'ginger') return this.mats.ground;
     if (name === 'vine') return this.mats.vine;
     return this.mats.leaves;
   }
@@ -669,7 +669,8 @@ export class Forest {
           if (e < CLEAR_THIN_E && rng() < CLEAR_THIN) return null; // thinner undergrowth near the road
           if (name === 'grass' && e < CLEAR_KNEE_E) {
             // knee-high grass on the shoulders: short looks only, cut down
-            if (variantIdx % recs.length === 2) rec = recs[0];
+            const lk = SPECIES.grass.looks;
+            if (lk[(variantIdx % recs.length) % lk.length] === 1) rec = recs[0];
             o = { ...o, sy: Math.min(o.sy ?? 1, 0.5) };
           }
         }
@@ -1152,30 +1153,42 @@ export class Forest {
           }
         }
       }
-      // ---------------- ground cover: 1.25 m grid ------------------------------------
+      // ---------------- ground cover: 1.25 m grid, in layers and colonies ---------------
+      // Layers by distance from the asphalt: a low verge (grass, small ferns), a mid layer (ferns,
+      // shrubs, wild ginger, elephant ears) and a taller, denser back layer that closes the view.
+      // Every species grows in its own noise-field colonies (fern drifts, grass in light gaps,
+      // shrub thickets, ginger stands) instead of a salt-and-pepper mix, with per-plant size,
+      // squash and tilt so no two neighbours repeat.
+      const nzS = (a, b, f) => nz.noise2D(a / f, b / f) * 0.5 + 0.5;
       for (let gz = tz0 + 0.625; gz < tz0 + TS; gz += 1.25) {
         for (let gx = tx0 + 0.625; gx < tx0 + TS; gx += 1.25) {
           const x = gx + (rng() - 0.5) * 1.0, z = gz + (rng() - 0.5) * 1.0;
-          if (T._coarseDist(x, z) > 34) continue;
+          if (T._coarseDist(x, z) > 40) continue;
           const nr = T.nearestRoad(x, z);
           if (!nr.sp || nr.e < 0.3) continue;
           const e = nr.e;
-          if (e > 28) continue;
+          if (e > 34) continue;
           const wat = this._water(x, z);
           if (wat < -0.5) continue;
           const blk = this._blocked(x, z, 0.3);
           const r = rng();
-          const dens = 0.75 + 0.5 * (nz.noise2D(x / 18, z / 18) * 0.5 + 0.5);
-          let pg, pf, ps, pe;
+          const dens = 0.75 + 0.5 * nzS(x, z, 18);
+          // colony fields (0..1)
+          const cF = nzS(x + 311, z - 97, 9), cG = nzS(x - 731, z + 177, 7), cS = nzS(x + 557, z + 291, 13), cK = nzS(x - 171, z - 411, 11);
+          let pg, pf, ps, pk, pe;
           if (e < 1.3) {
-            pg = 0.16; pf = 0.02; ps = 0; pe = 0;
-          } else if (e < 7.5) {
-            pg = 0.3; pf = 0.24; ps = 0.1; pe = 0.035;
-          } else if (e < 18) {
-            pg = 0.1; pf = 0.26; ps = 0.08; pe = 0.02;
+            pg = 0.16; pf = 0.02; ps = 0; pk = 0; pe = 0;
+          } else if (e < 6.5) {
+            pg = 0.28; pf = 0.2; ps = 0.06; pk = 0.03; pe = 0.03;
+          } else if (e < 14) {
+            pg = 0.09; pf = 0.26; ps = 0.13; pk = 0.09; pe = 0.03;
           } else {
-            pg = 0.03; pf = 0.12; ps = 0.05; pe = 0;
+            pg = 0.03; pf = 0.18; ps = 0.15; pk = 0.12; pe = 0.02;
           }
+          pg *= 0.35 + 1.3 * cG;
+          pf *= 0.3 + 1.4 * cF;
+          ps *= 0.25 + 1.5 * cS;
+          pk *= Math.max(0, cK - 0.42) * 3.4;
           if (wat < 6) {
             pe += 0.2;
             pf += 0.1;
@@ -1184,15 +1197,20 @@ export class Forest {
             if (!blk.soft) continue;
             pf *= 0.3;
             ps = 0;
+            pk = 0;
             pe *= 0.3;
             pg *= 1.2;
           }
           const k = r / dens;
           const yaw = rng() * 6.28;
-          if (k < pg) this._place('grass', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng, { tiltX: (rng() - 0.5) * 0.2, clear: true });
-          else if (k < pg + pf) this._place('fern', Math.floor(rng() * 3), x, z, yaw, 0.7 + rng() * 0.6, rng, { clear: true });
-          else if (k < pg + pf + ps) this._place('shrub', Math.floor(rng() * 3), x, z, yaw, 0.8 + rng() * 0.5, rng, { clear: true });
-          else if (k < pg + pf + ps + pe) this._place('elephantEar', Math.floor(rng() * 2), x, z, yaw, 0.8 + rng() * 0.5, rng, { clear: true });
+          const back = e > 14 ? 1 : e > 6.5 ? 0.5 : 0; // the back layer grows taller
+          const vary = { sy: 0.85 + rng() * 0.35, tiltX: (rng() - 0.5) * 0.14, tiltZ: (rng() - 0.5) * 0.14, clear: true };
+          const v = Math.floor(rng() * 20);
+          if (k < pg) this._place('grass', v, x, z, yaw, 0.8 + rng() * 0.5, rng, { ...vary, tiltX: (rng() - 0.5) * 0.2 });
+          else if (k < pg + pf) this._place('fern', v, x, z, yaw, (0.65 + rng() * 0.5) * (0.9 + cF * 0.25) * (1 + back * 0.2), rng, vary);
+          else if (k < pg + pf + ps) this._place('shrub', v, x, z, yaw, (0.75 + rng() * 0.5) * (1 + back * 0.25), rng, vary);
+          else if (k < pg + pf + ps + pk) this._place('ginger', v, x, z, yaw, (0.75 + rng() * 0.45) * (1 + back * 0.15), rng, vary);
+          else if (k < pg + pf + ps + pk + pe) this._place('elephantEar', v, x, z, yaw, 0.8 + rng() * 0.5, rng, vary);
         }
       }
     }

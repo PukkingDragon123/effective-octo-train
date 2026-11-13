@@ -81,6 +81,15 @@ export const PROP_ASSETS = {
   plastic_bottle_gallon: { path: 'polyhaven/plastic_bottle_gallon.glb' },
   wall_clock: { path: 'polyhaven/wall_clock.glb', shadows: false },
   portable_cassette_player: { path: 'polyhaven/portable_cassette_player.glb', shadows: false },
+  // food, drink and clutter (polyhaven.com, CC0; fictional labels only): see docs/credits/polyhaven.md
+  long_life_food: { path: 'polyhaven/long_life_food.glb', shadows: false },
+  multi_cleaner_bottle: { path: 'polyhaven/multi_cleaner_bottle.glb', shadows: false },
+  plastic_crate_03: { path: 'polyhaven/plastic_crate_03.glb', alpha: true },
+  plastic_container: { path: 'polyhaven/plastic_container.glb' },
+  Barrel_02: { path: 'polyhaven/Barrel_02.glb' },
+  wooden_crate_02: { path: 'polyhaven/wooden_crate_02.glb' },
+  food_lychee_01: { path: 'polyhaven/food_lychee_01.glb', shadows: false },
+  food_pears_asian_01: { path: 'polyhaven/food_pears_asian_01.glb', shadows: false },
 };
 
 const ready = new Map(); // id -> { parts:[{geo, mat}], size: Vector3 }
@@ -220,14 +229,33 @@ function findShelves(parts, size) {
       if (area2 < 1e-9 || n.y / area2 < 0.95) continue;
       const y = (a.y + b.y + c.y) / 3;
       const key = Math.round(y / bin);
-      bins.set(key, (bins.get(key) || 0) + area2 / 2);
+      let e = bins.get(key);
+      if (!e) bins.set(key, (e = { area: 0, ya: 0, top: -Infinity }));
+      e.area += area2 / 2;
+      e.ya += y * (area2 / 2);
+      e.top = Math.max(e.top, a.y, b.y, c.y);
     }
   }
+  // a board whose top straddles two bins: merge neighbours first, then take the exact surface height
+  // (area-weighted mean + a hair, capped at the group's highest up-facing vertex)
   const foot = size.x * size.z;
-  const keys = [...bins.keys()].filter((key) => key * bin > 0.05 && bins.get(key) >= foot * 0.3).sort((x, y) => x - y);
-  const out = [];
+  const keys = [...bins.keys()].sort((x, y) => x - y);
+  const groups = [];
   for (const key of keys) {
-    const y = key * bin;
+    const e = bins.get(key);
+    const g = groups[groups.length - 1];
+    if (g && key - g.last <= 1) {
+      g.area += e.area;
+      g.ya += e.ya;
+      g.top = Math.max(g.top, e.top);
+      g.last = key;
+    } else groups.push({ area: e.area, ya: e.ya, top: e.top, last: key });
+  }
+  const out = [];
+  for (const g of groups) {
+    if (g.area < foot * 0.3) continue;
+    const y = Math.min(g.top, g.ya / g.area + 0.006);
+    if (y <= 0.05) continue;
     if (out.length && y - out[out.length - 1] < 0.08) out[out.length - 1] = y;
     else out.push(y);
   }

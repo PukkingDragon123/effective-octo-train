@@ -143,7 +143,7 @@ export function createSpiritHouse(opts = {}) {
       }
       dancers(k, { p: [0.24, 0, front - 0.1], n: 1, size: 1.0 });
       dancers(k, { p: [-0.24, 0, front - 0.1], n: 1, size: 1.0 });
-      fruitPlate(k, { p: [-0.12, 0, front - 0.1], kind: rng() < 0.5 ? 'banana' : 'orange', s: 0.7, seed: seed + 3 });
+      fruitPlate(k, { p: [-0.12, 0, front - 0.1], kind: ['banana', 'orange', 'lychee', 'pear'][Math.floor(rng() * 4)], s: 0.7, seed: seed + 3 });
       glassWater(k, { p: [0.12, 0, front - 0.1], s: 0.8 });
       if (style === 'thai') garland(k, { p: [0, 0.55, 0.17], len: 0.12, s: 0.9 });
     }
@@ -284,7 +284,7 @@ function buildChineseShrine(k, rng, age, opts, group, out) {
   incensePot(k, { p: [0, deck, 0.22], rad: 0.06, metal: true, color: 0xb08a40, sticks: 14, seed: 4 });
   for (const s of [-1, 1]) {
     teacup(k, { p: [s * 0.12, deck, 0.22] });
-    fruitPlate(k, { p: [s * 0.25, deck, 0.2], kind: 'orange', s: 0.65, seed: 7 + s });
+    fruitPlate(k, { p: [s * 0.25, deck, 0.2], kind: s < 0 ? 'orange' : 'lychee', s: 0.65, seed: 7 + s });
   }
   // red lamp bulbs in little lotus holders (emissive)
   const lampMat = glowMat('red');

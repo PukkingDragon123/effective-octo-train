@@ -213,6 +213,174 @@ function backdrop() {
   return g;
 }
 
+/** A roadside delineator post (lathed: flanged foot, tapered shaft, rounded cap, red bands). */
+function post() {
+  const prof = [[0, 0], [0.09, 0], [0.09, 0.012], [0.05, 0.03], [0.042, 0.06], [0.036, 0.95], [0.03, 0.985], [0.016, 1.0], [0, 1.003]].map(([x, y]) => new THREE.Vector2(x, y));
+  const g = new THREE.LatheGeometry(prof, 32);
+  const col = new Float32Array(g.attributes.position.count * 3);
+  for (let i = 0; i < g.attributes.position.count; i++) {
+    const y = g.attributes.position.getY(i);
+    const band = (y > 0.72 && y < 0.8) || (y > 0.86 && y < 0.93);
+    col.set(band ? [0.75, 0.08, 0.06] : [0.85, 0.84, 0.8], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 }));
+}
+
+/** Police tape strung between a and b with a sag; returns {mesh, update(t)} (it flutters). */
+function policeTape(a, b) {
+  const tex = canvasTex(1024, 64, (x, w, h) => {
+    x.fillStyle = '#f2c81a';
+    x.fillRect(0, 0, w, h);
+    x.fillStyle = '#111';
+    x.fillRect(0, 0, w, 6);
+    x.fillRect(0, h - 6, w, 6);
+    x.font = `700 34px ${FONTS.sign}`;
+    x.textBaseline = 'middle';
+    for (let i = 0; i < 3; i++) x.fillText('เขตเกิดเหตุ ห้ามผ่าน', 20 + i * 345, h / 2 + 2);
+  });
+  tex.wrapS = THREE.RepeatWrapping;
+  const N = 80, W = 0.07;
+  const len = a.distanceTo(b);
+  tex.repeat.set(len / 1.6, 1);
+  const pos = new Float32Array((N + 1) * 2 * 3), uv = new Float32Array((N + 1) * 2 * 2), idx = [];
+  for (let i = 0; i <= N; i++) {
+    uv.set([i / N, 0, i / N, 1], i * 4);
+    if (i < N) idx.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, side: THREE.DoubleSide }));
+  mesh.frustumCulled = false;
+  const p = new THREE.Vector3();
+  const update = (t) => {
+    for (let i = 0; i <= N; i++) {
+      const k = i / N;
+      p.lerpVectors(a, b, k);
+      const env = Math.sin(Math.PI * k);
+      p.y -= 0.12 * env;
+      const tw = Math.sin(t * 5.3 + k * 9) * 0.5 * env; // twist in the night wind
+      const flap = Math.sin(t * 3.1 + k * 13) * 0.012 * env;
+      for (let s2 = 0; s2 < 2; s2++) {
+        const o = (i * 2 + s2) * 3, sgn = s2 ? 0.5 : -0.5;
+        pos[o] = p.x;
+        pos[o + 1] = p.y + sgn * W * Math.cos(tw);
+        pos[o + 2] = p.z + sgn * W * Math.sin(tw) + flap;
+      }
+    }
+    geo.attributes.position.needsUpdate = true;
+    geo.computeVertexNormals();
+  };
+  update(0);
+  return { mesh, update };
+}
+
+/** A handheld news microphone with the station's flag (lathed body, extruded flag). */
+function microphone() {
+  const g = new THREE.Group();
+  const prof = [[0, -0.2], [0.012, -0.2], [0.014, -0.17], [0.017, -0.06], [0.019, -0.02], [0.022, -0.005], [0.024, 0.0]].map(([x, y]) => new THREE.Vector2(x, y));
+  const body = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), new THREE.MeshStandardMaterial({ color: 0x1a1b1e, roughness: 0.35, metalness: 0.5 }));
+  const ball = [];
+  for (let i = 0; i <= 12; i++) {
+    const a = (i / 12) * Math.PI * 0.5;
+    ball.push(new THREE.Vector2(Math.cos(a) * 0.027, Math.sin(a) * 0.03));
+  }
+  const grille = new THREE.Mesh(new THREE.LatheGeometry(ball, 28), new THREE.MeshStandardMaterial({ color: 0x5a5c60, roughness: 0.45, metalness: 0.8 }));
+  grille.position.y = 0.0;
+  const flagTex = canvasTex(256, 128, (x, w, h) => {
+    x.fillStyle = '#b3121b';
+    x.fillRect(0, 0, w, h);
+    x.fillStyle = '#fff';
+    x.font = `800 46px ${FONTS.title}`;
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillText('ราตรีทีวี', w / 2, h / 2 + 4);
+  });
+  const sq = new THREE.Shape();
+  const r = 0.008, a2 = 0.034;
+  sq.moveTo(-a2 + r, -a2);
+  sq.lineTo(a2 - r, -a2);
+  sq.quadraticCurveTo(a2, -a2, a2, -a2 + r);
+  sq.lineTo(a2, a2 - r);
+  sq.quadraticCurveTo(a2, a2, a2 - r, a2);
+  sq.lineTo(-a2 + r, a2);
+  sq.quadraticCurveTo(-a2, a2, -a2, a2 - r);
+  sq.lineTo(-a2, -a2 + r);
+  sq.quadraticCurveTo(-a2, -a2, -a2 + r, -a2);
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, 0.0185, 0, Math.PI * 2, true);
+  sq.holes.push(hole);
+  const flagG = new THREE.ExtrudeGeometry(sq, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.003, bevelSegments: 2 });
+  flagG.rotateX(Math.PI / 2);
+  // project the flag artwork onto its four sides
+  const fp = flagG.attributes.position, fuv = flagG.attributes.uv;
+  for (let i = 0; i < fp.count; i++) {
+    const x = fp.getX(i), y = fp.getY(i), z = fp.getZ(i);
+    const u = Math.abs(x) > Math.abs(z) ? (z / 0.068 + 0.5) : (x / 0.068 + 0.5);
+    fuv.setXY(i, u, 1 - (-y / 0.05));
+  }
+  const flag = new THREE.Mesh(flagG, new THREE.MeshStandardMaterial({ map: flagTex, roughness: 0.4 }));
+  flag.position.y = -0.03;
+  g.add(body, grille, flag);
+  return g;
+}
+
+/** The crash site at night: asphalt, the wreck photo far behind, posts and tape, police lights. */
+function fieldScene(image) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x030406);
+  scene.fog = new THREE.FogExp2(0x05070a, 0.07);
+  const asphalt = canvasTex(1024, 1024, (x, w, h) => {
+    x.fillStyle = '#17181a';
+    x.fillRect(0, 0, w, h);
+    for (let i = 0; i < 26000; i++) {
+      const v = 18 + Math.random() * 40;
+      x.fillStyle = `rgba(${v},${v},${v + 2},${0.5 + Math.random() * 0.5})`;
+      x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    x.fillStyle = 'rgba(214,180,60,0.75)';
+    x.fillRect(w * 0.62, 0, 14, h);
+  });
+  asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
+  asphalt.repeat.set(3, 3);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.82 }));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+  // the wreck, far behind in the dark: the crash photo as a distant plate
+  const sw = image?.width || 16, sh = image?.height || 9;
+  const plateTex = new THREE.CanvasTexture(image || document.createElement('canvas'));
+  plateTex.colorSpace = THREE.SRGBColorSpace;
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(14, (14 * sh) / sw), new THREE.MeshBasicMaterial({ map: plateTex, color: 0x8a8a8a, fog: false }));
+  plate.position.set(-1.5, 2.6, -12);
+  scene.add(plate);
+  // delineator posts and the tape across the verge
+  const pa = new THREE.Vector3(-2.6, 0.92, -1.6), pb = new THREE.Vector3(1.4, 0.92, -1.9);
+  for (const q of [pa, pb, new THREE.Vector3(-0.6, 0.92, -1.75)]) {
+    const m = post();
+    m.position.set(q.x, 0, q.z);
+    scene.add(m);
+  }
+  const tapeA = policeTape(pa, new THREE.Vector3(-0.6, 0.92, -1.75));
+  const tapeB = policeTape(new THREE.Vector3(-0.6, 0.92, -1.75), pb);
+  scene.add(tapeA.mesh, tapeB.mesh);
+  // police lights off to the left, and the crew's work light behind
+  const red = new THREE.PointLight(0xff2a1a, 0, 14, 2);
+  red.position.set(-3.2, 1.4, -1.2);
+  const blue = new THREE.PointLight(0x2a5cff, 0, 14, 2);
+  blue.position.set(-2.6, 1.3, -2.4);
+  const work = new THREE.SpotLight(0xcfd8ff, 18, 12, 0.5, 0.8, 2);
+  work.position.set(1.6, 2.4, -2.2);
+  work.target.position.set(0, 1.3, 0);
+  // the camera's own LED light, a soft key on the reporter's face
+  const camLight = new THREE.SpotLight(0xf3f0ff, 16, 8, 0.5, 0.9, 2);
+  camLight.position.set(0.3, 1.7, 2.2);
+  camLight.target.position.set(0, 1.45, 0);
+  scene.add(red, blue, work, work.target, camLight, camLight.target, new THREE.HemisphereLight(0x223344, 0x080808, 0.35));
+  return { scene, red, blue, tapes: [tapeA, tapeB] };
+}
+
 export class NewsStudio {
   /** @param host element to fill; opts {image, headline} */
   constructor(host, { image, headline } = {}) {
@@ -271,6 +439,20 @@ export class NewsStudio {
     this._resize = () => this.resize();
     window.addEventListener('resize', this._resize);
     this.resize();
+    // the field: the crash site, a reporter with a microphone
+    this.field = fieldScene(image);
+    this.repSpot = new THREE.Object3D();
+    this.repSpot.rotation.y = Math.PI; // faces the camera (+Z)
+    this.field.scene.add(this.repSpot);
+    this.mic = microphone();
+    this.mic.position.set(-0.06, 1.33, 0.24);
+    this.mic.rotation.set(0.35, 0, 0.12);
+    this.micGrip = new THREE.Object3D();
+    this.micGrip.position.set(0, -0.12, 0);
+    this.mic.add(this.micGrip);
+    this.fieldLook = new THREE.Object3D();
+    this.field.scene.add(this.mic, this.fieldLook);
+    this.shot = 'studio';
     this.ready = this._anchor();
   }
 
@@ -300,6 +482,28 @@ export class NewsStudio {
       });
       this.person = p;
       for (let i = 0; i < 8; i++) p.update(1 / 30); // settle into the pose before the first frame
+      // the field reporter: a man in a dark windbreaker, standing, microphone in the right hand
+      const rs = randomPerson(7331, { sex: 'm', age: 31, id: 'newsReporter' });
+      rs.hair = { style: 'short', color: 0x141110 };
+      rs.outfit = { type: 'hoodie-jeans', top: '#1e2a3a', bottom: '#22252c', shoes: 'shoes' };
+      rs.accessories = [];
+      if (rs.mh?.look) Object.assign(rs.mh.look, { posture: 'upright', sweat: 0.3, marks: [] });
+      const r = createHumanoid(rs);
+      r._off?.();
+      r.noThrottle = true;
+      r._setLod = function () {
+        HumanoidGLB.prototype._setLod.call(this, 'hi');
+      };
+      r._setLod();
+      this.repSpot.add(r.root);
+      r.root.position.set(0, 0, 0);
+      r.setHandTarget('R', this.micGrip, { weight: 1, blend: 0.4, grip: 1, orient: false });
+      r.lookAt(this.fieldLook, { weight: 1, speed: 3 });
+      r.root.traverse((o) => {
+        if (o.isMesh) o.frustumCulled = false;
+      });
+      this.reporter = r;
+      for (let i = 0; i < 8; i++) r.update(1 / 30);
     } catch (e) {
       console.warn('[news] anchor unavailable', e);
       this.person = null;
@@ -313,9 +517,18 @@ export class NewsStudio {
     this.camera.updateProjectionMatrix();
   }
 
-  setTalking(on) {
-    this.talking = !!on;
+  /** on: talking; who: 'anchor' (default) | 'reporter'. */
+  setTalking(on, who = 'anchor') {
+    this.talking = !!on && who === 'anchor';
+    this.repTalking = !!on && who === 'reporter';
     this.person?.setTalking(this.talking, 0.9);
+    this.reporter?.setTalking(this.repTalking, 1);
+  }
+
+  /** 'studio' | 'field' */
+  setShot(name) {
+    this.shot = name;
+    this.shotT = 0;
   }
 
   start() {
@@ -332,7 +545,9 @@ export class NewsStudio {
 
   update(dt) {
     this.t += dt;
+    this.shotT = (this.shotT || 0) + dt;
     const t = this.t;
+    if (this.shot === 'field') return this._updateField(dt);
     // the camera: a slow push from a two-shot (anchor + screen) toward the anchor
     const k = Math.min(1, t / 12);
     const e = k * k * (3 - 2 * k);
@@ -352,6 +567,28 @@ export class NewsStudio {
     this.renderer.render(this.scene, cam);
   }
 
+  _updateField(dt) {
+    const t = this.t, st = this.shotT, F = this.field, cam = this.camera;
+    // police lights: red and blue double flashes, out of step
+    const ph = (t % 0.72) / 0.72;
+    const flash = (a) => ((ph > a && ph < a + 0.07) || (ph > a + 0.14 && ph < a + 0.21) ? 1 : 0);
+    F.red.intensity = 26 * flash(0.0);
+    F.blue.intensity = 30 * flash(0.5);
+    for (const tp of F.tapes) tp.update(t);
+    // handheld: a slow push with breathing and small corrections
+    const k = Math.min(1, st / 8);
+    const hx = Math.sin(t * 1.3) * 0.012 + Math.sin(t * 3.7) * 0.004;
+    const hy = Math.sin(t * 1.1 + 1) * 0.01 + Math.sin(t * 4.1) * 0.003;
+    cam.position.set(0.22 - 0.06 * k + hx, 1.56 + hy, 2.0 - 0.35 * k);
+    cam.lookAt(-0.12 + hx * 0.3, 1.46 + hy * 0.4, 0);
+    this.fieldLook.position.copy(cam.position);
+    // the microphone rises a little on stressed words
+    const g = this.repTalking ? Math.max(0, Math.sin(t * 2.1)) * 0.02 : 0;
+    this.mic.position.set(-0.06, 1.33 + g, 0.24);
+    this.reporter?.update(dt);
+    this.renderer.render(F.scene, cam);
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
@@ -364,6 +601,19 @@ export class NewsStudio {
     }
     // the person's meshes may share template data with other characters: never dispose them here
     this.person?.root?.removeFromParent();
+    try {
+      this.reporter?.dispose();
+    } catch (e) {
+      /* ignore */
+    }
+    this.reporter?.root?.removeFromParent();
+    this.field?.scene.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material && !Array.isArray(o.material)) {
+        o.material.map?.dispose();
+        o.material.dispose();
+      }
+    });
     this.scene.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
       const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];

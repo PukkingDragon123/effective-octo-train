@@ -52,3 +52,11 @@ required; credited anyway), packed by `tools/assets/pack_polyhaven.mjs`. Only th
 | tree_stump_02 | Tree Stump 02 | Rob Tuytel | CC0 1.0 | https://polyhaven.com/a/tree_stump_02 |
 | wall_clock | Wall Clock | PierreB3D | CC0 1.0 | https://polyhaven.com/a/wall_clock |
 | portable_cassette_player | Portable Cassette Player | Mateusz Sadek | CC0 1.0 | https://polyhaven.com/a/portable_cassette_player |
+| long_life_food | Long Life Food | Mia Pecina Zorko | CC0 1.0 | https://polyhaven.com/a/long_life_food |
+| multi_cleaner_bottle | Multi Cleaner Bottle | James Ray Cock | CC0 1.0 | https://polyhaven.com/a/multi_cleaner_bottle |
+| plastic_crate_03 | Plastic Crate 03 | Pacific Penguin | CC0 1.0 | https://polyhaven.com/a/plastic_crate_03 |
+| plastic_container | Plastic Container | PierreB3D | CC0 1.0 | https://polyhaven.com/a/plastic_container |
+| Barrel_02 | Barrel 02 | Jorge Camacho | CC0 1.0 | https://polyhaven.com/a/Barrel_02 |
+| wooden_crate_02 | Wooden Crate 02 | James Ray Cock, Jurita Burger | CC0 1.0 | https://polyhaven.com/a/wooden_crate_02 |
+| food_lychee_01 | Food Lychee 01 | Oliver Harries | CC0 1.0 | https://polyhaven.com/a/food_lychee_01 |
+| food_pears_asian_01 | Pears Asian 01 | Amal Kumar | CC0 1.0 | https://polyhaven.com/a/food_pears_asian_01 |

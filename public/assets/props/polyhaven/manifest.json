@@ -413,7 +413,7 @@
    "dishes",
    "collection: project_lighthouse"
   ],
-  "author": "Aron Łyczek",
+  "author": "Aron \u0141yczek",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/ceramic_pot",
   "bytes": 172720
@@ -669,5 +669,116 @@
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/portable_cassette_player",
   "bytes": 477480
+ },
+ "long_life_food": {
+  "gltf": "assets/props/polyhaven/long_life_food.glb",
+  "group": "garage",
+  "name": "Long Life Food",
+  "categories": [
+   "collection: project_lighthouse",
+   "food",
+   "containers",
+   "props"
+  ],
+  "author": "Mia Pecina Zorko",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/long_life_food",
+  "bytes": 225300
+ },
+ "multi_cleaner_bottle": {
+  "gltf": "assets/props/polyhaven/multi_cleaner_bottle.glb",
+  "group": "garage",
+  "name": "Multi Cleaner Bottle",
+  "categories": [
+   "containers",
+   "props",
+   "collection: the_shed"
+  ],
+  "author": "James Ray Cock",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/multi_cleaner_bottle",
+  "bytes": 175324
+ },
+ "plastic_crate_03": {
+  "gltf": "assets/props/polyhaven/plastic_crate_03.glb",
+  "group": "stall",
+  "name": "Plastic Crate 03",
+  "categories": [
+   "collection: project_lighthouse",
+   "containers",
+   "industrial"
+  ],
+  "author": "Pacific Penguin",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/plastic_crate_03",
+  "bytes": 605184
+ },
+ "plastic_container": {
+  "gltf": "assets/props/polyhaven/plastic_container.glb",
+  "group": "garage",
+  "name": "Plastic Container",
+  "categories": [
+   "collection: project_lighthouse",
+   "props",
+   "containers"
+  ],
+  "author": "PierreB3D",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/plastic_container",
+  "bytes": 186492
+ },
+ "Barrel_02": {
+  "gltf": "assets/props/polyhaven/Barrel_02.glb",
+  "group": "garage",
+  "name": "Barrel 02",
+  "categories": [
+   "industrial",
+   "containers",
+   "collection: the_shed"
+  ],
+  "author": "Jorge Camacho",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/Barrel_02",
+  "bytes": 149052
+ },
+ "wooden_crate_02": {
+  "gltf": "assets/props/polyhaven/wooden_crate_02.glb",
+  "group": "roadside",
+  "name": "Wooden Crate 02",
+  "categories": [
+   "containers",
+   "props",
+   "collection: smugglers_cove"
+  ],
+  "author": "James Ray Cock, Jurita Burger",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/wooden_crate_02",
+  "bytes": 230652
+ },
+ "food_lychee_01": {
+  "gltf": "assets/props/polyhaven/food_lychee_01.glb",
+  "group": "shrine",
+  "name": "Food Lychee 01",
+  "categories": [
+   "food",
+   "nature"
+  ],
+  "author": "Oliver Harries",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/food_lychee_01",
+  "bytes": 240492
+ },
+ "food_pears_asian_01": {
+  "gltf": "assets/props/polyhaven/food_pears_asian_01.glb",
+  "group": "shrine",
+  "name": "Pears Asian 01",
+  "categories": [
+   "food",
+   "nature"
+  ],
+  "author": "Amal Kumar",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/food_pears_asian_01",
+  "bytes": 233152
  }
 }

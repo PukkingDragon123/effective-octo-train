@@ -62,9 +62,10 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
     // real (CC0) tins / cleaner bottles / rusty cans when the models are loaded
     const ra = rng();
     if (ra < 0.3 && x < x0 + w - 0.24) {
-      const pick = ['can_rusted', 'oil_tin', 'cleaner_tin_01', 'multi_cleaner_5_litre', 'jug_01'][Math.floor(rng() * (theme === 'parts' ? 3 : 5))];
-      const fit = { can_rusted: { h: 0.12 + rng() * 0.05 }, oil_tin: { h: 0.2 }, cleaner_tin_01: { h: 0.13 }, multi_cleaner_5_litre: { h: 0.26 }, jug_01: { h: 0.17 } }[pick];
-      const wid = { can_rusted: 0.12, oil_tin: 0.13, cleaner_tin_01: 0.1, multi_cleaner_5_litre: 0.21, jug_01: 0.24 }[pick];
+      let pick = ['can_rusted', 'oil_tin', 'cleaner_tin_01', 'multi_cleaner_5_litre', 'jug_01', 'multi_cleaner_bottle', 'long_life_food'][Math.floor(rng() * (theme === 'parts' ? 3 : 7))];
+      if (pick === 'long_life_food' && x > x0 + w - 0.5) pick = 'multi_cleaner_bottle';
+      const fit = { can_rusted: { h: 0.12 + rng() * 0.05 }, oil_tin: { h: 0.2 }, cleaner_tin_01: { h: 0.13 }, multi_cleaner_5_litre: { h: 0.26 }, jug_01: { h: 0.17 }, multi_cleaner_bottle: { h: 0.26 }, long_life_food: { w: 0.42 } }[pick];
+      const wid = { can_rusted: 0.12, oil_tin: 0.13, cleaner_tin_01: 0.1, multi_cleaner_5_litre: 0.21, jug_01: 0.24, multi_cleaner_bottle: 0.1, long_life_food: 0.44 }[pick];
       if (useAsset(k, pick, { p: [x + wid / 2, y, zj], r: [(rng() - 0.5) * 0.05, (rng() - 0.5) * 1.6, (rng() - 0.5) * 0.05] }, { fit, w: { dust: 0.5, grime: 0.15 } })) {
         x += wid * (0.75 + rng() * 0.35); // hand-placed: things crowd and overlap
         continue;
@@ -287,8 +288,11 @@ export function createGarage(opts = {}) {
   // stuff on the bench: radio-cassette, a tin
   k.details(() => {
     // radio-cassette player (CC0 Poly Haven) on the right end of the bench: the radio anchor
-    useAsset(k, 'portable_cassette_player', { p: [bx + 0.9, 0.895, bz + 0.05], r: -0.25 }, { fit: { w: 0.24 }, w: { dust: 0.4, grime: 0.1 } });
-    can(k, { p: [bx - 0.5, 0.895, bz - 0.1], h: 0.14, rad: 0.05, color: 0x9a9080 });
+    useAsset(k, 'portable_cassette_player', { p: [bx + 0.9, 0.93, bz + 0.05], r: -0.25 }, { fit: { w: 0.24 }, w: { dust: 0.4, grime: 0.1 } });
+    can(k, { p: [bx - 0.5, 0.93, bz - 0.1], h: 0.14, rad: 0.05, color: 0x9a9080 }); // on the bench top (0.93)
+    // groceries Ah Kong keeps by the radio + a storage bin under the bench (CC0 Poly Haven)
+    useAsset(k, 'long_life_food', { p: [bx - 0.72, 0.93, bz + 0.15], r: 0.1 }, { fit: { w: 0.4 }, w: { dust: 0.3, grime: 0.1 } });
+    useAsset(k, 'plastic_container', { p: [bx + 0.35, 0, bz + 0.02], r: 0.04 }, { fit: { w: 0.7 }, w: { dust: 0.6, grime: 0.3 } });
   });
   // calendar (signTex) + framed painting + family photo on the back wall
   k.add(signMat('calendar', { variant: 'buddha' }), G('calendarq', () => quad(0.5, 0.708, 2, 3)), { p: [0.9, 1.75, zB + 0.11], r: [0, 0, 0.02], color: 0xe0d8c8, uv: 'keep', w: { vary: 0.3, grime: 0 }, deform: (p) => { p.z += Math.max(0, -p.y - 0.2) * 0.12; } });
@@ -416,7 +420,8 @@ export function createGarage(opts = {}) {
     for (let i = 0; i < 5; i++) tire(k, { p: [xR - 0.55 + (rng() - 0.5) * 0.05, i * 0.19, zB + 0.7], r: rng() * 6 });
     for (let i = 0; i < 3; i++) tire(k, { p: [xR - 1.35, i * 0.19, zB + 0.6], r: rng() * 6, rad: 0.3 });
     tire(k, { p: [xR - 0.4, 0, zB + 1.55], upright: true, r: Math.PI / 2 - 0.25, rad: 0.31 });
-    oilDrum(k, { p: [xR - 0.5, 0, 0.6], color: 0x2a4a7a });
+    // blue plastic water barrel (CC0) instead of a second steel drum
+    if (!useAsset(k, 'Barrel_02', { p: [xR - 0.5, 0, 0.6], r: 0.5 }, { fit: { h: 0.88 }, w: { grime: 0.4, grimeH: 0.3, dust: 0.3 } })) oilDrum(k, { p: [xR - 0.5, 0, 0.6], color: 0x2a4a7a });
     oilDrum(k, { p: [xR - 0.5, 0, 1.25], rusty: true, color: 0x7a3a1a });
     crate(k, { p: [xR - 0.5, 0.88, 0.9], kind: 'plastic', color: 0x2a6a3a });
     coil(k, { p: [xR - 0.13, 1.75, 2.4], r: [0, Math.PI / 2, 0], rad: 0.3, thick: 0.014, loops: 5, color: 0x2a6a3a, mat: 'plastic', seed: 8 });
@@ -515,15 +520,16 @@ export function createGarage(opts = {}) {
     useAsset(k, 'rusted_wheel_rim_01', { p: [xR - 0.2, 0, zB + 2.25], r: [0, -Math.PI / 2, 0.12] }, { fit: { h: 0.4 }, w: { streak: 0.4 } });
     looseItem(out, group, seed + 49, [bx - 0.75, 0, bz + 0.05], 0.15, (lk) => useAsset(lk, 'metal_toolbox', { p: [0, 0, 0] }, { fit: { w: 0.45 }, w: { grime: 0.4, dust: 0.4 } }));
     // tools left where they were dropped: on the bench at odd angles, a few spilt on the floor
-    looseItem(out, group, seed + 50, [bx - 0.35, 0.93, bz + 0.2], 0.7 + rng() * 0.4, (lk) => useAsset(lk, 'pliers', { p: [0, 0, 0] }, { w: false }), 'light');
-    looseItem(out, group, seed + 51, [bx + 0.05, 0.93, bz + 0.22], -0.4 + rng() * 0.5, (lk) => useAsset(lk, 'screwdrivers_02', { p: [0, 0, 0] }, { w: false }), 'light');
+    // (bench tools are static: the loose-prop solver has one floor, they would drop through the bench)
+    useAsset(k, 'pliers', { p: [bx - 0.35, 0.93, bz + 0.2], r: 0.7 + rng() * 0.4 }, { w: false });
+    useAsset(k, 'screwdrivers_02', { p: [bx + 0.05, 0.93, bz + 0.22], r: -0.4 + rng() * 0.5 }, { w: false });
     looseItem(out, group, seed + 52, [bx - 0.48, 0.0, bz + 0.62], 1.9 + rng(), (lk) => useAsset(lk, 'adjustable_wrench', { p: [0, 0, 0] }, { w: false }), 'light');
-    looseItem(out, group, seed + 53, [bx + 0.55, 0.93, bz - 0.12], 2.2, (lk) => useAsset(lk, 'small_oil_can_01', { p: [0, 0, 0] }, { w: { grime: 0.3 } }), 'light');
+    useAsset(k, 'small_oil_can_01', { p: [bx + 0.55, 0.93, bz - 0.12], r: 2.2 }, { w: { grime: 0.3 } });
     looseItem(out, group, seed + 54, [bx + 0.35, 0.0, bz + 0.85], 0.6 + rng(), (lk) => useAsset(lk, 'combination_wrench', { p: [0, 0, 0] }, { w: { grime: 0.3 } }), 'light');
     looseItem(out, group, seed + 55, [bx - 0.9, 0.0, bz + 0.95], -0.3 + rng(), (lk) => useAsset(lk, 'flathead_screwdriver', { p: [0, 0, 0] }, { w: false }), 'light');
     // rags: one draped over the bench front, one over the oil drum, one thrown on the floor
     rag(k, { p: [bx + 0.2, 0.935, bz + 0.05], r: 0.15, w: 0.34, d: 0.5, edge: 0.18, color: 0x5a4a3a, seed: 3 });
-    rag(k, { p: [xR - 0.5, 1.0, 0.45], r: 2.4, w: 0.3, d: 0.48, edge: 0.12, color: 0x8a3a2a, seed: 5 });
+    rag(k, { p: [xR - 0.5, 0.885, 0.45], r: 2.4, w: 0.3, d: 0.48, edge: 0.12, color: 0x8a3a2a, seed: 5 });
     rag(k, { p: [bx - 0.1, 0.0, bz + 1.05], r: 0.9, w: 0.32, d: 0.4, color: 0x6a7a8a, seed: 7 });
     looseItem(out, group, seed + 56, [xR - 1.45, 0, -1.25], 1.3, (lk) => useAsset(lk, 'metal_jerrycan', { p: [0, 0, 0] }, { fit: { h: 0.45 }, w: { grime: 0.5, streak: 0.5 } }));
   });

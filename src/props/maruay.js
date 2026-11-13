@@ -356,7 +356,7 @@ export function createShrineMaRuay(opts = {}) {
     for (const s of [-1, 1]) {
       candle(k, { p: [s * 0.45, at, az + 0.1], h: 0.42, rad: 0.035, color: 0xb81a14 });
       k.add(mat('gold'), G('cstand', () => lathe([[0, 0], [0.07, 0], [0.04, 0.03], [0.02, 0.12], [0.06, 0.14], [0, 0.15]], 10)), { p: [s * 0.45, at - 0.0, az + 0.1], s: 0.6, color: GOLD, w: false });
-      fruitPlate(k, { p: [s * 0.85, at, az], kind: s < 0 ? 'orange' : 'apple', seed: seed + 3 + s, s: 1.1 });
+      fruitPlate(k, { p: [s * 0.85, at, az], kind: s < 0 ? 'orange' : 'pear', seed: seed + 3 + s, s: 1.1 });
       for (let i = 0; i < 3; i++) teacup(k, { p: [s * (0.2 + i * 0.08), at, az - 0.22] });
       // vases with flowers (CC0 porcelain vase when loaded, glazed blue tint)
       if (!useAsset(k, s < 0 ? 'ceramic_vase_03' : 'ceramic_vase_01', { p: [s * 1.1, at, az - 0.2], r: s }, { fit: { h: 0.3 }, color: 0xb8c4d8, w: false })) k.add(mat('ceramic'), G('vase', () => lathe([[0, 0], [0.05, 0], [0.07, 0.08], [0.04, 0.18], [0.05, 0.24], [0, 0.22]], 12)), { p: [s * 1.1, at, az - 0.2], color: 0x2a4a8a, w: false });

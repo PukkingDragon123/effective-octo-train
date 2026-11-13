@@ -202,6 +202,28 @@ export default async function ({ params, saves }) {
     case 'news':
       news();
       break;
+    case 'newstour': {
+      // shot 1 the menu (fonts); then the programme: studio, live from the scene, ad 1, ad 3
+      ui.showMainMenu({ canResume: true });
+      const jump = (test) => {
+        const tick = () => {
+          const el = document.querySelector('.dlb-news');
+          if (!el || test(el)) return;
+          ui.news.next();
+          setTimeout(tick, 150);
+        };
+        tick();
+      };
+      const steps = [
+        () => { ui.menu._teardown(true); news(); },
+        () => jump((el) => el.classList.contains('is-field')),
+        () => jump((el) => el.classList.contains('is-ads')),
+        () => jump((el) => !!el.querySelector('.ad-lotto')),
+      ];
+      let i = -1;
+      window.__tour = { next: () => steps[++i]?.() };
+      break;
+    }
     case 'loading':
       ui.showLoading(Number(params.get('progress') ?? 0.62), 'กำลังปลูกป่า', 'growing the forest');
       break;

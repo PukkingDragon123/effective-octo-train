@@ -5,7 +5,7 @@ import { mat, glowMat } from './lib/materials.js';
 import { lightSpec } from './lib/lights.js';
 import {
   G, PAL, plasticChair, plasticStool, crate, garland, offeringTray, bottle, zebras, dancers, waterJar, tire, sandbag, cone, trashBag,
-  candle, incensePot, fruitPlate, glassWater, oilDrum, wreath, helmet, shoes, lantern, coil, can,
+  candle, incensePot, fruitPlate, glassWater, oilDrum, wreath, helmet, shoes, lantern, coil, can, useAsset,
 } from './lib/small.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -93,7 +93,13 @@ export function createDressing(kind, opts = {}) {
       break;
     case 'crate': {
       const n = opts.n ?? 1 + Math.floor(rng() * 3);
-      for (let i = 0; i < n; i++) crate(k, { p: [(rng() - 0.5) * 0.1, i * 0.3, (rng() - 0.5) * 0.1], r: (rng() - 0.5) * 0.4, kind: opts.wood ? 'wood' : rng() < 0.6 ? 'plastic' : 'wood', color: [0x2a6a3a, 0xa82a1a, 0x2a4a8a, 0xd8b030][Math.floor(rng() * 4)] });
+      // a long lidded wooden crate (CC0) now and then; otherwise a stack, each crate exactly on the one below
+      if (!opts.n && rng() < 0.25 && useAsset(k, 'wooden_crate_02', { p: [0, 0, 0], r: (rng() - 0.5) * 0.4 }, { fit: { w: 0.5 }, w: { grime: 0.4, grimeH: 0.15, moss: 0.25 } })) {
+        out.colliders.push({ x: 0, z: 0, hx: 0.28, hz: 0.6, yaw: 0 });
+        break;
+      }
+      let cy = 0;
+      for (let i = 0; i < n; i++) cy += crate(k, { p: [(rng() - 0.5) * 0.1, cy, (rng() - 0.5) * 0.1], r: (rng() - 0.5) * 0.4, kind: opts.wood ? 'wood' : rng() < 0.6 ? 'plastic' : 'wood', alt: rng() < 0.45, color: [0x2a6a3a, 0xa82a1a, 0x2a4a8a, 0xd8b030][Math.floor(rng() * 4)] });
       out.colliders.push({ x: 0, z: 0, hx: 0.28, hz: 0.2, yaw: 0 });
       break;
     }
@@ -164,7 +170,7 @@ export function createDressing(kind, opts = {}) {
         incensePot(k, { p: [0, 0.54, 0.05], rad: 0.06, metal: true, color: 0xb08a40, sticks: 12, seed });
         for (const s of [-1, 1]) {
           candle(k, { p: [s * 0.32, 0.54, 0.12], h: 0.12, color: 0xb81a14 });
-          fruitPlate(k, { p: [s * 0.18, 0.54, -0.08], kind: s < 0 ? 'banana' : 'orange', s: 0.7, seed: seed + s });
+          fruitPlate(k, { p: [s * 0.18, 0.54, -0.08], kind: s < 0 ? 'banana' : 'lychee', s: 0.7, seed: seed + s });
         }
         for (let i = 0; i < 4; i++) bottle(k, { p: [-0.3 + i * 0.2, 0.54, -0.18], straw: true, color: PAL.sodaRed, s: 0.8 });
         garland(k, { p: [0.0, 0.5, 0.26], len: 0.15 });

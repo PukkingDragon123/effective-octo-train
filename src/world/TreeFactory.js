@@ -1024,11 +1024,11 @@ function gingerStand(rng, opts) {
     const la = lean0 + (rng() - 0.5) * 1.6;
     const d = new THREE.Vector3(Math.cos(la) * 0.22 + Math.cos(az) * 0.12, 1, Math.sin(la) * 0.22 + Math.sin(az) * 0.12).normalize();
     const pts = growPath(rng, { x: Math.cos(az) * rr, y: -0.06, z: Math.sin(az) * rr }, d, H, 0.013 * sc, 0.006 * sc, 5, { wobble: 0.1 });
-    skel.branches.push({ pts, level: 2, mat: 'stem', radial: 4, color: () => [0.46, 0.5, 0.32] });
-    const nl = 5 + Math.floor(rng() * 5);
+    skel.branches.push({ pts, level: 2, mat: 'stem', radial: 4, color: () => [0.3, 0.33, 0.2] });
+    const nl = 6 + Math.floor(rng() * 5);
     const rank = rng() * TAU;
     for (let j = 0; j < nl; j++) {
-      const t = 0.28 + (j / nl) * 0.7;
+      const t = 0.18 + (j / nl) * 0.8;
       const q = pointOn(pts, t);
       const a = rank + (j % 2 ? Math.PI : 0) + (rng() - 0.5) * 0.5;
       const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));

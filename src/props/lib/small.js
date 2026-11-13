@@ -6,7 +6,7 @@ import { bevelBox, bbox, lathe, cyl, sphere, tube, torus, quad, smoothPath, blob
 import { mat, glowMat } from './materials.js';
 import { dancerGeo } from './figures.js';
 import { zebraGeometry, zebraMaterial } from './zebraFigurine.js';
-import { addAsset, hasAsset } from './assets.js';
+import { addAsset, hasAsset, assetSize } from './assets.js';
 import { labelBand } from './print.js';
 import { flowerHead, flowerCard, ribbonTail, flowerForColor, isWiltedColor } from './flowers.js';
 
@@ -388,6 +388,13 @@ export function fruitPlate(k, o = {}) {
   k.at(o.p, o.r, o.s, () => {
     plate(k, { rad: 0.09, color: o.plateColor ?? 0xd8c8a0 });
     const kind = o.kind ?? 'orange';
+    if (kind === 'lychee' && hasAsset('food_lychee_01')) {
+      // a heap of real (CC0) lychees
+      const pos = [[0, 0.004, 0], [0.04, 0.004, 0.02], [-0.04, 0.004, 0.015], [0.015, 0.004, -0.04], [-0.02, 0.004, -0.03], [0.045, 0.004, -0.03], [0.005, 0.036, 0.0], [-0.02, 0.034, 0.02]];
+      for (const p of pos) useAsset(k, 'food_lychee_01', { p, r: [(rng() - 0.5) * 0.6, rng() * 6, (rng() - 0.5) * 0.6] }, { fit: { h: 0.034 }, w: { vary: 0.15 } });
+      return;
+    }
+    if (kind === 'pear' && useAsset(k, 'food_pears_asian_01', { p: [0, 0.004, 0], r: rng() * 6 }, { fit: { w: 0.16 }, w: { vary: 0.15 } })) return;
     if (kind === 'banana') {
       for (let i = 0; i < 5; i++) {
         const g = G('banana', () => tube(smoothPath([V(0, 0, -0.07), V(0, 0.02, -0.02), V(0, 0.022, 0.03), V(0, 0.005, 0.075)], 8), (t) => 0.012 * Math.sin(Math.PI * Math.min(0.97, 0.12 + t * 0.85)) + 0.003, 5));
@@ -612,10 +619,17 @@ export function trashBag(k, o = {}) {
   });
 }
 
+/** Crate (plastic drinks crate or wooden). o.alt picks the second model. Returns its height (stacking). */
 export function crate(k, o = {}) {
-  // models: plastic_crate_02 (0.51 x 0.25 x 0.41, tinted), wooden_crate_01 (0.83 x 0.35 x 0.41 -> scaled to 0.5 wide)
-  if (o.kind === 'plastic' && useAsset(k, 'plastic_crate_02', o, { fit: { h: 0.3 }, color: o.color ?? 0x2a6a3a, w: { grime: 0.35, grimeH: 0.15, dust: 0.4 } })) return;
-  if (o.kind !== 'plastic' && useAsset(k, 'wooden_crate_01', o, { fit: { w: 0.55 }, color: o.color != null ? new THREE.Color(o.color).lerp(new THREE.Color(1, 1, 1), 0.6) : 0xffffff, w: { grime: 0.4, grimeH: 0.15, moss: 0.2 } })) return;
+  // models: plastic_crate_02 (0.51 x 0.25 x 0.41, tinted) / plastic_crate_03 (sun-faded red),
+  // wooden_crate_01 (0.83 x 0.35 x 0.41 -> scaled to 0.55 wide)
+  if (o.kind === 'plastic') {
+    const alt = o.alt && hasAsset('plastic_crate_03');
+    if (useAsset(k, alt ? 'plastic_crate_03' : 'plastic_crate_02', o, { fit: { h: 0.3 }, color: alt ? 0xe8e0d8 : o.color ?? 0x2a6a3a, w: { grime: 0.35, grimeH: 0.15, dust: 0.4 } })) return 0.3;
+  } else if (useAsset(k, 'wooden_crate_01', o, { fit: { w: 0.55 }, color: o.color != null ? new THREE.Color(o.color).lerp(new THREE.Color(1, 1, 1), 0.6) : 0xffffff, w: { grime: 0.4, grimeH: 0.15, moss: 0.2 } })) {
+    const sz = assetSize('wooden_crate_01');
+    return sz ? (sz.y * 0.55) / sz.x : 0.23;
+  }
   k.at(o.p, o.r, o.s, () => {
     if (o.kind === 'plastic') {
       const c = o.color ?? 0x2a6a3a;
@@ -633,6 +647,7 @@ export function crate(k, o = {}) {
       k.add(mat('wood'), G('cbottom', () => bbox(0.5, 0.02, 0.36, 0.004, 0.2)), { color: 0x8a7050 });
     }
   });
+  return o.kind === 'plastic' ? 0.3 : 0.32;
 }
 
 /** Coiled cable / hose (stack of loops). o.vertical for hanging coil on a pole (axis Z). */
