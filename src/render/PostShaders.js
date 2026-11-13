@@ -196,7 +196,8 @@ export const MOTION_BLUR_FRAG = /* glsl */ `
 #include <dlb_common>
 uniform sampler2D tColor;
 uniform sampler2D tDepth;
-uniform mat4 uInvViewProj;
+uniform mat4 uInvViewProj;   // real camera (with shake): reconstructs the world point
+uniform mat4 uCurViewProj;   // intentional camera now / last frame: the motion that smears
 uniform mat4 uPrevViewProj;
 uniform vec2 uTexel;
 uniform float uScale;
@@ -210,17 +211,19 @@ void main() {
   float d = texture2D(tDepth, vUv).x;
   vec4 wp = uInvViewProj * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
   wp /= wp.w;
+  vec4 cp = uCurViewProj * vec4(wp.xyz, 1.0);
   vec4 pp = uPrevViewProj * vec4(wp.xyz, 1.0);
-  vec2 vpx = (vUv - (pp.xy / pp.w * 0.5 + 0.5)) * uScale * nearK(d) / uTexel;
+  if (pp.w <= 0.0 || cp.w <= 0.0) { gl_FragColor = c0; return; }
+  vec2 vpx = ((cp.xy / cp.w) - (pp.xy / pp.w)) * 0.5 * uScale * nearK(d) / uTexel;
   float len = length(vpx);
-  float eff = clamp(len - 2.0, 0.0, uMaxPx);
-  if (eff < 0.5 || pp.w <= 0.0) { gl_FragColor = c0; return; }
+  float eff = clamp(len - 3.0, 0.0, uMaxPx);
+  if (eff < 0.5) { gl_FragColor = c0; return; }
   vec2 vel = vpx / len * eff * uTexel;
   float j = dlbIGN(gl_FragCoord.xy) - 0.5;
   vec3 acc = c0.rgb;
   float ws = 1.0;
-  for (int i = 0; i < 8; i++) {
-    vec2 suv = vUv + vel * ((float(i) + 0.5 + j) / 8.0 - 0.5);
+  for (int i = 0; i < 12; i++) {
+    vec2 suv = vUv + vel * ((float(i) + 0.5 + j) / 12.0 - 0.5);
     float w = nearK(texture2D(tDepth, suv).x);
     acc += texture2D(tColor, suv).rgb * w;
     ws += w;

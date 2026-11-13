@@ -3,7 +3,7 @@
 //        smoke (cigarette to the lips, inhale, lower, exhale), giveItem (other hand supports the
 //        forearm, slight bow), pay, nod, laugh, cry, point, sing (luk thung), stagger (drunk)
 //  utility: turnTo, wave, lookAround
-//  ghost:   neckSnap, crawlOverSeat, emergeFromBelow, pressFaceToGlass, ceilingCrawl, sprint (Yai Speed)
+//  ghost:   neckSnap, crawlOverSeat, emergeFromBelow, pressFaceToGlass, ceilingCrawl, wrongCrawl, sprint (Yai Speed)
 // Each action: { dur (s, 0 = loop), fadeIn, fadeOut, pose(h, c) local additive, ik(h, c) IK requests,
 // face(h, c) expression outputs }. c = { t, k (0..1), w (envelope), opts, st (state) }.
 import * as THREE from 'three';
@@ -395,6 +395,56 @@ export const ACTIONS = {
         else req(h, s, c.w, pos, fwd.clone().addScaledVector(rgt, -side * 0.6), new THREE.Vector3(0, 1, 0), { fingers: 'spread', pole: pos.clone().add(new THREE.Vector3(0, -0.4, 0)).addScaledVector(rgt, -side * 0.5) });
       }
     },
+  },
+  // spider crawl, belly up on all fours: the spine bends the wrong way, the head hangs back upside down and
+  // leads; elbows and knees up. Travels head first with walkTo() (the 'crawl' ghost motion sets backwards),
+  // or on its own with opts.speed (m/s).
+  wrongCrawl: {
+    dur: 0, fadeIn: 1.1, fadeOut: 0.9,
+    start(h, c) { c.st.mode = h.mode; c.st.ph = 0; if (!h.walk) h.setMode('float'); },
+    end(h, c) { if (h.mode === 'float' && !h.walk) h.setMode(c.st.mode === 'float' ? 'stand' : c.st.mode || 'stand'); },
+    pose(h, c) {
+      const I = h.t.index, w = c.w;
+      h.rig.addEuler(I.pelvis, -1.32 * w, 0, 0);
+      h.rig.addEuler(I.spine_01, -0.22 * w, 0, 0);
+      h.rig.addEuler(I.spine_02, -0.32 * w, 0, 0);
+      h.rig.addEuler(I.spine_03, -0.38 * w, 0, 0.05 * Math.sin(c.t * 1.7) * w);
+      h.rig.addEuler(I.neck_01, -0.45 * w, 0, 0);
+      h.rig.addEuler(I.Head, -0.55 * w, 0, 0.3 * w);
+      // drop the hips to 0.52 m: the pelvis's own height over the root (last frame, minus our offset)
+      if (c.st.nat === undefined) {
+        h.root.updateMatrixWorld();
+        const py = _v.setFromMatrixPosition(h.rig.bones[I.pelvis].matrixWorld).y;
+        c.st.nat = py - _v2.setFromMatrixPosition(h.root.matrixWorld).y - (h._yOffset || 0);
+      }
+      c.out.yOffset = (0.52 * (h.scale || 1) - c.st.nat) * w;
+      if (c.opts.speed && !h.walk) {
+        h.root.updateMatrixWorld();
+        const back = _v.set(0, 0, 1).applyQuaternion(h.root.quaternion);
+        h.root.position.addScaledVector(back, c.opts.speed * c.dt * w);
+      }
+    },
+    ik(h, c) {
+      const sp = h.anim.speed || (c.opts.speed ?? 0);
+      c.st.ph += c.dt * (0.12 + sp * 1.7);
+      const t = c.st.ph, sc = h.scale || 1;
+      const root = _v.setFromMatrixPosition(h.root.matrixWorld);
+      const fwd = _v2.set(0, 0, -1).transformDirection(h.root.matrixWorld);
+      const rgt = _v3.set(1, 0, 0).transformDirection(h.root.matrixWorld);
+      for (const [s, leg, ph0] of [['L', false, 0], ['R', false, 0.5], ['FL', true, 0.5], ['FR', true, 0]]) {
+        const side = s.endsWith('L') ? 1 : -1;
+        const ph = (t + ph0) % 1;
+        // a stalled, then sudden step: most of the cycle planted, the swing a snap
+        const lift = ph < 0.18 ? Math.sin((ph / 0.18) * Math.PI) * 0.1 : 0;
+        const step = ph < 0.18 ? lerp(0.13, -0.13, ph / 0.18) : lerp(-0.13, 0.13, (ph - 0.18) / 0.82);
+        const along = (leg ? 0.45 : -0.62) - step;
+        const pos = root.clone().addScaledVector(fwd, along * sc).addScaledVector(rgt, -side * (leg ? 0.26 : 0.36) * sc);
+        pos.y = root.y + 0.02 + lift;
+        if (leg) h.req[s] = { w: c.w, pos, pole: pos.clone().add(new THREE.Vector3(0, 0.7, 0)).addScaledVector(rgt, -side * 0.2) };
+        else req(h, s, c.w, pos, fwd.clone().multiplyScalar(-1).addScaledVector(rgt, -side * 0.5), new THREE.Vector3(0, -1, 0), { fingers: 'spread', pole: pos.clone().add(new THREE.Vector3(0, 0.6, 0)).addScaledVector(rgt, -side * 0.45) });
+      }
+    },
+    face(h, c, o) { o.creepy += 0.5 * c.w; },
   },
   sprint: {
     dur: 0, fadeIn: 0.4, fadeOut: 0.6,

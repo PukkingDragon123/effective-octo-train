@@ -32,6 +32,7 @@ import { lensDirtTexture } from './noiseTex.js';
 import { GORE_UNIFORM } from './Blood.js';
 import { GLOBAL_UNIFORMS } from './uniforms.js';
 import { FrameClock, DynamicResolution, AutoQuality } from './Perf.js';
+import { cameraRig } from '../core/CameraRig.js';
 
 const GLASS_BIT = 1 << LAYERS.GLASS;
 /** bloom mips: 1/4, 1/8, 1/16, 1/32, 1/64 of the internal size */
@@ -73,6 +74,12 @@ const _mat4 = new THREE.Matrix4();
 const _frustum = new THREE.Frustum();
 const _sphere = new THREE.Sphere();
 const _vp = new THREE.Matrix4();
+const _vpI = new THREE.Matrix4();
+const _iMat = new THREE.Matrix4();
+const _iPos = new THREE.Vector3();
+const _iQuat = new THREE.Quaternion();
+const _e = new THREE.Euler();
+const _one = new THREE.Vector3(1, 1, 1);
 const _q = new THREE.Quaternion();
 
 class PostFX {
@@ -175,7 +182,7 @@ class PostFX {
     });
     this.matAOBlur = passMaterial(AO_BLUR_FRAG, { tAO: { value: null }, uTexel: { value: new THREE.Vector2() } });
     this.matMB = passMaterial(MOTION_BLUR_FRAG, {
-      tColor: { value: null }, tDepth: { value: null }, uInvViewProj: { value: new THREE.Matrix4() }, uPrevViewProj: { value: new THREE.Matrix4() },
+      tColor: { value: null }, tDepth: { value: null }, uInvViewProj: { value: new THREE.Matrix4() }, uCurViewProj: { value: new THREE.Matrix4() }, uPrevViewProj: { value: new THREE.Matrix4() },
       uTexel: { value: new THREE.Vector2() }, uScale: { value: 0.35 }, uMaxPx: { value: 24 }, uNear: { value: 0.1 }, uFar: { value: 1000 },
     });
     this._prevVP = new THREE.Matrix4();
@@ -359,25 +366,55 @@ class PostFX {
 
   /**
    * Shutter fraction for this frame's camera motion blur (0 = no pass, no depth resolve).
-   * Only fast motion counts: a quick head turn or speed; never while paused, at rest, on a
-   * camera cut or on the first frame. Also computes the current view-projection into _vp.
+   * Driven ONLY by intentional motion: the eye's travel with the vehicle / walking and the
+   * player's look (cameraRig yaw / pitch on the vehicle base). Camera shake, head bob,
+   * breathing and engine tremor (camfx), jumpscare jolts and lean are excluded; cinematic
+   * shots, paused frames and cuts / teleports (> 1 m or > 30 deg in a frame) give none.
+   * A dead zone with hysteresis and smoothing keeps stills and slow motion sharp. Fills
+   * _vp (real camera) and _vpI (intentional camera) for the pass.
    */
   _motionBlurAmount(camera, dt) {
     if (!camera.isPerspectiveCamera) return 0;
     camera.updateMatrixWorld();
     _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    if (!this._mb || !this._mbHasPrev || !this.sceneRT.depthTexture || !(dt > 0) || !this.clock.valid) return 0;
-    const pos = _v3.setFromMatrixPosition(camera.matrixWorld);
-    const move = pos.distanceTo(this._prevPos);
-    _q.setFromRotationMatrix(camera.matrixWorld);
-    const ang = this._prevQuat.angleTo(_q);
+    // intentional camera: eye position (no lean / camfx offsets) + look on the vehicle base
+    const rig = cameraRig;
+    if (rig?.eye) {
+      rig.eye.getWorldPosition(_iPos);
+      if (rig.base) rig.base.getWorldQuaternion(_iQuat);
+      else _iQuat.identity();
+      _e.set(rig.pitch || 0, rig.yaw || 0, 0, 'YXZ');
+      _iQuat.multiply(_q.setFromEuler(_e));
+    } else {
+      _iPos.setFromMatrixPosition(camera.matrixWorld);
+      _iQuat.setFromRotationMatrix(camera.matrixWorld);
+    }
+    _iMat.compose(_iPos, _iQuat, _one).invert();
+    _vpI.multiplyMatrices(camera.projectionMatrix, _iMat);
+    const had = this._mbHasPrev;
+    const move = had ? _iPos.distanceTo(this._prevPos) : 0;
+    const ang = had ? this._prevQuat.angleTo(_iQuat) : 0;
+    const cine = (rig?.cineBlend ?? 0) > 0.001;
+    const cut = move > 1 || ang > Math.PI / 6;
+    if (!this._mb || !had || cut || cine || !this.sceneRT.depthTexture || !(dt > 0) || !this.clock.valid) {
+      if (cut || cine || !(dt > 0)) {
+        this._mbSmooth = 0;
+        this._mbOn = false;
+      }
+      return 0;
+    }
     const fovY = THREE.MathUtils.degToRad(camera.fov || 60);
-    // largest on-screen motion this frame (px): rotation, or travel seen at ~6 m
-    const px = Math.max(ang / fovY, move / (6 * 2 * Math.tan(fovY / 2))) * this._h;
-    if (move > 4 || px > this._h * 0.4) return 0; // a cut / teleport, not motion
-    // shutter: ~1/170 s of exposure, whatever the frame rate (0.35 of a 60 fps frame)
-    const k = clamp(0.0058 / Math.max(this.clock.ms / 1000, 1e-3), 0, 0.6);
-    return px * k > 3 ? k : 0; // fast motion only
+    // largest on-screen motion this frame, in 1080p pixels: look rotation, or travel seen at ~6 m
+    const px = Math.max(ang / fovY, move / (6 * 2 * Math.tan(fovY / 2))) * 1080;
+    // smoothing (no single-frame spikes) + hysteresis around the dead zone
+    this._mbSmooth = (this._mbSmooth || 0) + (Math.min(px, 160) - (this._mbSmooth || 0)) * 0.35;
+    const sm = this._mbSmooth;
+    if (!this._mbOn && sm > 10) this._mbOn = true;
+    else if (this._mbOn && sm < 6) this._mbOn = false;
+    if (!this._mbOn) return 0;
+    // shutter: ~1/70 s of exposure (0.85 of a 60 fps frame, ~2.5x the old blur), whatever the frame rate
+    const shutter = clamp(0.014 / Math.max(this.clock.ms / 1000, 1e-3), 0, 1);
+    return shutter * THREE.MathUtils.smoothstep(sm, 6, 22);
   }
 
   render(renderer, scene, camera, dt = 1 / 60) {
@@ -494,10 +531,11 @@ class PostFX {
       m.tColor.value = this.sceneRT.texture;
       m.tDepth.value = this.sceneRT.depthTexture;
       m.uInvViewProj.value.copy(_vp).invert();
+      m.uCurViewProj.value.copy(_vpI);
       m.uPrevViewProj.value.copy(this._prevVP);
       m.uTexel.value.set(1 / w, 1 / h);
       m.uScale.value = mbK;
-      m.uMaxPx.value = 22 * (h / 1080);
+      m.uMaxPx.value = 60 * (h / 1080); // per-frame clamp
       m.uNear.value = camera.near;
       m.uFar.value = camera.far;
       this._pass(renderer, this.matMB, this.mbRT);
@@ -505,9 +543,9 @@ class PostFX {
     }
     this.stats.motionBlur = mbK > 0;
     if (camera.isPerspectiveCamera) {
-      this._prevVP.copy(_vp);
-      this._prevPos.setFromMatrixPosition(camera.matrixWorld);
-      this._prevQuat.setFromRotationMatrix(camera.matrixWorld);
+      this._prevVP.copy(_vpI);
+      this._prevPos.copy(_iPos);
+      this._prevQuat.copy(_iQuat);
       this._mbHasPrev = true;
     }
 

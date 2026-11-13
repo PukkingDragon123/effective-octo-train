@@ -170,6 +170,17 @@ export default async function ({ engine, cameraRig, params }) {
       if (params.get('act')) h.play(params.get('act'), { loop: true });
       h.lookAt(eyeT, { weight: 1, unlimited: true });
     });
+  } else if (view === 'motion') {
+    // ghost behaviour presets side by side: &motions=calm,tiltHold,... (&who=womanWhite)
+    const ms = (params.get('motions') || 'calm,wrongLimbs,gape,crawl,headRaise').split(',');
+    ms.forEach((m, i) => {
+      const h = add(params.get('who') || 'womanWhite', (i - (ms.length - 1) / 2) * 0.9, 0);
+      focus = focus || h;
+      h.noThrottle = true;
+      h.setGhostMotion(m, { instant: true });
+      if (m === 'crawl') h.root.rotation.y = Math.PI * 0.5;
+      if (m !== 'crawl') h.lookAt(eyeT, { weight: 1, unlimited: true });
+    });
   } else if (view === 'mirror') {
     // reflection double: normal direct view, twisted neck only in the "mirror" (shown side by side)
     const h = add(params.get('who') || 'womanWhite', -0.45);
@@ -206,7 +217,7 @@ export default async function ({ engine, cameraRig, params }) {
   console.log(`[characters-glb] built ${chars.length} in ${ms.toFixed(0)} ms`, chars.map((h) => `${h.look?.id}:${h.body?.geometry?.userData?.tris ?? '?'}`).join(' '));
 
   // ---- cameras (characters face +Z)
-  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost', 'gore', 'variety'].includes(view) ? view : view === 'uncanny' ? 'faces' : 'front');
+  const camName = params.get('cam') || (['lineup', 'actions', 'fp', 'faces', 'ghost', 'gore', 'variety'].includes(view) ? view : view === 'uncanny' ? 'faces' : view === 'motion' ? 'ghost' : 'front');
   const H = focus ? focus.look.height : 1.65;
   const hy = focus ? focus.headPosition.y : 1.5;
   const n = chars.length;

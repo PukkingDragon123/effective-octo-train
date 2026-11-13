@@ -26,7 +26,7 @@ import { Cigarette } from './cigarette.js';
 import { buildPhone } from './phone.js';
 import { sneakerGeometry } from './sneakers.js';
 import { ActionPlayer } from './actions.js';
-import { GhostLayer } from './ghost.js';
+import { GhostLayer, GHOST_MOTIONS } from './ghost.js';
 import { MH } from './mhpack.js';
 import { buildPerson, personTemplate, personLod, personNoMouth, releasePerson } from './mhperson.js';
 import { mhRecipe, mhSkinKey, mhDefaults } from './mhrecipe.js';
@@ -151,6 +151,7 @@ export class HumanoidGLB {
     // held props
     this.held = {};
     this._initRuntime();
+    if (look.ghost) this.setGhostMotion(look.ghost.motion || 'calm', { instant: true });
     const hand = { basket: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') ? 'R' : 'L' };
     for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
   }
@@ -288,6 +289,9 @@ export class HumanoidGLB {
       const crush = gh.crush ?? (gh.type === 'crushed' ? 1 : 0);
       if (crush) this._gore.tgt.crush = this._gore.cur.crush = crush;
       this.ghostLayer.setTargets(g0, 100);
+      this._ghostBase = g0;
+      // calm by default: subtle versions of the uncanny motion (encounters escalate with setGhostMotion)
+      this.setGhostMotion(gh.motion || 'calm', { instant: true });
     }
     const hand = { basket: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') ? 'R' : 'L' };
     for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
@@ -399,7 +403,7 @@ export class HumanoidGLB {
     const base = gait === 'sprint' ? 6.5 : run ? 3.2 : 1.25 * (1 - this.look.old * 0.35) * (1 - this.look.child * 0.1);
     return new Promise((resolve) => {
       this.walk = { target, speed: opts.speed ?? base, run, onArrive: opts.onArrive, faceAtEnd: opts.faceAtEnd, resolve, gait };
-      this.setMode(gait === 'sprint' ? 'sprint' : run ? 'run' : 'walk', { gait });
+      this.setMode(this._walkMode(this.walk), { gait });
     });
   }
   stopWalking() {
@@ -468,6 +472,40 @@ export class HumanoidGLB {
   }
   setExpression(e) { Object.assign(this.expression, e); }
   setGhost(g, speed = 3) { this.ghostLayer.setTargets(g, speed); }
+  /**
+   * Ghost behaviour preset (see GHOST_MOTIONS in ghost.js): 'calm' (default for ghosts: subtle), 'stopMotion',
+   * 'tiltHold', 'glide', 'wrongLimbs', 'longStride', 'backwards', 'breathless', 'crawl', 'headRaise',
+   * 'watcher', 'gape', 'nightmare', 'none'. Keys the previous preset set return to the ghost's own defaults.
+   * opts: { amount 0..1 (scale, default 1), speed (blend rate, default 4), instant, plus preset options:
+   *   crawl { speed m/s, target }, headRaise { duration s, from rad, eye 'left'|'right' } }
+   * Returns false for an unknown name.
+   */
+  setGhostMotion(name = 'calm', opts = {}) {
+    const p = GHOST_MOTIONS[name];
+    if (!p) { console.warn('[characters-glb] unknown ghost motion', name); return false; }
+    const gl = this.ghostLayer, base = this._ghostBase || {}, amt = opts.amount ?? 1;
+    const g = {};
+    for (const k of this._gmKeys || []) g[k] = base[k] ?? 0;
+    for (const [k, v] of Object.entries(p.set)) {
+      const b = base[k] ?? 0;
+      g[k] = v >= 0 && b >= 0 ? Math.max(b, v * amt) : v * amt;
+    }
+    this._gmKeys = Object.keys(p.set);
+    gl.setTargets(g, opts.instant ? 100 : opts.speed ?? 4);
+    if (this._gmAction && this._gmAction !== p.action) this.actions.stop(this._gmAction);
+    this._gmAction = p.action || null;
+    if (p.action) this.actions.play(p.action, opts);
+    gl.startMotion(name, opts);
+    this._gaitScale = 1;
+    if (this.walk && !['sit', 'sitCar', 'drive', 'ride', 'lie'].includes(this.mode)) this.setMode(this._walkMode(this.walk), { gait: this.walk.gait });
+    this.ghostMotion = name;
+    return true;
+  }
+  _walkMode(w) {
+    const gv = this.ghostLayer.tgt;
+    if (this._gmAction === 'wrongCrawl' || (gv.glide > 0.5 && w.gait !== 'sprint')) return 'float';
+    return w.gait === 'sprint' ? 'sprint' : w.run ? 'run' : 'walk';
+  }
   /** Reveal gore at runtime: { bleedEyes 0..1, bleedMouth 0..1, wound:'neck'|'head'|'chest'|null, amount 0..1, crush 0..1, speed } */
   setGore(g = {}) {
     const G = this._gore;
@@ -853,7 +891,7 @@ export class HumanoidGLB {
     if (!this.isMH || !this.person) return;
     const W = this.U.uMorphW.value;
     const open = W[11] + W[17] + W[18] + 0.5 * Math.max(W[12], W[13]) + 0.5 * W[15] + 0.3 * W[19];
-    const busy = this.faceS.talk || this._gore.cur.bleedMouth > 0 || this._gore.cur.crush > 0 || this.ghostLayer.mouthStretch > 0.01;
+    const busy = this.faceS.talk || this._gore.cur.bleedMouth > 0 || this._gore.cur.crush > 0 || this.ghostLayer.mouthStretch > 0.01 || this.ghostLayer.gapeK > 0 || this.ghostLayer.gaspK > 0;
     if (open > 0.02 || busy) this._mouthHold = 0.6;
     else this._mouthHold = Math.max(0, this._mouthHold - dt);
     const on = this._mouthHold > 0 && (this._screenDist ?? 0) < MOUTH_DISTANCE;
@@ -898,7 +936,9 @@ export class HumanoidGLB {
     if (r.parent) { r.parent.updateWorldMatrix(true, false); tgt.applyMatrix4(_m.copy(r.parent.matrixWorld).invert()); }
     const dx = tgt.x - r.position.x, dz = tgt.z - r.position.z;
     const dist = Math.hypot(dx, dz);
-    const yaw = Math.atan2(-dx, -dz);
+    const gv = this.ghostLayer.v;
+    const back = gv.backwards > 0.5;
+    const yaw = Math.atan2(-dx, -dz) + (back ? Math.PI : 0);
     let dy = yaw - r.rotation.y;
     while (dy > Math.PI) dy -= Math.PI * 2;
     while (dy < -Math.PI) dy += Math.PI * 2;
@@ -906,6 +946,8 @@ export class HumanoidGLB {
     const facing = Math.cos(dy);
     const slow = smoothstep(0, 0.8, dist);
     const spd = w.speed * slow * clamp(facing * 1.3, 0.12, 1) * (this.ghostLayer.speedMul || 1);
+    // ghost gaits: slow cadence for the long strides, the clip in reverse for the backwards walk
+    if (gv.stride > 0.01 || back) this._gaitScale = (1 - 0.4 * clamp(gv.stride, 0, 1)) * (back ? -1 : 1);
     if (dist > 0.04) {
       const step = Math.min(dist, spd * dt);
       r.position.x += (dx / dist) * step;
@@ -918,6 +960,7 @@ export class HumanoidGLB {
       }
     } else {
       this.walk = null;
+      if (gv.stride > 0.01 || back) this._gaitScale = 1;
       if (w.faceAtEnd !== undefined) this.actions.play('turnTo', { yaw: w.faceAtEnd });
       this.setMode('stand');
       w.onArrive?.();
@@ -1450,6 +1493,10 @@ export class HumanoidGLB {
     const b = this._mhBase || { veins: 0, pupils: 0, veil: 0 };
     U.uGhost2.value.x = b.veins + gv.veins;
     U.uGhost2.value.y = gl.set.has('pupils') ? gv.pupils : b.pupils;
+    // ghost motion: the mouth too wide (past the jaw's range), the gulp of the all-at-once breath
+    const W = U.uMorphW.value, gk = gl.gapeK, gs = gl.gaspK;
+    if (gk > 0) { W[11] = Math.max(W[11], 1.38 * gk); W[15] = Math.max(W[15], 1.25 * gk); W[18] = Math.max(W[18], 0.7 * gk); W[2] = W[3] = Math.max(W[2], 0.8 * gk); }
+    if (gs > 0) { W[11] = Math.max(W[11], 0.55 * gs); W[2] = W[3] = Math.max(W[2], 0.6 * gs); }
     U.uVeil.value.x = Math.max(b.veil, gv.hairOverFace);
     const gap = gv.veilGap;
     U.uVeil.value.y = -gap * 0.033;

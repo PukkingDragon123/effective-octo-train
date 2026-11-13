@@ -12,6 +12,7 @@ run in Blender 4.2 LTS. Nothing is hand-edited, so every model can be rebuilt fr
 | `taxi_interior.py` | right-hand-drive interior: dashboard with binnacle hood, cluster (gauge faces + needles), centre stack, glovebox, 4-spoke wheel, stalks, ignition, meter box, vacant lamp, seats (bolsters, piping, stitched channels, wooden-bead cover on the driver seat), rear bench, door cards, pillars, sagging headliner, visors, mirror, belts, carpet, console, levers, pedals |
 | `build_taxi.py` | assembles nodes / pivots / anchors, applies the triangle budget, unwraps atlases, bakes + paints them, exports `taxi.glb` and `taxi_lod.glb` (gltfpack) |
 | `weather.py` | texture painter: bakes AO / curvature / cavity + position / normal / material-id maps, then paints the weathered albedo + ORM atlases (CC0 photo detail, chips, rust, grime, fading) and swaps in the export materials |
+| `sightlines.py` | driver's-seat check of a GLB: headliner clearance, nearest visible road ahead, % of each mirror visible from `driverEye` |
 | `render_glb.py` | review renders of an exported GLB (`.shots/blender-<name>-<cam>.png`), exterior and cabin cameras |
 | `build_moto.py` | intro step-through motorbike, exports `moto.glb` |
 | `review.py` | studio lights + standard cameras for optional review renders (`.shots/blender-*.png`) |
@@ -169,7 +170,9 @@ header, roof rails, rear header; above the belt line, between the windshield bas
 window) 12 mm inside the sheet: tan worn `plastic_trim` on the pillars, headliner cloth where it
 faces down. It follows the window cut-outs and wraps the pinch-weld flanges, so no bare paint is
 visible from the cabin. The headliner sits 26 mm under the roof skin (1.32 m above the driver's
-head point); `driverEye` is at 1.215 m (seated eye, 10.5 cm headliner clearance).
+head point); `driverEye` is at 1.215 m (seated eye, 10.5 cm headliner clearance). Visibility pass:
+cowl and dash top 4.5 cm lower, beltline 2.5 cm lower, slimmer A-pillars (wider windshield, side-glass
+front edge further forward, thinner trim), side mirrors lower and further back (seen under the A-pillar).
 
 ## Weathering in geometry
 

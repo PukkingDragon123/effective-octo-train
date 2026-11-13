@@ -2,9 +2,9 @@
 // (BloodDecals.js); the motion is physics (GPU droplets with gravity, growing pools, runs
 // that creep down a surface).
 //
-//   bloodFX.spray(pos, dir, {amount=1, speed})   droplets thrown along dir fall, splash on
+//   bloodFX.spray(pos, dir, amount 0..1 | {amount=1, speed})   droplets thrown along dir fall, splash on
 //       whatever they hit (spatter + a run on walls / glass / faces) and pool on the ground
-//   bloodFX.drip(surface, {duration=6, rate, object, normal, length})
+//   bloodFX.drip(surface, amount 0..1 | {duration=6, rate, object, length})
 //       surface = Vector3 (drips fall from that point, e.g. under the roof, and pool below)
 //       or {point, normal, object}: a run creeps down that surface (parented to `object`, so
 //       it follows a lunging ghost's face), dripping off its end
@@ -12,7 +12,7 @@
 // Encounters: expose it as g.blood (installRendering returns it as `bloodFX`).
 import * as THREE from 'three';
 import { particles } from './Particles.js';
-import { bloodDecalTexture } from './BloodDecals.js';
+import { bloodDecalTexture, bloodDecalImage } from './BloodDecals.js';
 import { paintedMaterial } from './Materials.js';
 import { goreReduced } from './Blood.js';
 
@@ -24,7 +24,11 @@ const DOWN = new THREE.Vector3(0, -1, 0);
 const MAX_POOLS = 24;
 
 function decalMesh(kind, variant, w, h, topAnchored) {
-  const tex = bloodDecalTexture(kind, variant).clone(); // own uv transform, shared image
+  // own texture (own uv transform for the reveal) over the already-loaded photo
+  const img = bloodDecalImage(kind, variant);
+  const tex = img ? new THREE.Texture(img) : bloodDecalTexture(kind, variant).clone();
+  tex.colorSpace = THREE.SRGBColorSpace;
+  if (img) tex.needsUpdate = true;
   const geo = new THREE.PlaneGeometry(w, h);
   if (topAnchored) geo.translate(0, -h / 2, 0);
   const mat = paintedMaterial({
@@ -117,6 +121,8 @@ class BloodFX {
 
   /** Droplets thrown along dir: they fall, splash on what they hit and pool on the ground. */
   spray(pos, dir = new THREE.Vector3(0, 0.3, -1), opts = {}) {
+    if (typeof opts === 'number') opts = { amount: opts };
+    if (!pos) return;
     const amount = (opts.amount ?? 1) * (goreReduced() ? 0.5 : 1);
     const d = _v.copy(dir).normalize().clone();
     const ground = this._hit(pos, DOWN, 8);
@@ -148,6 +154,12 @@ class BloodFX {
    * ({point, normal, object}). Returns { stop() }.
    */
   drip(surface, opts = {}) {
+    // g.blood.drip(pos, amount): amount 0..1 scales the rate, the duration and the run length
+    if (typeof opts === 'number') {
+      const a = Math.max(0.05, Math.min(1, opts));
+      opts = { rate: 0.2 + 0.4 * a, duration: 3 + 7 * a, length: 0.2 + 0.3 * a };
+    }
+    if (!surface) return { stop() {} };
     const isPoint = surface?.isVector3;
     const point = isPoint ? surface : surface.point;
     let normal = isPoint ? null : surface.normal;

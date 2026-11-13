@@ -52,8 +52,8 @@ export const GHOST_MOTIONS = {
   longStride: { set: { stride: 1, stare: 1, still: 0.6, holdTilt: 0.35, breathStop: 1 } },
   backwards: { set: { backwards: 1, neckTwist: Math.PI, unlimited: 1, stare: 1, still: 0.6, stutter: 0.25 } },
   breathless: { set: { gasp: 1, still: 1, stare: 0.7, noBlink: 1 } },
-  crawl: { set: { hyperExt: 0.6, jerks: 0.5, stare: 1, unlimited: 1, noBlink: 1, fingerCrawl: 0.5, stutter: 0.3 }, action: 'wrongCrawl' },
-  headRaise: { set: { hairOverFace: 1, still: 1, breathStop: 1, stutter: 0.45, noBlink: 1 }, timeline: 'headRaise' },
+  crawl: { set: { backwards: 1, hyperExt: 0.6, jerks: 0.5, stare: 1, unlimited: 1, noBlink: 1, fingerCrawl: 0.5, stutter: 0.3 }, action: 'wrongCrawl' },
+  headRaise: { set: { headPitch: 0, veilGap: 0, hairOverFace: 1, still: 1, breathStop: 1, stutter: 0.45, noBlink: 1 }, timeline: 'headRaise' },
   watcher: { set: { twitch: 1, stare: 1, still: 0.9, noBlink: 1, holdTilt: 0.5, gasp: 0.5 } },
   gape: { set: { gape: 1, headPitch: -0.22, jitter: 0.3, stutter: 0.4, stare: 1 } },
   nightmare: { set: { stutter: 0.7, holdTilt: 0.7, neckRoam: 0.6, unlimited: 1, jerks: 0.7, hyperExt: 0.8, fingerCrawl: 0.8, twitch: 1, stride: 0.6, gasp: 0.8, stare: 1, uncanny: 1 } },
@@ -91,6 +91,7 @@ export class GhostLayer {
   startMotion(name, opts = {}) {
     const p = GHOST_MOTIONS[name];
     Object.assign(this.mo, { name, t: 0, timeline: p?.timeline || null, opts, raise: 0 });
+    if (p?.set.neckRoam >= 0.5 && this.mo.roamPh === 0) this.mo.roamT = 0.6 + Math.random() * 1.5; // the first turn comes soon
     if (p?.timeline === 'headRaise') { this.setTargets({ headPitch: opts.from ?? 1.05, veilGap: 0 }, 100); }
   }
   /** is the player looking at this ghost? (encounters may set h.gazeFn for mirror gazes) */
@@ -197,8 +198,8 @@ export class GhostLayer {
   // derived fields used by the humanoid
   get levitate() { return this.v.levitate; }
   get mouthStretch() { return this.v.mouthStretch; }
-  get breath() { return (1 - this.v.still * 0.9) * (1 - clamp(this.v.breathStop, 0, 1)); }
-  get stillness() { return clamp(this.v.still + this.v.stare * 0.5, 0, 1); }
+  get breath() { return (1 - this.v.still * 0.9) * (1 - clamp(this.v.breathStop, 0, 1)) * (1 - clamp(this.v.gasp * 1.6, 0, 1)); }
+  get stillness() { return clamp(Math.max(this.v.still + this.v.stare * 0.5, this.v.gasp * 1.3), 0, 1); }
   get unlimitedLook() { return this.v.unlimited > 0.5 || this.v.neckTwist !== 0; }
   get stare() { return this.v.stare; }
   get noBlink() { return this.v.noBlink > 0.5 || this.v.stare > 0.8; }
@@ -306,7 +307,7 @@ export class GhostLayer {
       }
     }
     // ---- gliding: legs barely move, toes point down and drag
-    const gl = v.glide * (h.anim?.moving ?? 0);
+    const gl = v.glide * (h.walk ? 1 : 0.4);
     if (gl > 0.01) for (const x of ['l', 'r']) { rig.addEuler(I['foot_' + x], 0.55 * gl, 0, 0); rig.addEuler(I['calf_' + x], 0.08 * gl, 0, 0); }
     if (v.armTwist) {
       const a = v.armTwist;

@@ -65,7 +65,10 @@ export function bloodDecalTexture(kind, variant = 0) {
   const n = VARIANTS[kind] || 1;
   const key = `blood_${kind}_${((variant % n) + n) % n}${reducedGore() ? '_reduced' : ''}`;
   if (_tex.has(key)) return _tex.get(key);
-  const t = new THREE.TextureLoader().load(PATH + key + '.webp');
+  const img = load(key);
+  const t = new THREE.Texture(img?.complete && img.naturalWidth ? img : undefined);
+  if (img?.complete && img.naturalWidth) t.needsUpdate = true;
+  else img?.addEventListener('load', () => { t.image = img; t.needsUpdate = true; }, { once: true });
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   _tex.set(key, t);
