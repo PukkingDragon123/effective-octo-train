@@ -125,6 +125,8 @@ class Interior:
             p = np.zeros(3)
             for key, w in (('pass', wp), ('stack', ws), ('bin', wb)):
                 p += w * np.array(self.PROF[key][k])
+            # dash top lowered with the cowl (4.5 cm; binnacle hood 3.5 cm)
+            p[1] -= (0.045 - 0.010 * wb) * smoothstep(0.74, 0.88, p[1])
             out.append(tuple(p))
         # glovebox recess (lid sits in front of it)
         g = smoothstep(-0.585, -0.565, x) * (1 - smoothstep(-0.22, -0.19, x))
@@ -271,7 +273,7 @@ class Interior:
     # ---------------------------------------------------------------------------------
     def cluster(self):
         # cluster panel plane under the binnacle hood, tilted toward the driver's eye
-        ctr = np.array([0.372, 0.612, 0.866])
+        ctr = np.array([0.372, 0.612, 0.846])
         eye = np.array([0.37, -0.24, 1.15])
         nrm = eye - ctr
         nrm /= np.linalg.norm(nrm)
@@ -754,7 +756,7 @@ class Interior:
                             return max(0.275, tb.AXLE_Z + dz + 0.02)
                     return 0.275
 
-                ztop = 0.880
+                ztop = 0.855
 
                 def xin(y, z, door=door, yf=yf, yr=yr):
                     arm = 0.050 * smoothstep(0.575, 0.592, z) * (1 - smoothstep(0.655, 0.672, z)) * \
@@ -763,7 +765,7 @@ class Interior:
                     if door == 'f':
                         pocket = 0.032 * smoothstep(0.33, 0.345, z) * (1 - smoothstep(0.405, 0.42, z)) * \
                             smoothstep(yr + 0.05, yr + 0.10, y) * (1 - smoothstep(yf - 0.30, yf - 0.24, y))
-                    cap = 0.012 * smoothstep(0.84, 0.86, z)
+                    cap = 0.012 * smoothstep(0.815, 0.835, z)
                     edge = 0.012 * (1 - smoothstep(0.0, 0.03, min(y - yr, yf - y, z - zmin(y), ztop - z)))
                     return 0.676 - arm - pocket - cap + edge
                 ny, nz = 34, 28
@@ -875,8 +877,8 @@ class Interior:
         # pillar trims (A, B, C) as rounded strips
         parts = []
         for side in (1, -1):
-            a_path = [(side * 0.705, 0.83, 0.90), (side * 0.66, 0.45, 1.08), (side * 0.60, 0.05, 1.255)]
-            parts.append(sweep('apil', resample(np.array(a_path), 12), rrect_profile(0.02, 0.075, 0.009, 3),
+            a_path = [(side * 0.705, 0.83, 0.87), (side * 0.66, 0.45, 1.065), (side * 0.60, 0.05, 1.255)]
+            parts.append(sweep('apil', resample(np.array(a_path), 12), rrect_profile(0.014, 0.05, 0.006, 3),
                                normals=np.tile(np.array([-side, 0, 0.3]), (12, 1)), cap=True))
             b_path = [(side * 0.665, -0.205, 0.30), (side * 0.655, -0.20, 0.88), (side * 0.585, -0.19, 1.26)]
             parts.append(sweep('bpil', resample(np.array(b_path), 10), rrect_profile(0.022, 0.085, 0.009, 3),
@@ -923,7 +925,7 @@ class Interior:
 
         def keep(f):
             c = f.calc_center_median()
-            return -1.12 < c.y < 0.86 and abs(c.x) < 0.87 and c.z > 0.885
+            return -1.12 < c.y < 0.86 and abs(c.x) < 0.87 and c.z > 0.86
 
         bmesh.ops.delete(bm, geom=[f for f in bm.faces if not keep(f)], context='FACES')
         bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')

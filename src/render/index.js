@@ -14,7 +14,8 @@
 //   Particles.js  GPU instanced particle emitters
 //   Silhouette.js silhouetteMaterial: fog-aware painted 2D flats (distant tree lines)
 //   Blood.js      bloodDecalMaterial, gore level (settings.gore), lens splatter GLSL for PostFX
-//   BloodDecals.js photo-based CC0 blood decals + anatomical handprints for 2D canvases (glass)
+//   BloodDecals.js photo-based CC0 blood decals for 2D canvases (glass) and 3D decals
+//   BloodFX.js    3D blood: sprays that fall, splash and pool; runs that creep down surfaces
 import * as THREE from 'three';
 import { GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals } from './uniforms.js';
 import { installFogChunks, installMaterialInjection } from './Fog.js';
@@ -26,7 +27,8 @@ import { particles } from './Particles.js';
 import { createVolumetricBeam } from './Beams.js';
 import { silhouetteMaterial } from './Silhouette.js';
 import { bloodDecalMaterial, GORE_UNIFORM } from './Blood.js';
-import { paintBloodHandprint, paintBloodDecal, bloodDecalImage, preloadBloodDecals } from './BloodDecals.js';
+import { paintBloodDecal, bloodDecalImage, preloadBloodDecals, whenBloodDecalsReady, bloodDecalTexture } from './BloodDecals.js';
+import { bloodFX } from './BloodFX.js';
 import { brushTexture, canvasTexture, glowTexture } from './noiseTex.js';
 import { RENDER_CAPS, captureCaps, crispTexture, crispMaterialTextures } from './caps.js';
 import { installShadowBudget } from './Shadows.js';
@@ -38,7 +40,7 @@ export {
   GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals,
   paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug,
   postfx, sky, lightPool, particles, createVolumetricBeam, silhouetteMaterial, bloodDecalMaterial, GORE_UNIFORM, LIGHT_ACCENTS,
-  paintBloodHandprint, paintBloodDecal, bloodDecalImage, preloadBloodDecals,
+  paintBloodDecal, bloodDecalImage, preloadBloodDecals, whenBloodDecalsReady, bloodDecalTexture, bloodFX,
   brushTexture, canvasTexture, glowTexture,
   RENDER_CAPS, crispTexture, crispMaterialTextures,
 };
@@ -66,7 +68,7 @@ let _installed = false;
  * particles. Called once at boot by main.js. Returns { postfx, sky, lightPool, particles }.
  */
 export function installRendering(engine) {
-  if (_installed) return { postfx, sky, lightPool, particles };
+  if (_installed) return { postfx, sky, lightPool, particles, bloodFX };
   _installed = true;
   installFogChunks();
   installMaterialInjection();
@@ -88,6 +90,7 @@ export function installRendering(engine) {
   applyQuality();
   settings.onChange(applyQuality);
   scene.add(sky.group, lightPool.group, particles.group);
+  bloodFX.attach(scene);
   // Pixel ratio: native (devicePixelRatio, at most 2) x resolutionScale. Owner: the image must
   // be sharp at native resolution; never above 2x (a 3x phone would shade 9x the pixels).
   const capPixelRatio = () => {
@@ -109,9 +112,10 @@ export function installRendering(engine) {
       // particles keep their minimum pixel size at the internal (dynamic) render height
       particles.setViewportHeight(viewportHeight());
       particles.update(dt, engine.camera);
+      bloodFX.update(dt);
     },
     80,
   );
   engine.renderPipeline = (r, s, camera, dt) => postfx.render(r, s, camera, dt);
-  return { postfx, sky, lightPool, particles };
+  return { postfx, sky, lightPool, particles, bloodFX };
 }

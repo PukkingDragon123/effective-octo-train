@@ -123,4 +123,16 @@ export const LOCAL_DEFS = {
     lines: [W('หิว...', 'Hungry...')],
     staging: 'Only in the right side mirror: an old village woman crouched by the car, grinning, red eyes, licking her lips; nearer and wider-mouthed each time you look. Then her breath is on your neck. Rule 8: hold the amulet and keep your eyes forward (QTE still) or she feeds (death breath).',
   },
+
+  // ------------------------------------------------------------------ glass and the follower
+  windowSmash: {
+    id: 'windowSmash', nameTH: 'กระจกแตก', nameEN: 'The Window Smash', kind: 'scare',
+    hours: [22, 27.5], where: ['freeDrive', 'ride:anyGhost'], gazeMode: 'sideWindow', once: true, cooldownSec: 2400, chance: 0.1, durationSec: [12, 18],
+    staging: 'Something keeps pace at a side / rear window: a palm print, a knuckle star, fractures racing out, then the tempered pane bursts inward (slow motion, flinch, nuggets over the seats). A long grey arm reaches for your head: QTE react, then fight it off; lose = death windowArm. The window stays broken all night (wind, rain).',
+  },
+  stalker: {
+    id: 'stalker', nameTH: 'มันตามมา', nameEN: 'The Follower', kind: 'scare',
+    hours: [21, 28.5], where: ['any'], gazeMode: 'notLooking', cooldownSec: 150, chance: 0.32, durationSec: [20, 40],
+    staging: 'Night-long (Stalker.js): the tree line keeping pace and peeking from cover (gone when looked at straight), then the roadside (do not stop for it: it walks to your door), then one frame on the back seat in the mirror (r3), then in your lane (r12). On foot at the garage (2nd night on) and at stops: its footsteps a beat behind yours.',
+  },
 };

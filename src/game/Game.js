@@ -23,7 +23,7 @@ const { Taxi, Motorcycle } = VehicleModule;
 const { PlayerBody, createHumanoid } = CharactersModule;
 import { audio } from '../audio/index.js';
 import { ui } from '../ui/index.js';
-import { postfx, sky, lightPool, particles } from '../render/index.js';
+import { postfx, sky, lightPool, particles, bloodFX } from '../render/index.js';
 import { installMobileControls } from '../ui/MobileControls.js';
 import { installTestPanel } from '../ui/TestPanel.js';
 import { MenuState } from './states/MenuState.js';
@@ -49,7 +49,7 @@ function loadData() {
 
 export async function startGame(ctx) {
   const { engine, params } = ctx;
-  Object.assign(g, ctx, { postfx, sky, lightPool, particles, audio, ui });
+  Object.assign(g, ctx, { postfx, sky, lightPool, particles, audio, ui, blood: bloodFX }); // g.blood.spray(pos, dir) / g.blood.drip(surface)
   g.data = loadData();
   g.params = params;
 

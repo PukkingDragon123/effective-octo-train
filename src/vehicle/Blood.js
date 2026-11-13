@@ -8,7 +8,7 @@
 //   under the headliner seam that fall and splat on the dash.
 import * as THREE from 'three';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
-import { paintedMaterial, paintBloodHandprint, paintBloodDecal } from '../render/index.js';
+import { paintedMaterial, paintBloodDecal, bloodDecalImage, whenBloodDecalsReady } from '../render/index.js';
 import { settings } from '../core/Settings.js';
 import { makeRng, clamp, lerp, smoothstep, noise } from '../core/math.js';
 import { makeCanvas, toTexture } from './VehicleTextures.js';
@@ -25,49 +25,6 @@ const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 // ---------------------------------------------------------------------------
 // glass painting
 // ---------------------------------------------------------------------------
-/** Streaks inside the current path (fresh blood: thick, dragged, uneven). */
-function streakFill(g, rng, P, x, y, s, angle, n = 40, len = 1) {
-  g.save();
-  g.clip();
-  g.fillStyle = css(P.body, 0.92 * P.alpha);
-  g.fillRect(x - s * 2, y - s * 2, s * 4, s * 4);
-  g.translate(x, y);
-  g.rotate(angle);
-  for (let k = 0; k < n; k++) {
-    const ox = rng.range(-s, s), w = rng.range(0.6, 2.6);
-    g.strokeStyle = rng() < 0.5 ? css(P.core, rng.range(0.25, 0.7) * P.alpha) : css(P.edge, rng.range(0.1, 0.35) * P.alpha);
-    g.lineWidth = w;
-    g.beginPath();
-    g.moveTo(ox, -s * 1.2);
-    g.bezierCurveTo(ox + rng.range(-3, 3), -s * 0.3, ox + rng.range(-3, 3), s * 0.4, ox + rng.range(-4, 4), s * 1.2 * len);
-    g.stroke();
-  }
-  // glossy wet highlight streaks
-  for (let k = 0; k < 6; k++) {
-    g.strokeStyle = css(P.hi, rng.range(0.08, 0.2) * P.alpha);
-    g.lineWidth = rng.range(0.8, 1.8);
-    g.beginPath();
-    const ox = rng.range(-s * 0.7, s * 0.7);
-    g.moveTo(ox, -s * 0.6);
-    g.lineTo(ox + rng.range(-2, 2), s * 0.2);
-    g.stroke();
-  }
-  g.restore();
-}
-
-function blobPath(g, rng, x, y, r, rough = 0.35, n = 22) {
-  g.beginPath();
-  const ph = rng() * 10;
-  for (let k = 0; k <= n; k++) {
-    const a = (k / n) * Math.PI * 2;
-    const rr = r * (1 + rough * (noise.noise2D(Math.cos(a) * 1.3 + ph, Math.sin(a) * 1.3) * 0.8 + (rng() - 0.5) * 0.4));
-    const px = x + Math.cos(a) * rr, py = y + Math.sin(a) * rr;
-    if (k === 0) g.moveTo(px, py);
-    else g.lineTo(px, py);
-  }
-  g.closePath();
-}
-
 /**
  * Palm + four fingers + thumb as one path: every finger is a rounded capsule that starts
  * inside the palm (no floating 'paw' pads). Fingers point to -y.
@@ -91,216 +48,89 @@ export function handPath(g, x, y, s, rot, spread = 1) {
   g.restore();
 }
 
-/** A running drip: state advanced by updateDrips(). */
-function newDrip(x, y, rng, P, speed = 1, k = 1) {
-  // k = canvas scale (px per 640-wide windshield px)
-  return { x, y, w: rng.range(2.2, 4.6) * k, v: rng.range(14, 30) * speed * k, left: rng.range(40, 180) * k, life: 0, rng, P };
-}
-
 /**
- * Paint a blood mark on a pane. kind 'blood_handprint'|'blood_smear'|'blood_drip'|'blood_splatter'.
- * uv in pane mask space (0..1, v up). opts {size, angle, path:[{x,y}...] (smear, uv), drips, seed}
+ * Paint a blood mark on a pane from the CC0 photo decals (render/BloodDecals.js; owner rule:
+ * no blood is drawn in code). kind 'blood_handprint'|'blood_smear'|'blood_drip'|'blood_splatter'.
+ * uv in pane mask space (0..1, v up). opts {size, angle, drag, path:[{x,y}...] (smear, uv),
+ * drips, seed}. Marks requested before the decal images loaded are painted once they have.
  */
 export function paintGlassBlood(pane, kind, uv, opts = {}) {
+  if (!bloodDecalImage('handprint', 0)) {
+    whenBloodDecalsReady().then(() => paintGlassBlood(pane, kind, uv, opts));
+    return;
+  }
   const B = pane.ensureBlood();
   const g = B.g, W = B.canvas.width, H = B.canvas.height;
   const P = palette();
   const rng = makeRng(opts.seed ?? ((Math.random() * 1e9) | 0));
   const x = (uv.x ?? uv[0]) * W, y = (1 - (uv.y ?? uv[1])) * H;
   const s = (opts.size ?? 1) * W * (pane.id === 'windshield' ? 0.07 : 0.12);
-  const drip = (dx, dy, speed = 1) => B.drips.push(newDrip(dx, dy, rng, P, speed, W / 640));
+  const k = W / 640;
+  const drip = (dx, dy, len = 1) => B.drips.push(newDrip(dx, dy, rng, len * k));
+  const a = P.alpha;
   if (kind === 'blood_handprint') {
-    // anatomical print textured with the CC0 photo blood (render/BloodDecals.js): palm, finger
-    // pads with joint creases, ridges, coagulated centre, thin translucent edges, drag streaks
-    const rot = opts.angle ?? rng.range(-0.4, 0.4);
-    const pads = paintBloodHandprint(g, x, y, s * 1.05, rot, { seed: rng.int(0, 1e9), drag: opts.drag ? 0.9 : 0, left: opts.left ?? rng() < 0.5, pressure: P.alpha });
-    const nd = Math.round((opts.drips ?? 3) * P.density);
-    for (let k = 0; k < nd; k++) {
-      const pd = pads[(pads.length - 1 - k + pads.length) % pads.length];
-      drip(pd.x + rng.range(-2, 2), pd.y + s * 0.05, 0.7);
-    }
-  } else if (kind === 'blood_handprint_legacy') {
-    const rot = opts.angle ?? rng.range(-0.4, 0.4);
-    handPath(g, x, y, s, rot);
-    streakFill(g, rng, P, x, y, s, rot + (opts.drag ? 0 : 0.1), 46, opts.drag ? 1.8 : 1);
-    // tide-line rim where it dries first
-    handPath(g, x, y, s, rot);
-    g.strokeStyle = css(P.core, 0.55 * P.alpha);
-    g.lineWidth = 1.6;
-    g.stroke();
+    const rot = opts.angle ?? rng.range(-0.35, 0.35);
+    const sz = s * 2.7;
     if (opts.drag) {
-      // the hand slid down: smeared tracks below the prints
-      g.save();
-      g.translate(x, y);
-      g.rotate(rot);
-      for (let k = 0; k < 5; k++) {
-        const fx = (-0.34 + k * 0.2) * s;
-        const grd = g.createLinearGradient(0, 0, 0, s * 2.2);
-        grd.addColorStop(0, css(P.body, 0.8 * P.alpha));
-        grd.addColorStop(1, css(P.body, 0));
-        g.strokeStyle = grd;
-        g.lineWidth = s * rng.range(0.1, 0.16);
-        g.lineCap = 'round';
-        g.beginPath();
-        g.moveTo(fx, -s * 0.2);
-        g.bezierCurveTo(fx + rng.range(-4, 4), s * 0.6, fx + rng.range(-6, 6), s * 1.4, fx + rng.range(-8, 8), s * 2.2);
-        g.stroke();
-      }
-      g.restore();
+      // the hand slid down: the dragged print (variant 1) stretched below the clean one
+      paintBloodDecal(g, 'handprint', x, y + sz * 0.35, sz * 1.02, sz * 1.5, rot, { variant: 1, alpha: 0.8 * a });
     }
+    paintBloodDecal(g, 'handprint', x, y, sz, sz, rot, { variant: opts.drag ? 1 : 0, alpha: a });
     const nd = Math.round((opts.drips ?? 3) * P.density);
-    for (let k = 0; k < nd; k++) drip(x + rng.range(-s * 0.35, s * 0.35), y + s * 0.55, 0.7);
-  } else if (kind === 'blood_smear' && smearDecal(g, rng, P, opts, uv, W, H, s, drip)) {
-    // photo smear decal laid along the drag path (+ drips from the heavy start)
-  } else if (kind === 'blood_splatter' && paintBloodDecal(g, 'spatter', x, y, s * 3.2, s * 3.2, opts.angle ?? rng() * Math.PI * 2, { variant: rng.int(0, 2), alpha: P.alpha })) {
-    const nd = Math.round((opts.drips ?? 4) * P.density);
-    for (let k = 0; k < nd; k++) drip(x + rng.range(-s * 0.4, s * 0.4), y + s * 0.3, 0.8);
+    for (let i = 0; i < nd; i++) drip(x + rng.range(-sz * 0.3, sz * 0.3), y + sz * rng.range(0.15, 0.4), rng.range(0.5, 1));
   } else if (kind === 'blood_smear') {
-    // finger-dragged: several parallel finger tracks along a path, heavy where it starts
-    const path = (opts.path || [{ x: uv.x ?? uv[0], y: uv.y ?? uv[1] }, { x: (uv.x ?? uv[0]) + 0.18 * Math.cos(opts.angle ?? -0.3), y: (uv.y ?? uv[1]) + 0.18 * Math.sin(opts.angle ?? -0.3) }]).map((p) => [p.x * W, (1 - p.y) * H]);
-    const fingers = opts.fingers ?? 4;
-    for (let f = 0; f < fingers; f++) {
-      const off = (f - (fingers - 1) / 2) * s * 0.12;
-      for (let pass = 0; pass < 3; pass++) {
-        g.beginPath();
-        for (let i = 0; i < path.length; i++) {
-          const [px, py] = path[i];
-          const nx = i < path.length - 1 ? path[i + 1][1] - py : py - path[i - 1][1];
-          const ny = i < path.length - 1 ? -(path[i + 1][0] - px) : -(px - path[i - 1][0]);
-          const nl = Math.hypot(nx, ny) || 1;
-          const qx = px + (nx / nl) * off + rng.range(-1.5, 1.5), qy = py + (ny / nl) * off + rng.range(-1.5, 1.5);
-          if (i === 0) g.moveTo(qx, qy);
-          else g.lineTo(qx, qy);
-        }
-        g.lineCap = 'round';
-        g.lineJoin = 'round';
-        g.strokeStyle = pass === 0 ? css(P.body, rng.range(0.55, 0.85) * P.alpha) : pass === 1 ? css(P.core, 0.5 * P.alpha) : css(P.hi, 0.1 * P.alpha);
-        g.lineWidth = s * (pass === 0 ? rng.range(0.15, 0.2) : pass === 1 ? 0.08 : 0.02);
-        g.stroke();
-      }
-      // the heavy start of the stroke
-      blobPath(g, rng, path[0][0] + rng.range(-2, 2), path[0][1], s * 0.12, 0.3, 14);
-      g.fillStyle = css(P.core, 0.85 * P.alpha);
-      g.fill();
+    const u0 = uv.x ?? uv[0], v0 = uv.y ?? uv[1];
+    const pts = (opts.path || [{ x: u0, y: v0 }, { x: u0 + 0.18 * Math.cos(opts.angle ?? -0.3), y: v0 + 0.18 * Math.sin(opts.angle ?? -0.3) }]).map((p) => [p.x * W, (1 - p.y) * H]);
+    const variant = rng.int(0, 1);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+      const len = Math.hypot(bx - ax, by - ay);
+      paintBloodDecal(g, 'smear', (ax + bx) / 2, (ay + by) / 2, len * 1.25 + s * 0.6, s * 1.1, Math.atan2(by - ay, bx - ax), { variant, alpha: a });
     }
-    // bristle gaps: thin partial wipes inside the tracks
-    g.save();
-    g.globalCompositeOperation = 'destination-out';
-    for (let k = 0; k < 18; k++) {
-      const i = Math.floor(rng() * (path.length - 1));
-      const t = rng();
-      const px = lerp(path[i][0], path[i + 1][0], t), py = lerp(path[i][1], path[i + 1][1], t);
-      g.strokeStyle = `rgba(0,0,0,${rng.range(0.2, 0.6)})`;
-      g.lineWidth = rng.range(0.6, 1.4);
-      g.beginPath();
-      g.moveTo(px - 6, py + rng.range(-s * 0.3, s * 0.3));
-      g.lineTo(px + 6, py + rng.range(-s * 0.3, s * 0.3));
-      g.stroke();
-    }
-    g.restore();
     const nd = Math.round((opts.drips ?? 2) * P.density);
-    for (let k = 0; k < nd; k++) drip(path[0][0] + rng.range(-s * 0.3, s * 0.3), path[0][1] + s * 0.1, 0.6);
+    for (let i = 0; i < nd; i++) drip(pts[0][0] + rng.range(-s * 0.3, s * 0.3), pts[0][1] + s * 0.15, 0.7);
   } else if (kind === 'blood_drip') {
-    // trails that creep down from the top edge of the glass (or from uv)
+    // runs creeping down from the top edge (or from uv)
     const n = Math.max(1, Math.round((opts.count ?? 3) * P.density));
-    for (let k = 0; k < n; k++) {
-      const dx = x + (k - (n - 1) / 2) * s * rng.range(0.25, 0.5);
-      const dy = opts.fromTop === false ? y : 0;
-      blobPath(g, rng, dx, dy + 2, rng.range(3, 6), 0.4, 12);
-      g.fillStyle = css(P.body, 0.9 * P.alpha);
-      g.fill();
-      drip(dx, dy + 3, opts.speed ?? 0.5);
-    }
+    for (let i = 0; i < n; i++) drip(x + (i - (n - 1) / 2) * s * rng.range(0.25, 0.5), opts.fromTop === false ? y : 0, (opts.speed ?? 1) * rng.range(0.7, 1.3));
   } else if (kind === 'blood_splatter') {
-    const rot = opts.angle ?? rng() * Math.PI * 2;
-    blobPath(g, rng, x, y, s * 0.42, 0.45, 26);
-    streakFill(g, rng, P, x, y, s * 0.5, rot, 30, 0.8);
-    // spikes thrown outward along the impact direction
-    const nSp = Math.round(16 * P.density);
-    for (let k = 0; k < nSp; k++) {
-      const a = rot + rng.range(-1.6, 1.6) + (rng() < 0.3 ? Math.PI : 0);
-      const L = s * rng.range(0.5, 1.4);
-      g.fillStyle = css(rng() < 0.5 ? P.body : P.core, rng.range(0.6, 0.95) * P.alpha);
-      g.beginPath();
-      const w = s * rng.range(0.03, 0.08);
-      g.moveTo(x + Math.cos(a + Math.PI / 2) * w, y + Math.sin(a + Math.PI / 2) * w);
-      g.lineTo(x + Math.cos(a) * L, y + Math.sin(a) * L);
-      g.lineTo(x + Math.cos(a - Math.PI / 2) * w, y + Math.sin(a - Math.PI / 2) * w);
-      g.fill();
-      g.beginPath();
-      g.arc(x + Math.cos(a) * L, y + Math.sin(a) * L, w * 0.9, 0, Math.PI * 2);
-      g.fill();
-    }
-    // satellite droplets
-    const nDr = Math.round(70 * P.density);
-    for (let k = 0; k < nDr; k++) {
-      const a = rot + rng.range(-1.9, 1.9);
-      const d = s * (0.5 + Math.pow(rng(), 0.6) * 1.9);
-      const r = Math.max(0.6, s * 0.06 * (1 - d / (s * 2.6)) * rng.range(0.3, 1.2));
-      g.fillStyle = css(rng() < 0.6 ? P.body : P.edge, rng.range(0.6, 1) * P.alpha);
-      g.beginPath();
-      g.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, r * 1.4, r, a, 0, Math.PI * 2);
-      g.fill();
-    }
+    paintBloodDecal(g, 'spatter', x, y, s * 3.2, s * 3.2, opts.angle ?? rng() * Math.PI * 2, { variant: rng.int(0, 2), alpha: a });
     const nd = Math.round((opts.drips ?? 4) * P.density);
-    for (let k = 0; k < nd; k++) drip(x + rng.range(-s * 0.4, s * 0.4), y + s * 0.3, 0.8);
+    for (let i = 0; i < nd; i++) drip(x + rng.range(-s * 0.5, s * 0.5), y + rng.range(0, s * 0.4), rng.range(0.6, 1.2));
   }
   B.tex.needsUpdate = true;
   pane.uniforms.uBloodOn.value = 1;
 }
 
-/** Smear along a path with the photo smear decal; false while the decal image loads. */
-function smearDecal(g, rng, P, opts, uv, W, H, s, drip) {
-  const u0 = uv.x ?? uv[0], v0 = uv.y ?? uv[1];
-  const pts = (opts.path || [{ x: u0, y: v0 }, { x: u0 + 0.18 * Math.cos(opts.angle ?? -0.3), y: v0 + 0.18 * Math.sin(opts.angle ?? -0.3) }]).map((p) => [p.x * W, (1 - p.y) * H]);
-  const variant = rng.int(0, 1);
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
-    const len = Math.hypot(bx - ax, by - ay);
-    // the decal's heavy end is on its left: start of the drag
-    if (!paintBloodDecal(g, 'smear', (ax + bx) / 2, (ay + by) / 2, len * 1.25 + s * 0.6, s * 1.1, Math.atan2(by - ay, bx - ax), { variant, alpha: P.alpha })) return false;
-  }
-  const nd = Math.round((opts.drips ?? 2) * P.density);
-  for (let k = 0; k < nd; k++) drip(pts[0][0] + rng.range(-s * 0.3, s * 0.3), pts[0][1] + s * 0.15, 0.6);
-  return true;
+/** A running drip: one run of a photo drip decal, revealed downward with gravity. */
+function newDrip(x, y, rng, len = 1) {
+  const variant = rng.int(0, 2);
+  const img = bloodDecalImage('drip', variant);
+  // one run = a narrow column of the decal (it holds ~8 runs side by side)
+  const cols = 8;
+  const col = rng.int(0, cols - 1);
+  const w = 18 * len, h = 150 * len * rng.range(0.6, 1.2);
+  return { x, y, img, sx: (col / cols) * (img?.naturalWidth || 256), sw: (img?.naturalWidth || 256) / cols, w, h, shown: 0, v: rng.range(16, 32) * len, life: rng() * 6 };
 }
 
-/** Advance running drips on a pane (thick fresh trail, bead at the tip, slows and stops). */
+/** Advance running drips on a pane: each reveals more of its photo run (stick-slip creep). */
 export function updateGlassDrips(pane, dt) {
   const B = pane.blood;
   if (!B || !B.drips.length) return;
-  const g = B.g, H = B.canvas.height;
+  const g = B.g;
   for (let i = B.drips.length - 1; i >= 0; i--) {
     const d = B.drips[i];
     d.life += dt;
-    // stick-slip creep: stalls, then runs
     const surge = 0.35 + 0.65 * Math.max(0, Math.sin(d.life * 1.7 + d.x));
-    const dy = d.v * surge * dt;
-    if (dy <= 0) continue;
-    const P = d.P;
-    g.lineCap = 'round';
-    g.strokeStyle = css(P.body, 0.9 * P.alpha);
-    g.lineWidth = d.w;
-    g.beginPath();
-    g.moveTo(d.x, d.y);
-    d.x += d.rng.range(-0.25, 0.25) * dy * 0.3;
-    d.y += dy;
-    g.lineTo(d.x, d.y);
-    g.stroke();
-    g.strokeStyle = css(P.core, 0.35 * P.alpha);
-    g.lineWidth = d.w * 0.45;
-    g.stroke();
-    d.left -= dy;
-    d.v *= Math.exp(-dt * 0.08);
-    d.w = Math.max(1.2, d.w - dy * 0.006);
-    if (d.left <= 0 || d.y > H - 2) {
-      // the bead that stopped
-      g.fillStyle = css(P.core, 0.95 * P.alpha);
-      g.beginPath();
-      g.ellipse(d.x, d.y + 1, d.w * 0.95, d.w * 1.25, 0, 0, Math.PI * 2);
-      g.fill();
-      B.drips.splice(i, 1);
+    const dy = Math.min(d.h - d.shown, d.v * surge * dt);
+    if (dy > 0 && d.img) {
+      const ih = d.img.naturalHeight;
+      const s0 = (d.shown / d.h) * ih, s1 = ((d.shown + dy) / d.h) * ih;
+      g.drawImage(d.img, d.sx, s0, d.sw, Math.max(1, s1 - s0), d.x - d.w / 2, d.y + d.shown, d.w, dy);
+      d.shown += dy;
+      d.v *= Math.exp(-dt * 0.06);
     }
+    if (d.shown >= d.h - 0.01 || !d.img) B.drips.splice(i, 1);
   }
   B.tex.needsUpdate = true;
 }
@@ -358,19 +188,6 @@ export function smearGlassBlood(pane, pivot, phi0, phi1, r0, r1, asp, dir) {
   g.fill();
   g.globalCompositeOperation = 'source-over';
   g.globalAlpha = 1;
-  const rng = B.rng;
-  for (let k = 0; k < 7; k++) {
-    const r = lerp(r0, r1, rng());
-    g.strokeStyle = css(rng() < 0.6 ? P.body : P.core, rng.range(0.08, 0.3) * P.alpha);
-    g.lineWidth = rng.range(0.6, 2.2);
-    g.beginPath();
-    for (let j = 0; j <= 8; j++) {
-      const [px, py] = toC(lerp(phi0, phi1, j / 8), r + rng.range(-0.002, 0.002));
-      if (j === 0) g.moveTo(px, py);
-      else g.lineTo(px, py);
-    }
-    g.stroke();
-  }
   g.restore();
   B.tex.needsUpdate = true;
 }
@@ -379,42 +196,32 @@ export function smearGlassBlood(pane, pivot, phi0, phi1, r0, r1, asp, dir) {
 // interior stains + roof bleed
 // ---------------------------------------------------------------------------
 const _stainCache = new Map();
-/** RGBA stain: rgb blood colours, alpha = seep field (centre 1 -> edge 0) used with alphaTest. */
+/**
+ * RGBA stain from the CC0 photo decals (pool / smear): rgb = the photo blood, alpha = its
+ * coverage x a seep order (centre first) used with alphaTest so the stain spreads outward.
+ */
 function stainTexture(kind) {
   const S = 256;
   const c = makeCanvas(S, S);
   const g = c.getContext('2d');
-  const img = g.createImageData(S, S);
-  const rng = makeRng(kind === 'splat' ? 9 : kind === 'seam' ? 13 : 5);
-  const P = palette();
-  for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
-      const u = x / S - 0.5, v = y / S - 0.5;
-      let f;
-      if (kind === 'seam') {
-        // a long soaked band with runs hanging down
-        const run = Math.max(0, noise.noise2D(u * 9, 3.1) * 0.5 + 0.2) * smoothstep(-0.05, 0.5, v);
-        f = 1 - Math.abs(v + 0.25) * 4.5 + run * 2.2 + noise.noise2D(u * 14, v * 14) * 0.18;
-        f *= 1 - smoothstep(0.38, 0.5, Math.abs(u));
-      } else {
-        const r = Math.hypot(u, v) * 2;
-        const warp = noise.noise2D(u * 4 + 1.3, v * 4) * 0.28 + noise.noise2D(u * 16, v * 16) * 0.08 + (kind === 'splat' ? 0 : noise.noise2D(u * 40, v * 3) * 0.06); // fabric wicking along the weave
-        f = 1 - r + warp;
-      }
-      f = clamp(f, 0, 1);
-      // colour: dark core, brighter fresh body, dark dried tide line at the edge
-      const edge = smoothstep(0.0, 0.08, f) * (1 - smoothstep(0.08, 0.2, f));
-      const core = 0.55 + 0.45 * smoothstep(0.25, 0.75, f) * (kind === 'splat' ? 0.6 : 1);
-      const i = (y * S + x) * 4;
-      const t = rng() * 0.08;
-      img.data[i] = lerp(lerp(P.body[0], P.core[0], core), P.core[0] * 0.6, edge) * (1 - t);
-      img.data[i + 1] = lerp(lerp(P.body[1], P.core[1], core), P.core[1] * 0.6, edge) * (1 - t);
-      img.data[i + 2] = lerp(lerp(P.body[2], P.core[2], core), P.core[2] * 0.6, edge) * (1 - t);
-      img.data[i + 3] = f * 255;
-    }
-  }
-  g.putImageData(img, 0, 0);
-  return toTexture(c);
+  const tex = toTexture(c);
+  const paint = () => {
+    const img = kind === 'seam' ? bloodDecalImage('smear', 1) : bloodDecalImage('pool', kind === 'splat' ? 2 : 0);
+    if (!img) return false;
+    g.clearRect(0, 0, S, S);
+    g.drawImage(img, 0, 0, S, S);
+    g.globalCompositeOperation = 'destination-in';
+    const gr = kind === 'seam' ? g.createLinearGradient(0, S * 0.2, 0, S) : g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * 0.55);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(1, 'rgba(255,255,255,0.04)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, S, S);
+    g.globalCompositeOperation = 'source-over';
+    tex.needsUpdate = true;
+    return true;
+  };
+  if (!paint()) whenBloodDecalsReady().then(paint);
+  return tex;
 }
 
 function stainMaterial(kind) {

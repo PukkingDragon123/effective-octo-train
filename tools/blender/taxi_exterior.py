@@ -309,13 +309,13 @@ class Ext:
             cutters.append(arch_cutter('c_archR', tb.AXR, tb.AXLE_Z, 0.338, side))
         # door seams (side-view polylines, extruded along X)
         front_edge = [(0.836, 0.2445), (0.843, 0.32), (0.848, 0.50), (0.845, 0.66), (0.835, 0.78), (0.818, 0.85),
-                      (0.806, 0.870), (0.800, 0.884), (0.799, 0.890)]
+                      (0.806, 0.848), (0.800, 0.859), (0.799, 0.865)]
         b_edge = [(-0.192, 0.2445), (-0.196, 0.60), (-0.200, 0.96)]
         rear_edge = [(-0.79, 0.2445)]
         for k in range(0, 9):
             ph = math.radians(60 * k / 8)
             rear_edge.append((tb.AXR + 0.364 * math.cos(ph), tb.AXLE_Z + 0.364 * math.sin(ph)))
-        rear_edge += [(-1.03, 0.70), (-1.052, 0.80), (-1.06, 0.906)]
+        rear_edge += [(-1.03, 0.70), (-1.052, 0.80), (-1.06, 0.881)]
         self.door_lines = dict(front=front_edge, b=b_edge, rear=rear_edge)
         bottom = [(0.95, 0.246), (-0.90, 0.246)]
         self.door_bottom_z = 0.246
@@ -576,7 +576,7 @@ class Ext:
         NG = self.g.G.shape[0]
         r_top_ws = self.g.G_ROW_OF[3] - 0.35
         # windshield: columns +-(nW-1) (A-pillar starts at nW-1)
-        cmax = nW - 1 - 0.18
+        cmax = nW - 1 - 0.08   # wider windshield, slimmer A-pillar
         loop2 = rounded_poly_2d([(-cmax, 0.55), (cmax, 0.55), (cmax, r_top_ws), (-cmax, r_top_ws)],
                                 [0.0, 0.0, 0.0, 0.0], 1)
         # rounded corners in metric-ish space: build explicitly
@@ -727,11 +727,12 @@ class Ext:
     # ---------------- side glass (side-view outlines projected on the greenhouse) ---------
     def side_dlo(self):
         """Side-view (y, z) outlines of the four door windows + quarter glass, right side."""
-        Ab, At = np.array([0.800, 0.884]), np.array([-0.060, 1.283])   # A-pillar rear edge line
-        Cb, Ct = np.array([-1.060, 0.896]), np.array([-0.885, 1.283])  # C-pillar front edge line
+        # A-pillar rear edge moved forward at the top (slimmer pillar), beltline 2.5 cm lower
+        Ab, At = np.array([0.800, 0.859]), np.array([-0.030, 1.283])   # A-pillar rear edge line
+        Cb, Ct = np.array([-1.060, 0.871]), np.array([-0.885, 1.283])  # C-pillar front edge line
         sash = 0.026
         top = 1.283 - sash
-        belt_f, belt_r = 0.893, 0.899
+        belt_f, belt_r = 0.868, 0.874
 
         def line_off(a, b, d, toward):
             t = (b - a) / np.linalg.norm(b - a)

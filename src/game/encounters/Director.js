@@ -25,7 +25,8 @@ import { Encounter } from './Encounter.js';
 import { LOCAL_DEFS } from './defs.js';
 import { DEATHS, registerCreatureDeaths, playDeath } from './deaths.js';
 import * as S from './stage.js';
-import { prewarmCreatures } from '../../creatures/index.js';
+import { prewarmCreatures, repairAllPanes } from '../../creatures/index.js';
+import { stalker } from './Stalker.js';
 
 const MODULES = import.meta.glob('./list/*.js', { eager: true });
 const RUNNERS = {};
@@ -116,6 +117,7 @@ export class EncounterDirector {
       }),
     );
     registerCreatureDeaths();
+    stalker.install();
     // sculpt the animals / hand / face rat in idle time, well after boot
     setTimeout(() => prewarmCreatures().catch(() => {}), 12000);
     return this;
@@ -192,6 +194,12 @@ export class EncounterDirector {
     for (const e of [...this.running.values()]) e.stop();
   }
   resetNight() {
+    try {
+      repairAllPanes(g.taxi);
+    } catch (e) {
+      console.warn('[director] repair panes', e);
+    }
+    stalker.reset();
     this.lastEnd.clear();
     this.onceNight.clear();
     this._lastScareEnd = -1e9;

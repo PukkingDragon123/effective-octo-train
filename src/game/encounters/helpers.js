@@ -127,3 +127,15 @@ export function stoppedFor(secs = 1.5, kmh = 3) {
     return t >= secs;
   };
 }
+
+/** Blood through the render module's g.blood (photo decals / particles; gore-aware there). Guarded. */
+export function bloodSpray(pos, dir = new THREE.Vector3(0, 1, 0), amount = 0.8) {
+  try {
+    g.blood?.spray?.(pos, dir, amount);
+  } catch (e) { /* optional */ }
+}
+export function bloodDrip(pos, amount = 0.6) {
+  try {
+    g.blood?.drip?.(pos, amount);
+  } catch (e) { /* optional */ }
+}

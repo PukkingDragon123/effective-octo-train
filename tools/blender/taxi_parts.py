@@ -522,7 +522,8 @@ class Parts:
             ys, zs = D['sail_y'] + 0.06, D['belt'][0] + 0.045
             loc, n = E.surf_x(ys, zs, side)
             base = np.array(loc)
-            head_c = base + np.array([side * 0.115, 0.012, 0.055])
+            # head low and a little rearward: seen through the side glass under the A-pillar from driverEye
+            head_c = base + np.array([side * 0.118, -0.04, -0.02])
             W_, H_, Dp = 0.175, 0.102, 0.072
             # face outline (superellipse) in local (lateral, up)
             secs = []
