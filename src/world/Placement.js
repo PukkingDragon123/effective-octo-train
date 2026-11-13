@@ -613,7 +613,7 @@ export class Placement {
       const a = (k / 8) * Math.PI * 2;
       m = Math.min(m, this._ground(cx + Math.cos(a) * hx * 0.75, cz + Math.sin(a) * hz * 0.75));
     }
-    return Math.max(-0.6, m - c);
+    return Math.max(-0.3, m - c);
   }
 
   _roadPoint(id, s, lat, out = new THREE.Vector3()) {

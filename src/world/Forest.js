@@ -21,6 +21,8 @@ import { EDGE_SPECIES } from './RoadEdge.js';
 const CELL = W.forestCell;
 const _pm = new THREE.Matrix4(), _pq = new THREE.Quaternion(), _pq2 = new THREE.Quaternion(), _pe = new THREE.Euler();
 const _pa = new THREE.Vector3(), _pp = new THREE.Vector3(), _ps = new THREE.Vector3();
+const _fn = new THREE.Vector3(), _fq = new THREE.Quaternion(), _UP = new THREE.Vector3(0, 1, 0);
+const FIT_MAX_G = Math.tan(0.42); // flat ground items follow slopes up to ~24 deg
 // road clearance (owner: keep the view along the roads open)
 const CLEAR_STRIP = 1.5; // no undergrowth / low foliage within this beyond the asphalt edge (m)
 const CLEAR_LOW = 2.5; // ... below this height
@@ -120,9 +122,13 @@ function triplanarDetail(m, key, normalTex, roughTex, scale = 0.45, strength = 1
   vec3 tw = pow(abs(tN), vec3(4.0));
   tw /= max(tw.x + tw.y + tw.z, 1e-4);
   vec3 tp = vDlbWP * wTriS.x;
-  vec3 nx = texture2D(wTriN, tp.zy).xyz * 2.0 - 1.0;
-  vec3 ny = texture2D(wTriN, tp.xz).xyz * 2.0 - 1.0;
-  vec3 nz = texture2D(wTriN, tp.xy).xyz * 2.0 - 1.0;
+  // per-axis sign: mirror the projection on the negative-facing sides so the detail normal is not
+  // lit from the wrong side there (whiteout blend with axis sign)
+  vec3 sg = vec3(tN.x < 0.0 ? -1.0 : 1.0, tN.y < 0.0 ? -1.0 : 1.0, tN.z < 0.0 ? -1.0 : 1.0);
+  vec3 nx = texture2D(wTriN, vec2(tp.z * sg.x, tp.y)).xyz * 2.0 - 1.0;
+  vec3 ny = texture2D(wTriN, vec2(tp.x * sg.y, tp.z)).xyz * 2.0 - 1.0;
+  vec3 nz = texture2D(wTriN, vec2(-tp.x * sg.z, tp.y)).xyz * 2.0 - 1.0;
+  nx.x *= sg.x; ny.x *= sg.y; nz.x *= -sg.z;
   nx.xy *= wTriS.y; ny.xy *= wTriS.y; nz.xy *= wTriS.y;
   nx = vec3(nx.xy + tN.zy, abs(nx.z) * tN.x);
   ny = vec3(ny.xy + tN.xz, abs(ny.z) * tN.y);
@@ -231,6 +237,17 @@ export class Forest {
       lodCount: built.lods.length,
       opts: o,
     };
+    // ground fit: rocks / stumps sink to the lowest ground under their footprint (big ones partly
+    // buried); flat ground items (logs, roots, road-edge gravel / litter / twigs) follow the slope
+    if (kind === 'rock') {
+      rec.fit = 'sink';
+      const ph = name.startsWith('ph_');
+      rec.foot = ph ? (built.radius ?? 0.5) * 0.7 : 0.6;
+      rec.sink = ph ? (name === 'ph_stumps' ? 0.04 : 0.14 * (built.height ?? 0.5)) : 0.1;
+    } else if (name.startsWith('edge') || name === 'log' || name === 'ph_roots' || name === 'roots') {
+      rec.fit = 'tilt';
+      rec.foot = name.startsWith('edge') ? 0.3 : Math.min(2, (built.radius ?? 1) * 0.45);
+    }
     if (this.batched) this._batchLods(rec);
     else this._instancedLods(rec);
     this.variants.push(rec);
@@ -798,7 +815,36 @@ export class Forest {
 
   _emit(rec, x, z, yaw, scale, rnd, o) {
     const T = this.world.terrain;
-    const y = (o.y ?? (o.ground === 'road' ? this.world.getHeight(x, z) : T.sample(x, z))) + (o.dy ?? 0);
+    const hc = o.y ?? (o.ground === 'road' ? this.world.getHeight(x, z) : T.sample(x, z));
+    let y = hc + (o.dy ?? 0);
+    let tilt = false;
+    const fit = o.y == null ? rec.fit : null;
+    if (fit === 'sink') {
+      // lowest ground under the footprint: no edge left hanging over a slope; big ones sink deeper
+      const r = Math.max(0.12, rec.foot * scale);
+      let hm = hc;
+      for (let k = 0; k < 6; k++) {
+        const a = yaw + k * 1.0471976;
+        hm = Math.min(hm, T.sample(x + Math.cos(a) * r, z + Math.sin(a) * r));
+      }
+      y = hm + (o.dy ?? 0) - rec.sink * Math.max(0, scale - 0.45);
+    } else if (fit === 'tilt') {
+      // lie on the local ground plane (central differences over the footprint)
+      const d = Math.max(0.2, rec.foot * scale);
+      const h0 = T.sample(x - d, z), h1 = T.sample(x + d, z), h2 = T.sample(x, z - d), h3 = T.sample(x, z + d);
+      let gx = (h1 - h0) / (2 * d), gz = (h3 - h2) / (2 * d);
+      const g = Math.hypot(gx, gz);
+      if (g > FIT_MAX_G) {
+        gx *= FIT_MAX_G / g;
+        gz *= FIT_MAX_G / g;
+      }
+      if (g > 0.02) {
+        _fq.setFromUnitVectors(_UP, _fn.set(-gx, 1, -gz).normalize());
+        tilt = true;
+      }
+      // a hollow (ditch) under the middle: settle into it a little rather than bridge it
+      y = Math.min(hc, (h0 + h1 + h2 + h3) * 0.25 + (o.ground === 'road' ? hc - T.sample(x, z) : 0)) + (o.dy ?? 0) - 0.008;
+    }
     const m = _pm;
     const q = _pq.setFromEuler(_pe.set(o.tiltX ?? 0, yaw, o.tiltZ ?? 0, 'YXZ'));
     if (o.lean) {
@@ -806,6 +852,7 @@ export class Forest {
       const ax = _pa.set(o.lean.z, 0, -o.lean.x).normalize();
       q.premultiply(_pq2.setFromAxisAngle(ax, o.lean.a));
     }
+    if (tilt) q.premultiply(_fq);
     m.compose(_pp.set(x, y, z), q, _ps.set(scale, scale * (o.sy ?? 1), scale));
     // growable per-variant instance arrays + spatial cells
     let n = rec.n || 0;

@@ -16,6 +16,25 @@ export function skinHex(tone = 0.5) {
 }
 const hex = (c, d) => (c === undefined || c === null ? d : toHex(c));
 
+/**
+ * A top whose colour sits too close to the skin reads as bare skin (Sri's terracotta blouse): push it
+ * to a deeper rose-plum. Colours are '#rrggbb' strings (painter.js mix / toHex).
+ */
+function separateFromSkin(top, skin) {
+  const rgb = (h) => {
+    const s = String(toHex(h)).replace('#', '');
+    return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+  };
+  try {
+    const a = rgb(top), b = rgb(skin);
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    if (!(d < 70)) return top; // already distinct (or unparsable)
+    return mix(mix(toHex(top), '#8b4545', 0.75), '#000000', 0.12);
+  } catch (e) {
+    return top;
+  }
+}
+
 // Outfit table. top: shell key ('u' hip-length, 't' tucked, 'l' loose long, 'j' jacket) | null;
 // sleeve: 'cap'|'short'|'rolled'|'long'|null; bottom: shell/skirt key; collar; pattern ids for the painter.
 const OUTFITS = {
