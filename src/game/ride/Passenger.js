@@ -210,6 +210,16 @@ export class Passenger {
     if (this.ghost && this.data.id !== 'somchai') t.setFog(this.pane, 0.42);
   }
 
+  /** The taxi has stopped for them: a step or two toward it, to the kerb (before they ask). */
+  async stepToCurb() {
+    const h = this.humanoid;
+    if (!h || h.disposed) return;
+    const to = h.root.position.clone().lerp(g.taxi.root.position, 0.2);
+    to.y = g.world.getHeight(to.x, to.z);
+    h.lookAt?.(g.taxi.anchors?.driverEye || g.taxi.root, { weight: 1, speed: 3 });
+    await this._walk(to, 2.5);
+  }
+
   async board() {
     const t = g.taxi;
     const h = this.humanoid;

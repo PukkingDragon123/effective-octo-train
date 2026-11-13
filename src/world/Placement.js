@@ -19,6 +19,8 @@ import { LANDMARK_NAMES } from './layout.js';
 import { ChunkBatcher } from './Batch.js';
 
 const TAG = 'world';
+const _fitBox = new THREE.Box3();
+const FIT_MAX_R = 2.6; // footprints wider than this sit on their own terrain pads
 const SMALL_PIECE_DIST = 85; // offerings / small shrines are not drawn beyond this (m)
 // small dressing that is a loose rigid body (World.loose): kicked, bumped, tipped over
 // (heavy ones — drums, jars, tyres — stay static); chairs / stools / crates only nudge
@@ -41,14 +43,11 @@ const SYNC_LANDMARKS = new Set(['shrineMaRuay', 'spurShrine', 'spurStart', 'spur
 const POLE_E = 1.0; // pole distance beyond the asphalt edge (m)
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
-// random dressing signs (natural Thai)
+// random dressing signs: essential road signs only (natural Thai)
 const RANDOM_SIGNS = [
   ['speed_sign', { kmh: 40 }],
   ['warning_sign', { th: 'ระวังสัตว์ป่า', en: 'WILDLIFE' }],
   ['speed_sign', { kmh: 60 }],
-  ['warning_sign', { th: 'ระวังหินร่วง', en: 'FALLING ROCKS' }],
-  ['warning_sign', { th: 'ห้ามล่าสัตว์', en: 'NO HUNTING' }],
-  ['warning_sign', { th: 'ขับช้าๆ', en: 'DRIVE SLOWLY' }],
   ['warning_sign', { th: 'ทางแคบ', en: 'NARROW ROAD' }],
 ];
 const CLUTTER = ['trash_bag', 'tire', 'tire', 'oil_drum', 'water_jar', 'crate', 'sandbags', 'broken_scooter', 'cans', 'plastic_chair', 'trash_bag', 'cable_coil'];
@@ -189,14 +188,9 @@ export class Placement {
     {
       const sp = road.get('spur');
       this._planPoint({ type: 'sign', kind: 'warning_sign', opts: { th: 'ทางแคบ คดเคี้ยว', en: 'NARROW WINDING ROAD' }, id: 'spur', s: 22, lat: -(hw + 0.8), side: -1, face: 'oncoming', seed: 84 }, 1, true);
-      this._planPoint({ type: 'sign', kind: 'temple_sign', opts: { th: 'ศาลเจ้ามารวย', sub: '12 กม.' }, id: 'spur', s: 9, lat: hw + 1.6, side: 1, face: 'oncoming', seed: 85 }, 1.5, true);
       void sp;
     }
-    // temple sign in front of the forest temple
-    if (lms.forestTemple) {
-      const t = lms.forestTemple;
-      this._planPoint({ type: 'sign', kind: 'temple_sign', opts: { th: 'วัดป่าห้วยเงียบ', sub: 'ทางขึ้นวัด' }, id: 'main', s: t.roadRef.s - 13, lat: hw + 1.2, side: 1, face: 'oncoming', seed: 86 }, 1.5, true);
-    }
+    // (no temple direction signs: only essential road signs stay)
 
     // ---- poles (+ lamps near landmarks, lantern posts on the shrine approach) -----------------
     const lampLm = Object.values(lms).filter((l) => ['garage', 'sala', 'bus_stop', 'noodle_shop', 'market_crossroad', 'village_stop', 'junction', 'forest_temple'].includes(l.kind));
@@ -540,6 +534,14 @@ export class Placement {
     o.position.copy(pos);
     o.rotation.set(0, yaw, 0);
     o.updateMatrix();
+    // sit down to the low side of the ground under the footprint (no floating edge on a slope)
+    if (opts.fit !== false && !opts.loose) {
+      const d = this._groundDrop(o, pos);
+      if (d < -0.004) {
+        o.position.y += d;
+        o.updateMatrix();
+      }
+    }
     if (opts.batch && !opts.loose) this.batcher.add(o, pos.x, pos.z);
     else {
       this.group.add(o);
@@ -592,6 +594,26 @@ export class Placement {
 
   _ground(x, z) {
     return this.world.getHeight(x, z);
+  }
+
+  /**
+   * How far the ground under an object's footprint drops below its centre (<= 0). Samples a ring
+   * at 75% of the footprint half-size (8 directions); big set pieces (own terrain pads) give 0.
+   */
+  _groundDrop(o, pos) {
+    o.updateMatrixWorld(true);
+    _fitBox.setFromObject(o);
+    if (_fitBox.isEmpty()) return 0;
+    const hx = (_fitBox.max.x - _fitBox.min.x) / 2, hz = (_fitBox.max.z - _fitBox.min.z) / 2;
+    if (Math.max(hx, hz) > FIT_MAX_R || Math.max(hx, hz) < 0.04) return 0;
+    const cx = (_fitBox.max.x + _fitBox.min.x) / 2, cz = (_fitBox.max.z + _fitBox.min.z) / 2;
+    const c = this._ground(pos.x, pos.z);
+    let m = c;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      m = Math.min(m, this._ground(cx + Math.cos(a) * hx * 0.75, cz + Math.sin(a) * hz * 0.75));
+    }
+    return Math.max(-0.6, m - c);
   }
 
   _roadPoint(id, s, lat, out = new THREE.Vector3()) {

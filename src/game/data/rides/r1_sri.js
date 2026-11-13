@@ -3,7 +3,7 @@
 // the car sinks when she sits, her reflection, coins) and tells the legend of ยายสปีด.
 // Rule r12 (back of the paper): someone stands in the road — and SHE screams at you to brake.
 // Replies: newFace, yaiSpeed, garland, driver, roadFigure (+ loop/death-aware extras).
-import { P, C, O, SIL, tr } from '../lines.js';
+import { P, Y, C, O, SIL, tr } from '../lines.js';
 
 export const RIDE_SRI = {
   id: 'sri',
@@ -38,6 +38,12 @@ export const RIDE_SRI = {
   // Long first ride (sala1 → fork ≈ 2.8 km): no stretching needed. See SCHEMA.md "Pacing".
   pacing: { cruiseKmh: 45, minSeconds: 150, stretch: 'none' },
   dialogue: {
+    // the taxi stops; she comes to the window first
+    askRide: [
+      P('ไปบ้านห้วยทรายไหมจ๊ะพ่อหนุ่ม', 'Going to Huai Sai, young man?', { action: 'wave' }),
+      Y('ไปครับป้า ขึ้นมาเลยครับ', 'Yes, Auntie. Hop in.'),
+      P('ขอบใจจ้ะ ป้านั่งข้างหลังนะ ตะกร้ามันใหญ่', 'Thank you, dear. I’ll sit in the back, the basket’s big.', { emotion: 'smile' }),
+    ],
     hail: [P('แท็กซี่! แท็กซี่จ้ะ! จอดก่อน!', 'Taxi! Taxi, dear! Stop!', { tone: 'shout', action: 'hail' })],
     greet: [
       P('โอ๊ย ขอบใจนะหนุ่ม นึกว่าจะไม่มีรถผ่านแล้ว', 'Oh, thank you, dear. I thought no car would ever come.', { emotion: 'smile', action: 'enterCar' }),

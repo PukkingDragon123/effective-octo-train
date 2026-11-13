@@ -12,6 +12,9 @@ import { bus } from '../../core/Events.js';
 import { kill } from '../death/index.js';
 import '../death/offRoad.js';
 import './FirstHints.js';
+import './Jumpscare.js';
+import './Aftermath.js';
+import './DriveReactions.js';
 
 const STATES = new Set(['intro', 'garage', 'tutorial', 'shift']);
 const CFG = {

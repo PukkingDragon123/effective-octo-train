@@ -102,7 +102,7 @@ export const LAYOUT = {
   dressing: {
     polesPer100m: 2.4, // concrete electric poles (one side, switching sides occasionally)
     spiritHousesPer100m: 0.35,
-    signsPer100m: 0.15,
+    signsPer100m: 0.08, // essential signs only (owner)
     convexMirrorsAtSharpCurves: true,
     streetlightsAtLandmarks: true,
   },

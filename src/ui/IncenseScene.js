@@ -562,9 +562,12 @@ export class IncenseScene {
       if (this.disposed) return;
       this._raf = requestAnimationFrame(this._loop);
       const now = performance.now();
-      const dt = Math.min(0.05, (now - this._last) / 1000);
+      // the hand runs on real time (up to 0.1 s a frame) so a slow frame rate never stretches it;
+      // the smoke and ash keep the smaller, stable step
+      const raw = Math.min(0.1, (now - this._last) / 1000);
       this._last = now;
-      this.update(dt);
+      this._rawDt = raw;
+      this.update(Math.min(0.05, raw));
     };
     if (!manual) this._raf = requestAnimationFrame(this._loop);
     // sculpt the hand while the rest loads (it takes a moment)
@@ -638,13 +641,13 @@ export class IncenseScene {
   async _buildHouse() {
     try {
       const P = await import('../props/index.js');
-      await Promise.race([P.loadPropAssets?.(), new Promise((r) => setTimeout(r, 4000))]);
-      if (this.disposed) return;
+      await Promise.race([P.loadPropAssets?.(), new Promise((r) => setTimeout(r, 1500))]);
+      // never build (and compile) it once the hand has started: that hitch would eat the intro
+      if (this.disposed || this.grab) return;
       const sh = P.createSpiritHouse({ style: 'thai', size: 0.62, seed: 21, age: 0.85, offerings: true });
       sh.object.position.set(0.05, -0.0752, -0.95);
       sh.object.userData.noDispose = true;
       this.scene.add(sh.object);
-      this.renderer.compile(this.scene, this.camera);
     } catch (e) {
       console.warn('[loading] spirit house unavailable', e);
     }
@@ -871,7 +874,7 @@ export class IncenseScene {
 
   _updateGrab(dt) {
     const g = this.grab;
-    g.time += dt;
+    g.time += this._rawDt ?? dt;
     const T = g.time;
     const u = this.u;
     if (g.noHand) {

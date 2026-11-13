@@ -209,8 +209,8 @@ function waitForStartSafe(cue) {
       resolve();
     };
     // the hand plays by itself (no click gate; audio unlocks on the first gesture in the menu).
-    // Loading caps it at ~4 s; this is the hard stop if even that never settles.
-    const timer = setTimeout(() => finish('the hand animation stalled'), 6000);
+    // Loading caps it at 5 s; this is the hard stop if even that never settles.
+    const timer = setTimeout(() => finish('the hand animation stalled'), 6500);
     let p;
     try {
       p = ui.loading?.playIntro?.(cue);

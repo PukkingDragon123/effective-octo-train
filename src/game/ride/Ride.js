@@ -493,6 +493,17 @@ export class Ride {
       }
     }
     if (!this.alive) return false;
+    // a word through the window before getting in (where to, may I)
+    if (this.data.dialogue?.askRide) {
+      try {
+        this.passenger.hail(false);
+        await Promise.race([this.passenger.stepToCurb(), wait(3)]);
+        await Promise.race([this.playBlock('askRide'), wait(10)]);
+      } catch (e) {
+        console.warn('[ride] ask', e);
+      }
+      if (!this.alive) return false;
+    }
     // board: the car holds still while they get in
     this.phase = 'boarding';
     const hold = g.engine.onUpdate(() => {

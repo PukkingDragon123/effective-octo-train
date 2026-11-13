@@ -461,6 +461,8 @@ export function createSignPost(kind, opts = {}) {
     kind = 'road_sign';
     texOpts = { variant: 'elephant' };
   }
+  // speed limits: the drawn sign (FONTS.sign, Sarabun) so the numerals match every other sign
+  if (kind === 'speed_sign') texOpts.photo = false;
   const sm = signMat(kind, texOpts);
   const info = signInfo(kind, texOpts);
   const sc = opts.scale ?? 1;

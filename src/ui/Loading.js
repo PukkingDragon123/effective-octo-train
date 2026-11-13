@@ -19,8 +19,8 @@ export const LOADING_LINES = [
   { th: 'กระจกไม่เคยโกหก', en: 'The mirror never lies.' },
 ];
 
-/** Longest the hand sequence may take before the game moves on regardless (ms). */
-const INTRO_CAP_MS = 4200;
+/** Longest the hand sequence may take, from its first frame, before the game moves on regardless (ms). */
+const INTRO_CAP_MS = 5000;
 
 export class Loading {
   constructor(ui) {
@@ -81,6 +81,12 @@ export class Loading {
       }
     };
     this.el.classList.add('is-ready');
+    // the hand is sculpted early (1.2 s into loading); make sure it exists before the clock starts
+    try {
+      this.scene3d?._buildHand();
+    } catch (e) {
+      /* the grab falls back to snuffing the ember */
+    }
     safeCue('start');
     const grab = this.scene3d ? this.scene3d.playGrab(safeCue) : sleep(700);
     await Promise.race([Promise.resolve(grab).catch(() => {}), sleep(INTRO_CAP_MS)]);
