@@ -216,7 +216,9 @@ void main() {
       float lit = 0.32 + dot(uCabin, vec3(0.28)) + (uHasScene > 0.5 ? dot(texture2D(tSceneBlur, gl_FragCoord.xy / uResolution).rgb, vec3(0.12)) : 0.0);
       vec3 body = bl.rgb * lit * 1.3;
       vec3 b = mix(film, body, smoothstep(0.35, 0.9, th));
-      b += vec3(0.42, 0.3, 0.28) * fres * smoothstep(0.4, 0.95, th) * 0.45;
+      // wet glint: a reflection of the light that is actually there (dark at night, never a
+      // constant pink sheen at grazing angles)
+      b += vec3(0.5, 0.36, 0.33) * fres * smoothstep(0.5, 0.95, th) * 0.1 * lit;
       float k = smoothstep(0.01, 0.28, th);
       col = mix(col, b, k);
       alpha = max(alpha, k);
