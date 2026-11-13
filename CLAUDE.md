@@ -34,6 +34,9 @@ World placement truth: `src/world/layout.js`.
   cross-sections, swept curves, bevels/chamfers, tapered irregular hand-made shapes,
   enough segments where the eye lands. Hero assets (taxi, motorbike) are modelled in
   headless Blender (`tools/blender/`) and loaded as GLB.
+- **Never draw 2D art in code** (owner's hard rule): blood, handprints, posters, labels, signs
+  art and any image content must come from real found assets (CC0 / CC BY photos and scans,
+  credited), never procedurally painted or hand-drawn by the agent.
 - **Super sharp, detailed, handmade, polished**: no blur-based looks (see GAME_DESIGN §9).
 - No real-world brands, logos, or copyrighted designs; make original fictional Thai-style ones.
 - Test visually: `node tools/shot.mjs --sandbox=<name> --out=.shots/<name>.png` then
