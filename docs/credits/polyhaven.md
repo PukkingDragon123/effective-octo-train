@@ -60,3 +60,22 @@ required; credited anyway), packed by `tools/assets/pack_polyhaven.mjs`. Only th
 | wooden_crate_02 | Wooden Crate 02 | James Ray Cock, Jurita Burger | CC0 1.0 | https://polyhaven.com/a/wooden_crate_02 |
 | food_lychee_01 | Food Lychee 01 | Oliver Harries | CC0 1.0 | https://polyhaven.com/a/food_lychee_01 |
 | food_pears_asian_01 | Pears Asian 01 | Amal Kumar | CC0 1.0 | https://polyhaven.com/a/food_pears_asian_01 |
+
+## News studio (src/ui/NewsStudio.js)
+
+Fetched with the same Poly Haven API and texture downscale as `tools/assets/fetch_polyhaven.py`, packed with gltfpack
+like `tools/assets/pack_polyhaven.mjs`, into `public/assets/studio/` (CC0 1.0).
+
+| id | name | author(s) | licence | source |
+|---|---|---|---|---|
+| flood_lights | Flood Lights | James Ray Cock | CC0 1.0 | https://polyhaven.com/a/flood_lights |
+| projector_screen | Projector Screen | PeterM | CC0 1.0 | https://polyhaven.com/a/projector_screen |
+| television_02 | Television 02 | Benny Weimer | CC0 1.0 | https://polyhaven.com/a/television_02 |
+| modern_arm_chair_01 | Modern Arm Chair 01 | Vibrant Nordic | CC0 1.0 | https://polyhaven.com/a/modern_arm_chair_01 |
+| metal_office_desk | Metal Office Desk | Ulan Cabanilla | CC0 1.0 | https://polyhaven.com/a/metal_office_desk |
+| classic_laptop | Classic Laptop | Arrangemonk | CC0 1.0 | https://polyhaven.com/a/classic_laptop |
+| office_notepads | Office Notepads | Ulan Cabanilla | CC0 1.0 | https://polyhaven.com/a/office_notepads |
+| clipboard | Clipboard | ProgrammerOnCoffee | CC0 1.0 | https://polyhaven.com/a/clipboard |
+| stationery_supplies | Stationery Supplies | Mateusz Sadek | CC0 1.0 | https://polyhaven.com/a/stationery_supplies |
+| calathea_orbifolia_01 | Calathea Orbifolia 01 | Rob Tuytel, Rico Cilliers | CC0 1.0 | https://polyhaven.com/a/calathea_orbifolia_01 |
+| planter_pot_clay | Planter Pot Clay | Amal Kumar | CC0 1.0 | https://polyhaven.com/a/planter_pot_clay |

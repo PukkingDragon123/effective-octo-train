@@ -1,24 +1,25 @@
 // The crash on the late-night news, a full (parody) Thai TV station; the player then wakes at the
 // last checkpoint and nothing on screen says "game over". About 33 s, Esc / B skips after 3 s:
 //   1. the programme sting      เรื่องเล่าตีสาม on ราตรีทีวี (both invented, parodying the genre)
-//   2. the studio               the anchor (อรอุมา แสงเดือน) opens the story          3D, NewsStudio.js
-//   3. B-roll                   the crash photo full screen under the headline
+//   2. the studio               a wide shot of the set and crew gear, then a medium on the anchor
+//                               (อรอุมา แสงเดือน) opening the story                   3D, NewsStudio.js
+//   3. the big screen           the crash photo on the studio screen, the headline lower third
 //   4. live from the scene      the reporter (ชนินทร์ กล้าลุย) at the taped-off verge,
 //                               police lights flashing                              3D, NewsStudio.js
-//   5. back to the studio       the anchor wraps up: "พักโฆษณาสักครู่ค่ะ"
-//   6. the break                three original parody ads (NewsAds.js)
+//   5. back to the studio       the anchor wraps up while the camera pulls back
+// The studio is built once during idle time (prewarm(), called after the main menu shows) and
+// reused; the 2D fallback is only for a real failure (no WebGL, no characters).
 // Voices: the gibberish voice system through the radio band, subtitled. If WebGL or the characters
 // fail, the same programme runs in 2D over the crash photo.
 //
 //   ui.newsReport({ th (headline), sub? (a line the reporter reads), image? (crash photo: canvas /
-//                   image / URL), hold?, lines?: {anchor?, reporter?, wrap?}, place?, ads? (default
-//                   true), keepBlack? }) -> Promise (resolves once the screen is black; unless
+//                   image / URL), hold?, lines?: {anchor?, reporter?, wrap?}, place?, keepBlack? })
+//                   -> Promise (resolves once the screen is black; unless
 //                   keepBlack it then fades out by itself; ui.fade(false) releases a kept black)
 import { h, sleep, nextFrame } from './dom.js';
 import { screen } from './common.js';
 import { audio } from '../audio/index.js';
 import { NewsStudio } from './NewsStudio.js';
-import { buildAd } from './NewsAds.js';
 
 /** Fictional headlines other modules may use (none of them real). */
 export const NEWS_TICKER = [
@@ -33,7 +34,7 @@ const SHOW = { th: 'เรื่องเล่าตีสาม', station: '�
 const SCRIPT = {
   anchor: 'เอาล่ะค่ะ ข่าวด่วนคืนนี้ รถเสียหลักตกข้างทางบนถนนสายป่าค่ะ',
   reporter: ['ครับ ผมอยู่ที่จุดเกิดเหตุ รถพุ่งตกข้างทาง สภาพยับเยินครับ', 'พยานยืนยันว่ามีผู้โดยสาร แต่ในรถไม่พบใครเลยครับ'],
-  wrap: 'ขับรถกลางคืนระวังกันด้วยนะคะ พักโฆษณาสักครู่ค่ะ',
+  wrap: 'ขับรถกลางคืนระวังกันด้วยนะคะ แล้วพบกันใหม่คืนพรุ่งนี้ค่ะ',
 };
 
 function drawCover(g, src, W, H, sw, sh) {
@@ -160,7 +161,6 @@ export class NewsReport {
         h('div', { class: 'st-station', attrs: { lang: 'th' } }, SHOW.station, h('span', null, 'เสนอ')),
         h('div', { class: 'st-show', attrs: { lang: 'th' } }, SHOW.th),
         h('div', { class: 'st-breaking', attrs: { lang: 'th' } }, 'ข่าวด่วนกลางดึก')));
-    const ads = h('div', { class: 'dlb-news__ads' });
     const el = screen('dlb-news',
       stage,
       h('div', { class: 'dlb-news__cut' },
@@ -171,7 +171,7 @@ export class NewsReport {
             h('span', { class: 'dlb-news__tag', attrs: { lang: 'th' } }, 'ข่าวด่วน'),
             h('span', { class: 'dlb-news__kick', attrs: { lang: 'th' } }, `${o.place || 'ภาพจากที่เกิดเหตุ'}  ·  ${thd(pad2(hh))}.${thd(pad2(mm))} น.`)),
           h('div', { class: 'dlb-news__head' }, h('h2', { attrs: { lang: 'th' } }, o.th || '')))),
-      bug, live, strap, sting, ads,
+      bug, live, strap, sting,
       h('div', { class: 'dlb-news__black' }));
     this.el = el;
     ui.layer.appendChild(el);
@@ -203,15 +203,19 @@ export class NewsReport {
       seg = segP();
       return p;
     };
+    // debug / harness (_hold): every segment waits for next() instead of its clock
+    const nap = (ms) => (o._hold ? new Promise(() => {}) : sleep(ms));
     const wait = (ms) => Promise.race([sleep(ms), skipP]);
-    const segWait = (ms) => Promise.race([sleep(ms), skipP, seg]);
+    const segWait = (ms) => Promise.race([nap(ms), skipP, seg]);
     const setShot = (cls) => {
-      el.classList.remove('is-sting', 'is-studio', 'is-broll', 'is-field', 'is-wrap', 'is-ads');
+      el.classList.remove('is-sting', 'is-studio', 'is-broll', 'is-field', 'is-wrap');
       if (cls) el.classList.add(cls);
     };
     const showStrap = (who) => {
-      strapName.textContent = who ? who.name : '';
-      strapRole.textContent = who ? `${who.role} · ${SHOW.th}` : '';
+      if (who) {
+        strapName.textContent = who.name;
+        strapRole.textContent = `${who.role} · ${SHOW.th}`;
+      }
       strap.classList.toggle('is-on', !!who);
     };
     /** One voiced, subtitled line; resolves when spoken, capped, or skipped / jumped. */
@@ -226,23 +230,29 @@ export class NewsReport {
       } catch (e) {
         spoken = null;
       }
-      await Promise.race([spoken || sleep(est * 1000), sleep(Math.min(capS, est + 1.5) * 1000), skipP, seg]);
+      await Promise.race([o._hold ? nap(0) : spoken || sleep(est * 1000), nap(Math.min(capS, est + 1.5) * 1000), skipP, seg]);
       studio?.setTalking(false);
     };
 
     // ---- the 3D station (falls back to 2D over the photo) -----------------------------------------
-    // debug / harness: start at a later segment (_from: 'studio'|'broll'|'field'|'wrap'|'ads')
-    const ORDER = ['sting', 'studio', 'broll', 'field', 'wrap', 'ads'];
+    // debug / harness: start at a later segment (_from: 'studio'|'broll'|'field'|'wrap')
+    const ORDER = ['sting', 'studio', 'broll', 'field', 'wrap'];
     const at = (name) => !o._from || ORDER.indexOf(name) >= ORDER.indexOf(o._from);
     let studio = null;
-    if (['studio', 'field', 'wrap'].some(at)) try {
-      studio = this.studio = new NewsStudio(stage, { image: frame, headline: o.th });
-      await Promise.race([studio.ready, sleep(6000)]);
+    try {
+      // the warmed studio (prewarm) when there is one; else build it now
+      studio = this.studio = this._warm && !this._warm.disposed ? this._warm : new NewsStudio(null);
+      this._warm = studio;
+      studio.setImage(frame, o.th || '');
+      studio.attach(stage);
+      await Promise.race([studio.ready, sleep(12000)]);
       if (!studio.person) throw new Error('no anchor');
+      studio.t = 0;
+      studio.setShot('wide');
       studio.start();
     } catch (e) {
       console.warn('[news] 3D studio unavailable, using the 2D news', e);
-      studio?.dispose();
+      studio?.detach();
       studio = null;
       if (this.el === el) this.studio = null;
     }
@@ -261,19 +271,22 @@ export class NewsReport {
     }
     if (at('sting')) await segWait(2600);
     nextSeg();
-    // 2. studio: the anchor opens
+    // 2. studio: the wide shot of the set, then the anchor in a medium shot as she speaks
     if (!skipped && at('studio')) {
       setShot('is-studio');
-      studio?.setShot('studio');
-      await wait(250);
+      studio?.setShot('wide');
+      await segWait(studio ? 2600 : 200);
+      nextSeg();
+      studio?.setShot('anchor');
       showStrap(ANCHOR);
       await say(ANCHOR, L.anchor, '', 6, 'anchor');
       nextSeg();
       showStrap(null);
     }
-    // 3. B-roll: the photograph under the headline
+    // 3. the big screen: the crash photo on the studio screen (full frame in 2D), the headline
     if (!skipped && at('broll')) {
-      setShot('is-broll');
+      setShot(studio ? 'is-studio' : 'is-broll');
+      studio?.setShot('screen');
       el.classList.add('is-gfx');
       await segWait(Math.max(1.8, Math.min(3, Number(o.hold) || 2.4)) * 1000);
       nextSeg();
@@ -288,7 +301,7 @@ export class NewsReport {
       live.classList.add('is-on');
       for (let i = 0; i < L.reporter.length && !skipped; i++) {
         await say(REPORTER, L.reporter[i], i === 1 ? subEn : '', 5, 'reporter');
-        if (!skipped) await segWait(250);
+        if (!skipped && !o._hold) await segWait(250);
       }
       nextSeg();
       live.classList.remove('is-on');
@@ -297,7 +310,7 @@ export class NewsReport {
     // 5. back to the studio
     if (!skipped && at('wrap')) {
       setShot('is-wrap');
-      studio?.setShot('studio');
+      studio?.setShot('wrap');
       await wait(200);
       showStrap(ANCHOR);
       await say(ANCHOR, L.wrap, '', 5, 'anchor');
@@ -306,28 +319,6 @@ export class NewsReport {
     }
     ui.clearSubtitle();
     el.classList.remove('has-bug');
-    // 6. the break: three ads
-    if (!skipped && o.ads !== false && at('ads')) {
-      setShot('is-ads');
-      studio?.stop(); // disposed once the screen is black
-      for (const kind of ['drink', 'balm', 'lotto']) {
-        if (skipped) break;
-        const ad = buildAd(kind);
-        ads.replaceChildren(ad.el);
-        void ad.el.offsetWidth;
-        await nextFrame();
-        ad.el.classList.add('is-on');
-        let vo = null;
-        try {
-          vo = audio.voice.speak({ th: ad.vo.th, voice: ad.vo.voice, fx: 'radio', volume: 0.9 });
-          vo?.catch?.(() => {});
-        } catch (e) {
-          vo = null;
-        }
-        await segWait(4400);
-        nextSeg();
-      }
-    }
     // ---- out ---------------------------------------------------------------------------------------
     try {
       audio.voice?.stop?.();
@@ -338,11 +329,27 @@ export class NewsReport {
     ui.nav.remove(ctx);
     el.classList.add('is-black');
     await sleep(skipped ? 700 : 1100);
-    studio?.dispose();
+    studio?.detach(); // kept warm for next time
     if (this.studio === studio) this.studio = null;
     if (!this.el || this.el === el) ui.root.classList.remove('has-news');
     ui.bus?.emit?.('ui:news', { phase: 'black' });
     if (!o.keepBlack) setTimeout(() => this.release(1.4, el), 400);
+  }
+
+  /**
+   * Build and compile the studio ahead of time, off-screen, so the news starts at once. Called in
+   * idle time after the main menu appears; safe to call again.
+   */
+  prewarm() {
+    if (this._warm && !this._warm.disposed) return this._warm.ready;
+    try {
+      this._warm = new NewsStudio(null);
+      return this._warm.ready;
+    } catch (e) {
+      console.warn('[news] prewarm failed', e);
+      this._warm = null;
+      return Promise.resolve();
+    }
   }
 
   /** Debug / harness: jump to the next segment now. */
@@ -364,7 +371,7 @@ export class NewsReport {
     el.remove();
     if (this.el === el) {
       this.el = null;
-      this.studio?.dispose();
+      this.studio?.detach();
       this.studio = null;
     }
     this.ui.root?.classList.remove('has-news');

@@ -184,6 +184,12 @@ class UI {
   showMainMenu(handlers) {
     this._ensure();
     this.menu.show(handlers || {});
+    // warm the news studio while the player looks at the menu, so a crash's news starts at once
+    if (!this._newsWarmQueued) {
+      this._newsWarmQueued = true;
+      const warm = () => this.news?.prewarm();
+      setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(warm, { timeout: 6000 }) : warm()), 2500);
+    }
   }
   hideMainMenu() {
     this._ensure();

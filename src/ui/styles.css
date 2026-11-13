@@ -524,16 +524,19 @@
 .dlb-death.is-text .dlb-death__en, .dlb-death.is-text .dlb-death__sub { opacity: 1; }
 
 /* ------------------------------------------------------ the news (a crash) --
-   A parody late-night station (News.js): sting, 3D studio and field (NewsStudio.js), B-roll with
-   the headline, the break with three ads (NewsAds.js). Subtitles sit above it (.has-news). */
+   A parody late-night station (News.js): sting, 3D studio and field (NewsStudio.js), the crash
+   photo on the studio screen with the headline lower third. Subtitles sit above it (.has-news). */
 .dlb-news { --n-red: #c8161d; --n-red-d: #8a0c12; --n-gold: #e8b931; --n-ink: #0d1016; --n-paper: #f4f2ec; z-index: 31; background: #000; pointer-events: auto; transition: opacity 0.4s var(--ease); overflow: hidden; font-family: var(--f-body); }
 .dlb-ui.has-news .dlb-subs { z-index: 33; }
-.dlb-news__stage, .dlb-news__cut, .dlb-news__ads { position: absolute; inset: 0; overflow: hidden; }
+.dlb-news__stage, .dlb-news__cut { position: absolute; inset: 0; overflow: hidden; }
 .dlb-news__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.dlb-news__stage, .dlb-news__cut, .dlb-news__ads, .dlb-news__sting { visibility: hidden; }
+.dlb-news__stage, .dlb-news__cut, .dlb-news__sting { visibility: hidden; }
 .dlb-news.is-3d:is(.is-studio, .is-field, .is-wrap) .dlb-news__stage { visibility: visible; }
 .dlb-news.is-broll .dlb-news__cut, .dlb-news.is-2d:is(.is-studio, .is-field, .is-wrap) .dlb-news__cut { visibility: visible; }
-.dlb-news.is-ads .dlb-news__ads, .dlb-news.is-sting .dlb-news__sting { visibility: visible; }
+/* in 3D the big screen carries the photo: only the headline lower third is drawn over it */
+.dlb-news.is-3d.is-gfx .dlb-news__cut { visibility: visible; }
+.dlb-news.is-3d .dlb-news__img, .dlb-news.is-3d .dlb-news__vig { display: none; }
+.dlb-news.is-sting .dlb-news__sting { visibility: visible; }
 .dlb-news__img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transform: scale(1.02); transform-origin: 52% 46%; }
 .dlb-news.is-broll .dlb-news__img { transform: scale(1.1); transition: transform 3.5s cubic-bezier(0.25, 0.1, 0.35, 1); }
 .dlb-news__vig { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 38%), radial-gradient(120% 100% at 50% 45%, rgba(0, 0, 0, 0) 62%, rgba(0, 0, 0, 0.45) 100%); }
@@ -554,8 +557,8 @@
 .dlb-news__live2 .chip i { width: 0.5em; height: 0.5em; border-radius: 50%; background: #fff; animation: dlb-blink 1.1s steps(1) infinite; }
 @keyframes dlb-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0.2; } }
 /* the name strap, lower third */
-.dlb-news__strap { position: absolute; left: var(--pad-x); bottom: calc(var(--pad-yb) + clamp(80px, 13vh, 130px)); display: flex; align-items: stretch; clip-path: inset(0 100% 0 0); transition: clip-path 0.4s var(--ease); }
-.dlb-news__strap.is-on { clip-path: inset(-10px -10px -10px 0); }
+.dlb-news__strap { position: absolute; left: var(--pad-x); bottom: calc(var(--pad-yb) + clamp(80px, 13vh, 130px)); display: flex; align-items: stretch; clip-path: inset(0 100% 0 0); visibility: hidden; transition: clip-path 0.4s var(--ease), visibility 0s linear 0.4s; }
+.dlb-news__strap.is-on { clip-path: inset(-10px -10px -10px 0); visibility: visible; transition: clip-path 0.4s var(--ease), visibility 0s; }
 .dlb-news__strap > i { width: 8px; background: var(--n-red); }
 .dlb-news__strap > div { display: flex; flex-direction: column; padding: 0.3em 1.1em 0.4em 0.9em; background: linear-gradient(90deg, rgba(244, 242, 236, 0.97), rgba(244, 242, 236, 0.92)); color: var(--n-ink); }
 .dlb-news__strap b { font-family: var(--f-title); font-weight: 800; font-size: clamp(20px, 1.7vw, 30px); line-height: 1.3; }
@@ -589,54 +592,6 @@
 .st-station span { margin-left: 0.6em; color: rgba(255, 255, 255, 0.5); }
 .st-show { font-family: var(--f-title); font-weight: 800; font-size: clamp(56px, 7vw, 128px); line-height: 1.2; text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6); }
 .st-breaking { display: inline-block; margin-top: 0.4em; padding: 0.05em 0.8em 0.12em; background: var(--n-red); font-weight: 800; font-size: clamp(18px, 1.6vw, 28px); }
-/* the ads */
-.dlb-ad { position: absolute; inset: 0; overflow: hidden; color: #fff; }
-.dlb-ad .ad-bg { position: absolute; inset: 0; }
-.dlb-ad .ad-prod { position: absolute; display: block; }
-.dlb-ad .ad-copy { position: absolute; display: flex; flex-direction: column; }
-.dlb-ad .ad-name { font-weight: 800; line-height: 1.15; }
-.dlb-ad .ad-tag { font-weight: 800; line-height: 1.3; }
-.dlb-ad .ad-fine { position: absolute; left: 0; right: 0; bottom: 3.5vh; text-align: center; font-weight: 500; font-size: clamp(11px, 0.85vw, 14px); opacity: 0.85; }
-.dlb-ad .ad-copy > *, .dlb-ad .ad-prod { opacity: 0; }
-.dlb-ad.is-on .ad-copy > * { animation: dlb-ad-in 0.45s var(--ease) forwards; }
-.dlb-ad.is-on .ad-copy > *:nth-child(2) { animation-delay: 0.25s; }
-.dlb-ad.is-on .ad-copy > *:nth-child(3) { animation-delay: 0.6s; }
-.dlb-ad.is-on .ad-copy > *:nth-child(4) { animation-delay: 1.1s; }
-.dlb-ad.is-on .ad-prod { animation: dlb-ad-prod 4.4s cubic-bezier(0.2, 0.7, 0.3, 1) forwards; }
-@keyframes dlb-ad-in { from { opacity: 0; transform: translateX(-30px) skewX(-6deg); } to { opacity: 1; transform: none; } }
-@keyframes dlb-ad-prod { 0% { opacity: 0; transform: translateY(40px) scale(0.92) rotate(-4deg); } 12% { opacity: 1; transform: translateY(0) scale(1) rotate(-2deg); } 100% { opacity: 1; transform: translateY(-8px) scale(1.04) rotate(1deg); } }
-.ad-drink .ad-bg { background: linear-gradient(118deg, #f5c518 0 46%, #111 46% 100%); }
-.ad-drink .ad-slash { position: absolute; top: -20%; bottom: -20%; left: 44%; width: 3vw; background: #c8161d; transform: skewX(-28deg) translateX(-200%); }
-.ad-drink .ad-slash.s2 { left: 52%; width: 0.6vw; background: #fff; }
-.ad-drink.is-on .ad-slash { animation: dlb-ad-slash 0.6s var(--ease) forwards; }
-@keyframes dlb-ad-slash { to { transform: skewX(-28deg) translateX(0); } }
-.ad-drink .ad-prod { right: 12vw; top: 8vh; height: 80vh; width: auto; }
-.ad-drink .ad-copy { left: 6vw; top: 20vh; color: #111; }
-.ad-drink .ad-badge { align-self: flex-start; padding: 0.1em 0.7em 0.15em; background: #c8161d; color: #fff; font-weight: 800; font-size: clamp(16px, 1.4vw, 24px); transform: rotate(-4deg); }
-.ad-drink .ad-name { font-size: clamp(70px, 9vw, 170px); letter-spacing: 0; transform: skewX(-8deg); }
-.ad-drink .ad-tag { font-size: clamp(26px, 2.8vw, 52px); }
-.ad-drink .ad-fine { color: #fff; }
-.ad-balm .ad-bg { background: radial-gradient(70% 90% at 70% 45%, #2e5a2a 0%, #13301a 55%, #08160c 100%); }
-.ad-balm .ad-leaves { position: absolute; inset: 0; background: radial-gradient(30% 22% at 12% 20%, rgba(120, 170, 80, 0.25), transparent 70%), radial-gradient(26% 18% at 88% 84%, rgba(120, 170, 80, 0.2), transparent 70%); }
-.ad-balm .ad-prod { right: 8vw; top: 26vh; width: 46vw; height: auto; }
-.ad-balm .ad-copy { left: 6vw; top: 22vh; }
-.ad-balm .ad-name { font-family: var(--f-title); font-size: clamp(40px, 4.6vw, 86px); color: var(--n-gold); text-shadow: 0 2px 0 #6a4c0c; }
-.ad-balm .ad-tag { margin-top: 0.3em; font-size: clamp(34px, 3.6vw, 66px); }
-.ad-balm .ad-sub { margin-top: 0.4em; font-weight: 600; font-size: clamp(18px, 1.6vw, 28px); color: rgba(255, 255, 255, 0.85); }
-.ad-lotto .ad-bg { background: radial-gradient(80% 90% at 50% 40%, #c8161d 0%, #7a0a0e 60%, #3a0306 100%); }
-.ad-lotto .ad-rays { position: absolute; inset: -50%; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 215, 90, 0.12) 0deg 8deg, transparent 8deg 20deg); }
-.ad-lotto.is-on .ad-rays { animation: dlb-ad-rays 9s linear infinite; }
-@keyframes dlb-ad-rays { to { transform: rotate(40deg); } }
-.ad-lotto .ad-prod { left: 50%; bottom: 4vh; width: 54vw; height: auto; margin-left: -27vw; }
-.ad-lotto .ad-copy { left: 0; right: 0; top: 6vh; align-items: center; text-align: center; }
-.ad-lotto .ad-name { font-family: var(--f-title); font-size: clamp(42px, 4.8vw, 90px); color: var(--n-gold); text-shadow: 0 3px 0 #5a0408; }
-.ad-lotto .ad-tag { font-size: clamp(22px, 2vw, 38px); }
-.ad-lotto .ad-digits { display: flex; gap: 0.12em; margin-top: 0.1em; font-family: var(--f-title); font-weight: 800; font-size: clamp(54px, 6vw, 110px); line-height: 1.1; }
-.ad-lotto .ad-digits span { display: inline-block; min-width: 0.8em; padding: 0 0.08em; background: #fff8e0; color: #7a0a0e; border-radius: 6px; box-shadow: 0 4px 0 #b88a1a; }
-.dlb-ad.ad-lotto.is-on .ad-digits span { animation: dlb-ad-flip 0.5s var(--ease) both; animation-delay: calc(0.8s + var(--i) * 0.12s); }
-@keyframes dlb-ad-flip { from { transform: rotateX(90deg); } to { transform: none; } }
-.ad-lotto .ad-badge { margin-top: 0.5em; padding: 0.1em 0.8em 0.15em; background: var(--n-gold); color: #5a0408; font-weight: 800; font-size: clamp(16px, 1.4vw, 24px); }
-
 /* ------------------------------------------------------------ black fade -- */
 .dlb-fade { position: absolute; inset: 0; background: #000; z-index: 50; opacity: 0; transition: opacity 1s var(--ease-io); pointer-events: none; }
 .dlb-fade.is-on { opacity: 1; pointer-events: auto; }

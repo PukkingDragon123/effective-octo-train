@@ -203,11 +203,12 @@ export default async function ({ params, saves }) {
       news();
       break;
     case 'newstour': {
-      // the programme from given segments, one harness run: studio, field, ad 1, ad 3
-      const run = (from) => ui.newsReport({ th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง ทางหลวงสายป่า คนขับเสียชีวิตคาที่', image: backdrop, place: 'ทางหลวงสายป่า กม. ๙', _from: from });
+      // the programme in one harness run, warmed first (as after the menu), jumping segment by segment
+      const run = (from) => ui.newsReport({ th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง ทางหลวงสายป่า คนขับเสียชีวิตคาที่', image: backdrop, place: 'ทางหลวงสายป่า กม. ๙', _from: from, _hold: params.get('hold') === '1' });
       const from = params.get('from') || 'studio';
-      run(from);
-      const steps = from === 'ads' ? [() => { ui.news.next(); setTimeout(() => ui.news.next(), 250); }] : [() => run('field'), () => run('ads'), () => { ui.news.next(); setTimeout(() => ui.news.next(), 200); }];
+      ui.news.prewarm().then(() => run(from));
+      // shots: wide (sting skipped) -> anchor medium -> crash photo on the big screen -> field -> wrap
+      const steps = [() => ui.news.next(), () => ui.news.next(), () => ui.news.next(), () => ui.news.next()];
       let i = -1;
       window.__tour = { next: () => steps[++i]?.() };
       break;

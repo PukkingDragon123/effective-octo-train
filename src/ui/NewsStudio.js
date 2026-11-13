@@ -1,11 +1,57 @@
-// The late-night news studio for ui.newsReport: its own WebGL canvas (like IncenseScene), a curved
-// anchor desk (extruded plan and front band, graphite with a red LED line), a slatted backdrop wall,
-// a bezelled studio screen showing the crash photo, script pages on the desk, key / fill / rim
-// lights, and a news anchor (createHumanoid) seated at the desk, talking, gesturing with one hand
-// and glancing down at the script. The camera pushes in slowly.
+// The late-night news studio for ui.newsReport, in its own WebGL canvas. A real-looking set: the
+// curved anchor desk (extruded, graphite, red LED line), a slatted backdrop with coloured practical
+// LEDs, a bezelled screen showing the crash photo, and the crew's floor: two broadcast cameras on
+// tripods (modelled here), Poly Haven CC0 floodlight stands, a bounce screen, the crew desk with a
+// laptop and monitors, an armchair, potted plants, cables on the floor (public/assets/studio, see
+// docs/credits/polyhaven.md). On the desk: script pages, notepads, a clipboard, pens, a mug.
+// Lit like broadcast: key, fill and rim on the anchor. The anchor and the field reporter are
+// createHumanoid people. Shots: 'wide' | 'anchor' | 'screen' | 'wrap' | 'field' (setShot).
+//
+// It is built once, warmed during idle time (News.prewarm) and reused: setImage() swaps the photo.
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { loadCharacterAssets, createHumanoid, randomPerson, HumanoidGLB } from '../characters/index.js';
 import { FONTS } from './fonts.js';
+
+const STUDIO_ASSETS = ['flood_lights', 'projector_screen', 'television_02', 'modern_arm_chair_01', 'metal_office_desk', 'classic_laptop', 'office_notepads', 'clipboard', 'stationery_supplies', 'calathea_orbifolia_01', 'planter_pot_clay'];
+let assetsP = null;
+/** The studio's Poly Haven models (loaded once; a missing one is just left out). */
+export function loadStudioAssets() {
+  if (assetsP) return assetsP;
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  assetsP = Promise.all(STUDIO_ASSETS.map((id) => loader.loadAsync(`assets/studio/${id}.glb`).then((g) => [id, g.scene], (e) => {
+    console.warn('[news] studio model missing', id, e?.message || e);
+    return [id, null];
+  }))).then((list) => Object.fromEntries(list));
+  return assetsP;
+}
+
+/** Clone the root parts of a model whose names pass test, standing on y = 0, centred in x / z. */
+function part(scene, test, { at = [0, 0, 0], rotY = 0, scale = 1 } = {}) {
+  if (!scene) return null;
+  const g = new THREE.Group();
+  for (const c of scene.children) if (test(c.name || '')) g.add(c.clone(true));
+  if (!g.children.length) return null;
+  g.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(g);
+  const off = new THREE.Vector3(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
+  for (const c of g.children) c.position.add(off);
+  g.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = false;
+      o.receiveShadow = false;
+    }
+  });
+  const w = new THREE.Group();
+  w.add(g);
+  w.position.set(...at);
+  w.rotation.y = rotY;
+  w.scale.setScalar(scale);
+  w.userData.size = b.getSize(new THREE.Vector3()).multiplyScalar(scale);
+  return w;
+}
 
 const DESK_Y = 0.76;
 
@@ -105,18 +151,18 @@ function pages() {
 }
 
 /** The studio screen: bevelled bezel (rounded rectangle with a hole, extruded) and the image. */
-function studioScreen(image, headline) {
+function studioScreen() {
   const W = 1.9, H = 1.07, r = 0.03;
-  const rr = (s, w, h, rad) => {
-    s.moveTo(-w / 2 + rad, -h / 2);
-    s.lineTo(w / 2 - rad, -h / 2);
-    s.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + rad);
-    s.lineTo(w / 2, h / 2 - rad);
-    s.quadraticCurveTo(w / 2, h / 2, w / 2 - rad, h / 2);
-    s.lineTo(-w / 2 + rad, h / 2);
-    s.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - rad);
-    s.lineTo(-w / 2, -h / 2 + rad);
-    s.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + rad, -h / 2);
+  const rr = (sh, w, h, rad) => {
+    sh.moveTo(-w / 2 + rad, -h / 2);
+    sh.lineTo(w / 2 - rad, -h / 2);
+    sh.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + rad);
+    sh.lineTo(w / 2, h / 2 - rad);
+    sh.quadraticCurveTo(w / 2, h / 2, w / 2 - rad, h / 2);
+    sh.lineTo(-w / 2 + rad, h / 2);
+    sh.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - rad);
+    sh.lineTo(-w / 2, -h / 2 + rad);
+    sh.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + rad, -h / 2);
   };
   const outer = new THREE.Shape();
   rr(outer, W + 0.06, H + 0.06, r + 0.02);
@@ -124,15 +170,26 @@ function studioScreen(image, headline) {
   rr(hole, W, H, r * 0.5);
   outer.holes.push(hole);
   const bezel = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 3, curveSegments: 12 }), new THREE.MeshStandardMaterial({ color: 0x0a0b0d, roughness: 0.3, metalness: 0.6 }));
-  const tex = canvasTex(1280, 720, (x, w, h) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1280;
+  canvas.height = 720;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: 0xe2e2e2 }));
+  screen.position.z = 0.03;
+  const g = new THREE.Group();
+  g.add(bezel, screen);
+  g.userData.draw = (image, headline) => {
+    const x = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
     x.fillStyle = '#05070a';
     x.fillRect(0, 0, w, h);
     const sw = image?.videoWidth || image?.naturalWidth || image?.width || 0;
     const sh = image?.videoHeight || image?.naturalHeight || image?.height || 0;
     if (sw && sh) {
       try {
-        const s = Math.max(w / sw, h / sh);
-        x.drawImage(image, (w - sw * s) / 2, (h - sh * s) / 2, sw * s, sh * s);
+        const k = Math.max(w / sw, h / sh);
+        x.drawImage(image, (w - sw * k) / 2, (h - sh * k) / 2, sw * k, sh * k);
       } catch (e) {
         /* tainted */
       }
@@ -143,24 +200,14 @@ function studioScreen(image, headline) {
     x.fillStyle = v;
     x.fillRect(0, 0, w, h);
     x.fillStyle = '#c8161d';
-    x.fillRect(64, h - 168, 210, 58);
+    x.fillRect(64, h - 112, 220, 60);
     x.fillStyle = '#fff';
-    x.font = `600 40px ${FONTS.title}`;
+    x.font = `800 40px ${FONTS.body}`;
     x.textBaseline = 'middle';
-    x.fillText('ข่าวด่วน', 84, h - 138);
-    x.font = `600 46px ${FONTS.title}`;
-    const words = String(headline || '').split(' ');
-    let line = '', y = h - 70;
-    for (const wd of words) {
-      if (x.measureText(line + wd).width > w - 140 && line) break;
-      line += wd + ' ';
-    }
-    x.fillText(line.trim(), 64, y);
-  });
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, color: 0xd8d8d8 }));
-  screen.position.z = 0.03;
-  const g = new THREE.Group();
-  g.add(bezel, screen);
+    x.fillText('ข่าวด่วน', 86, h - 80);
+    void headline; // the headline itself is the lower third's
+    tex.needsUpdate = true;
+  };
   return g;
 }
 
@@ -328,7 +375,7 @@ function microphone() {
 }
 
 /** The crash site at night: asphalt, the wreck photo far behind, posts and tape, police lights. */
-function fieldScene(image) {
+function fieldScene() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x030406);
   scene.fog = new THREE.FogExp2(0x05070a, 0.07);
@@ -349,10 +396,12 @@ function fieldScene(image) {
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
   // the wreck, far behind in the dark: the crash photo as a distant plate
-  const sw = image?.width || 16, sh = image?.height || 9;
-  const plateTex = new THREE.CanvasTexture(image || document.createElement('canvas'));
+  const plateCanvas = document.createElement('canvas');
+  plateCanvas.width = 960;
+  plateCanvas.height = 540;
+  const plateTex = new THREE.CanvasTexture(plateCanvas);
   plateTex.colorSpace = THREE.SRGBColorSpace;
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(14, (14 * sh) / sw), new THREE.MeshBasicMaterial({ map: plateTex, color: 0x8a8a8a, fog: false }));
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(14, 7.9), new THREE.MeshBasicMaterial({ map: plateTex, color: 0x8a8a8a, fog: false }));
   plate.position.set(-1.5, 2.6, -12);
   scene.add(plate);
   // delineator posts and the tape across the verge
@@ -378,69 +427,206 @@ function fieldScene(image) {
   camLight.position.set(0.3, 1.7, 2.2);
   camLight.target.position.set(0, 1.45, 0);
   scene.add(red, blue, work, work.target, camLight, camLight.target, new THREE.HemisphereLight(0x223344, 0x080808, 0.35));
-  return { scene, red, blue, tapes: [tapeA, tapeB] };
+  const setPlate = (image) => {
+    const x = plateCanvas.getContext('2d');
+    x.fillStyle = '#05070a';
+    x.fillRect(0, 0, 960, 540);
+    const sw = image?.width || 0, sh = image?.height || 0;
+    if (sw && sh) {
+      try {
+        const k = Math.max(960 / sw, 540 / sh);
+        x.drawImage(image, (960 - sw * k) / 2, (540 - sh * k) / 2, sw * k, sh * k);
+      } catch (e) {
+        /* tainted */
+      }
+    }
+    plateTex.needsUpdate = true;
+  };
+  return { scene, red, blue, tapes: [tapeA, tapeB], setPlate };
+}
+
+/** A swept tube along points with a radius per t (legs, cables, pan bars). */
+function sweepTube(pts, rFn, mat, radial = 10, segs = 40) {
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const g = new THREE.TubeGeometry(curve, segs, 1, radial, false);
+  // taper: rescale each ring about the curve
+  const pos = g.attributes.position;
+  const frames = curve.computeFrenetFrames(segs, false);
+  const P = new THREE.Vector3(), d = new THREE.Vector3();
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    curve.getPointAt(t, P);
+    const r = rFn(t);
+    for (let j = 0; j <= radial; j++) {
+      const k = i * (radial + 1) + j;
+      d.set(pos.getX(k), pos.getY(k), pos.getZ(k)).sub(P);
+      pos.setXYZ(k, P.x + d.x * r, P.y + d.y * r, P.z + d.z * r);
+    }
+  }
+  void frames;
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, mat);
+}
+
+/** A broadcast camera on a tripod: three tapered legs with a spreader, a fluid head, the body
+ *  (an extruded side profile with bevels), the zoom lens (lathed), a viewfinder and pan bars. */
+function studioCamera() {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.45, metalness: 0.7 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x0e0f11, roughness: 0.5, metalness: 0.3 });
+  const body = new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.4, metalness: 0.35 });
+  const headY = 1.12;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + 0.5;
+    const foot = new THREE.Vector3(Math.cos(a) * 0.48, 0.0, Math.sin(a) * 0.48);
+    const top = new THREE.Vector3(Math.cos(a) * 0.06, headY - 0.08, Math.sin(a) * 0.06);
+    const mid = top.clone().lerp(foot, 0.5);
+    g.add(sweepTube([top, mid, foot], (t) => 0.018 - 0.008 * t, metal, 10, 24));
+    // ground spreader arm
+    g.add(sweepTube([new THREE.Vector3(0, 0.12, 0), foot.clone().multiplyScalar(0.62).setY(0.05)], () => 0.008, metal, 8, 8));
+    // rubber foot
+    const f = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.03, 0], [0.032, 0.012], [0.02, 0.03], [0, 0.03]].map(([x, y]) => new THREE.Vector2(x, y)), 16), black);
+    f.position.copy(foot);
+    g.add(f);
+  }
+  // fluid head
+  const head = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.09, 0], [0.1, 0.03], [0.085, 0.07], [0.06, 0.09], [0, 0.09]].map(([x, y]) => new THREE.Vector2(x, y)), 32), metal);
+  head.position.y = headY - 0.09;
+  g.add(head);
+  // the body: a side profile (sloped front, handle hump) extruded 0.16 wide
+  const prof = new THREE.Shape();
+  prof.moveTo(-0.22, 0);
+  prof.lineTo(0.18, 0);
+  prof.quadraticCurveTo(0.24, 0, 0.24, 0.05);
+  prof.lineTo(0.22, 0.2);
+  prof.quadraticCurveTo(0.2, 0.24, 0.14, 0.24);
+  prof.lineTo(-0.2, 0.24);
+  prof.quadraticCurveTo(-0.24, 0.24, -0.24, 0.2);
+  prof.lineTo(-0.24, 0.03);
+  prof.quadraticCurveTo(-0.24, 0, -0.22, 0);
+  const bg = new THREE.ExtrudeGeometry(prof, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 10 });
+  bg.translate(0, 0, -0.08);
+  bg.rotateY(-Math.PI / 2); // profile's +X becomes the lens axis (-Z, the camera's forward)
+  const cam = new THREE.Mesh(bg, body);
+  cam.position.y = headY;
+  g.add(cam);
+  // zoom lens: rings and a hood
+  const lp = [[0, 0], [0.05, 0], [0.052, 0.04], [0.048, 0.06], [0.05, 0.14], [0.055, 0.16], [0.054, 0.26], [0.07, 0.3], [0.072, 0.33], [0.066, 0.33], [0, 0.32]].map(([x, y]) => new THREE.Vector2(x, y));
+  const lens = new THREE.Mesh(new THREE.LatheGeometry(lp, 32), black);
+  lens.rotation.x = -Math.PI / 2;
+  lens.position.set(0, headY + 0.12, -0.22);
+  g.add(lens);
+  // viewfinder on the top left, with its hood
+  const vfS = new THREE.Shape();
+  vfS.moveTo(-0.06, -0.045);
+  vfS.lineTo(0.06, -0.045);
+  vfS.lineTo(0.06, 0.045);
+  vfS.lineTo(-0.06, 0.045);
+  const vf = new THREE.Mesh(new THREE.ExtrudeGeometry(vfS, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2 }), black);
+  vf.position.set(-0.05, headY + 0.3, 0.02);
+  g.add(vf);
+  // a red tally lamp on the front
+  const tally = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [0.012, 0], [0.012, 0.006], [0, 0.012]].map(([x, y]) => new THREE.Vector2(x, y)), 16), new THREE.MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false }));
+  tally.rotation.x = -Math.PI / 2;
+  tally.position.set(0.06, headY + 0.22, -0.25);
+  g.add(tally);
+  // pan bars back toward the operator
+  for (const sx of [-1, 1]) g.add(sweepTube([new THREE.Vector3(sx * 0.07, headY - 0.02, 0.1), new THREE.Vector3(sx * 0.18, headY - 0.1, 0.42), new THREE.Vector3(sx * 0.24, headY - 0.18, 0.62)], () => 0.011, metal, 8, 16));
+  return g;
+}
+
+/** A coffee mug: lathed walls with a rolled lip, a swept handle. */
+function mug() {
+  const g = new THREE.Group();
+  const pr = [[0, 0.002], [0.036, 0], [0.04, 0.006], [0.042, 0.09], [0.044, 0.096], [0.04, 0.097], [0.037, 0.09], [0.035, 0.012], [0, 0.012]].map(([x, y]) => new THREE.Vector2(x, y));
+  const m = new THREE.MeshStandardMaterial({ color: 0xece9e2, roughness: 0.25 });
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pr, 40), m));
+  g.add(sweepTube([new THREE.Vector3(0.041, 0.075, 0), new THREE.Vector3(0.072, 0.07, 0), new THREE.Vector3(0.075, 0.035, 0), new THREE.Vector3(0.041, 0.025, 0)], () => 0.0065, m, 10, 20));
+  const coffee = new THREE.Mesh(new THREE.CircleGeometry(0.036, 32), new THREE.MeshStandardMaterial({ color: 0x2a160c, roughness: 0.15 }));
+  coffee.rotation.x = -Math.PI / 2;
+  coffee.position.y = 0.075;
+  g.add(coffee);
+  return g;
+}
+
+/** A cable lying on the floor, wandering between points (a swept tube on a spline). */
+function cable(points, r = 0.009) {
+  return sweepTube(points.map(([x, z, y = 0.009]) => new THREE.Vector3(x, y, z)), () => r, new THREE.MeshStandardMaterial({ color: 0x101113, roughness: 0.55 }), 8, points.length * 14);
 }
 
 export class NewsStudio {
-  /** @param host element to fill; opts {image, headline} */
-  constructor(host, { image, headline } = {}) {
+  /** host: element to fill (or null to build off-screen); opts {image, headline} */
+  constructor(host = null, { image = null, headline = '' } = {}) {
     this.host = host;
     this.t = 0;
+    this.shotT = 0;
+    this.shot = 'wide';
     this.disposed = false;
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 1.12;
     renderer.setClearColor(0x020304, 1);
     renderer.domElement.className = 'dlb-news__canvas';
-    host.appendChild(renderer.domElement);
     this.renderer = renderer;
     const scene = (this.scene = new THREE.Scene());
-    this.camera = new THREE.PerspectiveCamera(30, 1, 0.05, 30);
+    this.camera = new THREE.PerspectiveCamera(36, 16 / 9, 0.05, 40);
 
-    // key (warm, high front-left of the anchor), fill (cool, low right), rim (blue, behind), ambient
-    const key = new THREE.SpotLight(0xfff0de, 55, 9, 0.42, 0.7, 2);
-    key.position.set(-1.4, 2.7, 2.0);
-    key.target.position.set(-0.35, 1.15, -0.78);
-    const fill = new THREE.SpotLight(0xdfe7ff, 12, 9, 0.6, 0.9, 2);
-    fill.position.set(1.6, 1.4, 1.9);
-    fill.target.position.set(-0.35, 1.1, -0.78);
-    const rim = new THREE.DirectionalLight(0x9db6ff, 1.4);
-    rim.position.set(1.2, 2.4, -3);
-    rim.target.position.set(-0.35, 1.1, -0.8);
-    scene.add(key, key.target, fill, fill.target, rim, rim.target, new THREE.HemisphereLight(0x1d2a3c, 0x0a0a0a, 0.5));
+    // broadcast lighting: key (warm, high front-left), fill (soft, cool, front-right), rim (blue,
+    // behind), a bright ambient, and coloured practicals on the set
+    const key = new THREE.SpotLight(0xfff2e2, 70, 10, 0.45, 0.65, 2);
+    key.position.set(-1.6, 2.9, 2.2);
+    key.target.position.set(-0.36, 1.15, -0.8);
+    const fill = new THREE.SpotLight(0xe4ecff, 24, 10, 0.6, 0.9, 2);
+    fill.position.set(1.8, 1.6, 2.1);
+    fill.target.position.set(-0.36, 1.1, -0.8);
+    const rim = new THREE.SpotLight(0xa8c0ff, 40, 8, 0.5, 0.7, 2);
+    rim.position.set(0.9, 2.8, -2.0);
+    rim.target.position.set(-0.36, 1.25, -0.8);
+    const cyan = new THREE.PointLight(0x2ad6ff, 3.5, 5, 2);
+    cyan.position.set(-1.9, 1.4, -1.9);
+    const mag = new THREE.PointLight(0xff3a8a, 3, 5, 2);
+    mag.position.set(2.2, 0.5, -1.8);
+    // the lighting grid overhead: an even, clean wash over the whole floor and the crew's gear
+    const grid = new THREE.DirectionalLight(0xf4f2ee, 1.3);
+    grid.position.set(0.5, 6, 3.5);
+    scene.add(key, key.target, fill, fill.target, rim, rim.target, cyan, mag, grid, new THREE.HemisphereLight(0x4a5a70, 0x1a1a1a, 1.0));
 
     scene.add(backdrop(), desk());
-    this.screen = studioScreen(image, headline);
+    // practical LED columns either side of the screen and a strip along the foot of the wall
+    const led = (color, pts, r) => sweepTube(pts, () => r, new THREE.MeshBasicMaterial({ color, toneMapped: false }), 8, 30);
+    scene.add(led(0x2ad6ff, [new THREE.Vector3(-1.85, 0.2, -2.2), new THREE.Vector3(-1.85, 1.4, -2.2), new THREE.Vector3(-1.85, 2.6, -2.2)], 0.018));
+    scene.add(led(0x2ad6ff, [new THREE.Vector3(-1.55, 0.2, -2.25), new THREE.Vector3(-1.55, 1.4, -2.25), new THREE.Vector3(-1.55, 2.6, -2.25)], 0.012));
+    const strip = [];
+    for (let i = 0; i <= 24; i++) {
+      const a = -0.6 + (1.2 * i) / 24;
+      strip.push(new THREE.Vector3(Math.sin(a) * 5.4, 0.04, 3.2 - Math.cos(a) * 5.4));
+    }
+    scene.add(led(0xff3a8a, strip, 0.012));
+    this.screen = studioScreen();
     this.screen.position.set(0.82, 1.5, -1.9);
     this.screen.rotation.y = -0.18;
     scene.add(this.screen);
     this.paper = pages();
     this.paper.position.set(-0.36, DESK_Y + 0.002, -0.27);
-    scene.add(this.paper);
+    const mg = mug();
+    mg.position.set(0.12, DESK_Y, -0.3);
+    scene.add(this.paper, mg);
+    // the crew's floor: two cameras with cables running off
+    const camA = studioCamera();
+    camA.position.set(1.25, 0, 2.3);
+    camA.lookAt(-0.36, 0, -0.8);
+    const camB = studioCamera();
+    camB.position.set(-1.75, 0, 2.05);
+    camB.lookAt(-0.2, 0, -0.8);
+    scene.add(camA, camB);
+    scene.add(cable([[1.25, 2.3], [1.6, 3.0], [1.3, 3.8], [2.2, 4.8], [2.4, 6.5]]), cable([[-1.75, 2.05], [-2.3, 2.8], [-2.0, 3.6], [-2.9, 4.6], [-3.4, 6.2]]), cable([[-2.95, 0.9], [-2.6, 1.8], [-3.3, 2.6], [-4.2, 3.0]], 0.007), cable([[3.1, 0.5], [2.6, 1.3], [3.2, 2.2], [4.3, 2.6]], 0.007));
+    this.image = image;
+    this.headline = headline;
 
-    // anchor rig targets
-    this.seat = new THREE.Object3D();
-    this.seat.position.set(-0.36, 0.5, -0.8);
-    this.seat.rotation.y = Math.PI;
-    scene.add(this.seat);
-    this.handL = new THREE.Object3D();
-    this.handR = new THREE.Object3D();
-    // she faces +Z, so her left hand is on the +X side
-    this.handL.position.set(-0.2, DESK_Y + 0.03, -0.3);
-    this.handR.position.set(-0.52, DESK_Y + 0.03, -0.32);
-    this.lookCam = new THREE.Object3D();
-    this.lookPaper = new THREE.Object3D();
-    this.lookPaper.position.set(-0.36, DESK_Y, -0.25);
-    scene.add(this.handL, this.handR, this.lookCam, this.lookPaper);
-    this.talking = false;
-
-    this._resize = () => this.resize();
-    window.addEventListener('resize', this._resize);
-    this.resize();
     // the field: the crash site, a reporter with a microphone
-    this.field = fieldScene(image);
+    this.field = fieldScene();
     this.repSpot = new THREE.Object3D();
     this.repSpot.rotation.y = Math.PI; // faces the camera (+Z)
     this.field.scene.add(this.repSpot);
@@ -452,71 +638,138 @@ export class NewsStudio {
     this.mic.add(this.micGrip);
     this.fieldLook = new THREE.Object3D();
     this.field.scene.add(this.mic, this.fieldLook);
-    this.shot = 'studio';
-    this.ready = this._anchor();
+
+    // anchor rig targets
+    this.seat = new THREE.Object3D();
+    this.seat.position.set(-0.36, 0.5, -0.8);
+    this.seat.rotation.y = Math.PI;
+    scene.add(this.seat);
+    this.handL = new THREE.Object3D();
+    this.handR = new THREE.Object3D();
+    this.handL.position.set(-0.2, DESK_Y + 0.02, -0.36); // she faces +Z: her left hand is on +X
+    this.handR.position.set(-0.52, DESK_Y + 0.02, -0.38);
+    this.lookCam = new THREE.Object3D();
+    this.lookPaper = new THREE.Object3D();
+    this.lookPaper.position.set(-0.36, DESK_Y, -0.25);
+    scene.add(this.handL, this.handR, this.lookCam, this.lookPaper);
+    this.talking = false;
+    this.repTalking = false;
+
+    this._resize = () => this.resize();
+    window.addEventListener('resize', this._resize);
+    this.setImage(image, headline);
+    if (host) this.attach(host);
+    this.ready = this._build();
   }
 
-  async _anchor() {
+  /** The set dressing from Poly Haven, the two people, then a full shader compile (off-screen). */
+  async _build() {
     try {
-      await Promise.race([loadCharacterAssets(), new Promise((_, rej) => setTimeout(() => rej(new Error('character assets timeout')), 6000))]);
+      const [A] = await Promise.all([loadStudioAssets(), Promise.race([loadCharacterAssets(), new Promise((_, rej) => setTimeout(() => rej(new Error('character assets timeout')), 15000))])]);
       if (this.disposed) return;
+      const sc = this.scene;
+      const add = (o) => o && sc.add(o);
+      const fl = A.flood_lights;
+      const standA = (n) => /standing_double_a/.test(n);
+      const standB = (n) => /standing_double_b/.test(n);
+      add(part(fl, standA, { at: [-2.95, 0, 0.9], rotY: 0.9 }));
+      add(part(fl, standB, { at: [3.1, 0, 0.5], rotY: -0.95 }));
+      add(part(fl, (n) => /cable_extension_geo|plug_brick/.test(n), { at: [-2.4, 0, 2.2], rotY: 0.3 }));
+      add(part(fl, (n) => /cable_a_geo|plug_a/.test(n), { at: [2.6, 0, 1.6], rotY: -0.6 }));
+      add(part(A.projector_screen, () => true, { at: [3.4, 0, -0.7], rotY: -1.2 }));
+      // the crew corner: a desk with a laptop and two monitors, an armchair
+      const cd = part(A.metal_office_desk, () => true, { at: [-3.7, 0, -0.5], rotY: 1.1 });
+      add(cd);
+      const deskTop = cd?.userData.size.y ?? 0.79;
+      add(part(A.classic_laptop, () => true, { at: [-3.55, deskTop, -0.35], rotY: 1.3 }));
+      add(part(A.television_02, () => true, { at: [-3.85, deskTop, -0.95], rotY: 1.0 }));
+      add(part(A.modern_arm_chair_01, () => true, { at: [-3.1, 0, 0.75], rotY: 1.9 }));
+      // a floor monitor facing the desk
+      add(part(A.television_02, () => true, { at: [0.95, 0, 1.25], rotY: Math.PI + 0.3 }));
+      // potted plants at the set's edges
+      for (const [x, z, pick, s] of [[-2.55, -1.55, /_b$/, 2.4], [2.75, -1.45, /_d$/, 2.2]]) {
+        const pot = part(A.planter_pot_clay, () => true, { at: [x, 0, z], scale: 1.6 });
+        add(pot);
+        add(part(A.calathea_orbifolia_01, (n) => pick.test(n), { at: [x, (pot?.userData.size.y ?? 0.35) * 0.82, z], scale: s }));
+      }
+      // on the anchor's desk: notepads, a clipboard, a pen cup
+      add(part(A.office_notepads, (n) => /a4_stack/.test(n), { at: [0.3, DESK_Y, -0.38], rotY: 0.2 }));
+      add(part(A.clipboard, () => true, { at: [-0.85, DESK_Y, -0.3], rotY: 0.5 }));
+      add(part(A.stationery_supplies, (n) => /pencilcup|pen_|pencil_new/.test(n), { at: [0.5, DESK_Y, -0.45] }));
+
+      // the anchor
       const spec = randomPerson(4242, { sex: 'f', age: 34, id: 'newsAnchor' });
       spec.hair = { style: 'bob', color: 0x15110f };
       spec.outfit = { type: 'shirt-slacks', sleeve: 'long', top: '#1f2733', bottom: '#1a1d24', shoes: 'shoes' };
       spec.accessories = [];
       if (spec.mh?.look) Object.assign(spec.mh.look, { posture: 'upright', sweat: 0, marks: [] });
-      const p = createHumanoid(spec);
-      // driven by this scene's own loop, always at full detail
-      p._off?.();
-      p.noThrottle = true;
-      p._setLod = function () {
-        HumanoidGLB.prototype._setLod.call(this, 'hi');
+      const own = (p) => {
+        p._off?.(); // driven by this scene's loop
+        p.noThrottle = true;
+        p._setLod = function () {
+          HumanoidGLB.prototype._setLod.call(this, 'hi');
+        };
+        p._setLod();
+        p.root.traverse((o) => {
+          if (o.isMesh) o.frustumCulled = false;
+        });
+        return p;
       };
-      p._setLod();
+      const p = own(createHumanoid(spec));
       p.sitAt(this.seat, { pose: 'sit', blend: 0 });
       p.setHandTarget('L', this.handL, { weight: 1, blend: 0.4, grip: 0.15 });
       p.setHandTarget('R', this.handR, { weight: 1, blend: 0.4, grip: 0.2 });
       p.lookAt(this.lookCam, { weight: 1, speed: 3 });
-      p.root.traverse((o) => {
-        if (o.isMesh) o.frustumCulled = false;
-      });
       this.person = p;
-      for (let i = 0; i < 8; i++) p.update(1 / 30); // settle into the pose before the first frame
-      // the field reporter: a man in a dark windbreaker, standing, microphone in the right hand
+      // the field reporter: a man in a dark windbreaker, microphone in the right hand
       const rs = randomPerson(7331, { sex: 'm', age: 31, id: 'newsReporter' });
       rs.hair = { style: 'short', color: 0x141110 };
       rs.outfit = { type: 'hoodie-jeans', top: '#1e2a3a', bottom: '#22252c', shoes: 'shoes' };
       rs.accessories = [];
       if (rs.mh?.look) Object.assign(rs.mh.look, { posture: 'upright', sweat: 0.3, marks: [] });
-      const r = createHumanoid(rs);
-      r._off?.();
-      r.noThrottle = true;
-      r._setLod = function () {
-        HumanoidGLB.prototype._setLod.call(this, 'hi');
-      };
-      r._setLod();
+      const r = own(createHumanoid(rs));
       this.repSpot.add(r.root);
-      r.root.position.set(0, 0, 0);
       r.setHandTarget('R', this.micGrip, { weight: 1, blend: 0.4, grip: 1, orient: false });
       r.lookAt(this.fieldLook, { weight: 1, speed: 3 });
-      r.root.traverse((o) => {
-        if (o.isMesh) o.frustumCulled = false;
-      });
       this.reporter = r;
-      for (let i = 0; i < 8; i++) r.update(1 / 30);
-      // compile both sets now, while the screen is still dark: a first-use compile mid-programme
-      // would freeze the picture for a moment
-      this.update(0);
+      for (let i = 0; i < 8; i++) {
+        p.update(1 / 30);
+        r.update(1 / 30);
+      }
+      // compile everything now, off-screen, so the first frame of each shot never stalls
+      this.setShot('wide');
+      this.update(0, true);
       this.renderer.compile(this.scene, this.camera);
       this.renderer.compile(this.field.scene, this.camera);
+      this.warm = true;
     } catch (e) {
-      console.warn('[news] anchor unavailable', e);
+      console.warn('[news] studio build failed', e);
       this.person = null;
     }
   }
 
+  /** Show the crash photo on the studio screen and behind the field reporter. */
+  setImage(image, headline = this.headline) {
+    this.image = image;
+    this.headline = headline;
+    this.screen.userData.draw(image, headline);
+    this.field.setPlate(image);
+  }
+
+  attach(host) {
+    this.host = host;
+    host.appendChild(this.renderer.domElement);
+    this.resize();
+  }
+
+  detach() {
+    this.stop();
+    this.renderer.domElement.remove();
+    this.host = null;
+  }
+
   resize() {
-    const w = this.host.clientWidth || window.innerWidth, h = this.host.clientHeight || window.innerHeight;
+    const w = this.host?.clientWidth || window.innerWidth, h = this.host?.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / Math.max(1, h);
     this.camera.updateProjectionMatrix();
@@ -530,19 +783,20 @@ export class NewsStudio {
     this.reporter?.setTalking(this.repTalking, 1);
   }
 
-  /** 'studio' | 'field' */
+  /** 'wide' | 'anchor' | 'screen' | 'wrap' | 'field' */
   setShot(name) {
     this.shot = name;
     this.shotT = 0;
   }
 
-  /** Stop drawing (the picture is covered); dispose() later, off-screen. */
+  /** Stop drawing (the picture is covered or gone). */
   stop() {
     cancelAnimationFrame(this._raf);
     this._raf = 0;
   }
 
   start() {
+    this.stop();
     let last = performance.now();
     const loop = (now) => {
       if (this.disposed) return;
@@ -554,87 +808,80 @@ export class NewsStudio {
     this._raf = requestAnimationFrame(loop);
   }
 
-  update(dt) {
+  update(dt, noRender = false) {
     this.t += dt;
-    this.shotT = (this.shotT || 0) + dt;
-    const t = this.t;
-    if (this.shot === 'field') return this._updateField(dt);
-    // the camera: a slow push from a two-shot (anchor + screen) toward the anchor
-    const k = Math.min(1, t / 12);
-    const e = k * k * (3 - 2 * k);
-    const cam = this.camera;
-    cam.position.set(0.12 - 0.26 * e + Math.sin(t * 0.4) * 0.006, 1.2 - 0.03 * e + Math.sin(t * 0.33) * 0.004, 2.35 - 0.7 * e);
-    cam.lookAt(-0.06 - 0.2 * e, 1.06, -0.85);
+    this.shotT += dt;
+    if (this.shot === 'field') return this._updateField(dt, noRender);
+    const t = this.t, st = this.shotT, cam = this.camera;
+    const ease = (k) => k * k * (3 - 2 * k);
+    const path = (dur, from, to, lookFrom, lookTo, fov) => {
+      const k = ease(Math.min(1, st / dur));
+      cam.position.lerpVectors(from, to, k);
+      cam.position.x += Math.sin(t * 0.4) * 0.004;
+      cam.position.y += Math.sin(t * 0.33) * 0.003;
+      cam.lookAt(_lk.lerpVectors(lookFrom, lookTo, k));
+      if (cam.fov !== fov) {
+        cam.fov = fov;
+        cam.updateProjectionMatrix();
+      }
+    };
+    if (this.shot === 'wide') path(5, V3(1.4, 2.15, 6.4), V3(0.5, 1.9, 5.3), V3(-0.1, 1.1, -0.9), V3(-0.25, 1.05, -0.8), 38);
+    else if (this.shot === 'anchor') path(8, V3(0.12, 1.2, 2.3), V3(-0.14, 1.17, 1.65), V3(-0.08, 1.06, -0.85), V3(-0.28, 1.06, -0.85), 30);
+    else if (this.shot === 'screen') path(4, V3(0.25, 1.46, 0.7), V3(0.5, 1.5, -0.15), V3(0.82, 1.5, -1.9), V3(0.82, 1.5, -1.9), 34);
+    else path(6, V3(-0.12, 1.18, 1.9), V3(0.7, 1.75, 4.9), V3(-0.3, 1.06, -0.85), V3(-0.25, 1.05, -0.8), 34); // wrap: pull back
     this.lookCam.position.copy(cam.position);
-    // a glance down at the script now and then; a small hand gesture on stressed phrases
     const p = this.person;
     if (p) {
-      const glance = (t % 4.6) > 3.7;
+      const glance = t % 4.6 > 3.7;
       p.lookAt(glance ? this.lookPaper : this.lookCam, { weight: 1, speed: glance ? 5 : 3 });
-      const g = this.talking ? Math.max(0, Math.sin(t * 1.9)) * Math.max(0, Math.sin(t * 0.7 + 1)) : 0;
-      this.handR.position.set(-0.52 + 0.05 * g, DESK_Y + 0.03 + 0.09 * g, -0.32 + 0.04 * g);
+      const gs = this.talking ? Math.max(0, Math.sin(t * 1.9)) * Math.max(0, Math.sin(t * 0.7 + 1)) : 0;
+      this.handR.position.set(-0.52 + 0.05 * gs, DESK_Y + 0.02 + 0.08 * gs, -0.38 + 0.05 * gs);
       p.update(dt);
     }
-    this.renderer.render(this.scene, cam);
+    if (!noRender) this.renderer.render(this.scene, cam);
   }
 
-  _updateField(dt) {
+  _updateField(dt, noRender) {
     const t = this.t, st = this.shotT, F = this.field, cam = this.camera;
-    // police lights: red and blue double flashes, out of step
     const ph = (t % 0.72) / 0.72;
     const flash = (a) => ((ph > a && ph < a + 0.07) || (ph > a + 0.14 && ph < a + 0.21) ? 1 : 0);
     F.red.intensity = 26 * flash(0.0);
     F.blue.intensity = 30 * flash(0.5);
     for (const tp of F.tapes) tp.update(t);
-    // handheld: a slow push with breathing and small corrections
     const k = Math.min(1, st / 8);
     const hx = Math.sin(t * 1.3) * 0.012 + Math.sin(t * 3.7) * 0.004;
     const hy = Math.sin(t * 1.1 + 1) * 0.01 + Math.sin(t * 4.1) * 0.003;
+    if (cam.fov !== 34) {
+      cam.fov = 34;
+      cam.updateProjectionMatrix();
+    }
     cam.position.set(0.22 - 0.06 * k + hx, 1.56 + hy, 2.0 - 0.35 * k);
     cam.lookAt(-0.12 + hx * 0.3, 1.46 + hy * 0.4, 0);
     this.fieldLook.position.copy(cam.position);
-    // the microphone rises a little on stressed words
     const g = this.repTalking ? Math.max(0, Math.sin(t * 2.1)) * 0.02 : 0;
     this.mic.position.set(-0.06, 1.33 + g, 0.24);
     this.reporter?.update(dt);
-    this.renderer.render(F.scene, cam);
+    if (!noRender) this.renderer.render(F.scene, cam);
   }
 
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
-    cancelAnimationFrame(this._raf);
+    this.stop();
     window.removeEventListener('resize', this._resize);
-    try {
-      this.person?.dispose();
-    } catch (e) {
-      /* ignore */
-    }
-    // the person's meshes may share template data with other characters: never dispose them here
-    this.person?.root?.removeFromParent();
-    try {
-      this.reporter?.dispose();
-    } catch (e) {
-      /* ignore */
-    }
-    this.reporter?.root?.removeFromParent();
-    this.field?.scene.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material && !Array.isArray(o.material)) {
-        o.material.map?.dispose();
-        o.material.dispose();
+    for (const p of [this.person, this.reporter]) {
+      try {
+        p?.dispose();
+      } catch (e) {
+        /* ignore */
       }
-    });
-    this.scene.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
-      for (const m of ms) {
-        m.map?.dispose();
-        m.dispose();
-      }
-    });
+      p?.root?.removeFromParent(); // their meshes may share template data: never disposed here
+    }
     this.renderer.dispose();
     this.renderer.forceContextLoss?.();
     this.renderer.domElement.remove();
   }
 }
+
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const _lk = new THREE.Vector3();

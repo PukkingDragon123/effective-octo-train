@@ -1,0 +1,145 @@
+{
+ "flood_lights": {
+  "name": "Flood Lights",
+  "author": "James Ray Cock",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/flood_lights",
+  "dimensions": [
+   4607.212066650391,
+   2112.691640853882,
+   1810.9944090247154
+  ],
+  "glb": "assets/studio/flood_lights.glb",
+  "bytes": 5067616
+ },
+ "projector_screen": {
+  "name": "Projector Screen",
+  "author": "PeterM",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/projector_screen",
+  "dimensions": [
+   1093.5667157173157,
+   915.8007800579071,
+   1799.4642853736877
+  ],
+  "glb": "assets/studio/projector_screen.glb",
+  "bytes": 322016
+ },
+ "television_02": {
+  "name": "Television 02",
+  "author": "Benny Weimer",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/television_02",
+  "dimensions": [
+   399.74847435951233,
+   350.19391775131226,
+   411.41476929375244
+  ],
+  "glb": "assets/studio/television_02.glb",
+  "bytes": 153012
+ },
+ "modern_arm_chair_01": {
+  "name": "Modern Arm Chair 01",
+  "author": "Vibrant Nordic",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/modern_arm_chair_01",
+  "dimensions": [
+   820.3444182872772,
+   986.5616858005524,
+   1022.8520567470696
+  ],
+  "glb": "assets/studio/modern_arm_chair_01.glb",
+  "bytes": 302716
+ },
+ "metal_office_desk": {
+  "name": "Metal Office Desk",
+  "author": "Ulan Cabanilla",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/metal_office_desk",
+  "dimensions": [
+   2000.0003576278687,
+   947.2135305404663,
+   787.5000089406967
+  ],
+  "glb": "assets/studio/metal_office_desk.glb",
+  "bytes": 1474232
+ },
+ "classic_laptop": {
+  "name": "Classic Laptop",
+  "author": "Arrangemonk",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/classic_laptop",
+  "dimensions": [
+   651.9346237182617,
+   485.9423041343689,
+   542.8108091000468
+  ],
+  "glb": "assets/studio/classic_laptop.glb",
+  "bytes": 408008
+ },
+ "office_notepads": {
+  "name": "Office Notepads",
+  "author": "Ulan Cabanilla",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/office_notepads",
+  "dimensions": [
+   1102.7901768684387,
+   659.8375737667084,
+   21.99999988079071
+  ],
+  "glb": "assets/studio/office_notepads.glb",
+  "bytes": 86948
+ },
+ "clipboard": {
+  "name": "Clipboard",
+  "author": "ProgrammerOnCoffee",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/clipboard",
+  "dimensions": [
+   228.6001443862915,
+   336.55010163784027,
+   41.990341851487756
+  ],
+  "glb": "assets/studio/clipboard.glb",
+  "bytes": 192676
+ },
+ "stationery_supplies": {
+  "name": "Stationery Supplies",
+  "author": "Mateusz Sadek",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/stationery_supplies",
+  "dimensions": [
+   301.8620014190674,
+   83.66207033395767,
+   164.34769332408905
+  ],
+  "glb": "assets/studio/stationery_supplies.glb",
+  "bytes": 203296
+ },
+ "calathea_orbifolia_01": {
+  "name": "Calathea Orbifolia 01",
+  "author": "Rob Tuytel, Rico Cilliers",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/calathea_orbifolia_01",
+  "dimensions": [
+   2491.507411003113,
+   1193.592220544815,
+   424.2942640557885
+  ],
+  "glb": "assets/studio/calathea_orbifolia_01.glb",
+  "bytes": 1557760
+ },
+ "planter_pot_clay": {
+  "name": "Planter Pot Clay",
+  "author": "Amal Kumar",
+  "license": "CC0 1.0",
+  "source": "https://polyhaven.com/a/planter_pot_clay",
+  "dimensions": [
+   265.9967243671417,
+   263.4630501270294,
+   221.87034250237048
+  ],
+  "glb": "assets/studio/planter_pot_clay.glb",
+  "bytes": 153008
+ }
+}
