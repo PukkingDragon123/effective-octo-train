@@ -185,6 +185,10 @@ export class NewsReport {
     const skipP = new Promise((r) => (wake = r));
     const t0 = performance.now();
     const ctx = ui.nav.push({ root: el, modal: true, name: 'news', items: () => [], onBack: () => this._skip(), onStart: () => this._skip(), onAction: () => true });
+    el._kill = () => {
+      skipped = true;
+      wake();
+    };
     this._skip = () => {
       if (skipped || performance.now() - t0 < 3000) return;
       skipped = true;
@@ -215,7 +219,7 @@ export class NewsReport {
       if (!th || skipped) return;
       const est = audio.voice?.estimate?.({ th, voice: who.voice }) ?? 3.5;
       ui.subtitle({ speakerTH: who.name, speakerEN: who.role, th, en: en || '', duration: est + 0.5 });
-      this.studio?.setTalking(true, speaker);
+      studio?.setTalking(true, speaker);
       let spoken = null;
       try {
         spoken = audio.voice.speak({ th, voice: who.voice, fx: 'radio', volume: 0.95 });
@@ -223,48 +227,52 @@ export class NewsReport {
         spoken = null;
       }
       await Promise.race([spoken || sleep(est * 1000), sleep(Math.min(capS, est + 1.5) * 1000), skipP, seg]);
-      this.studio?.setTalking(false);
+      studio?.setTalking(false);
     };
 
     // ---- the 3D station (falls back to 2D over the photo) -----------------------------------------
-    try {
-      this.studio = new NewsStudio(stage, { image: frame, headline: o.th });
-      await Promise.race([this.studio.ready, sleep(4500)]);
-      if (!this.studio.person) throw new Error('no anchor');
-      this.studio.start();
+    // debug / harness: start at a later segment (_from: 'studio'|'broll'|'field'|'wrap'|'ads')
+    const ORDER = ['sting', 'studio', 'broll', 'field', 'wrap', 'ads'];
+    const at = (name) => !o._from || ORDER.indexOf(name) >= ORDER.indexOf(o._from);
+    let studio = null;
+    if (['studio', 'field', 'wrap'].some(at)) try {
+      studio = this.studio = new NewsStudio(stage, { image: frame, headline: o.th });
+      await Promise.race([studio.ready, sleep(6000)]);
+      if (!studio.person) throw new Error('no anchor');
+      studio.start();
     } catch (e) {
       console.warn('[news] 3D studio unavailable, using the 2D news', e);
-      this.studio?.dispose();
-      this.studio = null;
+      studio?.dispose();
+      studio = null;
+      if (this.el === el) this.studio = null;
     }
     el.hidden = false;
     void el.offsetWidth;
     await nextFrame();
-    el.classList.add('is-in', this.studio ? 'is-3d' : 'is-2d');
+    el.classList.add('is-in', studio ? 'is-3d' : 'is-2d', 'has-bug');
     const L = { anchor: o.lines?.anchor || SCRIPT.anchor, reporter: o.lines?.reporter || [SCRIPT.reporter[0], subTh || SCRIPT.reporter[1]], wrap: o.lines?.wrap || SCRIPT.wrap };
 
     // 1. sting
-    setShot('is-sting');
+    if (at('sting')) setShot('is-sting');
     try {
       audio.play?.('sting_low', { volume: 0.55 });
     } catch (e) {
       /* optional */
     }
-    await segWait(2600);
+    if (at('sting')) await segWait(2600);
     nextSeg();
     // 2. studio: the anchor opens
-    if (!skipped) {
+    if (!skipped && at('studio')) {
       setShot('is-studio');
-      this.studio?.setShot('studio');
+      studio?.setShot('studio');
       await wait(250);
       showStrap(ANCHOR);
-      el.classList.add('has-bug');
       await say(ANCHOR, L.anchor, '', 6, 'anchor');
       nextSeg();
       showStrap(null);
     }
     // 3. B-roll: the photograph under the headline
-    if (!skipped) {
+    if (!skipped && at('broll')) {
       setShot('is-broll');
       el.classList.add('is-gfx');
       await segWait(Math.max(1.8, Math.min(3, Number(o.hold) || 2.4)) * 1000);
@@ -272,9 +280,9 @@ export class NewsReport {
       el.classList.remove('is-gfx');
     }
     // 4. live from the scene
-    if (!skipped) {
+    if (!skipped && at('field')) {
       setShot('is-field');
-      this.studio?.setShot('field');
+      studio?.setShot('field');
       await wait(200);
       showStrap(REPORTER);
       live.classList.add('is-on');
@@ -287,9 +295,9 @@ export class NewsReport {
       showStrap(null);
     }
     // 5. back to the studio
-    if (!skipped) {
+    if (!skipped && at('wrap')) {
       setShot('is-wrap');
-      this.studio?.setShot('studio');
+      studio?.setShot('studio');
       await wait(200);
       showStrap(ANCHOR);
       await say(ANCHOR, L.wrap, '', 5, 'anchor');
@@ -299,10 +307,9 @@ export class NewsReport {
     ui.clearSubtitle();
     el.classList.remove('has-bug');
     // 6. the break: three ads
-    if (!skipped && o.ads !== false) {
+    if (!skipped && o.ads !== false && at('ads')) {
       setShot('is-ads');
-      this.studio?.dispose();
-      this.studio = null;
+      studio?.stop(); // disposed once the screen is black
       for (const kind of ['drink', 'balm', 'lotto']) {
         if (skipped) break;
         const ad = buildAd(kind);
@@ -331,9 +338,9 @@ export class NewsReport {
     ui.nav.remove(ctx);
     el.classList.add('is-black');
     await sleep(skipped ? 700 : 1100);
-    this.studio?.dispose();
-    this.studio = null;
-    ui.root.classList.remove('has-news');
+    studio?.dispose();
+    if (this.studio === studio) this.studio = null;
+    if (!this.el || this.el === el) ui.root.classList.remove('has-news');
     ui.bus?.emit?.('ui:news', { phase: 'black' });
     if (!o.keepBlack) setTimeout(() => this.release(1.4, el), 400);
   }
@@ -353,6 +360,7 @@ export class NewsReport {
   }
 
   _remove(el) {
+    el._kill?.();
     el.remove();
     if (this.el === el) {
       this.el = null;

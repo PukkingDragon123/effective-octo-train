@@ -504,6 +504,11 @@ export class NewsStudio {
       });
       this.reporter = r;
       for (let i = 0; i < 8; i++) r.update(1 / 30);
+      // compile both sets now, while the screen is still dark: a first-use compile mid-programme
+      // would freeze the picture for a moment
+      this.update(0);
+      this.renderer.compile(this.scene, this.camera);
+      this.renderer.compile(this.field.scene, this.camera);
     } catch (e) {
       console.warn('[news] anchor unavailable', e);
       this.person = null;
@@ -529,6 +534,12 @@ export class NewsStudio {
   setShot(name) {
     this.shot = name;
     this.shotT = 0;
+  }
+
+  /** Stop drawing (the picture is covered); dispose() later, off-screen. */
+  stop() {
+    cancelAnimationFrame(this._raf);
+    this._raf = 0;
   }
 
   start() {

@@ -203,23 +203,11 @@ export default async function ({ params, saves }) {
       news();
       break;
     case 'newstour': {
-      // shot 1 the menu (fonts); then the programme: studio, live from the scene, ad 1, ad 3
-      ui.showMainMenu({ canResume: true });
-      const jump = (test) => {
-        const tick = () => {
-          const el = document.querySelector('.dlb-news');
-          if (!el || test(el)) return;
-          ui.news.next();
-          setTimeout(tick, 150);
-        };
-        tick();
-      };
-      const steps = [
-        () => { ui.menu._teardown(true); news(); },
-        () => jump((el) => el.classList.contains('is-field')),
-        () => jump((el) => el.classList.contains('is-ads')),
-        () => jump((el) => !!el.querySelector('.ad-lotto')),
-      ];
+      // the programme from given segments, one harness run: studio, field, ad 1, ad 3
+      const run = (from) => ui.newsReport({ th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง ทางหลวงสายป่า คนขับเสียชีวิตคาที่', image: backdrop, place: 'ทางหลวงสายป่า กม. ๙', _from: from });
+      const from = params.get('from') || 'studio';
+      run(from);
+      const steps = from === 'ads' ? [() => { ui.news.next(); setTimeout(() => ui.news.next(), 250); }] : [() => run('field'), () => run('ads'), () => { ui.news.next(); setTimeout(() => ui.news.next(), 200); }];
       let i = -1;
       window.__tour = { next: () => steps[++i]?.() };
       break;
