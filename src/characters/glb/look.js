@@ -71,6 +71,10 @@ export function normalizeSpec(spec = {}) {
     cheek: spec.face?.cheek ?? 1,
   };
   const acc = (spec.accessories || []).slice();
+  // a top too close to the skin tone reads as bare skin (Sri's terracotta blouse): deepen it and turn its
+  // hue toward a rose-plum so the garment always separates from the body
+  const skinCol = hex(spec.skinColor, skinHex(spec.skinTone ?? 0.5));
+  if (outfit.topCol && !spec.ghost) outfit.topCol = separateFromSkin(outfit.topCol, skinCol);
   return {
     id: spec.id || 'anon', sex, age, child, old, build, height, seed,
     skin: hex(spec.skinColor, skinHex(spec.skinTone ?? 0.5)), skinTone: spec.skinTone ?? 0.5,
