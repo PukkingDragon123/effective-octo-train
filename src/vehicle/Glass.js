@@ -419,7 +419,8 @@ class Pane {
   /** Blood canvas (RGBA, premultiplied-free; rgb colour, a thickness), created on first use. */
   ensureBlood() {
     if (this.blood) return this.blood;
-    const W = this.id === 'windshield' ? 640 : 384, H = this.id === 'windshield' ? 384 : 288;
+    // detailed enough for finger pads, joint creases and ridges (~1.4 mm / px on the windshield)
+    const W = this.id === 'windshield' ? 1024 : 512, H = this.id === 'windshield' ? 614 : 384;
     const canvas = makeCanvas(W, H);
     const g = canvas.getContext('2d');
     const tex = toTexture(canvas, { srgb: true });

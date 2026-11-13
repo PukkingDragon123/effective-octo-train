@@ -14,6 +14,7 @@
 //   Particles.js  GPU instanced particle emitters
 //   Silhouette.js silhouetteMaterial: fog-aware painted 2D flats (distant tree lines)
 //   Blood.js      bloodDecalMaterial, gore level (settings.gore), lens splatter GLSL for PostFX
+//   BloodDecals.js photo-based CC0 blood decals + anatomical handprints for 2D canvases (glass)
 import * as THREE from 'three';
 import { GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals } from './uniforms.js';
 import { installFogChunks, installMaterialInjection } from './Fog.js';
@@ -25,6 +26,7 @@ import { particles } from './Particles.js';
 import { createVolumetricBeam } from './Beams.js';
 import { silhouetteMaterial } from './Silhouette.js';
 import { bloodDecalMaterial, GORE_UNIFORM } from './Blood.js';
+import { paintBloodHandprint, paintBloodDecal, bloodDecalImage, preloadBloodDecals } from './BloodDecals.js';
 import { brushTexture, canvasTexture, glowTexture } from './noiseTex.js';
 import { RENDER_CAPS, captureCaps, crispTexture, crispMaterialTextures } from './caps.js';
 import { installShadowBudget } from './Shadows.js';
@@ -36,6 +38,7 @@ export {
   GLOBAL_UNIFORMS, SHADER_GLOBALS, injectGlobals,
   paintedMaterial, foliageMaterial, skinMaterial, glowMaterial, setPaintedParams, getWindDepthMaterial, applyWindShadows, setMaterialDebug,
   postfx, sky, lightPool, particles, createVolumetricBeam, silhouetteMaterial, bloodDecalMaterial, GORE_UNIFORM, LIGHT_ACCENTS,
+  paintBloodHandprint, paintBloodDecal, bloodDecalImage, preloadBloodDecals,
   brushTexture, canvasTexture, glowTexture,
   RENDER_CAPS, crispTexture, crispMaterialTextures,
 };

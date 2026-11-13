@@ -163,6 +163,8 @@ vec4 bloodField(vec2 uv, float amt) {
     F += smoothstep(rad * spiky, rad * spiky * 0.3, length(d)) * 1.0;
   }
   F += (n - 0.5) * 0.7 + (n2 - 0.5) * 0.12;
+  // edge-only: the middle of the view always stays clear (a splash, never a red tint)
+  F *= 1.0 - 0.75 * smoothstep(0.2, 0.42, e);
   float T = 1.25 - amt * 0.75;
   float cov = smoothstep(T - 0.012, T + 0.012, F);
   float thick = smoothstep(T, T + 0.55, F);

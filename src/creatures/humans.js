@@ -77,6 +77,12 @@ export const SPECS = {
     outfit: i % 3 === 1 ? { type: 'dress', top: '#1a1918', shoes: 'barefoot' } : { type: 'shirt-slacks', top: '#e4e0d6', bottom: '#191919', shoes: 'barefoot' },
     face: { seed: 3300 + i * 37, wrinkles: 0.5 }, ghost: { pale: 0.7, decay: 0.15, wet: 0.2 }, noBlink: true, quality: 0.6,
   }),
+  // the one who follows Ton all night: tall, thin, a dirty white shirt, wet hair over the face
+  stalker: {
+    id: 'stalker', sex: 'm', age: 38, height: 1.86, build: 'thin', skinTone: 0.32,
+    hair: { style: 'long', color: 0x070606, wet: 0.9 }, outfit: { type: 'shirt-slacks', top: '#c9c3b2', bottom: '#262624', shoes: 'barefoot' },
+    face: { seed: 6161, cheek: 0.75, jaw: 1.08, eyeSize: 1.05 }, ghost: { pale: 0.75, eyes: 'black', decay: 0.3, wet: 0.7, bloodStains: 0.15 }, noBlink: true,
+  },
   // ผีปอบ: an old village woman who eats the living from inside; red eyes, a wet grin
   phiPop: {
     id: 'phiPop', sex: 'f', age: 76, height: 1.48, build: 'thin', skinTone: 0.58,

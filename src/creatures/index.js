@@ -114,4 +114,5 @@ export { createAnimal, createFaceRat, createEgretFlock, EgretFlock, Quadruped, F
 export { paneFrame, panePoint, toBody, dirToBody, bodyOf, humanoidFacing };
 export { DynamicTube, Rope, tubeGeometry } from './util.js';
 export { createCoffin, createKrathong, createFloodWater } from './Ritual.js';
+export { breakPane, isPaneBroken, repairAllPanes, PaneBreak } from './Shatter.js';
 export { YaiSpeed, Krasue, Krahang, NangTani, WireCrawler, ForestGiant, GiantHand, PhiTaiHong, WindowGhost };

@@ -295,12 +295,20 @@ const FRAG_MAP = /* glsl */ `
   if (uGore.x + uGore.y + uGore.z > 0.0 && vPart < 1.5) {
     float bl = glbGoreAmt(vBind);
     if (bl > 0.0) {
+      // layered, not flat red: a sharp outline, a thin translucent film that stains the skin,
+      // a deep crimson body, a near-black coagulated core and a browner drying rim
+      bool red = uGore.w > 0.5;
       float rim = smoothstep(0.15, 0.6, bl) * (1.0 - smoothstep(0.6, 0.95, bl));
-      vec3 fresh = uGore.w > 0.5 ? vec3(0.07, 0.008, 0.008) : vec3(0.2, 0.012, 0.01);
-      vec3 dried = vec3(0.1, 0.035, 0.02);
-      vec3 bc = mix(fresh, dried, rim * 0.7);
-      c = mix(c, bc, smoothstep(0.05, 0.5, bl));
-      glbBloodWet = smoothstep(0.5, 0.95, bl);
+      float film = smoothstep(0.03, 0.1, bl);
+      float body = smoothstep(0.2, 0.55, bl);
+      float core = smoothstep(0.72, 0.98, bl);
+      vec3 thinC = c * (red ? vec3(0.5, 0.3, 0.28) : vec3(0.62, 0.1, 0.09));
+      vec3 bodyC = red ? vec3(0.06, 0.012, 0.012) : vec3(0.14, 0.008, 0.01);
+      vec3 coreC = red ? vec3(0.035, 0.008, 0.008) : vec3(0.05, 0.003, 0.006);
+      vec3 bc = mix(mix(thinC, bodyC, body), coreC, core);
+      bc = mix(bc, vec3(0.075, 0.024, 0.016), rim * 0.45 * (1.0 - core));
+      c = mix(c, bc, film);
+      glbBloodWet = smoothstep(0.35, 0.9, bl);
     }
   }
   diffuseColor.rgb *= c;

@@ -8,7 +8,7 @@
 //   under the headliner seam that fall and splat on the dash.
 import * as THREE from 'three';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
-import { paintedMaterial } from '../render/index.js';
+import { paintedMaterial, paintBloodHandprint, paintBloodDecal } from '../render/index.js';
 import { settings } from '../core/Settings.js';
 import { makeRng, clamp, lerp, smoothstep, noise } from '../core/math.js';
 import { makeCanvas, toTexture } from './VehicleTextures.js';
@@ -92,8 +92,9 @@ export function handPath(g, x, y, s, rot, spread = 1) {
 }
 
 /** A running drip: state advanced by updateDrips(). */
-function newDrip(x, y, rng, P, speed = 1) {
-  return { x, y, w: rng.range(2.2, 4.6), v: rng.range(14, 30) * speed, left: rng.range(40, 180), life: 0, rng, P };
+function newDrip(x, y, rng, P, speed = 1, k = 1) {
+  // k = canvas scale (px per 640-wide windshield px)
+  return { x, y, w: rng.range(2.2, 4.6) * k, v: rng.range(14, 30) * speed * k, left: rng.range(40, 180) * k, life: 0, rng, P };
 }
 
 /**
@@ -107,8 +108,18 @@ export function paintGlassBlood(pane, kind, uv, opts = {}) {
   const rng = makeRng(opts.seed ?? ((Math.random() * 1e9) | 0));
   const x = (uv.x ?? uv[0]) * W, y = (1 - (uv.y ?? uv[1])) * H;
   const s = (opts.size ?? 1) * W * (pane.id === 'windshield' ? 0.07 : 0.12);
-  const drip = (dx, dy, speed = 1) => B.drips.push(newDrip(dx, dy, rng, P, speed));
+  const drip = (dx, dy, speed = 1) => B.drips.push(newDrip(dx, dy, rng, P, speed, W / 640));
   if (kind === 'blood_handprint') {
+    // anatomical print textured with the CC0 photo blood (render/BloodDecals.js): palm, finger
+    // pads with joint creases, ridges, coagulated centre, thin translucent edges, drag streaks
+    const rot = opts.angle ?? rng.range(-0.4, 0.4);
+    const pads = paintBloodHandprint(g, x, y, s * 1.05, rot, { seed: rng.int(0, 1e9), drag: opts.drag ? 0.9 : 0, left: opts.left ?? rng() < 0.5, pressure: P.alpha });
+    const nd = Math.round((opts.drips ?? 3) * P.density);
+    for (let k = 0; k < nd; k++) {
+      const pd = pads[(pads.length - 1 - k + pads.length) % pads.length];
+      drip(pd.x + rng.range(-2, 2), pd.y + s * 0.05, 0.7);
+    }
+  } else if (kind === 'blood_handprint_legacy') {
     const rot = opts.angle ?? rng.range(-0.4, 0.4);
     handPath(g, x, y, s, rot);
     streakFill(g, rng, P, x, y, s, rot + (opts.drag ? 0 : 0.1), 46, opts.drag ? 1.8 : 1);
@@ -139,6 +150,11 @@ export function paintGlassBlood(pane, kind, uv, opts = {}) {
     }
     const nd = Math.round((opts.drips ?? 3) * P.density);
     for (let k = 0; k < nd; k++) drip(x + rng.range(-s * 0.35, s * 0.35), y + s * 0.55, 0.7);
+  } else if (kind === 'blood_smear' && smearDecal(g, rng, P, opts, uv, W, H, s, drip)) {
+    // photo smear decal laid along the drag path (+ drips from the heavy start)
+  } else if (kind === 'blood_splatter' && paintBloodDecal(g, 'spatter', x, y, s * 3.2, s * 3.2, opts.angle ?? rng() * Math.PI * 2, { variant: rng.int(0, 2), alpha: P.alpha })) {
+    const nd = Math.round((opts.drips ?? 4) * P.density);
+    for (let k = 0; k < nd; k++) drip(x + rng.range(-s * 0.4, s * 0.4), y + s * 0.3, 0.8);
   } else if (kind === 'blood_smear') {
     // finger-dragged: several parallel finger tracks along a path, heavy where it starts
     const path = (opts.path || [{ x: uv.x ?? uv[0], y: uv.y ?? uv[1] }, { x: (uv.x ?? uv[0]) + 0.18 * Math.cos(opts.angle ?? -0.3), y: (uv.y ?? uv[1]) + 0.18 * Math.sin(opts.angle ?? -0.3) }]).map((p) => [p.x * W, (1 - p.y) * H]);
@@ -231,6 +247,22 @@ export function paintGlassBlood(pane, kind, uv, opts = {}) {
   }
   B.tex.needsUpdate = true;
   pane.uniforms.uBloodOn.value = 1;
+}
+
+/** Smear along a path with the photo smear decal; false while the decal image loads. */
+function smearDecal(g, rng, P, opts, uv, W, H, s, drip) {
+  const u0 = uv.x ?? uv[0], v0 = uv.y ?? uv[1];
+  const pts = (opts.path || [{ x: u0, y: v0 }, { x: u0 + 0.18 * Math.cos(opts.angle ?? -0.3), y: v0 + 0.18 * Math.sin(opts.angle ?? -0.3) }]).map((p) => [p.x * W, (1 - p.y) * H]);
+  const variant = rng.int(0, 1);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+    const len = Math.hypot(bx - ax, by - ay);
+    // the decal's heavy end is on its left: start of the drag
+    if (!paintBloodDecal(g, 'smear', (ax + bx) / 2, (ay + by) / 2, len * 1.25 + s * 0.6, s * 1.1, Math.atan2(by - ay, bx - ax), { variant, alpha: P.alpha })) return false;
+  }
+  const nd = Math.round((opts.drips ?? 2) * P.density);
+  for (let k = 0; k < nd; k++) drip(pts[0][0] + rng.range(-s * 0.3, s * 0.3), pts[0][1] + s * 0.15, 0.6);
+  return true;
 }
 
 /** Advance running drips on a pane (thick fresh trail, bead at the tip, slows and stops). */
