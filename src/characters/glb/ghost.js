@@ -58,7 +58,7 @@ export const GHOST_MOTIONS = {
   gape: { set: { gape: 1, headPitch: -0.22, jitter: 0.3, stutter: 0.4, stare: 1 } },
   nightmare: { set: { stutter: 0.7, holdTilt: 0.7, neckRoam: 0.6, unlimited: 1, jerks: 0.7, hyperExt: 0.8, fingerCrawl: 0.8, twitch: 1, stride: 0.6, gasp: 0.8, stare: 1, uncanny: 1 } },
 };
-const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4();
+const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3(), _m = new THREE.Matrix4();
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 
 export class GhostLayer {
@@ -276,6 +276,38 @@ export class GhostLayer {
         if (b) b.position.multiplyScalar(k);
       }
     }
+    // ---- the all-at-once breath: chest heaves, shoulders jump, head tips back, mouth gulps
+    const gk = this.gaspK;
+    if (gk > 0.001) {
+      rig.addEuler(I.spine_01, -0.03 * gk, 0, 0);
+      rig.addEuler(I.spine_02, -0.07 * gk, 0, 0);
+      rig.addEuler(I.spine_03, -0.1 * gk, 0, 0);
+      rig.addEuler(I.clavicle_l, -0.05 * gk, 0, 0.13 * gk);
+      rig.addEuler(I.clavicle_r, -0.05 * gk, 0, -0.13 * gk);
+      rig.addEuler(I.neck_01, -0.06 * gk, 0, 0);
+      rig.addEuler(I.Head, -0.1 * gk, 0, 0);
+    }
+    // ---- too-long strides (and the backwards walk): over-swing the clip's legs and arms about their rest
+    const st = v.stride;
+    if (st > 0.01 && h.anim?.moving > 0.05) {
+      const f = 1 + 0.75 * st * h.anim.moving;
+      for (const x of ['l', 'r']) for (const n of ['thigh_', 'calf_']) {
+        const i = I[n + x];
+        if (i === undefined) continue;
+        const b = rig.bones[i];
+        _q.copy(h.t.restQuat[i]).invert().multiply(b.quaternion); // local delta from rest
+        if (_q.w < 0) { _q.x = -_q.x; _q.y = -_q.y; _q.z = -_q.z; _q.w = -_q.w; }
+        const ang = 2 * Math.acos(Math.min(1, _q.w));
+        if (ang < 1e-4) continue;
+        const sn = Math.sin(ang / 2);
+        _v.set(_q.x / sn, _q.y / sn, _q.z / sn);
+        _q.setFromAxisAngle(_v, Math.min(2.6, ang * f));
+        b.quaternion.copy(h.t.restQuat[i]).multiply(_q);
+      }
+    }
+    // ---- gliding: legs barely move, toes point down and drag
+    const gl = v.glide * (h.anim?.moving ?? 0);
+    if (gl > 0.01) for (const x of ['l', 'r']) { rig.addEuler(I['foot_' + x], 0.55 * gl, 0, 0); rig.addEuler(I['calf_' + x], 0.08 * gl, 0, 0); }
     if (v.armTwist) {
       const a = v.armTwist;
       rig.addAxis(I.upperarm_l, X, a * 0.6); rig.addAxis(I.lowerarm_l, X, a);
@@ -287,7 +319,7 @@ export class GhostLayer {
   applyPost() {
     const h = this.h, rig = h.rig, I = h.t.index, v = this.v, U = h.U;
     // ---- neck twist axis in mesh (inner) space
-    let tw = v.neckTwist + this.lookTwist;
+    let tw = v.neckTwist + this.lookTwist + this.roamTw;
     if (this.isDouble) tw += h.source.U.uTwistO.value.w;
     const inv = _m.copy(h.inner.matrixWorld).invert();
     rig.worldPos(I.neck_01, _v).applyMatrix4(inv);
@@ -306,17 +338,61 @@ export class GhostLayer {
       }
     }
     // ---- micro head tilts that snap: hold an angle, then jump to the next with no transition
-    if (v.snapTilts > 0.01) {
-      this.tiltT -= this._dt || 0.016;
+    // (holdTilt: much bigger tilts held for seconds, then the snap; the neck takes part of the roll)
+    const ht = v.holdTilt;
+    if (v.snapTilts > 0.01 || ht > 0.01) {
+      const dt = this._dt || 0.016;
+      this.tiltT -= dt;
       if (this.tiltT <= 0) {
-        this.tiltT = 0.35 + Math.random() * 2.2 / (0.5 + v.snapTilts);
-        this.tilt[0] = (Math.random() * 2 - 1) * 0.16 * v.snapTilts;
-        this.tilt[1] = (Math.random() * 2 - 1) * 0.07 * v.snapTilts;
+        const big = ht > 0.01 && Math.random() < 0.35 + 0.5 * ht;
+        this.tiltT = big ? 2 + Math.random() * 5 * ht : 0.35 + Math.random() * 2.2 / (0.5 + v.snapTilts);
+        const a = big ? (0.25 + 0.4 * ht) * (Math.random() < 0.5 ? -1 : 1) * (0.7 + 0.3 * Math.random()) : (Math.random() * 2 - 1) * 0.16 * Math.max(v.snapTilts, ht * 0.5);
+        this.tilt[0] = a;
+        this.tilt[1] = (Math.random() * 2 - 1) * (big ? 0.12 * ht : 0.07 * v.snapTilts);
       }
-      h.boneFrame(I.Head, _q);
-      _v.copy(Z).applyQuaternion(_q); rig.rotateWorld(I.Head, _q2.setFromAxisAngle(_v, this.tilt[0])); rig.update(I.Head);
-      h.boneFrame(I.Head, _q);
-      _v.copy(X).applyQuaternion(_q); rig.rotateWorld(I.Head, _q2.setFromAxisAngle(_v, this.tilt[1])); rig.update(I.Head);
+      // a snap, not an ease: ~3 frames
+      const k = 1 - Math.exp(-45 * dt);
+      this.tiltS[0] += (this.tilt[0] - this.tiltS[0]) * k;
+      this.tiltS[1] += (this.tilt[1] - this.tiltS[1]) * k;
+      for (const [i, w] of [[I.neck_01, 0.35], [I.Head, 0.65]]) {
+        h.boneFrame(i, _q);
+        _v.copy(Z).applyQuaternion(_q); rig.rotateWorld(i, _q2.setFromAxisAngle(_v, this.tiltS[0] * w)); rig.update(i);
+        h.boneFrame(i, _q);
+        _v.copy(X).applyQuaternion(_q); rig.rotateWorld(i, _q2.setFromAxisAngle(_v, this.tiltS[1] * w)); rig.update(i);
+      }
+    }
+    // ---- elbows a little past straight (measured hinge, so it reads whatever the arm is doing)
+    if (v.hyperExt > 0.01) {
+      for (const x of ['l', 'r']) {
+        const iu = I['upperarm_' + x], il = I['lowerarm_' + x], ih = I['hand_' + x];
+        rig.worldPos(iu, _v); rig.worldPos(il, _v2); rig.worldPos(ih, _v3);
+        _v3.sub(_v2); _v2.sub(_v); // upper (shoulder->elbow), lower (elbow->wrist)
+        const lu = _v2.length(), ll = _v3.length();
+        if (lu < 1e-4 || ll < 1e-4) continue;
+        _v4.crossVectors(_v2, _v3);
+        const sn = _v4.length() / (lu * ll);
+        if (sn < 0.03) continue;
+        const flex = Math.atan2(sn, _v2.dot(_v3) / (lu * ll));
+        _v4.normalize();
+        rig.rotateWorld(il, _q2.setFromAxisAngle(_v4, -(flex + 0.22) * clamp(v.hyperExt, 0, 1)));
+        rig.update(il);
+      }
+    }
+    // ---- fingers crawl one after another (pinky first), each a beat late, with dead pauses
+    if (v.fingerCrawl > 0.01) {
+      const fc = v.fingerCrawl, tm = h.time;
+      for (const [x, sx, ph0] of [['l', 1, 0], ['r', -1, 1.7]]) {
+        _v4.set(0, 0, -sx);
+        const gate = smoothstep(-0.2, 0.3, noise.noise2D(tm * 0.23 + ph0, 5.5 + sx)); // crawling .. paused
+        ['pinky', 'ring', 'middle', 'index'].forEach((f, n) => {
+          const t = tm * 2.1 - n * 0.42 + ph0; // the lag between fingers
+          const c = Math.max(0, Math.sin(t * Math.PI)) ** 3 * gate * fc;
+          const lift = Math.max(0, Math.sin(t * Math.PI + 0.9)) ** 4 * gate * fc;
+          rig.addAxis(I[`${f}_01_${x}`], _v4, -0.35 * lift + 0.25 * c);
+          rig.addAxis(I[`${f}_02_${x}`], _v4, 0.9 * c);
+          rig.addAxis(I[`${f}_03_${x}`], _v4, 0.7 * c);
+        });
+      }
     }
     // ---- jitter: snaps on head / neck / shoulders / fingers
     const j = this._jAmp ?? v.jitter;
