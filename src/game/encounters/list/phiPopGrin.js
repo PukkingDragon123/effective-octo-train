@@ -27,6 +27,7 @@ export async function run(E) {
   h.setMode('crouch');
   h.setGhost({ stare: 1, noBlink: 1, mouthStretch: 0.25, headRoll: 0.15, jitter: 0.15 }, 100);
   h.setExpression({ smile: 1, creepy: 1 });
+  h.setGhostMotion?.('wrongLimbs');
   h.lookAt(t.anchors?.mirrorRight || S.engine.camera, { speed: 3, unlimited: true });
   h.setGore?.({ bleedMouth: 0.6, speed: 0.4 });
   // nearer every time you look
@@ -47,7 +48,8 @@ export async function run(E) {
   });
   await E.until(() => looks >= 2 && !S.lookingAtMirror('mirror_right'), 14);
   if (!E.alive) return;
-  // her breath on your neck
+  // her breath on your neck; in the mirror her jaw unhinges
+  h.setGhostMotion?.('gape');
   E.whisper(E.def.lines[0], S.fromTaxi(0.4, 1.12, 0.45));
   const breath = E.track(S.sfxLoop('breath_neck', { object: t.anchors?.driverEye || t.root, offset3: [0.05, 0, 0.22], volume: 0.9 }));
   void breath;

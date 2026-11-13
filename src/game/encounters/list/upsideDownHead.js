@@ -6,6 +6,7 @@ import { S, passengerSpec } from '../helpers.js';
 export async function run(E) {
   const spec = passengerSpec(E, CREATURE_SPECS.windowWoman);
   const w = E.track(createWindowGhost({ spec: { ...spec, ghost: { ...(spec.ghost || {}), pale: 0.9, eyes: 'black', wet: 1 } } }));
+  w.humanoid.setGhostMotion?.('nightmare');
   await w.perform('upsideDownHead', {
     taxi: E.taxi, duration: E.duration, side: 0.18,
     onReveal: () => {

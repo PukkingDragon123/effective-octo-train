@@ -20,6 +20,7 @@ function figure(E) {
   S.engine.scene.add(h.root);
   h.setGhost({ stare: 1, noBlink: 1, headPitch: 0.18 }, 100);
   h.setGroundFn?.((x, z) => S.ground(x, z, S.taxiPos().y));
+  h.setGhostMotion?.('watcher');
   return h;
 }
 
@@ -32,6 +33,7 @@ async function hideWhenSeen(E, h, until) {
     return seen > 0.28 || until();
   }, 60);
   if (!E.alive || !(seen > 0.28)) return false;
+  h.setGhostMotion?.('stopMotion');
   const eye = S.engine.camera.getWorldPosition(new THREE.Vector3());
   const occ = findOccluder(h.root.position, 4.5);
   const dir = h.root.position.clone().sub(eye).setY(0).normalize();
@@ -59,6 +61,7 @@ async function treeline(E, L) {
     if (!E.alive) return;
     E.event('encounter:stalker');
     h.setGhost({ headRoll: 0, backbend: 0 }, 3);
+    h.setGhostMotion?.('longStride');
     h.walkTo(h.root.position.clone().addScaledVector(r.tangent, 40), { speed: 1.35 });
     S.sfx('branch_crack', { position: h.root.position.clone(), volume: 0.5, rate: 0.8 });
     await hideWhenSeen(E, h, () => S.aheadOf(h.root.position) < -6);
@@ -83,6 +86,7 @@ async function roadside(E) {
       if (d < 45 && d > -3 && stop(dt) && !walking) {
         walking = true;
         h.setGhost({ still: 0 }, 4);
+        h.setGhostMotion?.('longStride');
         h.walkTo(S.fromTaxi(-1.3, 0, -0.2), { speed: 1.15 });
         E.whisper({ who: 'voice', th: 'จอดรอฉันเหรอ', en: 'Waiting for me?', tone: 'whisper' }, h.headPosition.clone());
       }
@@ -111,6 +115,7 @@ async function backSeat(E) {
   h.sitAt(seat, { pose: 'sitCar' });
   h.setLayer(LAYERS.REFLECTION_ONLY);
   h.setGhost({ stare: 1, noBlink: 1, still: 1 }, 100);
+  h.setGhostMotion?.('watcher');
   h.lookAt(S.engine.camera, { speed: 20, unlimited: true });
   h.setVisible(false);
   const ok = await E.until(() => S.lookingAtMirror('mirror_rear'), 18);
@@ -145,6 +150,7 @@ async function inRoad(E) {
   h.root.position.copy(r.pos);
   h.root.rotation.y = r.yaw + Math.PI;
   h.setGhost({ still: 1, headPitch: 0.05, headRoll: 0.12 }, 100);
+  h.setGhostMotion?.('stopMotion');
   h.lookAt(S.engine.camera, { speed: 0.6, weight: 0.6 });
   try {
     g.rules?.arm?.('r12', { encounter: E.handle, params: { position: r.pos.clone() } });

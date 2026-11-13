@@ -12,6 +12,7 @@ export async function run(E) {
       w.stop();
     }
   });
+  w.humanoid.setGhostMotion?.('crawl', { amount: 0.7 });
   await w.perform('roofCrawler', {
     taxi: E.taxi, duration: E.duration,
     onSlap: () => E.event('encounter:roofCrawler'),

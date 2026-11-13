@@ -175,6 +175,7 @@ class StalkerState {
     const h = createCreatureHumanoid(CREATURE_SPECS.stalker);
     engine.scene.add(h.root);
     h.setGhost({ stare: 1, noBlink: 1, still: 1 }, 100);
+    h.setGhostMotion?.('watcher');
     peekBehind(h, occ, engine.camera.position);
     h.lookAt(engine.camera, { speed: 3, weight: 0.8 });
     this.figure = { h, t: 0, seen: 0 };

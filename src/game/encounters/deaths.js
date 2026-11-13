@@ -215,6 +215,7 @@ export const DEATHS = {
     h.play('ceilingCrawl', opts);
     h.setGhost({ mouthStretch: 0.4, jitter: 0.5 }, 4);
     h.setGore({ bleedEyes: 0.8, bleedMouth: 1, speed: 2 });
+    h.setGhostMotion?.('nightmare');
     h.lookAt(engine.camera, { speed: 8, unlimited: true });
     S.sfx('scratch_glass', { object: body, offset3: [0, 1.3, 0.8], volume: 0.8, rate: 0.6 });
     // the eye is pulled up to the roof
@@ -409,6 +410,7 @@ export const DEATHS = {
     tgt.position.copy(face);
     body.add(tgt);
     h.play('pressFaceToGlass', { target: tgt, normal: ws.normal.clone() });
+    h.setGhostMotion?.('nightmare');
     h.setGhost({ mouthStretch: 0.7, jitter: 0.5 }, 5);
     postfx.flash?.(0xdfe8ff, 0.2);
     S.sfx('sting_reveal', { volume: 1 });
@@ -497,6 +499,7 @@ export const DEATHS = {
     h.root.rotation.set(0, Math.PI * 0.9, 0);
     h.setMode('crouch');
     h.setGhost({ stare: 1, noBlink: 1, mouthStretch: 0.5, headRoll: 0.3 }, 100);
+    h.setGhostMotion?.('nightmare');
     h.lookAt(engine.camera, { speed: 20, unlimited: true });
     S.sfx('breath_neck', { object: t?.anchors?.driverEye, volume: 1 });
     povShot(() => h.headPosition.clone(), { blend: 0.45, fov: 58 });

@@ -1074,10 +1074,10 @@ class Interior:
         # sun visors (driver = pivot node; passenger static)
         for side, nm in ((1, 'sun_visor_driver'), (-1, 'sun_visor_pass')):
             x0, x1 = (0.13, 0.55) if side > 0 else (-0.55, -0.13)
-            hinge_y, hinge_z = 0.018, 1.262
-            v, _ = pillow(nm, x1 - x0, 0.150, 0.022, n=4.0, nx=22, ny=10)
+            hinge_y, hinge_z = 0.018, 1.284   # tucked up against the headliner (clear windshield view)
+            v, _ = pillow(nm, x1 - x0, 0.150, 0.018, n=4.0, nx=22, ny=10)
             # pillow is along local y (depth): stowed flat under the headliner, hanging back from the hinge
-            v.data.transform(Matrix.Translation(((x0 + x1) / 2, hinge_y - 0.080, hinge_z - 0.020)))
+            v.data.transform(Matrix.Translation(((x0 + x1) / 2, hinge_y - 0.080, hinge_z - 0.012)))
             rod = tube('vrod', [(x0 - 0.01 if side > 0 else x1 + 0.01, hinge_y, hinge_z),
                                 (x1 if side > 0 else x0, hinge_y, hinge_z)], 0.005, 10)
             clip = box('vclip', (0.03, 0.02, 0.012), center=((x1 + 0.03 if side > 0 else x0 - 0.03), hinge_y - 0.01, hinge_z),
@@ -1090,7 +1090,7 @@ class Interior:
             self.objs[nm + '_clip'] = clip
             if side > 0:
                 self.pivots[nm] = (Vector((0.34, hinge_y, hinge_z)), (1, 0, 0), (0, 95), 'hinge')
-                self.anchor['sunVisorDriver'] = (0.34, hinge_y - 0.08, hinge_z - 0.035)
+                self.anchor['sunVisorDriver'] = (0.34, hinge_y - 0.08, hinge_z - 0.022)
         # seat belts (front: B-pillar webbing; rear: C-pillar webbing) + buckles
         parts = []
         for side in (1, -1):

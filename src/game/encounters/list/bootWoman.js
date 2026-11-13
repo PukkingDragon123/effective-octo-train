@@ -41,6 +41,7 @@ export async function run(E) {
   if (!E.alive) return;
   // she turns round to the rear glass, slowly
   h.stop('cry');
+  h.setGhostMotion?.('headRaise');
   const y0 = h.root.rotation.y;
   await E.until((dt, el) => {
     const k = Math.min(1, el / 2.4);

@@ -13,6 +13,7 @@ export async function run(E) {
   const cands = ['rr', 'fl', 'rl'].filter((p) => S.gazeTarget() !== p);
   const pane = E.ctx.pane || cands[(Math.random() * cands.length) | 0] || 'rr';
   let reported = false;
+  if (!saman) w.humanoid.setGhostMotion?.('nightmare');
   await w.perform('faceAgainstGlass', {
     taxi: E.taxi, pane, duration: E.duration, grin: true, blood: !saman,
     onPress: () => {

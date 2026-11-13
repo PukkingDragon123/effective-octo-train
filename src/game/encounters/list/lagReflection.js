@@ -66,11 +66,13 @@ export async function run(E) {
   // 2. it stops copying: the double holds its pose and turns its face to you in the mirror
   frozen = buf[buf.length - 1];
   // the reflection's head turns on its neck toward the mirror, the mouth stretching into a smile
+  dbl.setGhostMotion?.('tiltHold');
   dbl.setOverrides?.({ stare: 1, neckTwist: E.passengerSeat === 'rearRight' ? 1.15 : -1.15, mouthStretch: 0.4, headRoll: 0.12 }, 1.6);
   S.sfx('whisper', { volume: 0.35, rate: 0.8 });
   await E.until(() => !S.lookingAtMirror('mirror_rear'), 6);
   if (!E.alive) return;
   // 3. the lure: she leans in and asks to be looked at (B's r4 face gaze decides)
+  dbl.setGhostMotion?.('gape');
   await E.say(E.def.lines);
   await E.wait(Math.max(2, E.duration - E.elapsed));
 }

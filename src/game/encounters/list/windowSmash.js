@@ -35,6 +35,7 @@ export async function run(E) {
   h.root.position.copy(glass).addScaledVector(N, 0.55).addScaledVector(up, -(h.look?.height ?? 1.75) + 0.12);
   h.setGhost({ stare: 1, jitter: 0.35, mouthStretch: 0.35, backbend: -0.25 }, 100);
   h.lookAt(S.engine.camera, { speed: 6, unlimited: true });
+  h.setGhostMotion?.('nightmare');
   h.setOpacity(0);
   await E.until((dt, el) => (h.setOpacity(Math.min(1, el / 0.6)), el > 0.6), 1);
   const fist = new THREE.Object3D();
