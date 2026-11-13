@@ -1009,6 +1009,48 @@ function elephantEar(rng, opts) {
   return { skel, height: 2, radius: 1.2, crownY: 1, trunkR: 0.15, kind: 'ground' };
 }
 
+/**
+ * Wild ginger / galangal stand (Zingiberaceae, everywhere on Thai forest edges): leafy canes
+ * 1-2 m from a creeping rhizome, two ranks of long lanceolate leaves that arch and droop.
+ */
+function gingerStand(rng, opts) {
+  const skel = { branches: [], leaves: [] };
+  const sc = opts.scale ?? 1;
+  const n = 4 + Math.floor(rng() * 6);
+  const lean0 = rng() * TAU;
+  for (let i = 0; i < n; i++) {
+    const az = rng() * TAU, rr = Math.sqrt(rng()) * 0.45 * sc;
+    const H = (0.9 + rng() * 1.2) * sc * (1 - rr * 0.4);
+    const la = lean0 + (rng() - 0.5) * 1.6;
+    const d = new THREE.Vector3(Math.cos(la) * 0.22 + Math.cos(az) * 0.12, 1, Math.sin(la) * 0.22 + Math.sin(az) * 0.12).normalize();
+    const pts = growPath(rng, { x: Math.cos(az) * rr, y: -0.06, z: Math.sin(az) * rr }, d, H, 0.013 * sc, 0.006 * sc, 5, { wobble: 0.1 });
+    skel.branches.push({ pts, level: 2, mat: 'stem', radial: 4, color: () => [0.46, 0.5, 0.32] });
+    const nl = 5 + Math.floor(rng() * 5);
+    const rank = rng() * TAU;
+    for (let j = 0; j < nl; j++) {
+      const t = 0.28 + (j / nl) * 0.7;
+      const q = pointOn(pts, t);
+      const a = rank + (j % 2 ? Math.PI : 0) + (rng() - 0.5) * 0.5;
+      const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const L = (0.32 + rng() * 0.26) * sc * (1.1 - t * 0.35);
+      const dir = out.clone().multiplyScalar(0.75).add(new THREE.Vector3(0, 0.55 - rng() * 0.3, 0)).normalize();
+      const spine = [], sides = [];
+      const p = new THREE.Vector3(q.x, q.y, q.z);
+      const side = new THREE.Vector3(-out.z, 0, out.x);
+      for (let k = 0; k <= 4; k++) {
+        spine.push(p.clone());
+        sides.push(side);
+        dir.y -= 0.2 + rng() * 0.06;
+        dir.normalize();
+        p.addScaledVector(dir, L / 4);
+      }
+      const dead = rng() < 0.08;
+      skel.leaves.push({ type: 'strip', spine, sides, widthFn: (u) => L * 0.26 * Math.sin(Math.min(1, u * 0.95 + 0.05) * Math.PI) ** 0.75, slot: SLOT.banana, tint: dead ? [0.62, 0.52, 0.32] : jitterTint(rng, [0.5, 0.6, 0.34], 0.04, 0.3), fold: 0.14, shadeFn: (u) => 0.55 + u * 0.4 });
+    }
+  }
+  return { skel, height: 2.3 * sc, radius: 1.0 * sc, crownY: 0.9 * sc, trunkR: 0.12, kind: 'ground' };
+}
+
 /** Woody shrub with dense small-leaf clusters. */
 function shrub(rng, opts) {
   const skel = { branches: [], leaves: [], lod1MaxLevel: 1, lod1MinR: 0.05 };
@@ -1182,10 +1224,11 @@ export const SPECIES = {
   bamboo: { fn: bamboo, variants: 3, lods: 2, impostor: true },
   banana: { fn: banana, variants: 4, lods: 2, impostor: false, looks: [0, 1, 0, 1] },
   treeFern: { fn: fernPlant, variants: 2, lods: 1, impostor: false, looks: [1, 1] },
-  fern: { fn: fernPlant, variants: 3, lods: 2, impostor: false, looks: [0, 0, 0] },
-  grass: { fn: grassClump, variants: 3, lods: 1, impostor: false, looks: [0, 0, 1] },
-  elephantEar: { fn: elephantEar, variants: 2, lods: 1, impostor: false },
-  shrub: { fn: shrub, variants: 3, lods: 2, impostor: false },
+  fern: { fn: fernPlant, variants: 5, lods: 2, impostor: false, looks: [0, 0, 0, 0, 0] },
+  grass: { fn: grassClump, variants: 5, lods: 1, impostor: false, looks: [0, 0, 1, 0, 1] },
+  elephantEar: { fn: elephantEar, variants: 3, lods: 1, impostor: false },
+  ginger: { fn: gingerStand, variants: 4, lods: 1, impostor: false },
+  shrub: { fn: shrub, variants: 5, lods: 2, impostor: false },
   log: { fn: fallenLog, variants: 2, lods: 1, impostor: false },
   vine: { fn: vineCurtain, variants: 3, lods: 1, impostor: false },
   roots: { fn: surfaceRoots, variants: 3, lods: 1, impostor: false },
