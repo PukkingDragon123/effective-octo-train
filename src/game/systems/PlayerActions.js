@@ -28,6 +28,7 @@ import { paintedMaterial } from '../../render/index.js';
 import { wait } from '../util.js';
 import { rulesGiven, rulesNew, markRulesSeen } from './Fairness.js';
 
+const TAXI_EYE_BACK = 0.2; // m behind the head (local +Z is backward in the cab)
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
@@ -694,6 +695,8 @@ export class PlayerActions {
       local.z = clamp(local.z, nom.z - 0.32, nom.z + 0.12);
       if (this._roofY === undefined) this._roofY = this._measureRoof(carrier, nom);
       if (this._roofY !== null) local.y = Math.min(local.y, this._roofY - 0.1);
+      // owner: sit the view well back from the windshield so the glass, pillars and mirrors all read
+      local.z += TAXI_EYE_BACK;
     } else if (mode === 'bike') {
       local.y = clamp(local.y, nom.y - 0.35, nom.y + 0.15);
     } else if (mode === 'foot' && head && this._settleT > 1.5 && (g.player.speed || 0) < 0.08 && local.y > 1.2) {
