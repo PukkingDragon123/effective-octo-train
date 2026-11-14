@@ -81,6 +81,7 @@ export const OBJECTIVES = {
   coins: { th: 'นับเหรียญในกระป๋อง', en: 'Count the coins in the tin' },
   keys: { th: 'รับกุญแจจากอากง', en: 'Take the keys from Ah Kong' },
   chores: { th: 'ทำตามที่อากงสั่ง', en: 'Do what Ah Kong asked' },
+  newRule: { th: 'จำกฎข้อใหม่', en: 'Learn the new rule' },
   getIn: { th: 'ขึ้นรถแท็กซี่', en: 'Get into the taxi' },
   pickup: { th: 'ขับไปรับลูกค้า', en: 'Drive to the customer' },
   deliver: { th: 'ไปส่งที่ {dest}', en: 'Take them to {dest}' },

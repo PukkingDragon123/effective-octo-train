@@ -25,6 +25,7 @@ const play = (id, o = {}) => {
 let quiet = 0;
 let last = -1e9;
 let busy = false;
+let usedRide = null;
 
 /**
  * The face, close: held in front of the eyes EVERY frame (it rides the cab with the camera; the old
@@ -131,8 +132,12 @@ function install() {
     if (!id || e.event !== 'encounter:' + id || !g.fsm?.is('shift')) return;
     const def = g.director?.defs?.[id];
     // encounters that stage their own close scare and QTE (the window smash, the face rat) get no second one
-    if (def?.kind !== 'scare' || def.ownScare || g.engine.time - last < 25) return;
-    jumpscare({ qte: Math.random() < 0.75, death: DEATH_FOR[id] || 'windowAttack' });
+    // at most one jumpscare a ride, none in the first; ambient scares are atmosphere (no QTE)
+    const ri = g.ride?.index ?? g.save?.rideIndex ?? 0;
+    const key = ri + ':' + (g.save?.loops || 0);
+    if (def?.kind !== 'scare' || def.ownScare || ri < 1 || usedRide === key || g.engine.time - last < 240) return;
+    usedRide = key;
+    jumpscare({ qte: false, death: DEATH_FOR[id] || 'windowAttack' });
   });
 }
 bus.on('game:state', ({ state } = {}) => {

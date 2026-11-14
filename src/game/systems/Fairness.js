@@ -13,7 +13,7 @@ import { bus } from '../../core/Events.js';
 import { clamp } from '../../core/math.js';
 
 export const RULE_ORDER = ['r3', 'r2', 'r1', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15', 'r16'];
-const START = 2; // r3 + r2
+const START = 0; // the garage lesson gives r3 (see teachRule)
 const flags = () => (g.save ? (g.save.flags ||= {}) : {});
 
 export function rulesGiven() {
@@ -68,10 +68,10 @@ export function protectedPhase() {
 export function scaleQTE(spec) {
   const d = difficulty();
   const calm = (g.prayCalm || 0) > (g.engine?.time || 0) ? 1.35 : 1; // a prayer just said loosens it
-  const k = (1.9 - 0.9 * d) * calm; // 1.9x the time early, as designed late
+  const k = (2.2 - 1.0 * d) * calm; // generous: 2.2x the time early, 1.2x late
   const s = { ...spec };
   if (s.time) s.time *= k;
-  if (s.count) s.count = Math.max(3, Math.round(s.count * (0.55 + 0.45 * d)));
+  if (s.count) s.count = Math.max(3, Math.round(s.count * (0.45 + 0.4 * d)));
   if (s.decay) s.decay *= 0.5 + 0.5 * d;
   if (s.open) s.open *= 0.6 + 0.4 * d;
   return s;
@@ -89,8 +89,17 @@ export function fairGate(type, opts = {}) {
   const rule = /^r\d+$/.test(opts.cause || '') ? opts.cause : null;
   if (protectedPhase()) return 'avert';
   if (rule && !isRuleGiven(rule)) return 'avert';
-  if (opts.cause === 'jumpscare' && (g.save?.loops || 0) < 2) return 'avert';
-  if (rule || RULE_DEATH.has(type)) return 'grace';
+  const early = (g.save?.loops || 0) < 2; // nights 1 and 2
+  // a failed QTE / a jumpscare costs a scare through night 2
+  if (early && (opts.cause === 'jumpscare' || opts.fromQte)) return 'avert';
+  if (rule || RULE_DEATH.has(type)) {
+    // deaths only for clear, repeated breaks: 3 of the same through night 2, 2 later
+    const f = flags();
+    const key = 'night.breaks.' + (rule || type);
+    f[key] = (f[key] || 0) + 1;
+    if (f[key] < (early ? 3 : 2)) return 'avert';
+    return 'grace';
+  }
   return 'kill';
 }
 /** The near miss instead of a death: a jolt, a sting, nothing more (off-road: back to the checkpoint). */
@@ -133,12 +142,64 @@ export async function graceWarn(type) {
 }
 void THREE;
 
-// the schedule: two rules to begin with; two more each ride; two more for every loop survived
-const START_FOR = () => START + 2 * (g.save?.loops || 0);
-bus.on('ride:start', ({ index } = {}) => giveRulesUpTo(START_FOR() + 2 * (index || 0)));
-bus.on('game:state', ({ state, params } = {}) => {
-  if (state === 'garage' && params?.restart) {
-    const before = rulesGiven().length;
-    if (START_FOR() > before) giveRulesUpTo(START_FOR());
+// ---- rules taught one by one ----------------------------------------------------------------------
+// Ah Kong says each new rule aloud with a short reason (data/ruleLessons.js); the line appears on the
+// paper; the objective reads "จำกฎข้อใหม่" until the paper is opened; then a calm stretch (no scares)
+// to practise it. r3 in the garage, the next one at each ride's start, and so on (loops keep them).
+let lessonBusy = false;
+export async function teachRule(id, opts = {}) {
+  if (!id || isRuleGiven(id) || lessonBusy) return false;
+  lessonBusy = true;
+  try {
+    const { RULE_LESSONS } = await import('../data/ruleLessons.js');
+    const { setObjective, objectiveDone } = await import('./Objectives.js');
+    // in the cab he speaks through the old taxi CB; at the garage, in person
+    const lines = (RULE_LESSONS[id] || []).map((l) => (opts.radio ? { ...l, who: 'kongRadio' } : l));
+    if (opts.radio && g.dialogue && !g.dialogue._kongRadio) {
+      g.dialogue._kongRadio = true;
+      const c = g.data?.characters?.CHARACTERS?.ahKong || {};
+      g.dialogue.setSpeaker('kongRadio', { nameTH: c.nameTH || 'อากง', nameEN: c.nameEN || 'Ah Kong', voice: c.voice || { gender: 'm', age: 78 }, object: g.taxi?.anchors?.radioKnob, fx: 'radio' });
+    }
+    if (opts.radio) g.audio?.play?.('radio_static', { volume: 0.25 });
+    if (lines.length) await Promise.race([g.dialogue.play(lines), new Promise((r) => setTimeout(r, 14000))]);
+    rulesGiven().push(id);
+    g.persist?.();
+    g.actions?.refreshPaper?.();
+    bus.emit('rules:given', { ids: [id] });
+    g.audio?.play?.('paper_rustle', { volume: 0.5, rate: 0.9 });
+    if (opts.noWait) return true; // (the tutorial's first step is reading the paper anyway)
+    setObjective('newRule');
+    try {
+      g.ui?.hint?.({ th: 'เปิดกระดาษกฎ', en: 'Open the rules paper', keys: ['Tab'], duration: 5, tutorial: true, force: true });
+    } catch (e) {
+      /* cosmetic */
+    }
+    // until he has read it; then a calm stretch to practise
+    await new Promise((res) => {
+      const t0 = performance.now();
+      const off = g.engine.onUpdate(() => {
+        if (g.actions?.paper?.up || performance.now() - t0 > 90000) {
+          off();
+          res();
+        }
+      }, 40, { always: true });
+    });
+    objectiveDone();
+    g.calmUntil = (g.engine?.time || 0) + (opts.calm ?? 120);
+    return true;
+  } catch (e) {
+    console.warn('[rules] lesson', e);
+    return false;
+  } finally {
+    lessonBusy = false;
   }
+}
+/** The next rule not given yet (in teaching order). */
+export const nextRule = () => RULE_ORDER.find((id) => !isRuleGiven(id)) || null;
+
+// ride starts: the next rule, over the CB, a little into the drive
+bus.on('ride:start', () => {
+  setTimeout(() => {
+    if (g.fsm?.is('shift') && g.actions?.inTaxi) teachRule(nextRule(), { radio: true });
+  }, 9000);
 });

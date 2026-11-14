@@ -23,6 +23,7 @@ import { KONG_REACT, KONG_TAKEOVER, KONG_ASK, CHORES_ALREADY, OBJECTIVES } from 
 import { kongTurn, kongWalk, kongSit, kongSay, kongIdle, kongAsk, scold, Nag } from '../opening/kong.js';
 import { setObjective, objectiveDone, clearObjective, setChecklist, tickObjective, setObjectiveTarget } from '../systems/Objectives.js';
 import { ensureOffRoad } from '../systems/OffRoad.js';
+import { teachRule, isRuleGiven } from '../systems/Fairness.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, runLines, resolve, music, sfx, ground, yawTo, roadPoint, roadYaw, roadLen, releaseSky, hidePlayer, waitFor, logic, taxiPoint, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
@@ -209,6 +210,8 @@ export const GarageState = {
       await this._converse(S, async () => {
         await runLines(resolve(CH.CHORES_KEYS), { alive });
         await runLines(resolve(after), { alive, onLine: (l) => this._onLine(l) });
+        // the first rule, taught on its own (the rest come one by one, a ride at a time)
+        if (!isRuleGiven('r3')) await teachRule('r3', { noWait: true });
       });
     }
     g.player.hold?.(null);

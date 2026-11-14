@@ -36,12 +36,14 @@ for (const [path, mod] of Object.entries(MODULES)) {
 }
 
 // scare pacing per phase: minimum seconds between ambient scares, chance multiplier
+// (owner: far fewer scares: ambient ones 4–6 minutes apart at least, whatever the phase)
 const PACE = {
-  dread: { gap: 32, mult: 1.25 },
-  surreal: { gap: 45, mult: 1.0 },
-  calm: { gap: 75, mult: 0.55 },
-  dawn: { gap: 120, mult: 0.25 },
+  dread: { gap: 270, mult: 0.8 },
+  surreal: { gap: 300, mult: 0.7 },
+  calm: { gap: 330, mult: 0.45 },
+  dawn: { gap: 360, mult: 0.25 },
 };
+const MAX_RULE_EVENTS = 4; // kill-capable (rule) encounters a night, all of them together
 const SCARY = new Set(['scare', 'folklore', 'rule']);
 
 function inHours(hours, h) {
@@ -150,6 +152,11 @@ export class EncounterDirector {
       console.warn('[director] unknown encounter', id);
       return this._nullHandle(id);
     }
+    // a night has only a handful of things that can really hurt you
+    if (def.kind === 'rule') {
+      this._ruleEvents = (this._ruleEvents || 0) + 1;
+      if (this._ruleEvents > MAX_RULE_EVENTS && !ctx.force) return this._nullHandle(id);
+    }
     const existing = this.running.get(id);
     if (existing?.alive) return existing.handle || this._handle(existing);
     const mod = RUNNERS[id];
@@ -196,6 +203,7 @@ export class EncounterDirector {
     for (const e of [...this.running.values()]) e.stop();
   }
   resetNight() {
+    this._ruleEvents = 0;
     try {
       repairAllPanes(g.taxi);
     } catch (e) {
@@ -320,7 +328,9 @@ export class EncounterDirector {
     for (const def of Object.values(this.defs)) {
       if (!def.chance || def.chance <= 0) continue;
       const scary = SCARY.has(def.kind);
-      if (scary && (scareRunning || sinceScare < pace.gap * (0.75 + Math.random() * 0.6))) continue;
+      if (scary && (scareRunning || sinceScare < pace.gap * (1 + Math.random() * 0.35))) continue;
+      if (scary && (g.calmUntil || 0) > now) continue; // a rule was just taught: let him practise
+      if (def.kind === 'rule' && (this._ruleEvents || 0) >= MAX_RULE_EVENTS) continue;
       if (!scary && beautifulRunning >= 2) continue;
       // ride-only encounters are B's (scheduled at progress points)
       const w = Array.isArray(def.where) ? def.where : [def.where];

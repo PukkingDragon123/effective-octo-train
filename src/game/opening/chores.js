@@ -270,7 +270,7 @@ export class Chores {
       const ay = sh.incenseAnchor?.position.y ?? 1.1, az = sh.incenseAnchor?.position.z ?? 0.1;
       this._item('sticks', sh.offeringAnchor || sh.object, [0.02, 0.06, 0.06], [0.42, 0.22, 0.3], 'หยิบธูปสามดอก', 'Take three incense sticks', () => S.sticks === 'none' && !this.held, () => this._takeSticks(), 2.3);
       this._item('light', sh.candleAnchor || sh.object, [0.04, 0.05, 0.03], [0.16, 0.2, 0.2], 'จุดธูป', 'Light the incense', () => this.held?.kind === 'sticks' && !S.lit, () => this._lightSticks(), 2.3);
-      this._item('wai', sh.object, [0, ay + 0.38, az - 0.12], [0.62, 0.5, 0.42], 'ไหว้', 'Wai', () => this.held?.kind === 'sticks' && !S.waied && !this._wai, () => this._doWai(), 2.6, 'pray');
+      this._item('wai', sh.object, [0, ay + 0.38, az - 0.12], [0.62, 0.5, 0.42], 'ไหว้', 'Wai', () => !S.waied && !this._wai && !this.done('shrine'), () => this._doWai(), 2.6, 'pray');
       this._item('plant', sh.incenseAnchor || sh.object, [-0.04, 0.06, 0.02], [0.18, 0.2, 0.22], 'ปักธูป', 'Plant the incense', () => this.held?.kind === 'sticks' && !this._wai, () => this._plantSticks(false), 2.3);
       if (this.done('shrine')) this._plantSticks(true, this.flags['chore.shrine'] === 'wrong', true);
     }
@@ -408,6 +408,12 @@ export class Chores {
       if (this.held) this.held.lift = 0;
     }
     S.waied = true;
+    // the sticks were already planted: now it is complete
+    if (S.sticks === 'planted' && !this.done('shrine')) {
+      clearTimeout(this._waiWait);
+      this._wrongSmoke = !S.lit;
+      this._mark('shrine', S.lit ? 'done' : 'wrong');
+    }
   }
   _plantSticks(instant, wrong = null, quiet = false) {
     const S = this.state;
@@ -417,7 +423,9 @@ export class Chores {
       this.sticks = incenseSticks(3, 5);
       this.night.mesh(this.sticks.object);
     }
-    const bad = wrong ?? !(S.lit && S.waied);
+    // any order is fine; only a step left out entirely counts (never lit; or no wai at all, below)
+    const bad = wrong ?? !S.lit;
+    const needWai = wrong == null && !instant && !bad && !S.waied;
     const st = this.sticks;
     if (this.held?.kind === 'sticks') this._dropHeld();
     const pot = sh.incenseAnchor || sh.object;
@@ -433,7 +441,15 @@ export class Chores {
       if (!instant) sfx('sting_low', { volume: 0.4 });
       this.flags['k.shrineWrong'] = (this.flags['k.shrineWrong'] || 0) + (quiet ? 0 : 1);
     }
-    if (!quiet) this._mark('shrine', bad ? 'wrong' : 'done', instant);
+    if (needWai) {
+      // planted first, the wai can still come: 25 s
+      clearTimeout(this._waiWait);
+      this._waiWait = setTimeout(() => {
+        if (this.done('shrine')) return;
+        this._wrongSmoke = true;
+        this._mark('shrine', 'wrong');
+      }, 25000);
+    } else if (!quiet) this._mark('shrine', bad ? 'wrong' : 'done', instant);
     if (!instant) sfx('bell_temple', { object: pot, volume: 0.25, rate: 1.4 });
   }
 

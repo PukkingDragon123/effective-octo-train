@@ -82,7 +82,7 @@ function tick() {
         if ((g.ride?.index ?? 0) < 1 || prayCalm() || g.engine.time - last < 18) return;
         // passed the shrine without a wai
         g.audio?.play?.('whisper', { volume: 0.8 });
-        import('./Jumpscare.js').then(({ jumpscare }) => jumpscare({ qte: true, death: 'giantHand', lull: 0.5, maxWait: 2500 }));
+        import('./Jumpscare.js').then(({ jumpscare }) => jumpscare({ qte: false, lull: 0.5, maxWait: 2500 }));
       }, 6000);
     }
   }
