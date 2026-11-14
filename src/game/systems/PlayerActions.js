@@ -170,7 +170,7 @@ export class PlayerActions {
     if (P.up) {
       P.seconds += dt;
       // read for a while: the new lines are not new any more
-      if (P.seconds > 3 && !P._seenMarked) {
+      if (P.seconds > 7 && !P._seenMarked) {
         P._seenMarked = true;
         if (rulesNew().length) {
           markRulesSeen();
@@ -384,12 +384,98 @@ export class PlayerActions {
     try {
       g.ui.drawRulesPaper(ctx, c.width, c.height, data);
       if (side === 'back') redInk(c);
+      // a rule just given: it is not printed, it writes itself (see _writeOn)
+      const fresh = rulesNew().filter((id) => (data.rules || []).some((r) => r.id === id));
+      if (fresh.length && this.paper.up) this._writeOn(side, data, fresh);
     } catch (e) {
       console.warn('[actions] paper draw failed', e);
       ctx.fillStyle = '#d9cfb4';
       ctx.fillRect(0, 0, c.width, c.height);
     }
     this._tex[side].needsUpdate = true;
+  }
+
+  /**
+   * The new line writes itself: the paper as it was (without the new rules) underneath, the new ink
+   * revealed stroke-row by stroke-row, dark and spreading at the pen front; a whisper reads it, the
+   * sheet shivers, the light stutters, and the "new" mark smears when it is done.
+   */
+  _writeOn(side, data, fresh) {
+    const c = this._canvas[side];
+    const W = c.width, H = c.height;
+    const after = document.createElement('canvas');
+    after.width = W;
+    after.height = H;
+    after.getContext('2d').drawImage(c, 0, 0);
+    const before = document.createElement('canvas');
+    before.width = W;
+    before.height = H;
+    const bd = { ...data, rules: data.rules.filter((r) => !fresh.includes(r.id)), annotations: { ...data.annotations } };
+    for (const id of fresh) delete bd.annotations[id];
+    const bctx = before.getContext('2d', { willReadFrequently: true });
+    g.ui.drawRulesPaper(bctx, W, H, bd);
+    if (side === 'back') redInk(before);
+    // where the pages differ (the new lines), in bands of text rows
+    const A = bctx.getImageData(0, 0, W, H).data;
+    const B = after.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+    let y0 = H, y1 = 0, x0 = W, x1 = 0;
+    for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) {
+      const i = (y * W + x) * 4;
+      if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 40) {
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+      }
+    }
+    if (y1 <= y0) return;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(before, 0, 0);
+    this._tex[side].needsUpdate = true;
+    const rowH = Math.max(24, Math.round(H * 0.03));
+    const rows = Math.max(1, Math.ceil((y1 - y0 + 4) / rowH));
+    const dur = 1.4 + rows * 0.9;
+    const t0 = performance.now();
+    this._shiver = 1;
+    g.audio?.play?.('whisper', { volume: 0.55 });
+    g.audio?.play?.('paper_rustle', { volume: 0.4, rate: 0.6 });
+    try {
+      g.cine?.fade?.(0.35, 0.06).then(() => g.cine.fade(0, 0.12));
+    } catch (e) {
+      /* the light stutters */
+    }
+    const tick = () => {
+      const k = Math.min(1, (performance.now() - t0) / 1000 / dur);
+      const row = Math.floor(k * rows);
+      const fx = (k * rows - row) * (x1 - x0 + 8);
+      ctx.drawImage(before, 0, 0);
+      // the rows already written
+      if (row > 0) ctx.drawImage(after, 0, y0 - 2, W, row * rowH, 0, y0 - 2, W, row * rowH);
+      // the row being written: up to the pen
+      const ry = y0 - 2 + row * rowH;
+      if (row < rows) {
+        ctx.drawImage(after, x0 - 4, ry, fx, rowH, x0 - 4, ry, fx, rowH);
+        // wet ink bleeding at the pen front
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.filter = 'blur(2px)';
+        ctx.drawImage(after, x0 - 4 + Math.max(0, fx - 18), ry, 18, rowH, x0 - 4 + Math.max(0, fx - 18) + 1, ry + 1, 18, rowH);
+        ctx.restore();
+      }
+      this._tex[side].needsUpdate = true;
+      if (k < 1 && this.paper.up) return requestAnimationFrame(tick);
+      // done: all of it, the fresh ink spread a little, the mark smeared
+      ctx.drawImage(after, 0, 0);
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.filter = 'blur(1.6px)';
+      ctx.drawImage(after, x0 - 4, y0 - 2, x1 - x0 + 8, y1 - y0 + 4, x0 - 2, y0, x1 - x0 + 8, y1 - y0 + 4);
+      ctx.restore();
+      this._tex[side].needsUpdate = true;
+      this._shiver = 0.4;
+    };
+    requestAnimationFrame(tick);
   }
 
   // ------------------------------------------------------------------------- amulet
@@ -441,7 +527,10 @@ export class PlayerActions {
     P.flip = damp(P.flip, targetFlip, 8, dt);
     const vis = P.k > 0.01;
     this._paperGroup.visible = vis;
-    if (!vis) return;
+    if (!vis) {
+      if (this._handsHeld) this._handsOn(false);
+      return;
+    }
     const cam = g.engine.camera;
     const k = easeInOut(clamp(P.k, 0, 1));
     const fwd = _v.set(0, 0, -1).applyQuaternion(cam.quaternion);
@@ -449,7 +538,18 @@ export class PlayerActions {
     const right = _v3.set(1, 0, 0).applyQuaternion(cam.quaternion);
     const t = g.engine.time;
     const G = this._paperGroup;
-    G.position.copy(cam.position).addScaledVector(fwd, 0.33 + 0.02 * (1 - k)).addScaledVector(up, -0.022 - (1 - k) * 0.33).addScaledVector(right, 0.006 + Math.sin(t * 0.7) * 0.0015);
+    // held in his hands: breathing sway, a tremble (worse while a new line writes itself)
+    this._shiver = Math.max(0, (this._shiver || 0) - dt * 0.25);
+    const tr = 0.0006 + this._shiver * 0.004;
+    const breath = Math.sin(t * 1.6) * 0.0035;
+    G.position.copy(cam.position).addScaledVector(fwd, 0.33 + 0.02 * (1 - k)).addScaledVector(up, -0.022 - (1 - k) * 0.33 + breath + Math.sin(t * 37) * tr).addScaledVector(right, 0.006 + Math.sin(t * 0.7) * 0.0015 + Math.sin(t * 41 + 1) * tr);
+    this._handsOn(k > 0.6);
+    // old lines twitch now and then (the texture jumps a hair, then back)
+    if (P.up && Math.random() < dt / 30) {
+      const tx = this._tex[P.side];
+      tx.offset.set((Math.random() - 0.5) * 0.004, (Math.random() - 0.5) * 0.003);
+      setTimeout(() => tx.offset.set(0, 0), 90);
+    }
     G.quaternion.copy(cam.quaternion);
     _e.set(-0.1 - (1 - k) * 0.9 + Math.sin(t * 0.9) * 0.008, Math.sin(t * 0.53) * 0.01, 0.025 + Math.sin(t * 0.61) * 0.006);
     G.quaternion.multiply(_q.setFromEuler(_e));
@@ -459,6 +559,28 @@ export class PlayerActions {
     // readable in the dark, a touch more under the cabin light
     const cabin = this.inTaxi ? g.taxi?.cabinBrightness ?? 0 : 0;
     for (const m of this._flipPivot.children[0].children) m.material.emissiveIntensity = 0.13 + cabin * 0.1;
+  }
+
+  /** Ton's hands on the sheet: the right reaches its corner, the left takes the reading pose. */
+  _handsOn(on) {
+    const p = g.player;
+    if (!p?.humanoid) return;
+    if (!this._paperCorner) {
+      this._paperCorner = new THREE.Object3D();
+      this._paperCorner.position.set(PAPER_W * 0.42, -PAPER_H * 0.4, 0.004);
+      this._paperGroup.add(this._paperCorner);
+      g.engine.onUpdate(() => {
+        if (this._handsHeld && !p.held) p.humanoid.holdReq = { side: 'L', at: 'read' };
+      }, 17);
+    }
+    if (on && !this._handsHeld && !this.amulet.held) {
+      this._handsHeld = true;
+      p.reach?.(this._paperCorner, { hand: 'R', duration: 0.3, hold: 1e6, press: false });
+    } else if (!on && this._handsHeld) {
+      this._handsHeld = false;
+      p.reach?.(this._paperCorner, { duration: 0.01, hold: 0, press: false });
+      if (!p.held) p.humanoid.holdReq = null;
+    }
   }
 
   // ------------------------------------------------------------------------- vehicle
