@@ -19,10 +19,11 @@ import './Pray.js';
 
 const STATES = new Set(['intro', 'garage', 'tutorial', 'shift']);
 const CFG = {
-  fallDrop: 1.8, // m below the road surface beside it
-  fallDwell: 0.18, // s
-  impactKmh: 45,
-  impactOutward: { taxi: 4.5, bike: 3.5 }, // m/s straight into it (a glancing scrape is less)
+  // owner: crashing must be hard; ditches, verges and scrapes are always recoverable
+  fallDrop: 3.5, // m below the road surface beside it (a real drop: off the bridge or a cliff)
+  fallDwell: 0.6, // s spent falling before it counts
+  impactKmh: 70,
+  impactOutward: { taxi: 9, bike: 7 }, // m/s straight into it (a glancing scrape is less)
 };
 let installed = false;
 let falling = 0;
