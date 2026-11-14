@@ -64,7 +64,8 @@ function headWorld(h, out) {
 /**
  * Hold the ghost's face `dist` metres in front of the eyes, every frame, its hands on Ton's head.
  * opts { dist=0.34, from=1.1 (it lunges in from here over `lunge` s), lunge=0.12, hands=true,
- *        pull=0.9 (view pulled into its face), shake=1, drop=0.06 (face a little below the eyes),
+ *        pull=0.9 (how hard the head is held: the look is locked where it was), shake=1,
+ *        drop=0.06 (face a little below the eyes),
  *        restore=true (stop() puts it back under its old parent, where it was) }
  */
 export function grab(h, opts = {}) {
@@ -87,6 +88,16 @@ export function grab(h, opts = {}) {
   h.lookAt?.(cam, { speed: 40, weight: 1, unlimited: true });
   h.setGhost?.({ stare: 1, noBlink: 1, unlimited: 1 }, 40);
   const hs0 = h.bones?.Head ? h.bones.Head.scale.clone() : null;
+  // the head is held: the look is locked where it was (a fixed hold, never a pull toward the face
+  // itself, which would chase its own tail), the eyes level, struggling a little against it
+  const yaw0 = cameraRig.yaw, pitch0 = Math.max(-0.3, Math.min(0.2, cameraRig.pitch));
+  const hold = (dt) => {
+    if (!st.alive) return;
+    const k = Math.min(1, dt * 10 * (opts.pull ?? 0.9));
+    cameraRig.yaw += (yaw0 - cameraRig.yaw) * k;
+    cameraRig.pitch += (pitch0 - cameraRig.pitch) * k;
+  };
+  const offHold = engine.onUpdate(hold, 49);
   const place = (dt) => {
     if (!st.alive || h.disposed) return;
     st.t += dt;
@@ -118,8 +129,7 @@ export function grab(h, opts = {}) {
     handR.position.copy(_v).addScaledVector(_r, 0.13).addScaledVector(_u, 0.035).addScaledVector(_f, 0.05);
     handL.updateMatrixWorld(true);
     handR.updateMatrixWorld(true);
-    // held: pulled into its face, shaken
-    cameraRig.setFocus(headWorld(h, new THREE.Vector3()), opts.pull ?? 0.9);
+    // held and shaken
     if (cameraRig.trauma < 0.25 * st.shake) cameraRig.shake(0.03 * st.shake);
   };
   const off = engine.onUpdate(place, 55);
@@ -134,11 +144,11 @@ export function grab(h, opts = {}) {
       if (!st.alive) return;
       st.alive = false;
       off();
+      offHold();
       h.setHandTarget?.('L', null);
       h.setHandTarget?.('R', null);
       handL.removeFromParent();
       handR.removeFromParent();
-      cameraRig.setFocus(null);
       if (h.bones?.Head && hs0) h.bones.Head.scale.copy(hs0);
       // back where it came from (a passenger to its seat), unless told to stay
       if (opts.restore !== false && home.parent && !h.disposed) {
@@ -211,6 +221,10 @@ export async function eat(h, ctl) {
   await wait(0.12);
   // hard cut
   postfx.params.fade = 1;
+  // never left on black: if no death took it from here (a kill refused), the picture comes back
+  setTimeout(() => {
+    if (!g.isDying?.() && g.fsm?.is?.('shift') && postfx.params.fade >= 0.99) postfx.params.fade = 0;
+  }, 2500);
   ctl?.stop?.();
   if (h.root) h.root.visible = false;
   await wait(0.9);

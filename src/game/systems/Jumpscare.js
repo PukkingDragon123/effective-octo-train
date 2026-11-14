@@ -129,8 +129,9 @@ function install() {
   bus.on('encounter:event', (e) => {
     const id = e?.id;
     if (!id || e.event !== 'encounter:' + id || !g.fsm?.is('shift')) return;
-    const kind = g.director?.defs?.[id]?.kind;
-    if (kind !== 'scare' || g.engine.time - last < 25) return;
+    const def = g.director?.defs?.[id];
+    // encounters that stage their own close scare and QTE (the window smash, the face rat) get no second one
+    if (def?.kind !== 'scare' || def.ownScare || g.engine.time - last < 25) return;
     jumpscare({ qte: Math.random() < 0.75, death: DEATH_FOR[id] || 'windowAttack' });
   });
 }

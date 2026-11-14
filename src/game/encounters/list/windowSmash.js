@@ -60,13 +60,15 @@ export async function run(E) {
   body.add(lampAt);
   E.track(lampAt);
   const lamp = E.track(S.tempLight({ object: lampAt, color: 0xb9c6dc, intensity: 0, distance: 2.6, decay: 2, flicker: 'none', glow: false, priority: 7 }));
-  // the gaze is pulled to the pane (a target that rides the car)
+  // the gaze is pulled to the pane: a target that rides the car, set well out beyond the glass along
+  // the eye's line to it (a near target is unstable: the eye itself moves as the head turns)
   const glassW = new THREE.Vector3();
+  const far = glass.clone().addScaledVector(N, 6);
   const look = (strength) => {
     if (!rig) return;
     rig.setFocus(glassW, strength);
   };
-  E.frame(() => body.localToWorld(glassW.copy(glass)));
+  E.frame(() => body.localToWorld(glassW.copy(far)));
   E.cleanup(() => rig?.setFocus?.(null));
   await E.until((dt, el) => (h.setOpacity(Math.min(1, el / 0.6)), lamp?.setIntensity?.(Math.min(1, el / 0.6) * 1.4), el > 0.6), 1);
   const fist = new THREE.Object3D();
@@ -86,12 +88,12 @@ export async function run(E) {
   await strike(0.4, 0.55, 0);
   S.sfx('knock', { object: body, offset3: glass.toArray(), volume: 1, rate: 0.7 });
   S.sfx('sting_high', { volume: 0.8 });
-  look(0.9);
+  look(1.6); // hard: the driving view's own recentring fights a soft pull
   try {
     t.addGlassMark?.(pane, 'handprint', new THREE.Vector2(0.4, 0.55), { size: 1.2 });
   } catch (e) { /* optional */ }
   if (!(await E.wait(rand(0.9, 1.2)))) return;
-  look(0.25); // held there, loosely: you can look away, it will not let you for long
+  look(0.8); // held there: you can fight it, it will not let you for long
   // 2. knuckles: a star; then the fractures run
   const hitU = rand(0.42, 0.6), hitV = rand(0.45, 0.62);
   await strike(hitU, hitV, 0.5);
@@ -134,7 +136,7 @@ export async function run(E) {
   hand.setCurl(1.05, 14);
   hand.spreadT = 0;
   S.sfx('bone_crack', { object: hand.mesh, volume: 0.6, rate: 1.3 });
-  if (rig) rig.setFocus(body.localToWorld(center.clone()), dodge.ok ? 0.35 : 0.7);
+  if (rig) rig.setFocus(glassW, dodge.ok ? 0.3 : 0.55);
   const fight = await qte(E, { kind: 'mash', action: 'interact', count: dodge.ok ? 10 : 14, time: 3.2, decay: 0.4, slowmo: 0.6, dread: 1 });
   rig?.setFocus?.(null);
   if (!E.alive) return;
@@ -159,7 +161,7 @@ export async function run(E) {
     }
     await eat(h, c);
     c.stop();
-    E.deathCtx = { pane, eaten: true, fair: true };
+    E.deathCtx = { pane, eaten: true, fair: true, fromQte: true };
     E.violate('windowArm', 'eaten');
     await E.wait(10);
     return;

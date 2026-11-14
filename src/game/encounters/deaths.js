@@ -624,8 +624,10 @@ Object.assign(DEATHS, {
     p.maxStretch = 5.5;
     p.setOpacity(1);
     p.setGhostMotion('nightmare');
-    // the eye is dragged up to it
-    povShot(() => p.headPosition.clone(), { blend: 0.35, fov: 62 });
+    // the eye is dragged up to it (a fixed eye: the shot never chases its own look)
+    const anchor = t?.anchors?.driverEye;
+    const eyeAt = anchor ? () => anchor.getWorldPosition(new THREE.Vector3()) : null;
+    povShot(() => p.headPosition.clone(), { blend: 0.35, fov: 62, position: eyeAt || undefined });
     p.whistle({ volume: 1, ref: 4, rate: 1.1 });
     await p.lowerHead(() => S.fromTaxi(-1.0, 1.3, -0.1), { duration: 1.6, dist: 0.3 });
     // through the passenger glass
@@ -636,13 +638,9 @@ Object.assign(DEATHS, {
     }
     S.sfx('sting_reveal', { volume: 1 });
     shake(0.8);
-    const eye = () => eyeWorld();
+    const eye = () => (eyeAt ? eyeAt() : eyeWorld());
     await p.lowerHead(eye, { duration: 1.0, dist: 0.24 });
     // held there, its face at yours; the pinhole tears wide
-    cameraRig.release(0.1);
-    const fv = p.headPosition.clone();
-    const offF = engine.onUpdate(() => fv.copy(p.headPosition), 56);
-    cameraRig.setFocus(fv, 1);
     await sleep(0.45);
     p.openMouth(1, 2.6);
     playVoice(shriekBuffer(), { object: p.faceAnchor, volume: 1, ref: 1.5, rate: 0.85 });
@@ -655,7 +653,7 @@ Object.assign(DEATHS, {
     playVoice(crunchBuffer(), { volume: 1 });
     S.sfx('bone_crack', { volume: 1, rate: 0.7 });
     S.sfx('neck_snap', { volume: 0.9, rate: 0.8, delay: 0.15 });
-    const e = eyeWorld();
+    const e = eye();
     try {
       g.blood?.spray?.(e, new THREE.Vector3(0, 0.3, 1).normalize(), 1);
       g.blood?.drip?.(e, 1);
@@ -663,8 +661,6 @@ Object.assign(DEATHS, {
     splash(1);
     await sleep(0.12);
     postfx.params.fade = 1; // hard cut
-    offF();
-    cameraRig.setFocus(null);
     await sleep(0.8);
     p.dispose();
     unfreezeTaxi(saved);

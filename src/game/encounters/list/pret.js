@@ -24,6 +24,7 @@ export async function run(E) {
   }
   if (!E.alive) return;
   const p = createPret();
+  E.debug = { p };
   let handed = false;
   E.cleanup(() => {
     if (handed) setTimeout(() => !p._inDeath && !p.disposed && p.dispose(), 20000);
@@ -32,7 +33,7 @@ export async function run(E) {
   // among the trees on the near (left) side, facing the road and the oncoming cab
   const lat = -rand(6.2, 7.6);
   const spot = S.roadAhead(rand(135, 165), lat);
-  const face = spot.right.clone().addScaledVector(spot.tangent, 0.7).normalize();
+  const face = spot.right.clone().addScaledVector(spot.tangent, -0.7).normalize(); // toward the oncoming cab
   p.standAt(spot.pos, face);
   p.setGhostMotion('stopMotion', { instant: true });
   p.setOpacity(0);
@@ -45,11 +46,11 @@ export async function run(E) {
   const lamp = E.track(S.tempLight({ object: lampAt, color: 0x9fb0c8, intensity: 0, distance: 10, decay: 1.6, flicker: 'none', glow: false, priority: 5 }));
   const head = () => p.headPosition;
   let shown = false, cried = 0, lowering = null, lookT = 0, stopT = 0, warned = false, noticed = null;
-  const passed = await E.until((dt, el) => {
+  await E.until((dt, el) => {
     const d = S.distTo(spot.pos);
     // fade in out of the fog, lit low
     const vis = d < 125 ? 1 : 0;
-    p.setOpacity(Math.min(1, p.opacity + dt * 0.6 * vis));
+    if (vis && p.opacity < 1) p.setOpacity(Math.min(1, p.opacity + dt * 0.6));
     lamp?.setIntensity?.(1.6 * p.opacity);
     if (!shown && p.opacity > 0.4 && S.onScreen(head())) {
       shown = true;
@@ -143,7 +144,7 @@ export async function run(E) {
     return;
   }
   handed = true;
-  E.deathCtx = { pret: p, fair: true };
+  E.deathCtx = { pret: p, fair: true, fromQte: true };
   E.violate('pret', 'eaten');
   await E.wait(12);
 }

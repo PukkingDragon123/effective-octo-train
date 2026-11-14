@@ -865,12 +865,15 @@ export class GlassSystem {
     const prevRT = renderer.getRenderTarget();
     const prevAuto = renderer.shadowMap.autoUpdate;
     renderer.shadowMap.autoUpdate = false;
+    // hide the panes for the reflection pass, then put back exactly what was shown (a broken pane
+    // stays hidden: restoring every pane to visible brought smashed windows back every frame)
+    const shown = this.ids.map((id) => this.panes[id].mesh.visible);
     for (const id of this.ids) this.panes[id].mesh.visible = false;
     renderer.setRenderTarget(this.reflectRT);
     renderer.clear();
     renderer.render(scene, this.reflectCam);
     renderer.setRenderTarget(prevRT);
-    for (const id of this.ids) this.panes[id].mesh.visible = true;
+    this.ids.forEach((id, i) => (this.panes[id].mesh.visible = shown[i]));
     renderer.shadowMap.autoUpdate = prevAuto;
   }
   dispose() {

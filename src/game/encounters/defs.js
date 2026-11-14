@@ -1,5 +1,6 @@
 // Encounters defined by the director itself (not in src/game/data/encounters.js), same shape as
 // ENCOUNTERS entries. `once: true` = at most once per night (the director's free-drive pool).
+// `ownScare: true` = it stages its own close scare and QTE (systems/Jumpscare.js does not add one).
 import { TAXI_TEXT } from '../data/worldtext.js';
 
 const V = (th, en, x = {}) => ({ who: 'voice', th, en, tone: 'ghost', ...x });
@@ -11,7 +12,7 @@ const PLATE = TAXI_TEXT?.plate || { th: 'ทข ๑๔๔๑ วังเวง'
 
 export const LOCAL_DEFS = {
   faceRat: {
-    id: 'faceRat', nameTH: 'หนูผีหน้าคน', nameEN: 'The Face Rat', kind: 'scare',
+    id: 'faceRat', nameTH: 'หนูผีหน้าคน', nameEN: 'The Face Rat', kind: 'scare', ownScare: true,
     hours: [21, 26], where: ['freeDrive', 'ride:anyGhost'], gazeMode: 'notLooking', once: true,
     cooldownSec: 1800, chance: 0.07, durationSec: [6, 10],
     whispers: [V('แฮ่ก... แฮ่ก...', 'Hhh... hhh...', { tone: 'whisper' })],
@@ -126,7 +127,7 @@ export const LOCAL_DEFS = {
 
   // ------------------------------------------------------------------ glass and the follower
   windowSmash: {
-    id: 'windowSmash', nameTH: 'กระจกแตก', nameEN: 'The Window Smash', kind: 'scare',
+    id: 'windowSmash', nameTH: 'กระจกแตก', nameEN: 'The Window Smash', kind: 'scare', ownScare: true,
     hours: [22, 27.5], where: ['freeDrive', 'ride:anyGhost'], gazeMode: 'sideWindow', once: true, cooldownSec: 2400, chance: 0.1, durationSec: [12, 18],
     staging: 'Something keeps pace at a side / rear window: a palm print, a knuckle star, fractures racing out, then the tempered pane bursts inward (slow motion, flinch, nuggets over the seats). A long grey arm reaches for your head: QTE react, then fight it off; lose = death windowArm. The window stays broken all night (wind, rain).',
   },
@@ -138,7 +139,7 @@ export const LOCAL_DEFS = {
     staging: 'A five-metre starved figure among the roadside trees on the left, a high thin whistling cry through a pinhole mouth; as you come near its head comes down, slowly, in held steps, toward the cab. Keep driving and keep your eyes off its face: it passes, still bowing after you in the mirror. Stop near it, or look up into its face, and it notices: in jumps it is beside the car, the neck stretching down to the passenger window. QTE still: eyes down, hold the amulet. Fail: it takes your head and the pinhole tears wide (death pret; early game it screams and lets go). Ties to r12 (do not stop for what stands by the road).',
   },
   stalker: {
-    id: 'stalker', nameTH: 'มันตามมา', nameEN: 'The Follower', kind: 'scare',
+    id: 'stalker', nameTH: 'มันตามมา', nameEN: 'The Follower', kind: 'scare', ownScare: true,
     hours: [21, 28.5], where: ['any'], gazeMode: 'notLooking', cooldownSec: 150, chance: 0.32, durationSec: [20, 40],
     staging: 'Night-long (Stalker.js): the tree line keeping pace and peeking from cover (gone when looked at straight), then the roadside (do not stop for it: it walks to your door), then one frame on the back seat in the mirror (r3), then in your lane (r12). On foot at the garage (2nd night on) and at stops: its footsteps a beat behind yours.',
   },

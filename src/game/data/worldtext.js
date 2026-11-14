@@ -80,6 +80,7 @@ export const DEATH_CARDS = {
   // off the road edge: the TV news, then back to the last checkpoint (not a loop death)
   offRoad: { th: 'ถนนสายนี้ไม่ปล่อยคนที่ออกนอกทาง', en: 'This road keeps whoever leaves it.', rule: null, respawn: true },
   procession: { th: 'ขบวนศพไม่หยุดให้ใคร คนเป็นต้องหยุดให้เขา', en: 'A funeral stops for no one. The living stop for it.', rule: 'r12' },
+  pret: { th: 'อย่าเงยหน้ามองสิ่งที่หิวมาตลอดชาติ', en: 'Never look up at what has been hungry for a lifetime.', rule: 'r12' },
   flood: { th: 'น้ำที่ท่วมถนนคืนนี้ มีมือรออยู่ข้างใต้', en: 'Tonight the flood on the road has hands beneath it.', rule: 'r10' },
 };
 

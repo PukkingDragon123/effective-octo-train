@@ -536,7 +536,10 @@ export class Pret extends Entity {
       chain.forEach((bone, i) => this._preIK[i].copy(bone.quaternion));
       for (let it = 0; it < 4; it++) this._ccd(_v2);
       // blend toward the reached pose by w
-      chain.forEach((bone, i) => bone.quaternion.copy(this._preIK[i]).slerp(_q.copy(bone.quaternion), R.w));
+      chain.forEach((bone, i) => {
+        _q.copy(bone.quaternion);
+        bone.quaternion.copy(this._preIK[i]).slerp(_q, R.w);
+      });
       this.mesh.updateMatrixWorld(true);
     }
     // ---- 4. the head: faces what it wants, a held wrong tilt, snaps
