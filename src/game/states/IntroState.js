@@ -15,6 +15,7 @@ import { ensurePlayerActions } from '../systems/PlayerActions.js';
 import { LoopStaging } from '../systems/LoopStaging.js';
 import { setupGarage } from '../opening/garageSet.js';
 import { ensureOffRoad } from '../systems/OffRoad.js';
+import { kongAway } from '../opening/kong.js';
 import { Stage, CineCam, guard, isAbort, lm, wpos, roadPoint, roadYaw, roadLen, music, fogColor, sfx, runLines, resolve, hidePlayer, releaseSky, ground, yawTo, quietDirector } from '../opening/common.js';
 
 const _v = new THREE.Vector3();
@@ -25,6 +26,7 @@ export const IntroState = {
   async enter(params = {}) {
     ensurePlayerActions();
     g.actions?.setEnabled(false);
+    kongAway(); // Ah Kong is out tonight: hidden, inside the garage, on nothing
     const S = guard(this);
     quietDirector();
     this.stage = new Stage();
@@ -127,6 +129,7 @@ export const IntroState = {
   },
 
   update(dt) {
+    if (g.ahKong?.root?.visible) kongAway(); // nothing ever shows him during the ride
     if (this.phase !== 'ride') return;
     this.t += dt;
     const bike = g.bike;

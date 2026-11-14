@@ -42,6 +42,47 @@ async function walkRound(h, target, timeout) {
 const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const kong = () => g.ahKong;
 
+/**
+ * Ah Kong out of the way: off any vehicle or seat, standing hidden inside the garage (never on the
+ * bike, never in the lane). The intro and the first-night wait call this.
+ */
+export function kongAway() {
+  const h = kong();
+  if (!h) return;
+  try {
+    h.stopWalking?.();
+    if (h._seated || h.root.parent !== g.engine.scene) {
+      h.detach?.(g.engine.scene);
+      if (h.root.parent !== g.engine.scene) g.engine.scene.attach(h.root);
+      h._seated = false;
+    }
+    const A = lm('garage')?.anchors;
+    const p = A?.tableAnchor ? wpos(A.tableAnchor, new THREE.Vector3()) : null;
+    if (p) {
+      p.y = ground(p.x, p.z);
+      h.root.position.copy(p);
+    }
+    h.root.rotation.set(0, h.root.rotation.y, 0);
+    h.setMode?.('stand');
+  } catch (e) {
+    console.warn('[kong] away', e);
+  }
+  h.root.visible = false;
+}
+
+/** Keep a walk target off the asphalt: anything in the lane moves to the shoulder on its side. */
+export function offTheRoad(p) {
+  const pr = g.world?.road?.project?.(p);
+  if (!pr) return p;
+  const edge = pr.width / 2 + 0.6;
+  if (Math.abs(pr.lateral) < edge) {
+    const sgn = Math.sign(pr.lateral) || -1;
+    p.copy(pr.pos).addScaledVector(pr.right, sgn * edge);
+    p.y = ground(p.x, p.z);
+  }
+  return p;
+}
+
 /** Turn to face a point (or a yaw) over `dur` seconds. Resolves when he faces it. */
 export function kongTurn(to, dur = 0.7) {
   const h = kong();

@@ -20,7 +20,7 @@ import { createChips } from '../opening/chips.js';
 import { Chores, nightStage } from '../opening/chores.js';
 import * as CH from '../data/chores.js';
 import { KONG_REACT, KONG_TAKEOVER, KONG_ASK, CHORES_ALREADY, OBJECTIVES } from '../data/kongTalk.js';
-import { kongTurn, kongWalk, kongSit, kongSay, kongIdle, kongAsk, scold, Nag } from '../opening/kong.js';
+import { kongTurn, kongWalk, kongSit, kongSay, kongIdle, kongAsk, scold, Nag, kongAway, offTheRoad } from '../opening/kong.js';
 import { setObjective, objectiveDone, clearObjective, setChecklist, tickObjective, setObjectiveTarget } from '../systems/Objectives.js';
 import { ensureOffRoad } from '../systems/OffRoad.js';
 import { teachRule, isRuleGiven } from '../systems/Fairness.js';
@@ -369,6 +369,7 @@ export const GarageState = {
   async _waitForKong(S) {
     this.phase = 'wait';
     this.waitT = 0;
+    kongAway();
     setObjective('waitKong');
     const G = lm('garage');
     const A = G?.anchors || {};
@@ -423,7 +424,7 @@ export const GarageState = {
         const p = g.player.root.position;
         const dir = _v.copy(h.root.position).sub(p).setY(0).normalize();
         h.lookAt(g.player.eye, { weight: 0.8, speed: 2 });
-        await leg(p.clone().addScaledVector(dir, 1.3), 10);
+        await leg(offTheRoad(p.clone().addScaledVector(dir, 1.3)), 10); // never stops in the lane
       }
     } finally {
       h.stopWalking?.();
@@ -723,6 +724,7 @@ export const GarageState = {
     if (this.phase !== 'talk' && this.phase !== 'setup') LoopStaging.update(dt);
     if (this.phase === 'wait' || this.phase === 'arrive') {
       this.waitT = (this.waitT || 0) + dt;
+      if (this.phase === 'wait' && g.ahKong?.root?.visible) g.ahKong.root.visible = false;
     } else if (this.phase === 'chores') {
       this._idleNudgeChores(dt);
     } else if (this.phase === 'walkToKong') {
