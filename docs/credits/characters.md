@@ -52,3 +52,9 @@ greyscale, high-pass with a wrap-around blur (stays seamless), contrast normalis
 | fabric_herringbone.jpg | clothing/suit_grey_wool.jpg | https://polyhaven.com/a/poly_wool_herringbone | Poly Haven | CC0 1.0 |
 | fabric_satin.jpg | clothing/casino_gold_satin.jpg | https://polyhaven.com/a/crepe_satin | Poly Haven | CC0 1.0 |
 | fabric_leather.jpg | clothing/sneaker_white_leather.jpg | https://polyhaven.com/a/leather_white | Poly Haven | CC0 1.0 |
+
+Cloth market bags (Grandma Bua's indigo bag, the ย่าม shoulder bag), used as colour + normal map, unprocessed:
+
+| file | source in special-telegram | original scan | author | licence |
+|---|---|---|---|---|
+| bag_indigo_linen.jpg + bag_indigo_linen_normal.jpg | clothing/khakuay_indigo_cotton.jpg + _normal.jpg | https://polyhaven.com/a/rough_linen | Poly Haven | CC0 1.0 |
