@@ -12,6 +12,9 @@ import { clamp, damp, lerp, wrapAngle } from '../core/math.js';
 import { audio } from '../audio/index.js';
 import { GLOBAL_UNIFORMS } from '../render/index.js';
 import { LAYOUT } from '../world/layout.js';
+import { colliders } from '../core/Colliders.js';
+import { TaxiDamage } from './Damage.js';
+const _probe = new THREE.Vector3();
 import { buildTaxiExterior } from './TaxiModel.js';
 import { buildTaxiInterior, INT } from './TaxiInterior.js';
 import { GlassSystem } from './Glass.js';
@@ -205,6 +208,7 @@ export class Taxi {
     this._enlargeRearMirror();
     this.mirrors = new MirrorSystem({ rear: this.parts.rearviewMount, left: ext.mirrorMounts.left, right: ext.mirrorMounts.right });
     this.mirrors.taxi = this;
+    this.damage = new TaxiDamage(this);
     // the head unit comes on with the engine: the screen lights up, the radio plays its song
     bus.on('taxi:engine', (e) => {
       if (e?.on && !this.state.radioOn) {
@@ -600,6 +604,12 @@ export class Taxi {
       I.hb = 0;
       this.setControl?.('handbrake', false);
     }
+    // a gentle assist: something solid right ahead at low speed -> it eases the brake on (never past half)
+    if (sim.v > 1.5 && sim.v < 9 && brk < 0.45) {
+      const probe = _probe.copy(sim.pos).addScaledVector(sim.forward, 2.3 + sim.v * 0.45);
+      const res = colliders.resolve(probe, 0.5);
+      if (res && res.isVector3 && Math.abs(res.x - probe.x) + Math.abs(res.z - probe.z) > 1e-3) brk = Math.max(brk, 0.45);
+    }
     const step = (cur, to, up, down) => cur + clamp(to - cur, -down * dt, up * dt);
     I.thr = step(I.thr, thr, 2.2, 4.5);
     I.brk = step(I.brk, brk, 3.4, 6);
@@ -607,7 +617,7 @@ export class Taxi {
     I.steer = step(I.steer, sIn, back ? 3.6 : 2.4, back ? 3.6 : 2.4);
     sim.input.throttle = Math.pow(I.thr, 1.35);
     sim.input.brake = Math.pow(I.brk, 1.2);
-    sim.input.steer = I.steer * (0.6 + 0.4 * Math.abs(I.steer)); // calm around the centre
+    sim.input.steer = clamp(I.steer * (0.6 + 0.4 * Math.abs(I.steer)) + (this.damage?.pull || 0) * Math.min(1, Math.abs(sim.v) / 6), -1, 1); // calm around the centre; a bent wheel pulls
   }
   _autoGear(gear) {
     const s = this.state;
@@ -889,10 +899,15 @@ export class Taxi {
   }
 
   _onCollision(c) {
-    audio.play('collision_thud', { position: c.point, volume: clamp(c.speed / 6, 0.3, 1) });
-    audio.play('bush_scrape', { position: c.point, volume: clamp(c.speed / 5, 0.3, 1) });
-    bus.emit('taxi:collision', { impulse: c.impulse, point: c.point, speed: c.speed });
-    if (this.controlsEnabled || this.isCameraInside()) cameraRig.shake(clamp(c.speed / 8, 0.12, 0.6));
+    if (!c.rail && !c.solid) audio.play('bush_scrape', { position: c.point, volume: clamp(c.speed / 5, 0.3, 1) });
+    try {
+      this.damage.hit(c); // dents, lights, glass, bumper, steam, sounds by severity, sparks on steel
+    } catch (e) {
+      console.warn('[taxi] damage', e);
+      audio.play('collision_thud', { position: c.point, volume: clamp(c.speed / 6, 0.3, 1) });
+    }
+    bus.emit('taxi:collision', { impulse: c.impulse, point: c.point, speed: c.speed, rail: !!c.rail, solid: !!c.solid });
+    if (this.controlsEnabled || this.isCameraInside()) cameraRig.shake(clamp(c.speed / 7, 0.15, 0.8));
     this._bumpKick = (this._bumpKick || 0) + 2;
   }
 

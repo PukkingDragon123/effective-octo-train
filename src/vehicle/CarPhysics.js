@@ -3,6 +3,8 @@
 // sensitive steering, kinematic bicycle yaw with grip limit and slides, road corridor
 // constraint (shoulder slows, vegetation wall pushes back + scrape), ground following
 // on four wheels, suspension pitch/roll/heave springs, bumps, seat weight sag, autopilot.
+import { railAt, RAIL_OFFSET } from './rails.js';
+import { colliders } from '../core/Colliders.js';
 import * as THREE from 'three';
 import { clamp, lerp, damp, noise, smoothstep, wrapAngle } from '../core/math.js';
 import { DIM } from './TaxiBody.js';
@@ -198,7 +200,7 @@ export class CarPhysics {
     this._lastV = this.v;
 
     // ---- yaw / lateral --------------------------------------------------------------------
-    const grip = (state.handbrake ? 0.45 : 1) * (this.offRoad > 0.5 ? 0.7 : 1) * (0.8 + 0.2 * (1 - (GLOBAL_WET ?? 0)));
+    const grip = (1 - 0.18 * (this.taxi.damage?.level || 0)) * (state.handbrake ? 0.45 : 1) * (this.offRoad > 0.5 ? 0.7 : 1) * (0.8 + 0.2 * (1 - (GLOBAL_WET ?? 0)));
     let yawTarget = (this.v * Math.tan(this.wheelAngle)) / CAR.wheelbase;
     const maxYaw = (0.95 * G * grip) / Math.max(speed, 2);
     yawTarget = clamp(yawTarget, -maxYaw, maxYaw);
@@ -230,7 +232,11 @@ export class CarPhysics {
         const lat = Math.abs(pr.lateral);
         const carHalf = 0.86;
         if (lat + carHalf > half) this.offRoad = clamp((lat + carHalf - half) / 0.8, 0, 1);
-        const wall = half + shoulder + 1.5 - carHalf;
+        // a guardrail on this side is a hard steel wall right at the shoulder
+        const sideS = Math.sign(pr.lateral) || 1;
+        const rail = railAt(world, pr.id, pr.s, sideS);
+        this.railContact = 0;
+        const wall = rail ? half + RAIL_OFFSET - carHalf - 0.05 : half + shoulder + 1.5 - carHalf;
         if (lat > wall) {
           const pen = lat - wall;
           const sgn = Math.sign(pr.lateral);
@@ -242,19 +248,39 @@ export class CarPhysics {
           if (outward > 0) {
             const lossFrac = clamp(outward / Math.max(speed, 0.1), 0, 1);
             this.v *= 1 - 0.55 * lossFrac;
-            this.vLat -= outward * sgn * _r.dot(pr.right) * 0.8;
+            this.vLat -= outward * sgn * _r.dot(pr.right) * (rail ? 1.35 : 0.8); // the rail bounces you back
             // steer the heading along the wall a bit
             const tYaw = Math.atan2(-pr.tangent.x, -pr.tangent.z) + (this.v < 0 ? Math.PI : 0);
             this.yaw += wrapAngle(tYaw - this.yaw) * Math.min(1, lossFrac * 0.25);
             if (this._collideCooldown <= 0 && outward > 0.6) {
               this._collideCooldown = 0.6;
               const pt = this.pos.clone().addScaledVector(pr.right, sgn * carHalf).setY(this.groundY + 0.5);
-              this.onCollision?.({ impulse: outward * mass, point: pt, speed: outward });
+              this.onCollision?.({ impulse: outward * mass, point: pt, speed: outward, rail, along: speed });
             }
           }
           this.wallContact = clamp(pen * 4 + 0.3, 0, 1);
+          if (rail) this.railContact = this.wallContact;
         }
         this.surface = this.offRoad > 0.3 ? 'gravel' : 'asphalt';
+      }
+    }
+
+    // ---- poles, walls, big trees (the world's solid colliders): no driving through them -----------
+    if (speed > 0.4) {
+      const res = colliders.resolve(this.pos, 1.0);
+      if (res && res.isVector3) {
+        const push = Math.hypot(res.x - this.pos.x, res.z - this.pos.z);
+        if (push > 1e-3) {
+          this.pos.x = res.x;
+          this.pos.z = res.z;
+          const hitV = Math.abs(this.v);
+          this.v *= 0.35;
+          this.vLat *= 0.4;
+          if (this._collideCooldown <= 0 && hitV > 1.2) {
+            this._collideCooldown = 0.6;
+            this.onCollision?.({ impulse: hitV * mass, point: this.pos.clone().addScaledVector(fw, 2.1).setY(this.groundY + 0.5), speed: hitV, solid: true, along: hitV });
+          }
+        }
       }
     }
 

@@ -16,6 +16,7 @@ import { MergeBuilder, xform, roundedBox, lathe, rod, tube, GridSurface, deform,
 import { makeCanvas, toTexture, noiseCanvas } from './VehicleTextures.js';
 import { FONTS } from '../ui/fonts.js';
 import { submitHeadlight, releaseHeadlight } from './Lights.js';
+import { railAt, RAIL_OFFSET } from './rails.js';
 import { getVehicleAssets, instantiate } from './VehicleAssets.js';
 import { indexNodes, worldPos, boxOf } from './TaxiGLB.js';
 
@@ -585,7 +586,8 @@ export class Motorcycle {
         this.physics.roadRef = { id: pr.id, s: pr.s };
         this.physics.lateral = pr.lateral;
         this.physics.roadWidth = pr.width;
-        const wall = (pr.width ?? 6.2) / 2 + LAYOUT.shoulder + 1.0;
+        const rail = railAt(this.world, pr.id, pr.s, Math.sign(pr.lateral) || 1);
+        const wall = rail ? (pr.width ?? 6.2) / 2 + RAIL_OFFSET - 0.4 : (pr.width ?? 6.2) / 2 + LAYOUT.shoulder + 1.0;
         this._impactCd = Math.max(0, (this._impactCd || 0) - dt);
         if (Math.abs(pr.lateral) > wall) {
           const pen = Math.abs(pr.lateral) - wall;
@@ -593,7 +595,7 @@ export class Motorcycle {
           const outward = this.v * (this.forward.x * pr.right.x + this.forward.z * pr.right.z) * Math.sign(pr.lateral);
           if (outward > 1.5 && this._impactCd <= 0) {
             this._impactCd = 0.8;
-            bus.emit('bike:impact', { kmh: Math.abs(this.v) * 3.6, outward });
+            bus.emit('bike:impact', { kmh: Math.abs(this.v) * 3.6, outward, rail, point: this.pos.clone().addScaledVector(pr.right, Math.sign(pr.lateral) * 0.4).setY(this.pos.y + 0.6) });
           }
           this.pos.addScaledVector(pr.right, -Math.sign(pr.lateral) * pen);
           this.v *= 0.97;

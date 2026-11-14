@@ -85,5 +85,25 @@ bus.on('game:state', () => {
   if (installed || !g.engine) return;
   installed = true;
   g.engine.onUpdate(tick, 38);
-  bus.on('bike:impact', () => tonSays('nearCrash'));
+  bus.on('bike:impact', (e) => {
+    tonSays('nearCrash');
+    if (e?.rail && e.point) {
+      try {
+        g.particles?.emit?.('sparks', { position: e.point, burst: true, autoDispose: true, count: 30 });
+        g.audio?.play?.('scratch_glass', { position: e.point, volume: 0.7, rate: 0.55 });
+      } catch (err) {
+        /* cosmetic */
+      }
+      g.cameraRig?.shake?.(0.35);
+    }
+  });
+  bus.on('taxi:collision', (e) => {
+    if ((e?.speed || 0) < 2) return;
+    tonSays('nearCrash');
+    paxReacts('crash', { x: 0.1, y: 0.28 });
+  });
+  // a new night: the taxi comes back straight from Ah Kong's hammer
+  bus.on('game:state', ({ state, params } = {}) => {
+    if (state === 'garage' && (params?.restart || params?.newNight)) g.taxi?.damage?.repair?.();
+  });
 });

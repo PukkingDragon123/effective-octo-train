@@ -191,7 +191,10 @@ export class TaxiLights {
     const elec = ignitionOn ? 1 : 0;
     // headlights (work with ignition on; parking lights glow dim)
     const mode = state.headlights;
-    const headTarget = mode === 'off' ? 0 : elec * (state.ignition === 'start' ? 0.55 : 1);
+    // crash damage: a cracked lamp flickers weakly, a smashed pair is dark
+    const dmg = this.headDamage || 0;
+    const broken = dmg >= 1 ? 0 : dmg > 0 ? 0.5 + 0.3 * Math.sin(performance.now() * 0.031) * Math.sin(performance.now() * 0.0071) : 1;
+    const headTarget = mode === 'off' ? 0 : elec * (state.ignition === 'start' ? 0.55 : 1) * broken;
     this.headLevel = damp(this.headLevel, headTarget, 14, dt);
     const high = mode === 'high';
     const hl = this.headLevel;
