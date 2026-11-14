@@ -1001,6 +1001,13 @@ export class IncenseScene {
     u.uWhip.value.set(g.whip, 0, g.whip * 0.4);
   }
 
+  /** Stop the render loop (the canvas stays, but nothing draws). */
+  stop() {
+    cancelAnimationFrame(this._raf);
+    this._raf = 0;
+    this._loop = () => {};
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;

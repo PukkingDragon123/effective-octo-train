@@ -99,10 +99,25 @@ export class Loading {
 
   async hide() {
     if (!this.el || this.el.hidden) return;
-    await leave(this.el, 900);
-    this.scene3d?.dispose();
+    // stop drawing now and fade the screen out; the WebGL teardown happens later, in idle time
+    // (it can be slow and must never hold up the menu)
+    const sc = this.scene3d;
     this.scene3d = null;
-    this.stage?.remove();
+    sc?.stop?.();
+    await leave(this.el, 600);
+    this.el.hidden = true;
+    const stage = this.stage;
+    stage?.remove();
+    if (sc) {
+      const later = () => {
+        try {
+          sc.dispose();
+        } catch (e) {
+          /* ignore */
+        }
+      };
+      setTimeout(() => (window.requestIdleCallback ? requestIdleCallback(later, { timeout: 10000 }) : later()), 10000);
+    }
     this.el.classList.remove('has-3d', 'is-ready');
     this.ui._refreshXhair?.();
   }
