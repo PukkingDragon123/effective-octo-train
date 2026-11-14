@@ -640,7 +640,9 @@ Object.assign(DEATHS, {
     await p.lowerHead(eye, { duration: 1.0, dist: 0.24 });
     // held there, its face at yours; the pinhole tears wide
     cameraRig.release(0.1);
-    cameraRig.setFocus(p.headPosition, 1);
+    const fv = p.headPosition.clone();
+    const offF = engine.onUpdate(() => fv.copy(p.headPosition), 56);
+    cameraRig.setFocus(fv, 1);
     await sleep(0.45);
     p.openMouth(1, 2.6);
     playVoice(shriekBuffer(), { object: p.faceAnchor, volume: 1, ref: 1.5, rate: 0.85 });
@@ -661,6 +663,7 @@ Object.assign(DEATHS, {
     splash(1);
     await sleep(0.12);
     postfx.params.fade = 1; // hard cut
+    offF();
     cameraRig.setFocus(null);
     await sleep(0.8);
     p.dispose();
