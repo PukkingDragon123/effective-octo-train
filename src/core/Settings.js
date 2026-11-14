@@ -17,17 +17,17 @@ export const GRAPHICS_PRESETS = {
     particles: 0.45, drawDistance: 90, volumetrics: false,
   },
   medium: {
-    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true, ambientOcclusion: false, motionBlur: true,
-    shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 0.85,
-    particles: 0.75, drawDistance: 120, volumetrics: true,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true, ambientOcclusion: false, motionBlur: false,
+    shadowMapSize: 1024, mirrorResolution: 192, glassReflections: true, foliageDensity: 0.85,
+    particles: 0.6, drawDistance: 100, volumetrics: true,
   },
   high: {
-    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.8, shadows: true, ambientOcclusion: false, motionBlur: true,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.8, shadows: true, ambientOcclusion: false, motionBlur: false,
     shadowMapSize: 2048, mirrorResolution: 384, glassReflections: true, foliageDensity: 1.2,
     particles: 1.0, drawDistance: 150, volumetrics: true,
   },
   ultra: {
-    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true, ambientOcclusion: false, motionBlur: true,
+    resolutionScale: 1.0, painterly: 0, painterlyQuality: 'high', bloom: 0.85, shadows: true, ambientOcclusion: false, motionBlur: false,
     shadowMapSize: 2048, mirrorResolution: 512, glassReflections: true, foliageDensity: 1.45,
     particles: 1.3, drawDistance: 190, volumetrics: true,
   },
@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS = {
   graphicsPreset: 'medium',
   ...GRAPHICS_PRESETS.medium,
   dynamicResolution: false, // true: lower the internal render size (to 0.7) while frames are over budget
-  settingsRev: 3,
+  settingsRev: 4,
   sharpen: 0.5, // contrast-adaptive sharpening after the painterly pass (0..1)
   filmGrain: 0,
   chromaticAberration: 0,
@@ -88,12 +88,21 @@ class Settings {
    */
   _migrate() {
     const v = this.values;
-    if ((v.settingsRev ?? 0) >= 3) return;
+    if ((v.settingsRev ?? 0) >= 4) return;
+    if ((v.settingsRev ?? 0) === 3) {
+      // rev 4 (random blur + lag): motion blur opt-in only; lighter medium preset
+      v.motionBlur = false;
+      if (v.graphicsPreset === 'medium') Object.assign(v, { particles: 0.6, drawDistance: 100, mirrorResolution: 192 });
+      v.settingsRev = 4;
+      this.save();
+      return;
+    }
     if ((v.settingsRev ?? 0) === 2) {
       // rev 3 (frame cost): medium foliage density 0.85; the first-run benchmark runs again
       if (v.graphicsPreset === 'medium' && (v.foliageDensity ?? 1) > 0.85) v.foliageDensity = 0.85;
       delete v.autoQuality;
-      v.settingsRev = 3;
+      v.motionBlur = false;
+      v.settingsRev = 4;
       this.save();
       return;
     }
@@ -104,7 +113,8 @@ class Settings {
     v.resolutionScale = Math.max(v.resolutionScale ?? 1, GRAPHICS_PRESETS[preset].resolutionScale);
     v.dynamicResolution = false;
     delete v.autoQuality;
-    v.settingsRev = 3;
+    v.motionBlur = false;
+    v.settingsRev = 4;
     this.save();
   }
   get(key) {

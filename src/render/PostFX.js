@@ -234,7 +234,7 @@ class PostFX {
     // AO stays in the code but is OFF unless explicitly enabled (owner: no dark contact halos)
     const ao = settings.get('ambientOcclusion') === true;
     // camera motion blur: on unless the low preset / the player turns it off
-    const mb = (settings.get('motionBlur') ?? preset !== 'low') !== false;
+    const mb = settings.get('motionBlur') === true; // opt-in only (owner: no random blur)
     if (samples !== this._samples || ao !== this._ao || mb !== this._mb) {
       this._samples = samples;
       this._ao = ao;
