@@ -49,7 +49,7 @@ export const PRESETS = {
   grandmaBua: {
     id: 'grandmaBua', sex: 'f', age: 80, height: 1.47, build: 'thin', skinTone: 0.55,
     hair: { style: 'bun', color: 0xb8b4ac }, outfit: { type: 'old-woman-sarong' },
-    accessories: ['basket', 'garland'], face: { seed: 8808, wrinkles: 1, smile: 0.3 },
+    accessories: ['clothBag', 'garland'], face: { seed: 8808, wrinkles: 1, smile: 0.3 },
   },
   somchai: {
     id: 'somchai', sex: 'm', age: 55, height: 1.7, build: 'average', skinTone: 0.6,

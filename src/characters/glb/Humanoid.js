@@ -24,6 +24,7 @@ import { wornAccessoryGeometry, heldGeometry, heldMaterial } from './accessories
 import { AnimController } from './anim.js';
 import { Cigarette } from './cigarette.js';
 import { buildPhone } from './phone.js';
+import { buildClothBag } from './clothbag.js';
 import { sneakerGeometry } from './sneakers.js';
 import { ActionPlayer } from './actions.js';
 import { GhostLayer, GHOST_MOTIONS } from './ghost.js';
@@ -152,8 +153,8 @@ export class HumanoidGLB {
     this.held = {};
     this._initRuntime();
     if (look.ghost) this.setGhostMotion(look.ghost.motion || 'calm', { instant: true });
-    const hand = { basket: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') ? 'R' : 'L' };
-    for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
+    const hand = { basket: 'L', clothBag: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') || look.acc.includes('clothBag') ? 'R' : 'L' };
+    for (const a of look.acc) if (a === 'clothBag' || heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
   }
 
   /** MakeHuman body: blended T-posed bodies + fitted proxies + clothes shells (mhperson.js). */
@@ -293,8 +294,8 @@ export class HumanoidGLB {
       // calm by default: subtle versions of the uncanny motion (encounters escalate with setGhostMotion)
       this.setGhostMotion(gh.motion || 'calm', { instant: true });
     }
-    const hand = { basket: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') ? 'R' : 'L' };
-    for (const a of look.acc) if (heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
+    const hand = { basket: 'L', clothBag: 'L', lunchbox: 'R', umbrella: 'R', cigarette: 'R', garland: look.acc.includes('basket') || look.acc.includes('clothBag') ? 'R' : 'L' };
+    for (const a of look.acc) if (a === 'clothBag' || heldGeometry(a)) this.holdItem(a, hand[a] || 'R');
     // the far LOD is fitted in idle time, so walking past LOD_DISTANCE never hitches a frame
     if (!person.lo) {
       const idle = typeof requestIdleCallback === 'function' ? (f) => requestIdleCallback(f, { timeout: 2000 }) : (f) => setTimeout(f, 200);
@@ -559,6 +560,9 @@ export class HumanoidGLB {
       // a modelled smartphone with a lit, cracked screen (phone.js)
       phone = buildPhone();
       mesh = phone.root;
+    } else if (kind === 'clothBag') {
+      // soft indigo cloth market bag (clothbag.js), photographed CC0 linen
+      mesh = buildClothBag();
     } else {
       const geo = heldGeometry(kind);
       if (!geo) return null;
@@ -576,7 +580,7 @@ export class HumanoidGLB {
     const grip = new THREE.Object3D();
     hand.add(grip);
     grip.add(mesh);
-    const hang = ['basket', 'lunchbox', 'garland', 'coffee', 'keys'].includes(kind);
+    const hang = ['basket', 'clothBag', 'lunchbox', 'garland', 'coffee', 'keys'].includes(kind);
     const sx = side === 'L' ? 1 : -1;
     // grip point in the hand's rest frame: palm centre, slightly under the palm
     const t = this.t;

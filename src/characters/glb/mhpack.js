@@ -49,6 +49,8 @@ function loadTexImg(url, srgb, file, repeat = false) {
     );
   });
 }
+/** a tileable photo from public/assets/characters/fabric (repeat wrapping, cached) */
+export function loadFabricTex(file, srgb = true) { return loadTex(file, srgb, 'assets/characters/fabric/', true); }
 function loadTex(file, srgb = true, dir = 'assets/characters/mh/tex/', repeat = false) {
   const url = assetURL(dir + file);
   if (texCache.has(url)) return texCache.get(url);

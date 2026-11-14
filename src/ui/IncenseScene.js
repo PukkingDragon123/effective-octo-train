@@ -489,7 +489,7 @@ export class IncenseScene {
     }
     // the ledge and its crowd of zebras; the spirit house on its post stands at the back of it
     this.shrine = buildZebraShrine(scene, rng, -0.0752, { avoid: [{ x: 0.0, z: -0.4, r: 0.32 }, { x: 0.05, z: -0.95, r: 0.34 }, { x: 0.12, z: -0.2, r: 0.16 }, { x: -0.1, z: -0.2, r: 0.14 }] });
-    this.ready = this._buildHouse();
+    this.ready = Promise.resolve(); // the spirit house is not built here: it slowed loading and the macro never shows it
     scene.add(haze(-0.12, 0.9, 0.5, 1.3, 0.025), haze(-0.42, 1.6, 0.9, 7.1, 0.03));
 
     // ---- the stick
@@ -880,7 +880,10 @@ export class IncenseScene {
 
   _updateGrab(dt) {
     const g = this.grab;
-    g.time += this._rawDt ?? dt;
+    if (this._rawDt !== undefined) {
+      g.t0 ??= performance.now();
+      g.time = (performance.now() - g.t0) / 1000; // wall clock: never slowed by frame rate
+    } else g.time += dt; // manual stepping (sandbox)
     const T = g.time;
     const u = this.u;
     if (g.noHand) {

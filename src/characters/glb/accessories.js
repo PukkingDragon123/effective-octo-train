@@ -3,6 +3,7 @@
 // draw call, twists with the head). Held items (basket, lunchbox, umbrella, cigarette, hand
 // garland, player props) are small meshes parented to hand bones; hanging ones swing.
 import * as THREE from 'three';
+import { softBagGeometry, ribbonGeometry } from './clothbag.js';
 import { paintedMaterial } from '../../render/index.js';
 import { makeRng } from '../../core/math.js';
 import { headGrid } from './hair.js';
@@ -116,11 +117,14 @@ export function wornAccessoryGeometry(t, look) {
     }
     if (a === 'helmet') {
       dome(hairOff + 0.02, 1.0, 0.05, 0x8a2a22, iHead, 4);
-      for (const s of [1, -1]) mb.add(new THREE.BoxGeometry(0.004, 0.07, 0.012), 0x1a1a1a, iHead, M4(s * 0.07, C.y - 0.05, C.z + 0.01, 0, 0, s * 0.15));
+      // webbing chin straps: flat folded ribbons from the shell rim down under the jaw
+      for (const s of [1, -1]) mb.add(ribbonGeometry([[s * 0.072, C.y - 0.005, C.z + 0.01], [s * 0.07, C.y - 0.05, C.z + 0.015], [s * 0.05, C.y - 0.09, C.z + 0.04], [s * 0.012, C.y - 0.105, C.z + 0.06]], 0.012, 0.0016, { segments: 16, normalHint: new THREE.Vector3(s, 0, 0) }), 0x1a1a1a, iHead);
     }
     if (a === 'headscarf') {
       dome(hairOff + 0.004, 1.02, 0.0, 0x8a5a3a, iHead, 5);
-      mb.add(new THREE.ConeGeometry(0.03, 0.12, 8), 0x7a4a30, iHead, M4(0, C.y - 0.06, C.z - 0.11, -0.3, 0, Math.PI));
+      // the tied knot at the nape and two tapering cloth tails hanging from it
+      mb.add(lathe([[0.0, -0.016], [0.014, -0.012], [0.02, 0.0], [0.015, 0.011], [0.0, 0.015]], 14), 0x7a4a30, iHead, M4(0, C.y - 0.05, C.z - 0.1, 0.3, 0, 0), 0.08, 6);
+      for (const s of [1, -1]) mb.add(ribbonGeometry([[s * 0.006, C.y - 0.055, C.z - 0.108], [s * 0.016, C.y - 0.09, C.z - 0.118], [s * 0.022, C.y - 0.13, C.z - 0.112], [s * 0.026, C.y - 0.165, C.z - 0.104]], 0.03, 0.003, { segments: 14, width: (u) => 0.03 * (1 - 0.55 * u), normalHint: new THREE.Vector3(0, 0, -1) }), 0x7a4a30, iHead, null, 0.08, 7 + s);
     }
     if (a === 'amulet-necklace') {
       // fine chain resting on the neck base and collarbones, framed amulet on the sternum
@@ -142,29 +146,30 @@ export function wornAccessoryGeometry(t, look) {
       }
     }
     if (a === 'shoulder-bag') {
-      // ย่าม: woven cloth bag at the right hip, strap over the left shoulder
+      // ย่าม: a soft woven cloth bag at the right hip (sagging body, piped seams, rolled hem), its flat
+      // folded strap across the chest to the left shoulder and down the back
       const pl = t.Gp[iPelvis];
-      const bag = new THREE.BoxGeometry(0.26, 0.3, 0.05, 2, 2, 1);
-      const p = bag.attributes.position;
-      for (let i = 0; i < p.count; i++) p.setZ(i, p.getZ(i) * (1 - Math.abs(p.getY(i)) * 1.5));
-      bag.computeVertexNormals();
       const col = look.outfit.robe ? 0xa8521a : 0x6a4a2a;
-      mb.add(bag, col, iPelvis, M4(-0.2, pl.y - 0.02, pl.z + 0.02, 0, -Math.PI / 2 + 0.25, 0.05), 0.1, 9);
-      // strap: polyline from the right hip over the chest to the left shoulder and down the back
+      const bag = softBagGeometry({ w: 0.125, d: 0.035, h: 0.27, top: 0.135, sag: 0.025, pinch: 0.012, seed: 9, anchors: [-0.11, 0.11] });
+      const bm = M4(-0.2, pl.y - 0.02, pl.z + 0.02, 0, -Math.PI / 2 + 0.25, 0.05);
+      mb.add(bag.geo, col, iPelvis, bm, 0.08, 9, (c) => (Math.floor(c.y * 70) % 5 === 0 ? 0x7a5634 : col));
+      for (const sd of bag.side) mb.add(tube(sd.map((v) => v.toArray()), 0.0028, 24, 5), 0x5a3c22, iPelvis, bm, 0.05, 10);
+      mb.add(tube(bag.rim.map((v) => v.toArray()), 0.004, 64, 5, true), 0x5e4026, iPelvis, bm, 0.05, 12);
+      // strap: one swept folded ribbon, each stretch skinned to the bone it lies on
       const sh = t.Gp[t.index.clavicle_l];
       const pts = [
-        [-0.19, pl.y + 0.13, pl.z + 0.06, iSpine], [-0.08, pl.y + 0.35, pl.z + 0.12, iChest], [0.06, sh.y - 0.08, sh.z + 0.08, iChest],
+        [-0.19, pl.y + 0.12, pl.z + 0.05, iSpine], [-0.08, pl.y + 0.35, pl.z + 0.12, iChest], [0.06, sh.y - 0.08, sh.z + 0.08, iChest],
         [0.12, sh.y + 0.03, sh.z - 0.02, iChest], [0.06, sh.y - 0.1, sh.z - 0.13, iChest], [-0.12, pl.y + 0.2, pl.z - 0.12, iSpine], [-0.2, pl.y + 0.12, pl.z - 0.02, iSpine],
       ];
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a0 = new THREE.Vector3(...pts[i].slice(0, 3)), a1 = new THREE.Vector3(...pts[i + 1].slice(0, 3));
-        const len = a0.distanceTo(a1);
-        const seg = new THREE.BoxGeometry(0.035, len, 0.004);
-        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), a1.clone().sub(a0).normalize());
-        seg.applyQuaternion(q);
-        const mid = a0.clone().add(a1).multiplyScalar(0.5);
-        seg.translate(mid.x, mid.y, mid.z);
-        mb.add(seg, col, pts[i][3], null, 0.05, 11 + i);
+      const curve = new THREE.CatmullRomCurve3(pts.map((q) => new THREE.Vector3(q[0], q[1], q[2])));
+      const out = (u) => { const p = curve.getPointAt(u); return new THREE.Vector3(p.x * 0.3, 0, p.z - (u < 0.5 ? pl.z - 0.05 : pl.z + 0.05)).normalize(); };
+      // split by bone so the strap follows the chest and the hips
+      const cuts = [0, 0.16, 0.8, 1];
+      const bones = [iSpine, iChest, iSpine];
+      for (let k = 0; k < 3; k++) {
+        const sub = [];
+        for (let i = 0; i <= 16; i++) sub.push(curve.getPointAt(cuts[k] + (cuts[k + 1] - cuts[k]) * (i / 16)));
+        mb.add(ribbonGeometry(sub, 0.034, 0.004, { segments: 24, normalHint: (u) => out(cuts[k] + (cuts[k + 1] - cuts[k]) * u) }), col, bones[k], null, 0.05, 11 + k);
       }
     }
   }

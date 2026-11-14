@@ -90,6 +90,8 @@ export function normalizeSpec(spec = {}) {
     cheek: spec.face?.cheek ?? 1,
   };
   const acc = (spec.accessories || []).slice();
+  // Grandma Bua carries a soft indigo cloth market bag (clothbag.js), not the bamboo basket
+  if (spec.id === 'bua' || spec.id === 'grandmaBua') { const i = acc.indexOf('basket'); if (i >= 0) acc[i] = 'clothBag'; }
   // a top too close to the skin tone reads as bare skin (Sri's terracotta blouse): deepen it and turn its
   // hue toward a rose-plum so the garment always separates from the body
   const skinCol = hex(spec.skinColor, skinHex(spec.skinTone ?? 0.5));

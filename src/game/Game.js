@@ -162,12 +162,20 @@ export async function startGame(ctx) {
         /* audio optional */
       }
     };
-    await waitForStartSafe((n) => {
-      if (n === 'start') play('ching', { volume: 0.55 });
-      else if (n === 'reach') play('breath', { volume: 0.5 });
-      else if (n === 'grab') play('sting_low', { volume: 0.7 });
-      else if (n === 'pull') play('paper_rustle', { volume: 0.35, rate: 0.7 });
-    });
+    // the world must not render (and compile shaders) behind the loading screen while the hand
+    // plays: that stalled the main thread and the pull never showed. It resumes right after.
+    const wasRunning = !!engine.running;
+    if (wasRunning) engine.stop();
+    try {
+      await waitForStartSafe((n) => {
+        if (n === 'start') play('ching', { volume: 0.55 });
+        else if (n === 'reach') play('breath', { volume: 0.5 });
+        else if (n === 'grab') play('sting_low', { volume: 0.7 });
+        else if (n === 'pull') play('paper_rustle', { volume: 0.35, rate: 0.7 });
+      });
+    } finally {
+      if (wasRunning) engine.start();
+    }
   }
   hideLoadingSafe();
   g.ready = true;
