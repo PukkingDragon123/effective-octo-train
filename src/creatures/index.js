@@ -18,6 +18,8 @@
 //   createWindowGhost({spec}) perform(kind, opts): upsideDownHead fingersDoorFrame faceAgainstGlass roofCrawler
 //                        runBeside treeWatch standInRoad knockWindow; armThroughWindow(taxi, pane); stop()
 //   createFaceRat()      หนูผีหน้าคน: hideAt(taxi, 'footwell'|'headrest'), leapAt({hold, exit}), vanish()
+//   createPret()         เปรต (5 m hungry ghost): standAt(pos, face), lowerHead(target, {duration, dist}), raiseHead(),
+//                        whistle(), openMouth(k), setGhostMotion(name), lookAt(t), setOpacity(a), vanish(), headPosition
 //   createEgretFlock(n)  dawn egrets: takeOff(origin, dir)
 //   createAnimal('elephant'|'elephantCalf'|'dog', {tint, scale, groundFn})
 //                        walkTo(pos,{speed,gait}), followPath(points,{speed}), follow(leader, offset), chase(obj,
@@ -35,6 +37,7 @@ import { PhiTaiHong } from './PhiTaiHong.js';
 import { WindowGhost } from './WindowGhost.js';
 import { createAnimal, Quadruped, DOG_COATS, animalGeometry } from './Animals.js';
 import { createFaceRat, FaceRat, faceRatGeometry } from './FaceRat.js';
+import { Pret, pretGeometry, PRET_MOTIONS } from './Pret.js';
 import { createEgretFlock, EgretFlock, egretGeometry } from './Birds.js';
 import { HandRig, handGeometry } from './hand.js';
 import { organGeometries } from './Krasue.js';
@@ -75,6 +78,10 @@ export function createGiantHand(opts = {}) {
 export function createPhiTaiHong(opts = {}) {
   return new PhiTaiHong(opts);
 }
+/** เปรต — the five-metre hungry ghost with the pinhole mouth, among the roadside trees. */
+export function createPret(opts = {}) {
+  return new Pret(opts);
+}
 /** Generic window-scare puppet: a ghost humanoid driven by scripted procedural behaviours
  *  (upside-down head at windshield, fingers on the door frame, face pressed to glass, roof crawler). */
 export function createWindowGhost(opts = {}) {
@@ -86,15 +93,15 @@ export function createWindowGhost(opts = {}) {
  * hand / face rat / egret / krasue never hitches a frame. Every SDF build and texture runs in ~4 ms
  * slices between rendered frames (sculpt.js prebuildSculpts, skin.js detailTextureAsync); only the
  * cheap entity assembly (materials, rigs) runs whole, once per kind, to warm the rest.
- * kinds: subset of ['hand','dog','rat','elephant','elephantCalf','egret','krasue'].
+ * kinds: subset of ['hand','dog','rat','elephant','elephantCalf','egret','krasue','pret'].
  */
 export async function prewarmCreatures(kinds = ['hand', 'dog', 'rat', 'elephant', 'elephantCalf', 'egret', 'krasue']) {
   const geo = {
     hand: () => handGeometry({ fingerScale: 1.32, bony: 0.8, nails: 0.17, forearm: 2.6, thickness: 0.88, cell: 0.026 }),
     dog: () => animalGeometry('dog'), elephant: () => animalGeometry('elephant'), elephantCalf: () => animalGeometry('elephantCalf'),
-    rat: () => faceRatGeometry(), egret: () => egretGeometry(), krasue: () => organGeometries(),
+    rat: () => faceRatGeometry(), egret: () => egretGeometry(), krasue: () => organGeometries(), pret: () => pretGeometry(),
   };
-  const detail = { hand: ['ghostSkin'], dog: ['fur'], elephant: ['hide'], elephantCalf: ['hide'], rat: ['fur', 'ghostSkin'], krasue: ['organ'] };
+  const detail = { hand: ['ghostSkin'], dog: ['fur'], elephant: ['hide'], elephantCalf: ['hide'], rat: ['fur', 'ghostSkin'], krasue: ['organ'], pret: ['hide'] };
   for (const k of kinds) {
     try {
       for (const d of detail[k] || []) await detailTextureAsync(d);
@@ -115,4 +122,6 @@ export { paneFrame, panePoint, toBody, dirToBody, bodyOf, humanoidFacing };
 export { DynamicTube, Rope, tubeGeometry } from './util.js';
 export { createCoffin, createKrathong, createFloodWater } from './Ritual.js';
 export { breakPane, isPaneBroken, repairAllPanes, PaneBreak } from './Shatter.js';
-export { YaiSpeed, Krasue, Krahang, NangTani, WireCrawler, ForestGiant, GiantHand, PhiTaiHong, WindowGhost };
+export { YaiSpeed, Krasue, Krahang, NangTani, WireCrawler, ForestGiant, GiantHand, PhiTaiHong, WindowGhost, Pret, pretGeometry, PRET_MOTIONS };
+export { prebuildSculpts } from './sculpt.js';
+export { whistleBuffer, shriekBuffer, crunchBuffer, playVoice } from './voices.js';

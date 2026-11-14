@@ -1,6 +1,8 @@
 // Jumpscares that land: they wait for a lull (no talk for a moment), then a sudden sting, a fast
-// camera jolt and FOV punch, a white flash, and a pale face right in front of the eyes for a third of
-// a second. Most then demand a hard QTE (a tight press window or a fast mash); fail = death.
+// camera jolt and FOV punch, a white flash, and a pale face right in front of the eyes (held there
+// every frame, hands on Ton's head: encounters/scare.js grab). Most then demand a hard QTE (a tight
+// press window or a fast mash) while it holds him; fail = it screams into his face, then eats him
+// (early game: it screams and lets go).
 //   jumpscare({ qte, death, lull, maxWait }) -> Promise<bool survived>
 // The ambient 'scare' encounters (data/encounters.js kind 'scare') are wired here: on their reveal.
 import * as THREE from 'three';
@@ -8,6 +10,9 @@ import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
 import { getGhost, prewarmGhost } from './Ghost.js';
 import { protectedPhase } from './Fairness.js';
+import { grab, scream, eat, release, earlyGame } from '../encounters/scare.js';
+import { shriekBuffer, playVoice } from '../../creatures/voices.js';
+import { DEATHS } from '../encounters/deaths.js';
 
 const DEATH_FOR = { treeWatcher: 'roadFigure', womanRunning: 'windowAttack', salaShadows: 'dragBack', fingersDoorFrame: 'windowArm', upsideDownHead: 'roofHanger', faceAgainstGlass: 'windowAttack', twistedNeckReflection: 'trueForm', roofCrawler: 'roofHanger', reflectionStays: 'trueForm' };
 const play = (id, o = {}) => {
@@ -21,22 +26,26 @@ let quiet = 0;
 let last = -1e9;
 let busy = false;
 
-/** The face, close: 0.42 m in front of the eyes, staring, then gone. */
-function face(seconds = 0.38) {
+/**
+ * The face, close: held in front of the eyes EVERY frame (it rides the cab with the camera; the old
+ * one-shot world placement was left behind by a moving taxi before the first frame rendered), on the
+ * camera's layer, opaque, its hands on Ton's head. Returns the grab controller (stop() hides it).
+ */
+function face(seconds = 0.38, keep = false) {
   const h = getGhost();
-  if (!h) return;
-  const cam = g.engine.camera;
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion).setY(0).normalize();
-  const at = cam.position.clone().addScaledVector(fwd, 0.42);
-  h.root.position.set(at.x, at.y - 1.5, at.z);
-  h.root.rotation.set(0, Math.atan2(fwd.x, fwd.z), 0); // humanoids face −Z: this turns her to the eyes
+  if (!h) return null;
+  h._scareN = (h._scareN || 0) + 1;
+  const n = h._scareN;
   h.setGhost?.({ stare: 1, mouthStretch: 1, jitter: 0.9, noBlink: 1, unlimited: 1 }, 30);
-  h.lookAt?.(cam, { weight: 1, speed: 20 });
-  h.root.visible = true;
-  h._scareUntil = g.engine.time + seconds;
-  setTimeout(() => {
-    if (h._scareUntil <= g.engine.time + 0.01) h.root.visible = false;
-  }, seconds * 1000);
+  h.setGhostMotion?.('nightmare', { instant: true });
+  const c = grab(h, { from: 0.75, dist: 0.36, lunge: 0.08, hands: true, pull: 0.8 });
+  const hide = () => {
+    c.stop();
+    if (h._scareN === n) h.root.visible = false;
+  };
+  c.hide = hide;
+  if (!keep) setTimeout(hide, seconds * 1000);
+  return c;
 }
 
 export async function jumpscare(o = {}) {
@@ -54,7 +63,7 @@ export async function jumpscare(o = {}) {
     last = g.engine.time;
     play('sting_reveal', { volume: 1 });
     play('scare_hit', { volume: 1 });
-    play('scream_close', { volume: 0.55, delay: 0.04 });
+    playVoice(shriekBuffer(), { volume: 0.75, delay: 0.03 });
     g.cameraRig?.shake?.(1);
     g.camfx?.flinch?.(1);
     try {
@@ -67,19 +76,43 @@ export async function jumpscare(o = {}) {
     rig.fovOffset = f0 - 15;
     setTimeout(() => (rig.fovOffset = f0 - 6), 180);
     setTimeout(() => (rig.fovOffset = f0), 520);
-    face(0.38);
-    if (!o.qte || protectedPhase()) return true; // early on, scares are atmosphere only
-    // the hard part: a tight window or a fast mash; miss it and it has you
+    if (!o.qte || protectedPhase()) {
+      face(0.42); // early on, scares are atmosphere only
+      return true;
+    }
+    // it has your head: held through the QTE (a tight window or a fast mash); miss it and it feeds
+    const c = face(0, true);
     const spec = Math.random() < 0.5
       ? { kind: 'mash', action: 'interact', count: 16, time: 2.1, decay: 5.5, dread: 1, slowmo: 0.65 }
       : { kind: 'press', action: 'interact', time: 1.0, open: 0.55, dread: 1, slowmo: 0.5 };
-    const r = await g.qte.run(spec);
-    if (!r?.ok) {
-      g.kill?.(o.death || 'windowAttack', { cause: 'jumpscare', fromQte: true });
-      return false;
+    let r = null;
+    try {
+      r = await g.qte.run(spec);
+    } catch (e) {
+      r = { ok: true };
     }
-    g.camfx?.relief?.();
-    return true;
+    const h = getGhost();
+    if (r?.ok) {
+      await release(h, c);
+      c?.hide?.();
+      g.camfx?.relief?.();
+      return true;
+    }
+    // failed: it screams into your face...
+    await scream(h, 0.9);
+    const death = o.death || 'windowAttack';
+    if (earlyGame(death, 'jumpscare')) {
+      // ...and, this early, lets go (the fairness gate: no deaths from scares in the first nights)
+      await release(h, c);
+      c?.hide?.();
+      return true;
+    }
+    // ...and eats you
+    await eat(h, c);
+    c?.hide?.();
+    // the death card for what took him; its own cinematic is skipped (it already ate him, on black)
+    g.kill?.(DEATHS[death] ? death : 'windowAttack', { cause: 'jumpscare', fromQte: true, eaten: true });
+    return false;
   } catch (e) {
     console.warn('[scare]', e);
     return true;

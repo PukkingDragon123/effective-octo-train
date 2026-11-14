@@ -16,6 +16,7 @@ import {
   createGiantHand, createWindowGhost, createYaiSpeed, CREATURE_SPECS, createCreatureHumanoid, paneFrame, panePoint, toBody, dirToBody, humanoidFacing, bodyOf,
 } from '../../creatures/index.js';
 import * as S from './stage.js';
+import { grab, scream, eat } from './scare.js';
 
 const _v = new THREE.Vector3();
 const gore = () => (settings.get('gore') ?? 'full') !== 'reduced';
@@ -134,6 +135,28 @@ function passengerOr(spec, seat = 'rearLeft', ctx = {}) {
   return { h: hh, own: true };
 }
 
+/**
+ * The end of every face-to-face death: it GRABS him (hands on his temples, the view held and shaken,
+ * pulled into its face), SCREAMS into the lens, then EATS him (the mouth over the camera, crunching,
+ * tearing, blood, a hard cut to black). opts { keepShot (stay in the current cinematic shot), from,
+ * dist, hold (s of the held stare before the scream), hands, restore (put it back where it was: a ride
+ * passenger who lives on) }. Ends black.
+ */
+async function devour(h, opts = {}) {
+  if (!h?.root) return blackout(0.25);
+  if (!opts.keepShot) cameraRig.release(0.1);
+  h.setGore?.({ bleedEyes: 1, bleedMouth: 1, speed: 3 });
+  const c = grab(h, { from: opts.from ?? 0.9, dist: opts.dist ?? 0.32, hands: opts.hands !== false, restore: !!opts.restore });
+  try {
+    S.sfx('breath_neck', { volume: 1, rate: 0.7 });
+    await sleep(opts.hold ?? 0.6);
+    await scream(h, 0.85);
+    await eat(h, c);
+  } finally {
+    c.stop();
+  }
+}
+
 // ---------------------------------------------------------------- deaths
 export const DEATHS = {
   /** Wrong fork with a living passenger: the hand rises out of the left road's fog and crushes the car. */
@@ -227,14 +250,9 @@ export const DEATHS = {
       h.root.position.z = 1.15 - ease(k) * 0.95;
       t?.setCabinOverride?.(k % 0.3 < 0.15 ? 0.7 : 0.05, 1);
     });
-    // it drops its face to yours
-    h.setGhost({ mouthStretch: 1, jitter: 0.9 }, 10);
+    // it drops its face to yours, takes your head, and feeds
     await anim(0.35, (k) => (opts.height = 1.2 - k * 0.3));
-    S.sfx('scream_close', { volume: 1, rate: 1.1 });
-    shake(0.9);
-    splash(0.9);
-    await sleep(gore() ? 0.35 : 0.15);
-    await blackout(0.3);
+    await devour(h, { from: 0.7, hold: 0.45 });
     restore([w]);
   },
 
@@ -267,9 +285,10 @@ export const DEATHS = {
     try {
       t.addGlassMark(pane, 'blood_smear', new THREE.Vector2(0.5, 0.4), { size: 1.6, drag: true });
     } catch (e) { /* optional */ }
-    S.sfx('scream_close', { volume: 0.9, rate: 0.8 });
-    splash(1);
-    await blackout(0.35);
+    // outside, what the arm belongs to: its face to yours
+    w.humanoid.setVisible(true);
+    w.humanoid.setGhostMotion?.('nightmare');
+    await devour(w.humanoid, { keepShot: true, from: 0.6, hold: 0.35 });
     unfreezeTaxi(saved);
     restore([w]);
   },
@@ -314,13 +333,9 @@ export const DEATHS = {
     }
     S.sfx('sting_reveal', { volume: 1 });
     h.play('crawlOverSeat', { target: engine.camera, distance: 0.75 });
-    await sleep(gore() ? 1.6 : 1.1);
-    S.sfx('scream_close', { volume: 1 });
-    shake(0.8);
-    splash(0.9);
-    if (gore()) bloodBurst(h.headPosition, eyeWorld().sub(h.headPosition).normalize(), 0.08);
-    await sleep(0.2);
-    await blackout(0.3);
+    await sleep(gore() ? 1.3 : 1.0);
+    h.stop?.('crawlOverSeat');
+    await devour(h, { from: 0.75, restore: !own });
     unfreezeTaxi(saved);
     if (own) h.dispose();
     else {
@@ -361,8 +376,7 @@ export const DEATHS = {
     const eyeL = toBody(t, eyeWorld(), new THREE.Vector3());
     await anim(0.3, (k) => h.root.position.lerpVectors(p0, eyeL.clone().add(new THREE.Vector3(0, -1.1, -0.3)), ease(k)));
     shake(1);
-    splash(1);
-    await blackout(0.25);
+    await devour(h, { from: 0.5, hold: 0.3 });
     unfreezeTaxi(saved);
     restore(own ? [y] : []);
   },
@@ -382,11 +396,10 @@ export const DEATHS = {
       t.addGlassMark('windshield', 'blood_handprint', new THREE.Vector2(0.4, 0.6), { size: 1.4, drag: true });
     } catch (e) { /* optional */ }
     S.sfx('thump_roof', { volume: 1, rate: 0.6 });
-    S.sfx('scream_close', { volume: 0.9, rate: 0.9 });
     shake(0.8);
-    await sleep(0.5);
-    splash(0.9);
-    await blackout(0.3);
+    await sleep(0.3);
+    // through the glass, upside down, onto your face
+    await devour(w.humanoid, { from: 0.8, hold: 0.4 });
     w.stop();
     void p;
     unfreezeTaxi(saved);
@@ -425,11 +438,10 @@ export const DEATHS = {
     h.stop('pressFaceToGlass');
     const p0 = h.root.position.clone();
     const eyeL = toBody(t, eyeWorld(), new THREE.Vector3());
-    S.sfx('scream_close', { volume: 1, rate: 0.75 });
+    S.sfx('collision_thud', { volume: 1, rate: 0.8 });
     await anim(0.28, (k) => h.root.position.lerpVectors(p0, eyeL.clone().add(new THREE.Vector3(0, -(h.look?.height ?? 1.7) + 0.2, -0.35)), ease(k)));
     shake(1);
-    splash(0.8);
-    await blackout(0.25);
+    await devour(h, { from: 0.45, hold: 0.3 });
     tgt.removeFromParent();
     unfreezeTaxi(saved);
     restore([w]);
@@ -455,11 +467,9 @@ export const DEATHS = {
     h.setGore({ bleedEyes: 1, bleedMouth: 0.8, speed: 2 });
     S.sfx('sting_reveal', { volume: 1 });
     h.play('crawlOverSeat', { target: engine.camera, distance: 0.45 });
-    await sleep(0.8);
-    S.sfx('scream_close', { volume: 1, rate: 1.5 });
-    shake(0.8);
-    splash(0.7);
-    await blackout(0.3);
+    await sleep(0.7);
+    h.stop?.('crawlOverSeat');
+    await devour(h, { from: 0.5, hold: 0.5 });
     unfreezeTaxi(saved);
     restore([h]);
   },
@@ -507,11 +517,8 @@ export const DEATHS = {
     S.sfx('sting_reveal', { volume: 1 });
     h.setGhost({ mouthStretch: 1, jitter: 0.8 }, 8);
     h.setGore({ bleedEyes: 1, bleedMouth: 1, speed: 3 });
-    await sleep(0.5);
-    S.sfx('scream_close', { volume: 1 });
-    shake(0.9);
-    splash(0.8);
-    await blackout(0.25);
+    await sleep(0.3);
+    await devour(h, { from: 0.4, hold: 0.25 });
     unfreezeTaxi(saved);
     restore([h]);
   },
@@ -555,11 +562,8 @@ Object.assign(DEATHS, {
     povShot(() => people[3].headPosition.clone(), { blend: 0.4, fov: 58 });
     S.sfx('monk_chant', { volume: 0.8, rate: 0.7 });
     await sleep(1.1);
-    people[3].setGhost({ mouthStretch: 1, jitter: 0.7 }, 8);
-    S.sfx('scream_close', { volume: 0.9, rate: 0.7 });
-    shake(0.7);
-    splash(0.6);
-    await blackout(0.35);
+    // the nearest mourner comes through the glass for your face
+    await devour(people[3], { from: 1.2, hold: 0.5 });
     unfreezeTaxi(saved);
     restore(people);
   },
@@ -612,6 +616,12 @@ export async function playDeath(type, ctx = {}) {
   }
 }
 
+async function eatenHold() {
+  postfx.params.fade = 1;
+  await sleep(0.8);
+  restore([]);
+}
+
 let _registered = false;
 /** Register every creature death with B's death module (src/game/death/index.js) when it exists. */
 export function registerCreatureDeaths() {
@@ -624,7 +634,8 @@ export function registerCreatureDeaths() {
     if (typeof r !== 'function') return;
     for (const [type, fn] of Object.entries(DEATHS)) {
       try {
-        r(type, fn);
+        // eaten already (a jumpscare's failed QTE ends on black): hold the black, no second cinematic
+        r(type, (ctx) => (ctx?.opts?.eaten ? eatenHold() : fn(ctx)));
       } catch (e) {
         console.warn('[deaths] registerDeath failed', type, e);
       }

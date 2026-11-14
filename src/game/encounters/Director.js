@@ -116,6 +116,8 @@ export class EncounterDirector {
         for (const enc of this.running.values()) if (enc.def.ruleId === e.ruleId && !enc._violated) enc._violated = true;
       }),
     );
+    // the first night always gets its window smash, in ride 2 or 3 (see _guaranteeSmash)
+    this._offs.push(bus.on('ride:boarded', (e) => this._guaranteeSmash(e?.index)));
     registerCreatureDeaths();
     stalker.install();
     // sculpt the animals / hand / face rat in idle time, well after boot
@@ -200,9 +202,50 @@ export class EncounterDirector {
       console.warn('[director] repair panes', e);
     }
     stalker.reset();
+    this._smash = null;
     this.lastEnd.clear();
     this.onceNight.clear();
     this._lastScareEnd = -1e9;
+  }
+
+  /**
+   * The first night (no death yet) is promised one window smash, in ride 2 (womanWhite) or ride 3
+   * (piak): one of the two is drawn when the night starts; if that ride passes without it (no clear
+   * moment), the next one takes it. It waits for a moment it can own: seated, moving, no other scare,
+   * no QTE, nobody talking (or, past its patience, talking or not), then it starts the encounter.
+   */
+  _guaranteeSmash(index) {
+    if (index !== 1 && index !== 2) return;
+    if ((g.save?.loops || 0) > 0) return;
+    const s = (this._smash ||= { done: false, ride: Math.random() < 0.5 ? 1 : 2 });
+    if (s.done || this.lastEnd.has('windowSmash') || this.running.has('windowSmash')) {
+      s.done = true;
+      return;
+    }
+    if (index < s.ride) return;
+    const ride = g.ride;
+    const t0 = engine.time;
+    const delay = 35 + Math.random() * 40; // well into the ride, after the first talk
+    let next = t0 + delay;
+    const off = engine.onUpdate(() => {
+      if (s.done || g.ride !== ride || !ride || ride.phase === 'done') return off();
+      const now = engine.time;
+      if (now < next) return;
+      next = now + 1;
+      if (!this.enabled || g.isDying?.() || g.qte?.active || g.engine?.paused) return;
+      if (!g.fsm?.is?.('shift') || ride.phase !== 'riding' || !S.cameraInside() || S.speedKmh() < 15) return;
+      if ([...this.running.values()].some((e) => SCARY.has(e.def.kind))) return;
+      if (now - this._lastScareEnd < 12) return;
+      const patient = now - t0 < delay + 60;
+      if (patient && g.dialogue?.busy) return;
+      const mod = RUNNERS.windowSmash;
+      if (mod?.canStart && !mod.canStart({ def: this.defs.windowSmash })) return;
+      s.done = true;
+      off();
+      this.onceNight.add('windowSmash');
+      this.start('windowSmash', { scheduled: true, ride, passenger: ride.passenger, guaranteed: true });
+    }, 1);
+    this._offs.push(off);
   }
 
   /** Local death cinematics (sandbox / fallback when B's death module is missing). */
