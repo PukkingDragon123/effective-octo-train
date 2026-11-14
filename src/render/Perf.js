@@ -201,10 +201,22 @@ export class AutoQuality {
       this._start(); // re-measure at the new preset
       return;
     }
-    this.result = { preset, median, p75 };
+    // fast machine: one step up (never above high), so the benchmark picks the preset both ways
+    if (!slow && median < 11 && p75 < 14 && idx < PRESET_ORDER.indexOf('high') && this._steps === 0) {
+      this._steps++;
+      const next = PRESET_ORDER[idx + 1];
+      console.info(`[render] auto quality: ${preset} median ${median.toFixed(1)} ms -> ${next}`);
+      settings.set('graphicsPreset', next);
+      this._up = true;
+      this._start();
+      return;
+    }
+    // stepped up but now slow: back down and stop
+    if (this._up && slow && idx > 0) settings.set('graphicsPreset', PRESET_ORDER[idx - 1]);
+    this.result = { preset: settings.get('graphicsPreset'), median, p75 };
     this.state = 'done';
     this.dyn.hold = false;
-    settings.set('autoQuality', 'done:' + preset);
+    settings.set('autoQuality', 'done:' + settings.get('graphicsPreset'));
     this._off?.();
   }
 }

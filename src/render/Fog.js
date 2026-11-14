@@ -7,7 +7,7 @@
 // The extra uniforms are injected into every material at compile time through a
 // Material.prototype `onBeforeCompile` accessor (wrapping any user onBeforeCompile).
 import * as THREE from 'three';
-import { DLB_COMMON, DLB_GLOBALS_PARS, DLB_FOG_COMMON, DLB_HEADLIGHT_FN } from './glsl.js';
+import { DLB_COMMON, DLB_GLOBALS_PARS, DLB_FOG_COMMON, DLB_HEADLIGHT_FN, DLB_GLASS_BLOOD } from './glsl.js';
 import { injectGlobals } from './uniforms.js';
 import { captureCaps, crispMaterialTextures } from './caps.js';
 import { installLightingPatches } from './ShaderPatches.js';
@@ -24,6 +24,7 @@ export function installFogChunks() {
   SC.dlb_globals = DLB_GLOBALS_PARS;
   SC.dlb_fog_common = DLB_FOG_COMMON;
   SC.dlb_headlight = DLB_HEADLIGHT_FN;
+  SC.dlb_glass_blood = DLB_GLASS_BLOOD;
 
   SC.fog_pars_vertex = /* glsl */ `
 #ifdef USE_FOG

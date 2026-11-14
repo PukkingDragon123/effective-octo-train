@@ -22,6 +22,22 @@ const _n = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const DOWN = new THREE.Vector3(0, -1, 0);
 const MAX_POOLS = 24;
+// liquid look over the photo decal: alpha = thickness; thin = translucent red, thick = near-black
+// crimson, a darker meniscus rim, photo detail at a third; dries to a matte brown (uBloodDry)
+const LIQUID_MAP = /* glsl */ `
+#ifdef USE_MAP
+  vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+  dlbBTh = sampledDiffuseColor.a;
+  float bThick = smoothstep(0.2, 0.85, dlbBTh);
+  vec3 bc = mix(vec3(0.42, 0.02, 0.03), vec3(0.035, 0.0, 0.004), bThick);
+  bc *= mix(vec3(1.0), clamp(sampledDiffuseColor.rgb * 2.6, 0.0, 1.5), 0.33);
+  float bRim = smoothstep(0.04, 0.2, dlbBTh) * (1.0 - smoothstep(0.2, 0.45, dlbBTh));
+  bc *= 1.0 - 0.5 * bRim;
+  bc = mix(bc, vec3(0.06, 0.025, 0.015), uBloodDry * 0.85);
+  diffuseColor.rgb *= bc;
+  diffuseColor.a *= smoothstep(0.02, 0.25, dlbBTh) * mix(0.6, 1.0, bThick);
+#endif
+`;
 
 function decalMesh(kind, variant, w, h, topAnchored) {
   // own texture (own uv transform for the reveal) over the already-loaded photo
@@ -31,10 +47,20 @@ function decalMesh(kind, variant, w, h, topAnchored) {
   if (img) tex.needsUpdate = true;
   const geo = new THREE.PlaneGeometry(w, h);
   if (topAnchored) geo.translate(0, -h / 2, 0);
+  const uDry = { value: 0 };
   const mat = paintedMaterial({
-    map: tex, color: 0xffffff, roughness: 0.12, metalness: 0, transparent: true, alphaTest: 0.02, depthWrite: false,
-    brush: 0, puddles: 0, envReflect: 0.7, name: 'blood_' + kind,
+    map: tex, color: 0xffffff, roughness: 0.06, metalness: 0, transparent: true, alphaTest: 0.02, depthWrite: false,
+    brush: 0, puddles: 0, envReflect: 0.9, name: 'blood_' + kind,
+    _key: 'bloodLiquid',
+    _patch: (shader) => {
+      shader.uniforms.uBloodDry = uDry;
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float uBloodDry;\nfloat dlbBTh = 0.0;')
+        .replace('#include <map_fragment>', LIQUID_MAP)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(0.05, 0.75, uBloodDry) + (1.0 - smoothstep(0.1, 0.5, dlbBTh)) * 0.08;');
+    },
   });
+  mat.userData.dry = uDry;
   mat.polygonOffset = true;
   mat.polygonOffsetFactor = -3;
   mat.polygonOffsetUnits = -3;
@@ -198,6 +224,16 @@ class BloodFX {
   }
 
   update(dt) {
+    // everything left on surfaces dries slowly (about two minutes) to a matte brown
+    this._dryT = (this._dryT || 0) + dt;
+    if (this._dryT > 0.5) {
+      const step = this._dryT;
+      this._dryT = 0;
+      this.group.traverse((o) => {
+        const u = o.material?.userData?.dry;
+        if (u && u.value < 1) u.value = Math.min(1, u.value + step / 120);
+      });
+    }
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       if (it.kind === 'pool') {

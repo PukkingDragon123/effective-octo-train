@@ -222,8 +222,8 @@ void main() {
   float j = dlbIGN(gl_FragCoord.xy) - 0.5;
   vec3 acc = c0.rgb;
   float ws = 1.0;
-  for (int i = 0; i < 12; i++) {
-    vec2 suv = vUv + vel * ((float(i) + 0.5 + j) / 12.0 - 0.5);
+  for (int i = 0; i < 6; i++) {
+    vec2 suv = vUv + vel * ((float(i) + 0.5 + j) / 6.0 - 0.5);
     float w = nearK(texture2D(tDepth, suv).x);
     acc += texture2D(tColor, suv).rgb * w;
     ws += w;

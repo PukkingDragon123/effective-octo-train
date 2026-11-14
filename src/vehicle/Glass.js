@@ -19,6 +19,36 @@ import { setupPortalCamera } from './Mirrors.js';
 import { FONTS } from '../ui/fonts.js';
 import { DIM, belt } from './TaxiBody.js';
 import { paintGlassBlood, smearGlassBlood, handPath } from './Blood.js';
+
+/** Fade blood and marks (handprints, mud) inside a swept wiper sector by `k` (0..1). */
+function cleanSector(pane, pivot, phi0, phi1, r0, r1, asp, k) {
+  for (const layer of [pane.blood, pane.marks]) {
+    if (!layer?.g) continue;
+    const g = layer.g, W = layer.canvas.width, H = layer.canvas.height;
+    const toC = (phi, r) => [(pivot[0] - r * Math.cos(phi)) * W, (1 - (pivot[1] + r * Math.sin(phi) * asp)) * H];
+    g.save();
+    g.beginPath();
+    for (let n = 0; n <= 10; n++) {
+      const [x, y] = toC(phi0 + ((phi1 - phi0) * n) / 10, r0);
+      if (n === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    for (let n = 10; n >= 0; n--) {
+      const [x, y] = toC(phi0 + ((phi1 - phi0) * n) / 10, r1);
+      g.lineTo(x, y);
+    }
+    g.closePath();
+    if (layer === pane.blood) {
+      g.globalCompositeOperation = 'destination-out';
+      g.fillStyle = `rgba(0,0,0,${k})`;
+    } else {
+      g.fillStyle = `rgba(0,0,0,${k})`; // the marks mask: black = clean
+    }
+    g.fill();
+    g.restore();
+    layer.tex.needsUpdate = true;
+  }
+}
 import { makeRng } from '../core/math.js';
 
 const _plane = new THREE.Plane();
@@ -713,7 +743,12 @@ export class GlassSystem {
             if (r < w.r0 || r > w.r1) continue;
             const phi = Math.atan2(dv, -du);
             if (phi >= a0 && phi <= a1) {
-              R[y * W + x] = 0;
+              const j = y * W + x;
+              R[j] = 0;
+              // condensation goes with the blade (washer: all of it), leaving a streak first
+              const f0 = p.fogF[j];
+              p.fogF[j] = Math.max(0, f0 - (this.washing > 0 ? 0.9 : 0.45));
+              if (f0 > 0.05) p.smearF[j] = Math.max(p.smearF[j], 0.35 * f0);
               // wipers also push water outward: smear trace
             }
           }
@@ -721,10 +756,23 @@ export class GlassSystem {
         p.dirty = true;
         // blood is dragged, not cleaned
         if (p.blood) smearGlassBlood(p, w.pivot, a0, a1, w.r0, w.r1, asp, w.angle - w.prev);
+        // ...then, pass by pass, it thins out: a little dry, much more with washer fluid
+        cleanSector(p, w.pivot, a0, a1, w.r0, w.r1, asp, this.washing > 0 ? 0.42 : 0.12);
+        p._smearAny = true;
       }
       w.prev = w.angle;
     }
   }
+  /** Washer fluid on the windshield for `seconds` (the next wiper passes clean much better). */
+  wash(seconds = 2.5) {
+    const p = this.panes.windshield;
+    if (!p) return;
+    this.washing = Math.max(this.washing || 0, seconds);
+    // the fluid wets everything: condensation dissolves, smears go streaky
+    for (let i = 0; i < p.fogF.length; i++) p.fogF[i] *= 0.6;
+    p.dirty = true;
+  }
+
   /** Car-local flows: speed (m/s, +forward). */
   setFlow(speed) {
     const s = Math.max(0, speed);
@@ -745,6 +793,7 @@ export class GlassSystem {
     }
   }
   update(dt) {
+    if (this.washing > 0) this.washing -= dt;
     const has = !!postfx.glassUniforms.tSceneColor.value;
     if (this._layerMode !== has) {
       this._layerMode = has;

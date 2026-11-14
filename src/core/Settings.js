@@ -18,7 +18,7 @@ export const GRAPHICS_PRESETS = {
   },
   medium: {
     resolutionScale: 1.0, painterly: 0, painterlyQuality: 'medium', bloom: 0.7, shadows: true, ambientOcclusion: false, motionBlur: true,
-    shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 1.0,
+    shadowMapSize: 1024, mirrorResolution: 256, glassReflections: true, foliageDensity: 0.85,
     particles: 0.75, drawDistance: 120, volumetrics: true,
   },
   high: {
@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS = {
   graphicsPreset: 'medium',
   ...GRAPHICS_PRESETS.medium,
   dynamicResolution: false, // true: lower the internal render size (to 0.7) while frames are over budget
-  settingsRev: 2,
+  settingsRev: 3,
   sharpen: 0.5, // contrast-adaptive sharpening after the painterly pass (0..1)
   filmGrain: 0,
   chromaticAberration: 0,
@@ -88,7 +88,15 @@ class Settings {
    */
   _migrate() {
     const v = this.values;
-    if ((v.settingsRev ?? 0) >= 2) return;
+    if ((v.settingsRev ?? 0) >= 3) return;
+    if ((v.settingsRev ?? 0) === 2) {
+      // rev 3 (frame cost): medium foliage density 0.85; the first-run benchmark runs again
+      if (v.graphicsPreset === 'medium' && (v.foliageDensity ?? 1) > 0.85) v.foliageDensity = 0.85;
+      delete v.autoQuality;
+      v.settingsRev = 3;
+      this.save();
+      return;
+    }
     let preset = GRAPHICS_PRESETS[v.graphicsPreset] ? v.graphicsPreset : 'medium';
     const auto = typeof v.autoQuality === 'string' && v.autoQuality.startsWith('done');
     if (auto && preset === 'low') preset = 'medium';
@@ -96,7 +104,7 @@ class Settings {
     v.resolutionScale = Math.max(v.resolutionScale ?? 1, GRAPHICS_PRESETS[preset].resolutionScale);
     v.dynamicResolution = false;
     delete v.autoQuality;
-    v.settingsRev = 2;
+    v.settingsRev = 3;
     this.save();
   }
   get(key) {

@@ -190,6 +190,12 @@ class Input {
       for (const [action, idx] of Object.entries(PAD_BUTTONS)) {
         if (idx.some((i) => this._padButton(p, i))) this.actions.add(action);
       }
+      // pray (wai): LB + RB together (every single pad button is already taken)
+      if (this._padButton(p, 4) && this._padButton(p, 5)) {
+        this.actions.add('pray');
+        this.actions.delete('leanLeft');
+        this.actions.delete('leanRight');
+      }
       if (Math.abs(padSteer) + Math.abs(padLookX) + padThrottle + padBrake > 0.1 || this.actions.size) {
         if (this.actions.size || padThrottle > 0.1) this.lastDevice = 'gamepad';
       }

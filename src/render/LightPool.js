@@ -13,7 +13,7 @@ import { LAYERS } from '../core/layers.js';
 import { settings } from '../core/Settings.js';
 import { createVolumetricBeam } from './Beams.js';
 
-const REAL_BY_PRESET = { low: 2, medium: 3, high: 4, ultra: 6 };
+const REAL_BY_PRESET = { low: 1, medium: 2, high: 3, ultra: 4 }; // capped for frame cost (glows / pools / fog halos stay)
 /** Hard cap on real pooled lights (each one is a BRDF term in every lit pixel's shader). */
 const MAX_REAL = 8;
 const realCount = () => Math.min(MAX_REAL, REAL_BY_PRESET[settings.get('graphicsPreset')] ?? 3);

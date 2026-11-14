@@ -67,7 +67,8 @@ export function protectedPhase() {
 /** Scale a QTE spec: generous windows early, tight late. */
 export function scaleQTE(spec) {
   const d = difficulty();
-  const k = 1.9 - 0.9 * d; // 1.9x the time early, as designed late
+  const calm = (g.prayCalm || 0) > (g.engine?.time || 0) ? 1.35 : 1; // a prayer just said loosens it
+  const k = (1.9 - 0.9 * d) * calm; // 1.9x the time early, as designed late
   const s = { ...spec };
   if (s.time) s.time *= k;
   if (s.count) s.count = Math.max(3, Math.round(s.count * (0.55 + 0.45 * d)));

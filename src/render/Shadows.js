@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 
 /** Meshes smaller than this (world bounding-sphere radius, metres) never cast shadows. */
-export const MIN_CASTER_RADIUS = 0.15;
+export const MIN_CASTER_RADIUS = 0.35; // small props add little to the map but a draw call per shadow pass
 
 const _checked = new WeakSet();
 const _s = new THREE.Vector3();

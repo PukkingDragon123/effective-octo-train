@@ -41,6 +41,11 @@ function face(seconds = 0.38) {
 
 export async function jumpscare(o = {}) {
   if (busy || g.isDying?.() || g.qte?.active) return true;
+  // a prayer just said holds it off a while
+  if ((g.prayCalm || 0) > g.engine.time && !o.force) {
+    await new Promise((r) => setTimeout(r, Math.max(0, (g.prayCalm - g.engine.time) * 1000)));
+    if (g.isDying?.()) return true;
+  }
   busy = true;
   try {
     // the lull: a moment of nothing first (it is the silence that sets it up)

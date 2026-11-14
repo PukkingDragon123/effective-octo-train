@@ -572,6 +572,24 @@ export class TaxiControls {
   }
 
   // ---------------------------------------------------------------------------
+  /** Washer fluid: a spray on the windshield, the wipers sweep a few times. */
+  washer() {
+    const t = this.taxi;
+    const s = t.state;
+    try {
+      audio.play('splash', { object: t.anchors?.hood || t.root, volume: 0.45, rate: 1.6 });
+      t.glass?.wash?.(2.6);
+      if (!s.wipers) {
+        this.set('wipers', 1, { source: 'washer' });
+        clearTimeout(this._washOff);
+        this._washOff = setTimeout(() => this.set('wipers', 0, { source: 'washer' }), 3200);
+      }
+      bus.emit('taxi:washer', {});
+    } catch (e) {
+      console.warn('[taxi] washer', e);
+    }
+  }
+
   // hotkeys
   // ---------------------------------------------------------------------------
   hotkeys(dt) {
@@ -579,6 +597,13 @@ export class TaxiControls {
     if (input.pressed('headlights')) this.set('headlights', 'cycle', o);
     if (input.pressed('cabinLight')) this.set('cabinLight', 'toggle', o);
     if (input.pressed('wipers')) this.set('wipers', 'cycle', o);
+    // hold the wipers key: washer fluid sprays and the blades sweep it (cleans blood, mud, fog)
+    this._washHold = input.down('wipers') ? (this._washHold || 0) + dt : 0;
+    if (this._washHold > 0.5 && !this._washing) {
+      this._washing = true;
+      this.washer();
+    }
+    if (!this._washHold) this._washing = false;
     if (input.pressed('radio')) this.set('radio', 'toggle', o);
     if (input.pressed('radioTune')) this.set('radioTune', 'next', o);
     if (input.pressed('meter')) this.set('meter', 'toggle', o);

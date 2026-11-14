@@ -409,12 +409,12 @@ class PostFX {
     // smoothing (no single-frame spikes) + hysteresis around the dead zone
     this._mbSmooth = (this._mbSmooth || 0) + (Math.min(px, 160) - (this._mbSmooth || 0)) * 0.35;
     const sm = this._mbSmooth;
-    if (!this._mbOn && sm > 10) this._mbOn = true;
-    else if (this._mbOn && sm < 6) this._mbOn = false;
+    if (!this._mbOn && sm > 14) this._mbOn = true;
+    else if (this._mbOn && sm < 9) this._mbOn = false;
     if (!this._mbOn) return 0;
     // shutter: ~1/70 s of exposure (0.85 of a 60 fps frame, ~2.5x the old blur), whatever the frame rate
     const shutter = clamp(0.014 / Math.max(this.clock.ms / 1000, 1e-3), 0, 1);
-    return shutter * THREE.MathUtils.smoothstep(sm, 6, 22);
+    return shutter * THREE.MathUtils.smoothstep(sm, 9, 26);
   }
 
   render(renderer, scene, camera, dt = 1 / 60) {

@@ -3,6 +3,8 @@
 // drive / brake hints wait for a moment outside it.
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
+import { GLOBAL_UNIFORMS } from '../../render/index.js';
+const GLOBAL_RAIN = () => GLOBAL_UNIFORMS?.uRain?.value || 0;
 
 const HINTS = {
   drive: { th: 'เร่งเครื่อง', en: 'Throttle', keys: ['W'] },
@@ -10,6 +12,9 @@ const HINTS = {
   reverse: { th: 'กดค้าง ถอยหลัง', en: 'Hold to reverse', keys: ['S'] },
   talk: { th: 'คุยด้วย', en: 'Talk', keys: ['F'] },
   mirror: { th: 'มองกระจก', en: 'Use the mirror', keys: ['Mouse'] },
+  wipers: { th: 'ที่ปัดน้ำฝน', en: 'Wipers', keys: ['3'] },
+  washer: { th: 'กดค้าง ฉีดน้ำ', en: 'Hold: washer', keys: ['3'] },
+  pray: { th: 'ไหว้ขอพร', en: 'Pray', keys: ['R'] },
 };
 
 /** Show a hint once per save (k.hint.<id>). */
@@ -46,6 +51,12 @@ function tick(dt) {
     stuck = edge && kmh < 2 ? stuck + dt : 0;
     if (stuck > 1.2) firstHint('reverse');
   } else idle = stuck = 0;
+  // a dirty windshield: the wipers, then the washer
+  if (taxi) {
+    const ws = g.taxi.glass?.panes?.windshield;
+    const dirty = (ws?.uniforms?.uBloodOn?.value || 0) > 0 || (GLOBAL_RAIN() > 0.3);
+    if (dirty) firstHint(g.taxi.state.wipers ? 'washer' : 'wipers');
+  }
   const r = g.ride;
   riding = r && r.phase === 'riding' && r.passenger?.aboard ? riding + dt : 0;
   if (riding > 10) firstHint('talk');

@@ -291,3 +291,42 @@ vec3 dlbLampLightAt(vec3 p) {
 }
 #endif
 `;
+
+/**
+ * Liquid blood on glass (#include <dlb_glass_blood>, needs dlb_common). The CC0 photo blood
+ * canvas gives detail and thickness (alpha); this turns it into a liquid:
+ *   thin = translucent red stain over what is behind, thick = near-black crimson, a darker
+ *   meniscus rim, refraction of the scene through the drop (the caller samples `refr` at
+ *   uv + dlbGlassBloodOffset(grad)), sharp wet highlights from the light around, and
+ *   drying (age 0..1) to a matte brown.
+ *   grad = vec2(dFdx(bl.a), dFdy(bl.a)) taken in uniform control flow.
+ */
+export const DLB_GLASS_BLOOD = /* glsl */ `
+#ifndef DLB_GLASS_BLOOD_INCLUDED
+#define DLB_GLASS_BLOOD_INCLUDED
+vec2 dlbGlassBloodOffset(vec2 grad) { return clamp(grad * 0.6, vec2(-0.02), vec2(0.02)); }
+// returns rgb + coverage (a)
+vec4 dlbGlassBlood(vec3 behind, vec3 refr, vec4 bl, vec2 grad, float lit, float fres, float age) {
+  float th = bl.a;
+  if (th < 0.004) return vec4(behind, 0.0);
+  float thick = smoothstep(0.25, 0.9, th);
+  // thin film: the scene seen through it, refracted and stained red
+  vec3 film = refr * vec3(0.42, 0.03, 0.035);
+  // thick: near-black crimson, a touch of the photo detail, faint light transport
+  vec3 body = mix(vec3(0.05, 0.002, 0.006), bl.rgb * 0.6, 0.35) * (0.4 + 0.6 * lit) + refr * vec3(0.06, 0.0, 0.0);
+  vec3 c = mix(film, body, thick);
+  // meniscus: blood piles up at the outline -> darker rim
+  float slope = length(grad);
+  float rim = smoothstep(0.02, 0.12, slope) * (1.0 - thick * 0.5);
+  c *= 1.0 - 0.45 * rim;
+  // drying: browner, duller
+  c = mix(c, vec3(0.055, 0.022, 0.014) * (0.4 + 0.6 * lit), age * 0.85);
+  // sharp wet highlight on the bulging drop (normal from the thickness slope), from the light around
+  vec3 n = normalize(vec3(-grad * 6.0, 1.0));
+  float spec = pow(max(dot(n, normalize(vec3(-0.35, 0.55, 0.76))), 0.0), 90.0);
+  c += vec3(1.0, 0.86, 0.82) * spec * (0.25 + 1.5 * fres) * lit * 0.6 * (1.0 - age) * smoothstep(0.15, 0.6, th);
+  float cov = smoothstep(0.01, 0.2, th);
+  return vec4(mix(behind, c, cov), cov);
+}
+#endif
+`;
