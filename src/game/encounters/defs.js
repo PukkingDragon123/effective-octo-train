@@ -130,6 +130,13 @@ export const LOCAL_DEFS = {
     hours: [22, 27.5], where: ['freeDrive', 'ride:anyGhost'], gazeMode: 'sideWindow', once: true, cooldownSec: 2400, chance: 0.1, durationSec: [12, 18],
     staging: 'Something keeps pace at a side / rear window: a palm print, a knuckle star, fractures racing out, then the tempered pane bursts inward (slow motion, flinch, nuggets over the seats). A long grey arm reaches for your head: QTE react, then fight it off; lose = death windowArm. The window stays broken all night (wind, rain).',
   },
+  pret: {
+    id: 'pret', nameTH: 'เปรต', nameEN: 'The Pret', kind: 'folklore', tiesTo: 'r12',
+    hours: [23, 28.5], where: ['freeDrive', 'ride:anyGhost'], gazeMode: 'roadside', once: true, cooldownSec: 2400, chance: 0.12, durationSec: [30, 45],
+    whispers: [W('หิว...', 'Hungry...'), W('หิว... เหลือเกิน...', 'So... hungry...')],
+    lore: { th: 'เปรตสูงเท่าต้นตาล ปากเท่ารูเข็ม กินอะไรก็ไม่อิ่ม อย่าจอดให้มัน อย่าเงยหน้าสบตามัน', en: 'A pret is as tall as a sugar palm with a mouth like a needle\'s eye; nothing ever fills it. Do not stop for it. Do not look up into its face.' },
+    staging: 'A five-metre starved figure among the roadside trees on the left, a high thin whistling cry through a pinhole mouth; as you come near its head comes down, slowly, in held steps, toward the cab. Keep driving and keep your eyes off its face: it passes, still bowing after you in the mirror. Stop near it, or look up into its face, and it notices: in jumps it is beside the car, the neck stretching down to the passenger window. QTE still: eyes down, hold the amulet. Fail: it takes your head and the pinhole tears wide (death pret; early game it screams and lets go). Ties to r12 (do not stop for what stands by the road).',
+  },
   stalker: {
     id: 'stalker', nameTH: 'มันตามมา', nameEN: 'The Follower', kind: 'scare',
     hours: [21, 28.5], where: ['any'], gazeMode: 'notLooking', cooldownSec: 150, chance: 0.32, durationSec: [20, 40],

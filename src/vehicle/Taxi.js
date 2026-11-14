@@ -204,6 +204,7 @@ export class Taxi {
     this._setupWiperMasks();
     this._enlargeRearMirror();
     this.mirrors = new MirrorSystem({ rear: this.parts.rearviewMount, left: ext.mirrorMounts.left, right: ext.mirrorMounts.right });
+    this.mirrors.taxi = this;
     // the head unit comes on with the engine: the screen lights up, the radio plays its song
     bus.on('taxi:engine', (e) => {
       if (e?.on && !this.state.radioOn) {

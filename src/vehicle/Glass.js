@@ -69,6 +69,8 @@ void main() {
 `;
 
 const GLASS_FRAG = /* glsl */ `
+#include <dlb_common>
+#include <dlb_glass_blood>
 uniform sampler2D tSceneColor;
 uniform sampler2D tSceneBlur;
 uniform sampler2D tMask;
@@ -93,6 +95,7 @@ uniform vec4 uClip;
 uniform float uClipOn;
 uniform sampler2D tBlood;
 uniform float uBloodOn;
+uniform float uBloodAge;
 varying vec2 vUv;
 varying vec2 vM;
 varying vec3 vWP;
@@ -238,21 +241,16 @@ void main() {
   // blood on the glass (over everything: refracts nothing). Thick fresh blood is near-opaque,
   // dark crimson, lit only a little by the cabin; thin films stain what is behind them deep
   // red (multiplicative, so they never turn pink); a wet glint on the thick parts.
-  if (uBloodOn > 0.5) {
-    vec4 bl = texture2D(tBlood, vM);
-    float th = bl.a;
-    if (th > 0.004) {
-      vec3 film = col * vec3(0.32, 0.025, 0.03);
-      float lit = 0.32 + dot(uCabin, vec3(0.28)) + (uHasScene > 0.5 ? dot(texture2D(tSceneBlur, gl_FragCoord.xy / uResolution).rgb, vec3(0.12)) : 0.0);
-      vec3 body = bl.rgb * lit * 1.3;
-      vec3 b = mix(film, body, smoothstep(0.35, 0.9, th));
-      // wet glint: a reflection of the light that is actually there (dark at night, never a
-      // constant pink sheen at grazing angles)
-      b += vec3(0.5, 0.36, 0.33) * fres * smoothstep(0.5, 0.95, th) * 0.1 * lit;
-      float k = smoothstep(0.01, 0.28, th);
-      col = mix(col, b, k);
-      alpha = max(alpha, k);
-    }
+  // (the grad is taken in uniform control flow; the shared liquid-blood chunk does the rest)
+  vec4 bl = texture2D(tBlood, vM);
+  vec2 bgrad = vec2(dFdx(bl.a), dFdy(bl.a));
+  if (uBloodOn > 0.5 && bl.a > 0.004) {
+    vec2 suv = gl_FragCoord.xy / uResolution;
+    vec3 refr = uHasScene > 0.5 ? texture2D(tSceneColor, suv + dlbGlassBloodOffset(bgrad)).rgb : col;
+    float lit = 0.32 + dot(uCabin, vec3(0.28)) + (uHasScene > 0.5 ? dot(texture2D(tSceneBlur, suv).rgb, vec3(0.12)) : 0.0);
+    vec4 b = dlbGlassBlood(col, refr, bl, bgrad, lit, fres, uBloodAge);
+    col = b.rgb;
+    alpha = max(alpha, b.a);
   }
   // a little fog on the glass itself when seen from far away (exterior shots)
   float dcam = length(cameraPosition - vWP);
@@ -362,6 +360,7 @@ class Pane {
       uClipOn: { value: 0 },
       tBlood: { value: BLACK },
       uBloodOn: { value: 0 },
+      uBloodAge: { value: 0 },
     };
     this.blood = null;
     // body-space clip plane at the belt line for the winding door glass (normal up, slight slope)
@@ -471,6 +470,7 @@ class Pane {
     this.uniforms.uBloodOn.value = 0;
   }
   update(dt, fogRate) {
+    if (this.blood && this.uniforms.uBloodOn.value > 0.5) this.uniforms.uBloodAge.value = Math.min(1, this.uniforms.uBloodAge.value + dt / 240);
     // relax condensation toward its target (edges fog first), decay smear
     const W = this.mw, H = this.mh;
     const tgt = this.fogTarget;
@@ -626,6 +626,7 @@ export class GlassSystem {
     if (!p) return;
     if (kind.startsWith('blood_')) {
       paintGlassBlood(p, kind, uv, opts);
+      p.uniforms.uBloodAge.value = 0; // fresh
       return;
     }
     if (kind === 'clear_blood') {

@@ -3,7 +3,8 @@
 // module then shows the card and restarts the loop. Gore-aware (settings.gore 'reduced' = darker,
 // sparser blood, no lingering close-ups).
 //   giantHand  ceilingCrawl  windowArm  trueForm  yaiSpeed  roofHanger  roadFigure  extraPassenger
-//   windowAttack  breath
+//   windowAttack  breath  procession  flood  pret
+// The face-to-face ones end in devour(): it GRABS him, SCREAMS into the lens, EATS him (scare.js).
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { engine } from '../../core/Engine.js';
@@ -14,6 +15,7 @@ import { postfx, sky, particles } from '../../render/index.js';
 import { CHARACTERS } from '../data/characters.js';
 import {
   createGiantHand, createWindowGhost, createYaiSpeed, CREATURE_SPECS, createCreatureHumanoid, paneFrame, panePoint, toBody, dirToBody, humanoidFacing, bodyOf,
+  createPret, pretGeometry, prebuildSculpts, breakPane, isPaneBroken, shriekBuffer, crunchBuffer, playVoice,
 } from '../../creatures/index.js';
 import * as S from './stage.js';
 import { grab, scream, eat } from './scare.js';
@@ -596,6 +598,72 @@ Object.assign(DEATHS, {
     postfx.flash?.(0x020806, 0.4);
     S.sfx('scream_close', { volume: 0.6, rate: 0.6 });
     await blackout(0.6);
+    unfreezeTaxi(saved);
+    restore([]);
+  },
+});
+
+// ---------------------------------------------------------------- the pret
+Object.assign(DEATHS, {
+  /** It noticed you (stopped for it / looked up into its face): its head comes in for yours. */
+  async pret(ctx = {}) {
+    const t = g.taxi;
+    const saved = freezeTaxi();
+    let p = ctx.pret || ctx.opts?.pret || null;
+    if (p?.disposed) p = null;
+    if (p) p._inDeath = true;
+    else {
+      try {
+        await prebuildSculpts(() => pretGeometry());
+      } catch (e) { /* built synchronously below */ }
+      p = createPret();
+      const pos = S.fromTaxi(-3.0, 0, -0.6);
+      pos.y = S.ground(pos.x, pos.z, pos.y);
+      p.standAt(pos, S.taxiPos().sub(pos).setY(0).normalize());
+    }
+    p.maxStretch = 5.5;
+    p.setOpacity(1);
+    p.setGhostMotion('nightmare');
+    // the eye is dragged up to it
+    povShot(() => p.headPosition.clone(), { blend: 0.35, fov: 62 });
+    p.whistle({ volume: 1, ref: 4, rate: 1.1 });
+    await p.lowerHead(() => S.fromTaxi(-1.0, 1.3, -0.1), { duration: 1.6, dist: 0.3 });
+    // through the passenger glass
+    if (t?.glass?.panes?.fl && !isPaneBroken(t, 'fl')) {
+      try {
+        breakPane(t, 'fl').burst({ speed: 2.6 });
+      } catch (e) { /* optional */ }
+    }
+    S.sfx('sting_reveal', { volume: 1 });
+    shake(0.8);
+    const eye = () => eyeWorld();
+    await p.lowerHead(eye, { duration: 1.0, dist: 0.24 });
+    // held there, its face at yours; the pinhole tears wide
+    cameraRig.release(0.1);
+    cameraRig.setFocus(p.headPosition, 1);
+    await sleep(0.45);
+    p.openMouth(1, 2.6);
+    playVoice(shriekBuffer(), { object: p.faceAnchor, volume: 1, ref: 1.5, rate: 0.85 });
+    S.sfx('scream_far', { synth: true, volume: 0.9, rate: 0.6 });
+    shake(1);
+    await sleep(0.8);
+    // over the lens
+    p.lowerHead(eye, { duration: 0.22, dist: 0.03, steps: false });
+    await sleep(0.2);
+    playVoice(crunchBuffer(), { volume: 1 });
+    S.sfx('bone_crack', { volume: 1, rate: 0.7 });
+    S.sfx('neck_snap', { volume: 0.9, rate: 0.8, delay: 0.15 });
+    const e = eyeWorld();
+    try {
+      g.blood?.spray?.(e, new THREE.Vector3(0, 0.3, 1).normalize(), 1);
+      g.blood?.drip?.(e, 1);
+    } catch (err) { /* optional */ }
+    splash(1);
+    await sleep(0.12);
+    postfx.params.fade = 1; // hard cut
+    cameraRig.setFocus(null);
+    await sleep(0.8);
+    p.dispose();
     unfreezeTaxi(saved);
     restore([]);
   },

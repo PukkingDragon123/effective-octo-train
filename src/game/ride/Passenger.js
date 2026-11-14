@@ -88,6 +88,8 @@ export class Passenger {
     // ---- reflection channel -------------------------------------------------------------------
     const refl = this.clues.reflection || 'normal';
     this.reflection = refl;
+    // a reflection that is a clue keeps the rear-view mirror at full rate this ride
+    if (g.taxi?.mirrors) g.taxi.mirrors.rearPriority = ['delayed', 'twisted', 'only', 'none'].includes(refl);
     if (refl === 'none') h.setLayer(LAYERS.MAIN_ONLY);
     else if (refl === 'only') h.setLayer(LAYERS.REFLECTION_ONLY);
     else if (refl === 'twisted' || refl === 'delayed') {

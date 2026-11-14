@@ -117,7 +117,8 @@ class Mirror {
     this.resize();
   }
   resize() {
-    const res = (settings.get('mirrorResolution') || 256) * (this.resScale || 1);
+    const pr = settings.get('graphicsPreset');
+    const res = (settings.get('mirrorResolution') || 256) * (this.resScale || 1) * (pr === 'low' ? 0.5 : pr === 'medium' ? 0.7 : 1);
     const W = Math.max(32, Math.round(res));
     const H = Math.max(16, Math.round(res * (this.h / this.w)));
     if (this.rt && this.rt.width === W && this.rt.height === H) return;
@@ -201,6 +202,8 @@ export class MirrorSystem {
   update(renderer, scene, camera, rig, frame) {
     if (!this.enabled) return;
     const eye = camera.position;
+    // nobody in the cab to see them (outside shots, on foot): no mirror renders at all
+    if (this.taxi && !this.taxi.isCameraInside?.()) return;
     let focus = null, focusAng = Infinity;
     const others = this._others || (this._others = []);
     others.length = 0;
@@ -208,7 +211,7 @@ export class MirrorSystem {
       m.mount.getWorldPosition(_tmp);
       const dist = _tmp.distanceTo(eye);
       if (dist > 12) continue;
-      const onScreen = rig ? rig.isOnScreen(_tmp, -0.25) : true;
+      const onScreen = rig ? rig.isOnScreen(_tmp, m === this.byId.mirror_rear ? -0.25 : 0.02) : true;
       if (!onScreen) continue;
       // facing away (seen from behind): nothing to show
       m.mount.updateWorldMatrix(true, false);
@@ -223,8 +226,11 @@ export class MirrorSystem {
         focusAng = score;
       } else others.push(m);
     }
-    const low = settings.get('graphicsPreset') === 'low';
-    const slot = low ? frame % 2 : -1;
+    // low / medium: one mirror per frame, alternating (the rear one keeps full rate when a rule
+    // needs it, e.g. the lagging reflection: mirrors.rearPriority = true)
+    const preset = settings.get('graphicsPreset');
+    const cheap = preset === 'low' || preset === 'medium';
+    const slot = cheap && !(this.rearPriority && focus === this.rear) ? frame % 2 : -1;
     if (focus && (slot === -1 || slot === 0 || !others.length)) {
       focus.render(renderer, scene, eye, this.hide);
       focus.lastRender = frame;
