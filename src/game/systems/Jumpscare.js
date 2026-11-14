@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
 import { getGhost, prewarmGhost } from './Ghost.js';
+import { protectedPhase } from './Fairness.js';
 
 const DEATH_FOR = { treeWatcher: 'roadFigure', womanRunning: 'windowAttack', salaShadows: 'dragBack', fingersDoorFrame: 'windowArm', upsideDownHead: 'roofHanger', faceAgainstGlass: 'windowAttack', twistedNeckReflection: 'trueForm', roofCrawler: 'roofHanger', reflectionStays: 'trueForm' };
 const play = (id, o = {}) => {
@@ -62,7 +63,7 @@ export async function jumpscare(o = {}) {
     setTimeout(() => (rig.fovOffset = f0 - 6), 180);
     setTimeout(() => (rig.fovOffset = f0), 520);
     face(0.38);
-    if (!o.qte) return true;
+    if (!o.qte || protectedPhase()) return true; // early on, scares are atmosphere only
     // the hard part: a tight window or a fast mash; miss it and it has you
     const spec = Math.random() < 0.5
       ? { kind: 'mash', action: 'interact', count: 16, time: 2.1, decay: 5.5, dread: 1, slowmo: 0.65 }

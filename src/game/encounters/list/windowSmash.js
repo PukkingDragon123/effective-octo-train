@@ -30,6 +30,7 @@ export async function run(E) {
   const w = E.track(createWindowGhost({ spec: CREATURE_SPECS.roofCrawler }));
   w._attach(t);
   const h = w.humanoid;
+  E.debug = { w, h, brk, pane };
   const glass = toBody(t, panePoint(f, 0, 0, 0.02, new THREE.Vector3()), new THREE.Vector3());
   humanoidFacing(N.clone().negate(), up, h.root.quaternion);
   h.root.position.copy(glass).addScaledVector(N, 0.55).addScaledVector(up, -(h.look?.height ?? 1.75) + 0.12);

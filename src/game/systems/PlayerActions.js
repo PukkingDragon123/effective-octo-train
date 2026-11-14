@@ -26,6 +26,7 @@ import { LAYERS } from '../../core/layers.js';
 import { clamp, damp, easeInOut, smoothstep } from '../../core/math.js';
 import { paintedMaterial } from '../../render/index.js';
 import { wait } from '../util.js';
+import { rulesGiven, rulesNew, markRulesSeen } from './Fairness.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -167,6 +168,14 @@ export class PlayerActions {
     const A = this.amulet;
     if (P.up) {
       P.seconds += dt;
+      // read for a while: the new lines are not new any more
+      if (P.seconds > 3 && !P._seenMarked) {
+        P._seenMarked = true;
+        if (rulesNew().length) {
+          markRulesSeen();
+          this.refreshPaper();
+        }
+      }
       P.total += dt;
       if (P.side === 'back') P.backSeconds += dt;
     }
@@ -237,6 +246,7 @@ export class PlayerActions {
     if (!P.up) {
       P.up = true;
       P.seconds = 0;
+      P._seenMarked = false;
       g.audio?.play('paper_unfold', { object: g.player?.root, volume: 0.7 });
       bus.emit('player:paper', { up: true, side: P.side });
     }
@@ -310,7 +320,10 @@ export class PlayerActions {
   /** What Ton has written on the paper (knowledge), the hidden line, for one side. */
   _paperData(side) {
     const R = g.data?.rules || {};
-    const rules = (R.RULES || []).filter((r) => (side === 'back' ? r.side === 'back' : r.side !== 'back'));
+    const given = rulesGiven();
+    const fresh = rulesNew();
+    // only what Ah Kong has given him so far (more appear as the night goes on)
+    const rules = (R.RULES || []).filter((r) => (side === 'back' ? r.side === 'back' : r.side !== 'back') && given.includes(r.id));
     let ann = {};
     let revealed = [];
     const K = g.knowledge;
@@ -339,6 +352,7 @@ export class PlayerActions {
       else if (side === 'back' && k === 'back') out['p:back'] = v;
       else if (side === 'front' && k === 'hidden') out.hidden = v;
     }
+    for (const id of fresh) if (ids.has(id)) out[id] = out[id] ? `ใหม่! ${out[id]}` : 'ใหม่!';
     const data = { rules, annotations: out, revealed: revealed.filter((id) => ids.has(id)), seed: side === 'back' ? 31 : 7 };
     if (side === 'back' && R.PAPER?.back) {
       data.paper = { title: R.PAPER.back.title, subtitle: null, footer: R.PAPER.back.footer, forkSketch: R.PAPER.forkSketch };

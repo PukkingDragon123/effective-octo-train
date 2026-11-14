@@ -19,6 +19,7 @@ import { g } from '../context.js';
 import { bus } from '../../core/Events.js';
 import { wait, during, tween } from '../util.js';
 import { DEATH_CARDS } from '../data/worldtext.js';
+import { fairGate, avertDeath, graceWarn } from '../systems/Fairness.js';
 
 const registry = new Map();
 const defaults = new Map();
@@ -111,6 +112,27 @@ function makeCtx(type, opts) {
 export async function kill(type = 'crash', opts = {}) {
   if (dying) return false;
   if (!g.fsm || g.fsm.is('death') || g.fsm.is('ending') || g.fsm.is('menu')) return false;
+  // fairness: no deaths early, rules only once given, a warning and grace before a rule death
+  const gate = fairGate(type, opts);
+  if (gate === 'avert') {
+    avertDeath(type);
+    return false;
+  }
+  if (gate === 'grace') {
+    dying = true;
+    const state = g.fsm.currentName;
+    let still = true;
+    try {
+      still = await graceWarn(type);
+    } catch (e) {
+      still = true;
+    }
+    dying = false;
+    if (!still || !g.fsm.is(state)) {
+      bus.emit('death:averted', { type, opts, grace: true });
+      return false;
+    }
+  }
   dying = true;
   const lc = !opts.noLastChance && !opts.fromQte && g.qte && lastChances.get(type);
   if (lc) {

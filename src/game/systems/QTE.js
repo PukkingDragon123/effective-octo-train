@@ -25,6 +25,7 @@ import { input } from '../../core/Input.js';
 import { engine } from '../../core/Engine.js';
 import { clamp, damp } from '../../core/math.js';
 import { QTEPrompt } from '../../ui/QTE.js';
+import { scaleQTE } from './Fairness.js';
 
 const STEER_DEAD = 0.55;
 
@@ -53,6 +54,7 @@ export class QTE {
   /** Run one QTE. Resolves { ok, reason, progress }. A new run cancels the previous one. */
   run(spec = {}) {
     if (this.active) this.cancel();
+    spec = scaleQTE(spec); // generous early in the night, tight late
     const s = {
       kind: spec.kind || 'hold',
       action: spec.action || 'interact',
