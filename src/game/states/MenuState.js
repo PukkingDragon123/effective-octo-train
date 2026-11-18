@@ -5,6 +5,7 @@
 // passenger gets out, walks down the LEFT road, and the gigantic hand rises from the fog.
 // New game -> slot picker -> the camera dives into the fog and comes out on the motorbike.
 // Debug: ?start=menu&menuShot=cabin|chase|flyby|mirror|wheel|crane|incident
+import { kongAway } from '../opening/kong.js';
 import * as THREE from 'three';
 import { g } from '../context.js';
 import { wait } from '../util.js';
@@ -602,7 +603,7 @@ export const MenuState = {
     step(() => g.ui.hideMainMenu());
     step(() => {
       hidePlayer(false);
-      g.ahKong.root.visible = true;
+      kongAway(); // never revealed where he happens to stand (his spawn is on the road): states stage him
     });
     g.clock.frozen = false;
     g.clock.autoWeather = true;
