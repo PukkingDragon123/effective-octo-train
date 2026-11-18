@@ -6,6 +6,7 @@
 //   Ride 9 ends in the finale (Finale.js) and A's EndingState({ id }).
 //   Every frame: the ride, C's encounter director (g.director.update unless director.selfUpdate),
 //   the ambience bed and the phase music.
+import { setObjective, setObjectiveTarget } from '../systems/Objectives.js';
 import { objectiveDone } from '../systems/Objectives.js';
 import { saveCheckpoint } from '../systems/Checkpoint.js';
 import { pickupLandmark } from '../ride/pickup.js';
@@ -186,6 +187,27 @@ export const ShiftState = {
       }
       if (res !== 'next') return;
       objectiveDone();
+      // after the first customer: back to the garage (where the night's next step waits)
+      if (i === 0 && PASSENGERS[1]) {
+        await wait(2.5);
+        if (!alive()) return;
+        const G = g.world.landmarks.garage;
+        setObjective('returnGarage');
+        setObjectiveTarget(G?.pos || null, { minDist: 12 });
+        const t0 = g.engine.time;
+        await new Promise((res2) => {
+          const off = g.engine.onUpdate(() => {
+            const near = G && g.taxi.root.position.distanceTo(G.pos) < 30;
+            if (!alive() || near || g.engine.time - t0 > 300) {
+              off();
+              res2();
+            }
+          }, 5);
+        });
+        if (!alive()) return;
+        setObjectiveTarget(null);
+        objectiveDone();
+      }
       bus.emit('ride:delivered', { index: i, id: data.id, side });
       this._retire(ride);
       // the next hour: chapter card, autosave

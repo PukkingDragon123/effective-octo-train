@@ -17,6 +17,9 @@
 // would reach the fork before minSeconds or before every essential beat has played, the road folds
 // back in the fog (stretch 'fog') / glowing mist ('mist'). Beats: progress/time beats queue, event
 // beats interrupt idle lines only; an interrupted beat resumes where it stopped.
+import { setObjectiveTarget } from '../systems/Objectives.js';
+const _objV = new THREE.Vector3(), _objUp = new THREE.Vector3(0, 1.7, 0);
+const forkPoint = () => { const f = g.world?.fork; return f ? g.world.road.sample('main', f.decisionS).pos.clone().setY(g.world.road.sample('main', f.decisionS).pos.y + 1.5) : null; };
 import { setObjective, objectiveDone } from '../systems/Objectives.js';
 import { saveCheckpoint } from '../systems/Checkpoint.js';
 import { installTalk } from './Talk.js';
@@ -456,6 +459,7 @@ export class Ride {
     const t = g.taxi;
     this.phase = 'approach';
     setObjective('pickup');
+    setObjectiveTarget(() => this.passenger?.humanoid?.root?.getWorldPosition?.(_objV)?.add(_objUp), { minDist: 4 });
     let hailed = false;
     let passes = 0;
     while (this.alive) {
@@ -520,7 +524,11 @@ export class Ride {
     t.setControlsEnabled(true);
     objectiveDone();
     const dest = this.data.destination;
-    setTimeout(() => this.alive && setObjective('deliver', { th: dest?.th || '', en: dest?.en || '' }), 1600);
+    setTimeout(() => {
+      if (!this.alive) return;
+      setObjective('deliver', { th: dest?.th || '', en: dest?.en || '' });
+      setObjectiveTarget(forkPoint, { minDist: 20 }); // the way there: the fork at the Ma Ruay shrine
+    }, 1600);
     // Boy M: the meter starts by itself
     if (this.data.id === 'boyM' && !t.state.meterOn) setTimeout(() => this.alive && t.setControl('meter', true), 1800);
     this.phase = 'riding';
@@ -574,6 +582,7 @@ export class Ride {
         approachFired = true;
         this.phase = 'forkApproach';
         setObjective('fork');
+        setObjectiveTarget(forkPoint, { minDist: 8 });
         try {
           const rr = taxiRoad();
           saveCheckpoint('fork', { ride: this.index, s: rr?.id === 'main' ? rr.s : undefined, progress: this.progress, dist: this.dist, tSeated: this.tSeated });
