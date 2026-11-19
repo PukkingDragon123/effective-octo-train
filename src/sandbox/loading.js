@@ -27,6 +27,7 @@ export default async function (ctx) {
   const grab = ctx.params.get('grab');
   if (grab != null) {
     sc._buildHand();
+    await sc.hordeReady;
     sc.playGrab();
     step(Number(grab));
   }

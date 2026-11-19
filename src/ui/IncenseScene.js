@@ -13,6 +13,7 @@ import { makeRng } from '../core/math.js';
 import { HandRig } from '../creatures/hand.js';
 import { creatureMaterial } from '../creatures/skin.js';
 import { buildZebraShrine } from './ZebraShrine.js';
+import { HandHorde } from './HandHorde.js';
 
 const S = { base: -0.04, stem: 0.075, top: 0.3, rCore: 0.00105, rCoat: 0.00235 };
 const SAND_Y = -0.004;
@@ -605,6 +606,9 @@ export class IncenseScene {
       this.scene.add(root);
       this.hand = hand;
       this.handRoot = root;
+      // the horde: baked in small steps while the rest loads
+      this.horde = new HandHorde(this.scene, 100);
+      this.hordeReady = this.horde.build().catch((e) => console.warn('[loading] hand horde', e));
       // an old gold bangle, loose on the wrist (a D-section swept round, worn smooth)
       const R = 0.27, w = 0.085, th = 0.042;
       const prof = [];
@@ -711,7 +715,7 @@ export class IncenseScene {
     this.halo.position.copy(ember);
     this.halo.material.opacity = (0.55 + 0.35 * heat) * Math.min(1, heat);
     this.halo.visible = heat > 0.01;
-    this.cold.intensity = this.out ? 0.07 * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
+    this.cold.intensity = this.out ? (this.grab ? 0.12 : 0.07) * smooth(0.3, 2.6, since) * (1 - this.fade) : 0;
     this.scene.traverse((o) => {
       if (o.material?.uniforms?.uSeed) o.material.uniforms.uTime.value = t;
     });
@@ -884,7 +888,11 @@ export class IncenseScene {
       g.t0 ??= performance.now();
       g.time = (performance.now() - g.t0) / 1000; // wall clock: never slowed by frame rate
     } else g.time += dt; // manual stepping (sandbox)
-    const T = g.time;
+    const GT = g.time; // the whole beat: the horde runs on this
+    const T = GT - 1.1; // the woman's hand comes when the first hands are already out
+    this.horde?.update(GT, this.camera);
+    // the lens draws back to take in the dark around the urn, then the hands rush it
+    g.camDist = 0.5 + 0.28 * smooth(0.2, 2.2, GT) - 0.12 * smooth(3.6, 4.6, GT);
     const u = this.u;
     if (g.noHand) {
       this.fade = clamp((T - 0.6) / 0.8, 0, 1);
@@ -980,8 +988,8 @@ export class IncenseScene {
         s.stir = 1;
         s.wind.set(0.03 * k, 0.01 * k, 0.015 * k);
       }
-      this.fade = clamp((T - 3.0) / 0.7, 0, 1);
-      if (T > 3.75 && !g.done) {
+      this.fade = clamp((GT - 4.75) / 0.5, 0, 1);
+      if (GT > 5.3 && !g.done) {
         g.done = true;
         g.resolve();
       }

@@ -20,7 +20,7 @@ export const LOADING_LINES = [
 ];
 
 /** Longest the hand sequence may take, from its first frame, before the game moves on regardless (ms). */
-const INTRO_CAP_MS = 5000;
+const INTRO_CAP_MS = 6500;
 
 export class Loading {
   constructor(ui) {
