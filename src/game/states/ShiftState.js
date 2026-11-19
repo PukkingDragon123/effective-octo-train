@@ -6,6 +6,13 @@
 //   Ride 9 ends in the finale (Finale.js) and A's EndingState({ id }).
 //   Every frame: the ride, C's encounter director (g.director.update unless director.selfUpdate),
 //   the ambience bed and the phase music.
+import * as THREE from 'three';
+import { INTERLUDES } from '../data/interludes.js';
+import { kongWalk, kongSit, offTheRoad } from '../opening/kong.js';
+import { teachRule, nextRule } from '../systems/Fairness.js';
+import { interact } from '../../core/Interact.js';
+import { LAYERS } from '../../core/layers.js';
+import { resolveLines } from '../data/logic.js';
 import { setObjective, setObjectiveTarget } from '../systems/Objectives.js';
 import { objectiveDone } from '../systems/Objectives.js';
 import { saveCheckpoint } from '../systems/Checkpoint.js';
@@ -187,26 +194,12 @@ export const ShiftState = {
       }
       if (res !== 'next') return;
       objectiveDone();
-      // after the first customer: back to the garage (where the night's next step waits)
-      if (i === 0 && PASSENGERS[1]) {
+      // a garage interlude after some rides: back to the KM 9 garage, Ah Kong at the window
+      if (INTERLUDES[data.id] && PASSENGERS[i + 1]) {
         await wait(2.5);
         if (!alive()) return;
-        const G = g.world.landmarks.garage;
-        setObjective('returnGarage');
-        setObjectiveTarget(G?.pos || null, { minDist: 12 });
-        const t0 = g.engine.time;
-        await new Promise((res2) => {
-          const off = g.engine.onUpdate(() => {
-            const near = G && g.taxi.root.position.distanceTo(G.pos) < 30;
-            if (!alive() || near || g.engine.time - t0 > 300) {
-              off();
-              res2();
-            }
-          }, 5);
-        });
+        await this._interlude(INTERLUDES[data.id], alive);
         if (!alive()) return;
-        setObjectiveTarget(null);
-        objectiveDone();
       }
       bus.emit('ride:delivered', { index: i, id: data.id, side });
       this._retire(ride);
@@ -220,6 +213,73 @@ export const ShiftState = {
       this._chapter(next.hour);
       await wait(1);
     }
+  },
+
+  /** Drive back to the garage; Ah Kong comes out to the window: the story, an act card, a rule. */
+  async _interlude(IL, alive) {
+    const G = g.world.landmarks.garage;
+    if (!G) return;
+    setObjective('returnGarage');
+    setObjectiveTarget(G.pos, { minDist: 12 });
+    const t0 = g.engine.time;
+    await new Promise((res) => {
+      const off = g.engine.onUpdate(() => {
+        const d = g.taxi.root.position.distanceTo(G.pos);
+        if (!alive() || (d < 32 && Math.abs(g.taxi.speedKmh) < 12) || g.engine.time - t0 > 300) {
+          off();
+          res();
+        }
+      }, 5);
+    });
+    if (!alive()) return;
+    g.calmUntil = g.engine.time + 240; // nothing comes for him at the garage
+    setObjective('talkKong');
+    setObjectiveTarget(() => g.ahKong?.root?.position?.clone().setY(g.ahKong.root.position.y + 1.7), { minDist: 4 });
+    // he walks out to the driver's window (never a snap)
+    const win = g.taxi.root.localToWorld(new THREE.Vector3(1.5, 0, -0.2));
+    try {
+      await Promise.race([kongWalk(offTheRoad(win), { face: g.taxi.root.position.clone() }), wait(16)]);
+    } catch (e) {
+      /* he talks from wherever he is */
+    }
+    if (!alive()) return;
+    objectiveDone();
+    setObjectiveTarget(null);
+    if (IL.act) {
+      try {
+        g.ui.chapter?.({ time: IL.act.time, word: IL.act.word, th: IL.act.th, en: (g.settings.get('language') ?? 'th') === 'both' ? IL.act.en : undefined });
+      } catch (e) {
+        /* cosmetic */
+      }
+      await wait(2.5);
+    }
+    await Promise.race([g.dialogue.play(resolveLines(IL.lines, { save: g.save, hour: g.clock?.hour })), wait(40)]);
+    if (!alive()) return;
+    // the next rule, in person
+    await teachRule(nextRule());
+    if (!alive()) return;
+    // a detail to look at in the garage (optional: get out and look)
+    if (IL.inspect) this._inspectable(IL.inspect);
+    kongSit().catch(() => {});
+  },
+
+  _inspectable(I) {
+    const a = g.world.landmarks.garage?.anchors?.[I.anchor];
+    if (!a || this._inspected?.has(I.anchor)) return;
+    (this._inspected ||= new Set()).add(I.anchor);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.3), new THREE.MeshBasicMaterial());
+    box.layers.set(LAYERS.INTERACT);
+    a.add(box);
+    const item = interact.register({
+      id: 'garage.inspect.' + I.anchor, object: box, labelTH: I.labelTH, labelEN: I.labelEN, icon: 'eye', reach: 2.2,
+      enabled: () => this.active && !g.dialogue.busy,
+      onUse: () => {
+        g.actions?.inspect?.(a, { what: I.anchor });
+        g.dialogue.play(I.lines);
+        interact.unregister(item);
+        box.removeFromParent();
+      },
+    });
   },
 
   _chapter(hour) {

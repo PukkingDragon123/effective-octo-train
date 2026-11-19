@@ -29,8 +29,23 @@ import { RIDE_MONK } from './rides/r6_monk.js';
 import { RIDE_SAMAN } from './rides/r7_saman.js';
 import { RIDE_BUA } from './rides/r8_bua.js';
 import { RIDE_SOMCHAI } from './rides/r9_somchai.js';
+import { RIDE_CHUEN } from './rides/n1_chuen.js';
+import { RIDE_KAEW } from './rides/n2_kaew.js';
+import { RIDE_SOLDIER } from './rides/n3_soldier.js';
+import { RIDE_SOMBAT } from './rides/n4_sombat.js';
+import { RIDE_BRIDE } from './rides/n5_bride.js';
 
-export const PASSENGERS = [RIDE_SRI, RIDE_WOMAN_WHITE, RIDE_PIAK, RIDE_BOY_M, RIDE_NUAN, RIDE_MONK, RIDE_SAMAN, RIDE_BUA, RIDE_SOMCHAI];
+// The night in three acts (about 2 hours on a first playthrough; garage interludes in data/interludes.js):
+//   I  dread   21:00–00:00  Sri · Chuen · Woman in White · Nurse Kaew                 (+ intro, garage, tutorial)
+//   II surreal 00:00–03:00  Piak · Little M · Private Den · Khun Nuan · Luang Phi
+//   III dawn   03:00–06:00  Saman · Mae Sombat · Grandma Bua · the Bride · Somchai
+export const PASSENGERS = [RIDE_SRI, RIDE_CHUEN, RIDE_WOMAN_WHITE, RIDE_KAEW, RIDE_PIAK, RIDE_BOY_M, RIDE_SOLDIER, RIDE_NUAN, RIDE_MONK, RIDE_SAMAN, RIDE_SOMBAT, RIDE_BUA, RIDE_BRIDE, RIDE_SOMCHAI];
+// rides last 6–7 minutes each: long enough for the talk, the clues and a calm stretch between scares
+for (const p of PASSENGERS) {
+  p.pacing = { ...(p.pacing || {}) };
+  if (p.id !== 'somchai') p.pacing.minSeconds = Math.max(p.pacing.minSeconds || 0, 340);
+  if (!p.pacing.stretch || p.pacing.stretch === 'none') p.pacing.stretch = 'fog';
+}
 
 export const PASSENGER_BY_ID = Object.fromEntries(PASSENGERS.map((p) => [p.id, p]));
 export const getPassenger = (id) => PASSENGER_BY_ID[id] || null;

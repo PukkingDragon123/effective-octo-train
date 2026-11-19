@@ -16,6 +16,7 @@ import './Jumpscare.js';
 import './Aftermath.js';
 import './DriveReactions.js';
 import './Pray.js';
+import './SideMoments.js';
 
 const STATES = new Set(['intro', 'garage', 'tutorial', 'shift']);
 const CFG = {

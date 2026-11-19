@@ -13,6 +13,11 @@ import { createStreetlight } from '../../props/poles.js';
 
 const SPECIAL = {
   firstHitch: { after: 'garage', ds: 150 },
+  chuenStop: { after: 'km10', ds: 30 },
+  kaewStop: { after: 'busStop', ds: 45 },
+  soldierStop: { after: 'bridge', ds: -50 },
+  sombatStop: { after: 'noodleShop', ds: 40 },
+  brideStop: { after: 'sala2', ds: 35 },
 };
 
 /** The landmark a ride picks up at (`data.pickupAt || data.pickup`). */

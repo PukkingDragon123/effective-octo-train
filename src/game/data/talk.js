@@ -25,6 +25,36 @@ const ask = (pid, line, opts, branches, deltas) =>
   [line, C(opts, { id: `talkAsk.${pid}`, timeout: 10, branches, setOnPick: Object.fromEntries(Object.entries(deltas).map(([k, n]) => [k, tr(pid, 'talkAsk', n)])) })];
 
 export const TALK = {
+  chuen: {
+    where: [P('สวนยางท้ายห้วยทราย ตีสามต้องกรีดแล้ว', 'The rubber past Huai Sai. I tap at three.')],
+    name: [P('ชื่อชื่น ลุงชื่น ใคร ๆ ก็รู้จัก', 'Chuen. Uncle Chuen. Everyone knows me.', { emotion: 'smile' })],
+    eaten: [P('ข้าวต้มปลาตอนสองทุ่ม พอรองท้อง', 'Fish rice soup at eight. Enough to get by.')],
+    from: [P('บ้านอยู่หลังวัดนี่เอง เดินมาขึ้นรถ', 'I live just behind the temple. Walked out to the road.')],
+  },
+  kaew: {
+    where: [P('โรงพยาบาลค่ะ ตึกเก่า เข้าเวรดึก', 'The hospital. The old wing. Night shift.')],
+    name: [P('แก้วค่ะ… ที่ป้ายชื่อเขียนว่าแก้ว', 'Kaew… it says Kaew on my name tag.', { tone: 'whisper' })],
+    eaten: [P('พยาบาลไม่มีเวลากินหรอกค่ะ… ไม่ได้กินมานานแล้ว', 'Nurses never have time to eat… I haven’t in a long while.')],
+    from: [P('จากบ้านพักพยาบาล ที่ไฟไหม้ไปแล้วน่ะค่ะ', 'From the nurses’ quarters. The ones that burned.', { tone: 'whisper' })],
+  },
+  soldier: {
+    where: [P('ค่ายหลังเขาครับ กลับไม่ทันแล้ว', 'The camp behind the hill. I’m late.')],
+    name: [P('พลทหารเด่นครับ ผลัดสองปีสองห้าสอง…', 'Private Den. Second intake of twenty-five… two…', { pause: 0.6 })],
+    eaten: [P('ยังเลยครับ ข้าวในค่ายคงเย็นหมดแล้ว', 'Not yet. The camp rice must be cold by now.')],
+    from: [P('จากสะพานครับ… เดินขึ้นมาจากน้ำ', 'From the bridge… I walked up out of the water.', { tone: 'whisper' })],
+  },
+  sombat: {
+    where: [P('ตลาดเช้าจ้ะ ข้าวเหนียวต้องถึงก่อนตีห้า', 'The morning market. The rice has to be there before five.')],
+    name: [P('สมบัติจ้ะ แม่สมบัติข้าวเหนียวมูน', 'Sombat. Mae Sombat of the coconut sticky rice.', { emotion: 'smile' })],
+    eaten: [P('กินแล้ว ชิมข้าวเหนียวตัวเองอิ่มทุกวัน', 'I have. I fill up tasting my own rice every day.', { emotion: 'smile' })],
+    from: [P('บ้านอยู่หลังร้านก๋วยเตี๋ยวป้าเล็ก', 'Behind Auntie Lek’s noodle stall.')],
+  },
+  bride: {
+    where: [P('บ้านเจ้าบ่าวค่ะ ฤกษ์ตอนรุ่งสาง', 'The groom’s house. The ceremony is at dawn.')],
+    name: [P('…ฉันจำได้แค่ชื่อที่เขาเรียก', '…I only remember the name he called me.', { tone: 'whisper' })],
+    eaten: [P('เจ้าสาวไม่กินอะไรก่อนพิธีหรอกค่ะ', 'A bride eats nothing before the ceremony.')],
+    from: [P('จากโค้งข้างหลังค่ะ… ตรงที่มีพวงมาลัยแขวนอยู่', 'From the curve back there… where the garlands hang.', { tone: 'whisper' })],
+  },
   sri: {
     where: [P('กลับบ้านห้วยทรายจ้ะ เอาของไปส่งที่ตลาดมา', 'Home to Huai Sai, dear. I took my goods to the market.')],
     name: [P('ป้าชื่อศรีจ้ะ ใคร ๆ ก็เรียกป้าศรี', 'Sri, dear. Everyone calls me Auntie Sri.')],
