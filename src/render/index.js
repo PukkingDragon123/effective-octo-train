@@ -62,6 +62,16 @@ export function updateGlobalUniforms(engine) {
   if (Math.abs(hd.lengthSq() - 1) > 1e-4 && hd.lengthSq() > 0) hd.normalize();
 }
 
+/** Compile every visible material of the scene now (async where the driver allows). */
+export function precompileScene(engine) {
+  const { renderer, scene, camera } = engine;
+  try {
+    return (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).catch(() => {});
+  } catch (e) {
+    return Promise.resolve();
+  }
+}
+
 let _installed = false;
 /**
  * Install the rendering stack: shader chunk overrides, post pipeline, sky, light pool,
@@ -117,5 +127,8 @@ export function installRendering(engine) {
     80,
   );
   engine.renderPipeline = (r, s, camera, dt) => postfx.render(r, s, camera, dt);
+  // compile hitches: when a state with a new set of objects starts (garage, shift...), compile
+  // every visible material in the background (KHR_parallel_shader_compile when available)
+  bus.on('game:state', () => setTimeout(() => precompileScene(engine), 50));
   return { postfx, sky, lightPool, particles, bloodFX };
 }

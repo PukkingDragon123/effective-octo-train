@@ -196,6 +196,84 @@ export const CHARACTERS = {
     },
   },
 
+  chuen: {
+    id: 'chuen',
+    nameTH: 'ลุงชื่น',
+    nameEN: 'Uncle Chuen',
+    role: 'Ride 2, human. Rubber tapper on his way to tap before dawn; jokes to hide his fear of the road.',
+    voice: { gender: 'm', age: 58, pitch: 0.92, rate: 1.0, ghost: 0, whisper: false },
+    appearance: {
+      id: 'chuen', sex: 'm', age: 58, height: 1.66, build: 'thin', skinTone: 0.68,
+      hair: { style: 'short', color: '#2a2622' },
+      outfit: { type: 'tank-pants', top: '#6a6250', bottom: '#2e3a3a', accent: '#a89a6a', shoes: 'sandals' },
+      accessories: [],
+      face: { seed: 2201, wrinkles: 0.6, smile: 0.5, eyeSize: 0.96, noseWidth: 1.06, jaw: 1.02, cheek: 0.96 },
+    },
+  },
+
+  kaew: {
+    id: 'kaew',
+    nameTH: 'พยาบาลแก้ว',
+    nameEN: 'Nurse Kaew',
+    role: 'Ride 4, ghost. Night-shift nurse of the old provincial hospital, still on her rounds.',
+    voice: { gender: 'f', age: 28, pitch: 1.04, rate: 0.92, ghost: 0.6, whisper: false },
+    appearance: {
+      id: 'kaew', sex: 'f', age: 28, height: 1.58, build: 'thin', skinTone: 0.3,
+      hair: { style: 'bun', color: '#141110' },
+      outfit: { type: 'dress', top: '#e8e6dc', bottom: '#e2e0d6', accent: '#7a8a9a', shoes: 'shoes' },
+      accessories: [],
+      face: { seed: 3307, wrinkles: 0, smile: 0.2, eyeSize: 1.05, noseWidth: 0.95, jaw: 0.93, cheek: 0.95 },
+      ghost: { pale: 0.7, eyes: 'normal', wet: 0.1, decay: 0.05, bloodStains: 0.0 },
+    },
+  },
+
+  soldier: {
+    id: 'soldier',
+    nameTH: 'พลทหารเด่น',
+    nameEN: 'Private Den',
+    role: 'Ride 7, ghost. A young conscript walking back to a camp that closed decades ago.',
+    voice: { gender: 'm', age: 21, pitch: 1.0, rate: 1.05, ghost: 0.5, whisper: false },
+    appearance: {
+      id: 'soldier', sex: 'm', age: 21, height: 1.72, build: 'average', skinTone: 0.6,
+      hair: { style: 'shaved', color: '#1a1714' },
+      outfit: { type: 'tshirt-pants', top: '#4a5236', bottom: '#4a5236', accent: '#2a2a22', shoes: 'shoes' },
+      accessories: [],
+      face: { seed: 4419, wrinkles: 0, smile: 0.35, eyeSize: 1.0, noseWidth: 1.0, jaw: 1.05, cheek: 1.0 },
+      ghost: { pale: 0.5, eyes: 'normal', wet: 0.4, decay: 0.15, bloodStains: 0.2 },
+    },
+  },
+
+  sombat: {
+    id: 'sombat',
+    nameTH: 'แม่สมบัติ',
+    nameEN: 'Mae Sombat',
+    role: 'Ride 11, human. Sticky-rice seller up at three; knows every story of this road.',
+    voice: { gender: 'f', age: 50, pitch: 1.02, rate: 1.12, ghost: 0, whisper: false },
+    appearance: {
+      id: 'sombat', sex: 'f', age: 50, height: 1.55, build: 'heavy', skinTone: 0.62,
+      hair: { style: 'bun', color: '#24201c' },
+      outfit: { type: 'market-vendor', top: '#7a4a5a', bottom: '#3a3a5a', accent: '#d8c8a0', shoes: 'sandals' },
+      accessories: ['basket'],
+      face: { seed: 5521, wrinkles: 0.35, smile: 0.6, eyeSize: 0.95, noseWidth: 1.05, jaw: 1.0, cheek: 1.05 },
+    },
+  },
+
+  bride: {
+    id: 'bride',
+    nameTH: 'เจ้าสาว',
+    nameEN: 'The Bride',
+    role: 'Ride 13, ghost. Died on the road on her wedding morning; still on her way to the ceremony.',
+    voice: { gender: 'f', age: 24, pitch: 1.06, rate: 0.85, ghost: 0.8, whisper: true },
+    appearance: {
+      id: 'bride', sex: 'f', age: 24, height: 1.6, build: 'thin', skinTone: 0.25,
+      hair: { style: 'bun', color: '#100e0d' },
+      outfit: { type: 'sabai', top: '#efe6d0', bottom: '#d8c08a', accent: '#b8862a', shoes: 'barefoot' },
+      accessories: ['garland'],
+      face: { seed: 6631, wrinkles: 0, smile: 0.3, eyeSize: 1.08, noseWidth: 0.94, jaw: 0.92, cheek: 0.94 },
+      ghost: { pale: 0.9, eyes: 'normal', wet: 0.35, decay: 0.1, bloodStains: 0.1 },
+    },
+  },
+
   auntieLek: {
     id: 'auntieLek',
     nameTH: 'ป้าเล็ก',

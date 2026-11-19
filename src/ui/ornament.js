@@ -1,30 +1,5 @@
-// Vector ornament and the UI icon set (SVG line work, crisp at any resolution and DPR).
-// The rule is a thin line drawn out from a lotus bud with two leaf-petals, after the bud-and-leaf
-// (ดอกบัวตูม / กลีบบัว) motif of Thai borders: line work only, no painted art.
+// The UI's simple SVG icon set and cursor (crisp at any resolution and DPR). No ornament (owner).
 const enc = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg.replace(/\s+/g, ' ').trim())}")`;
-
-/** The ornamental rule (240 x 16): fades out to both sides from the bud. */
-export function ruleSVG(color = '#ebe5d8', accent = '#d0402e') {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 16" preserveAspectRatio="none">
-    <defs><linearGradient id="l" x1="0" x2="1"><stop offset="0" stop-color="${color}" stop-opacity="0"/><stop offset="1" stop-color="${color}" stop-opacity="0.55"/></linearGradient>
-    <linearGradient id="r" x1="0" x2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.55"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-    <rect x="0" y="7.6" width="98" height="0.8" fill="url(#l)"/><rect x="142" y="7.6" width="98" height="0.8" fill="url(#r)"/>
-    <circle cx="101.5" cy="8" r="1" fill="${color}" fill-opacity="0.6"/><circle cx="138.5" cy="8" r="1" fill="${color}" fill-opacity="0.6"/>
-    <path d="M113.5 8c-2.4-3.2-5.6-3.6-8.4-1.6 2.6 0.6 4.6 1.2 8.4 1.6zM113.5 8c-2.4 3.2-5.6 3.6-8.4 1.6 2.6-0.6 4.6-1.2 8.4-1.6z" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-width="0.7"/>
-    <path d="M126.5 8c2.4-3.2 5.6-3.6 8.4-1.6-2.6 0.6-4.6 1.2-8.4 1.6zM126.5 8c2.4 3.2 5.6 3.6 8.4 1.6-2.6-0.6-4.6-1.2-8.4-1.6z" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-width="0.7"/>
-    <path d="M120 1.6c3.4 2.4 4.4 5 4.4 6.6 0 2.6-2 4.6-4.4 6.2-2.4-1.6-4.4-3.6-4.4-6.2 0-1.6 1-4.2 4.4-6.6z" fill="none" stroke="${color}" stroke-opacity="0.85" stroke-width="0.8"/>
-    <path d="M120 4.8c1.5 1.3 2 2.6 2 3.6 0 1.3-0.8 2.4-2 3.3-1.2-0.9-2-2-2-3.3 0-1 0.5-2.3 2-3.6z" fill="${accent}"/>
-  </svg>`;
-}
-
-/** A corner bracket with a small curl (40 x 40), for panel corners. */
-export function cornerSVG(color = '#ebe5d8') {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-    <path d="M1 39V8c0-3.9 3.1-7 7-7h31" fill="none" stroke="${color}" stroke-opacity="0.38" stroke-width="1"/>
-    <path d="M6 30V12c0-3.3 2.7-6 6-6h18" fill="none" stroke="${color}" stroke-opacity="0.16" stroke-width="1"/>
-    <path d="M12 12c3-2.6 6.6-2 7.6 0.6 0.8 2.2-1 4-3 3.4-1.4-0.4-1.6-2-0.6-2.6" fill="none" stroke="${color}" stroke-opacity="0.5" stroke-width="0.9" stroke-linecap="round"/>
-  </svg>`;
-}
 
 /** The pointer: a slim arrow, bone with a dark keyline (SVG, so it is sharp on any display). */
 export function cursorSVG() {
@@ -48,11 +23,9 @@ export function icon(name, cls = 'dlb-ic') {
   return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 }
 
-/** CSS custom properties for the ornament, corners and cursor (set on the UI root). */
+/** CSS custom properties for the cursor (set on the UI root). */
 export function ornamentVars() {
   return {
-    '--orn-rule': enc(ruleSVG()),
-    '--orn-corner': enc(cornerSVG()),
     '--cursor': `${enc(cursorSVG())} 4 2, default`,
   };
 }
