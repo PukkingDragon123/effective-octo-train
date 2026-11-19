@@ -60,7 +60,7 @@ const rnd = (() => {
 
 /** One material for the whole horde: per-hand skin scan, age, pale tint, blood and dirt (aVar). */
 function hordeMaterial(tex) {
-  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.58, metalness: 0, vertexColors: true });
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0, vertexColors: true });
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, { tSkin0: { value: tex.young }, tSkin1: { value: tex.middle }, tSkin2: { value: tex.old }, tBlood: { value: tex.blood } });
     sh.vertexShader = sh.vertexShader
@@ -89,8 +89,11 @@ vec3 hzSkin(sampler2D t, vec3 p, vec3 w) {
   float splat = texture2D(tBlood, fract(vHp.xz * 2.3 + vHp.y * 0.7)).a;
   col = mix(col, vec3(0.28, 0.02, 0.02), tip * vVar.y * smoothstep(0.15, 0.6, splat));
   col = mix(col, vec3(0.16, 0.12, 0.08), tip * vVar.z * smoothstep(0.05, 0.5, splat + 0.2));
-  // the wrist stub fades into the dark: palms and fingers carry the shape
-  col *= smoothstep(-0.75, -0.05, vHp.y);
+  // the forearm dissolves into the dark well before its end (dithered, so no cap is ever seen)
+  float keep = smoothstep(-0.62, -0.08, vHp.y);
+  float bayer = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+  if (keep < bayer) discard;
+  col *= 0.35 + 0.65 * keep;
   diffuseColor.rgb = col;
 }`);
   };
@@ -174,9 +177,12 @@ export class HandHorde {
     const target = new THREE.Vector3(Math.cos(ta) * tr, -0.07 + rnd() * 0.2, Math.sin(ta) * tr);
     const child = rnd() < 0.15;
     if (i < 18) {
-      // the nearest ones: on the front edge, right under the lens
-      target.set((rnd() - 0.5) * 0.4, -0.04 + rnd() * 0.1, 0.06 + rnd() * 0.12);
-      start.set(target.x * 2.2, -0.12 + rnd() * 0.1, 0.5 + rnd() * 0.3);
+      // the nearer ones: on the front edge of the ledge, to the sides (the centre is the stick's)
+      const sx = rnd() < 0.5 ? -1 : 1;
+      target.set(sx * (0.13 + rnd() * 0.16), -0.05 + rnd() * 0.08, 0.04 + rnd() * 0.1);
+      start.set(target.x * 2.4, -0.12 + rnd() * 0.08, 0.3 + rnd() * 0.15);
+    } else if (Math.abs(target.x) < 0.09 && target.z > -0.12) {
+      target.x = (target.x < 0 ? -1 : 1) * (0.09 + rnd() * 0.08); // keep the middle clear
     }
     return {
       t0: wave ? 0.8 + rnd() * 1.8 : 0.15 + rnd() * 0.9,
@@ -223,9 +229,14 @@ export class HandHorde {
         const re = rk * rk;
         const cp = camera.position;
         const aim = this._aim || (this._aim = new THREE.Vector3());
-        aim.copy(cp).addScaledVector(camFwd, 0.06 + 0.05 * (1 - re)).addScaledVector(camRight, h.rush.x * 0.05).addScaledVector(camUp, h.rush.y * 0.035);
+        aim.copy(cp).addScaledVector(camFwd, 0.5 + 0.08 * (1 - re)).addScaledVector(camRight, h.rush.x * 0.17).addScaledVector(camUp, h.rush.y * 0.1);
         p.lerp(aim, re);
       }
+      // never nearer than 0.45 m to the lens
+      const toP = this._tp || (this._tp = new THREE.Vector3());
+      toP.subVectors(p, camera.position);
+      const dd = toP.length();
+      if (dd < 0.45) p.copy(camera.position).addScaledVector(toP.normalize(), 0.45);
       // orientation: fingers lead along the motion, palm down onto what they crawl over
       fwd.copy(rk > 0 ? camFwd.clone().negate() : h.target.clone().sub(h.start)).normalize();
       if (rk > 0) fwd.lerp(h.target.clone().sub(h.start).normalize(), 1 - rk).normalize();
@@ -241,7 +252,7 @@ export class HandHorde {
       const tq = this._tq || (this._tq = new THREE.Quaternion());
       te.set(tw * 0.18, 0, h.roll + Math.sin(t * 0.7 + h.ph) * 0.15);
       q.multiply(tq.setFromEuler(te));
-      const sc = h.scale * (1 + rk * 0.6);
+      const sc = h.scale;
       s.set(sc * h.thin, sc, sc);
       m4.compose(p, q, s);
       h.mesh.setMatrixAt(h.slot, m4);

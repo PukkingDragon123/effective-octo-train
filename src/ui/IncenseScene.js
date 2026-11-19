@@ -903,6 +903,13 @@ export class IncenseScene {
       this.scene.add(this.warmKey);
     }
     this.warmKey.intensity = 0.35 * smooth(0.2, 1.0, GT) * (1 - this.fade);
+    // and a low warm fill from beside the lens, so the faces of the hands turned to us read
+    if (!this.warmFill) {
+      this.warmFill = new THREE.PointLight(0xffb27a, 0, 2.0, 2);
+      this.scene.add(this.warmFill);
+    }
+    this.warmFill.position.copy(this.camera.position).add(this._v.set(0.12, -0.14, -0.05));
+    this.warmFill.intensity = 0.3 * smooth(0.2, 1.0, GT) * (1 - this.fade);
     this.renderer.toneMappingExposure = 0.95 + 0.4 * smooth(0.3, 1.5, GT);
     // the lens draws back to take in the dark around the urn, then the hands rush it
     g.camDist = 0.5 + 0.28 * smooth(0.2, 2.2, GT) - 0.12 * smooth(3.6, 4.6, GT);
