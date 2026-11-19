@@ -10,6 +10,7 @@ import { bus } from '../core/Events.js';
 import { settings } from '../core/Settings.js';
 import { input } from '../core/Input.js';
 import { FONTS } from './fonts.js';
+import { ornamentVars } from './ornament.js';
 import { h } from './dom.js';
 import { Nav } from './nav.js';
 import { Loading } from './Loading.js';
@@ -71,6 +72,12 @@ class UI {
     root.dataset.device = input.lastDevice || 'keyboard';
     const fv = { '--f-title': FONTS.title, '--f-body': FONTS.body, '--f-sign': FONTS.sign, '--f-lcd': FONTS.lcd, '--f-hand': FONTS.hand, '--f-display': FONTS.display || FONTS.sign };
     for (const k in fv) root.style.setProperty(k, fv[k]);
+    // vector ornament, corners, cursor; real CC0 material scans (docs/credits/ui.md)
+    const ov = ornamentVars();
+    for (const k in ov) root.style.setProperty(k, ov[k]);
+    const asset = (f) => `url("${new URL(`assets/ui/${f}`, document.baseURI).href}")`;
+    root.style.setProperty('--tex-wood', asset('wood_dark.jpg'));
+    root.style.setProperty('--tex-paper', asset('paper_scan.jpg'));
     if (isSoftwareRendering()) root.classList.add('dlb-lite');
 
     this.nav = new Nav(this);

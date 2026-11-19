@@ -33,7 +33,7 @@ export const PROP_ASSETS = {
   trashbag: {},
   folding_wooden_stool: {},
   metal_stool_02: {},
-  can_rusted: { shadows: false },
+  can_rusted: { path: 'polyhaven/can_rusted.glb', shadows: false },
   wicker_basket_01: {},
   wicker_basket_02: {},
   worn_metal_rack: {},
@@ -41,27 +41,27 @@ export const PROP_ASSETS = {
   plastic_jerrycan: { tint: true },
   cement_bag: {},
   plastic_broom: { alpha: true },
-  jug_01: { shadows: false },
+  jug_01: { path: 'polyhaven/jug_01.glb', shadows: false },
   hand_truck: {},
   multi_cleaner_5_litre: { shadows: false },
-  cleaner_tin_01: { shadows: false },
+  cleaner_tin_01: { path: 'polyhaven/cleaner_tin_01.glb', shadows: false },
   ceramic_pot: {},
   dustpan: { shadows: false },
   // fetched directly from polyhaven.com (CC0), textures 512 px JPEG, packed to GLB
   Television_01: {},
-  bench_vice_01: {},
+  bench_vice_01: { path: 'polyhaven/bench_vice_01.glb' },
   brass_pot_01: {},
   ceramic_vase_01: { shadows: false },
   ceramic_vase_03: { shadows: false },
   chinese_stool: {},
   chinese_tea_table: {},
-  combination_wrench: { shadows: false },
-  cross_pein_hammer: { shadows: false },
+  combination_wrench: { path: 'polyhaven/combination_wrench.glb', shadows: false },
+  cross_pein_hammer: { path: 'polyhaven/cross_pein_hammer.glb', shadows: false },
   crowbar_01: { shadows: false },
-  flathead_screwdriver: { shadows: false },
+  flathead_screwdriver: { path: 'polyhaven/flathead_screwdriver.glb', shadows: false },
   handsaw_wood: { shadows: false },
   metal_tool_chest: {},
-  oil_tin: { shadows: false },
+  oil_tin: { path: 'polyhaven/oil_tin.glb', shadows: false },
   // from the shared Poly Haven bundle (public/assets/props/polyhaven/, credits docs/credits/polyhaven.md);
   // ids that also exist above keep our smaller copies
   tire_pump: { path: 'polyhaven/tire_pump.glb' },
@@ -90,6 +90,18 @@ export const PROP_ASSETS = {
   wooden_crate_02: { path: 'polyhaven/wooden_crate_02.glb' },
   food_lychee_01: { path: 'polyhaven/food_lychee_01.glb', shadows: false },
   food_pears_asian_01: { path: 'polyhaven/food_pears_asian_01.glb', shadows: false },
+  // hand-scale workshop / shrine items with 2K colour, normal and roughness scans (polyhaven.com, CC0)
+  ratchet_wrench: { path: 'polyhaven/ratchet_wrench.glb', shadows: false },
+  tongue_groove_pliers: { path: 'polyhaven/tongue_groove_pliers.glb', shadows: false },
+  retro_multimeter: { path: 'polyhaven/retro_multimeter.glb', shadows: false },
+  vintage_lighter: { path: 'polyhaven/vintage_lighter.glb', shadows: false },
+  lightbulb_01: { path: 'polyhaven/lightbulb_01.glb', shadows: false },
+  leather_cleaner_can: { path: 'polyhaven/leather_cleaner_can.glb', shadows: false },
+  small_plastic_torch: { path: 'polyhaven/small_plastic_torch.glb', shadows: false },
+  brass_candleholders: { path: 'polyhaven/brass_candleholders.glb', shadows: false },
+  brass_diya_lantern: { path: 'polyhaven/brass_diya_lantern.glb', shadows: false },
+  rusted_hacksaw: { path: 'polyhaven/rusted_hacksaw.glb', shadows: false },
+  propane_torch: { path: 'polyhaven/propane_torch.glb', shadows: false },
 };
 
 const ready = new Map(); // id -> { parts:[{geo, mat}], size: Vector3 }
@@ -130,7 +142,7 @@ function regradeMap(t, def) {
     o.colorSpace = THREE.SRGBColorSpace;
     o.wrapS = t.wrapS;
     o.wrapT = t.wrapT;
-    o.anisotropy = 8;
+    o.anisotropy = 16;
     return o;
   } catch (e) {
     return t;
@@ -185,7 +197,13 @@ function prepare(id, gltf) {
         mat.metalnessMap = src.metalnessMap;
         mat.needsUpdate = true;
       }
-      for (const t of [mat.normalMap, mat.roughnessMap]) if (t) t.anisotropy = 8;
+      // close-range scans: full anisotropic filtering + trilinear mips on every map (no soft texels at 0.5 m)
+      for (const t of [mat.map, mat.normalMap, mat.roughnessMap, mat.metalnessMap]) if (t) {
+        t.anisotropy = 16;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.magFilter = THREE.LinearFilter;
+        t.generateMipmaps = true;
+      }
       mat.userData.uvMode = 'keep';
       mat.userData.shadows = def.shadows ?? true;
       mat.userData.asset = id;

@@ -3,6 +3,7 @@
 import { settings, GRAPHICS_PRESETS, DEFAULT_SETTINGS } from '../core/Settings.js';
 import { h, enter, leave } from './dom.js';
 import { screen, corners } from './common.js';
+import { icon } from './ornament.js';
 import { navItem } from './nav.js';
 import { keyHints, NAV_HINTS, CONTROL_GROUPS, controlRowGlyphs, glyph } from './glyphs.js';
 
@@ -138,7 +139,7 @@ export class SettingsPanel {
     const nav = ui.nav;
     this.rows = [];
     this.tabs = SETTINGS_TABS.map((t, i) => {
-      const b = h('button', { class: 'dlb-tab', attrs: { role: 'tab' } }, h('span', { class: 'th', attrs: { lang: 'th' } }, t.th), h('span', { class: 'en' }, t.en));
+      const b = h('button', { class: 'dlb-tab', attrs: { role: 'tab' } }, h('span', { class: 'dlb-tab__ic', html: icon(t.id) }), h('span', { class: 'dlb-tab__t' }, h('span', { class: 'th', attrs: { lang: 'th' } }, t.th), h('span', { class: 'en' }, t.en)));
       b.type = 'button';
       b.tabIndex = -1;
       b.addEventListener('mousedown', (e) => e.preventDefault());

@@ -7,6 +7,7 @@
 //   ?screen=news (GAME OVER news report)  ?screen=tour&settle=0: window.__tour.next() steps
 //   menu -> subtitles + choice + crosshair + hint -> settings -> death card -> news (--shots=5)
 import { ui } from '../ui/index.js';
+import { objective } from '../ui/Objective.js';
 import { loadFonts } from '../ui/fonts.js';
 import { makeRng, noise } from '../core/math.js';
 
@@ -202,6 +203,33 @@ export default async function ({ params, saves }) {
     case 'news':
       news();
       break;
+    case 'premium': {
+      // one run at 1920x1080: menu -> pause -> settings -> subtitles + choice + crosshair + objective -> paper
+      ui.showMainMenu({ canResume: true });
+      ui._hour = 26.25;
+      if (params.get('from') === 'pause') setTimeout(() => window.__tour.next(), 50);
+      const steps = [
+        () => { ui.menu._teardown(true); ui.showPause({ th: 'ป้าศรี · ตลาดเช้า', onResume: () => {}, onQuitToMenu: () => {} }); },
+        () => { ui.hidePause(); ui.settingsPanel.tabIndex = 0; ui.showSettings(); setTimeout(() => ui.nav.handle?.('down'), 400); },
+        () => {
+          ui.settingsPanel._close?.();
+          playScene();
+          objective.set({ th: 'ส่งผู้หญิงชุดขาวที่โรงพยาบาลเก่า', en: 'Take the woman in white to the old hospital', steps: [{ id: 'a', th: 'เปิดมิเตอร์', done: true }, { id: 'b', th: 'อย่ามองกระจกหลัง' }, { id: 'c', th: 'เลี้ยวซ้ายที่ทางแยก' }] });
+        },
+        async () => {
+          ui.clearSubtitle(); objective.clear();
+          const c = document.createElement('canvas');
+          c.width = 1024; c.height = 1408;
+          await loadFonts();
+          ui.drawRulesPaper(c.getContext('2d'), 1024, 1408, { revealed: ['r1', 'r3'], annotations: { r3: { th: 'ใช้กระจกได้ หันไม่ได้', en: 'mirrors OK' } } });
+          c.style.cssText = 'position:fixed;left:50%;top:50%;height:96vh;transform:translate(-50%,-50%) rotate(-1.5deg);z-index:60;';
+          document.body.appendChild(c);
+        },
+      ];
+      let i = -1;
+      window.__tour = { next: () => steps[++i]?.() };
+      break;
+    }
     case 'newstour': {
       // the programme in one harness run, warmed first (as after the menu), jumping segment by segment
       const run = (from) => ui.newsReport({ th: 'แท็กซี่เสียหลักพุ่งตกข้างทาง ทางหลวงสายป่า คนขับเสียชีวิตคาที่', image: backdrop, place: 'ทางหลวงสายป่า กม. ๙', _from: from, _hold: params.get('hold') === '1' });

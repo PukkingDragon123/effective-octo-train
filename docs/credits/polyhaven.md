@@ -79,3 +79,18 @@ like `tools/assets/pack_polyhaven.mjs`, into `public/assets/studio/` (CC0 1.0).
 | stationery_supplies | Stationery Supplies | Mateusz Sadek | CC0 1.0 | https://polyhaven.com/a/stationery_supplies |
 | calathea_orbifolia_01 | Calathea Orbifolia 01 | Rob Tuytel, Rico Cilliers | CC0 1.0 | https://polyhaven.com/a/calathea_orbifolia_01 |
 | planter_pot_clay | Planter Pot Clay | Amal Kumar | CC0 1.0 | https://polyhaven.com/a/planter_pot_clay |
+| ratchet_wrench | Ratchet Wrench | John Hutcheson | CC0 1.0 | https://polyhaven.com/a/ratchet_wrench |
+| tongue_groove_pliers | Tongue & Groove Pliers | BKS | CC0 1.0 | https://polyhaven.com/a/tongue_groove_pliers |
+| retro_multimeter | Retro Multimeter | elli moeller | CC0 1.0 | https://polyhaven.com/a/retro_multimeter |
+| vintage_lighter | Vintage Lighter | Slinc | CC0 1.0 | https://polyhaven.com/a/vintage_lighter |
+| lightbulb_01 | Lightbulb 01 | Josh Dean | CC0 1.0 | https://polyhaven.com/a/lightbulb_01 |
+| leather_cleaner_can | Leather Cleaner Can | James Ray Cock | CC0 1.0 | https://polyhaven.com/a/leather_cleaner_can |
+| small_plastic_torch | Small Plastic Torch | Abiyyu Panggalih (Abiyyu_xyz) | CC0 1.0 | https://polyhaven.com/a/small_plastic_torch |
+| brass_candleholders | Brass Candleholders | Tina | CC0 1.0 | https://polyhaven.com/a/brass_candleholders |
+| brass_diya_lantern | Brass Diya Lantern | Bhargav Kubal | CC0 1.0 | https://polyhaven.com/a/brass_diya_lantern |
+| rusted_hacksaw | Rusted Hacksaw | Dabou Master | CC0 1.0 | https://polyhaven.com/a/rusted_hacksaw |
+| propane_torch | Propane Torch | Jan W | CC0 1.0 | https://polyhaven.com/a/propane_torch |
+
+Hand-scale workshop, food and shrine items (the hand tools, tins, cleaner bottles, groceries, fruit, radio, kettle,
+vice, jug and the models above) are packed from the 2K glTF downloads: 2048 px colour and normal maps, 1024 px
+ARM (occlusion/roughness/metal) maps, JPEG.

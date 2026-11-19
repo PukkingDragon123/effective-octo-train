@@ -39,13 +39,16 @@ export const FONTS = {
 /** Weights bundled per family (use only these). */
 export const FONT_WEIGHTS = { serif: [400, 600, 800], sarabun: [400, 500, 600, 700, 800], sriracha: [400] };
 
+import { loadPaperScan } from './RulesPaper.js';
+
 let promise = null;
+/** Fonts (and the rules paper's scan, so canvas painters that await this get both). */
 export function loadFonts() {
   if (promise) return promise;
   const specs = ["400 32px 'Noto Serif Thai'", "600 32px 'Noto Serif Thai'", "800 32px 'Noto Serif Thai'", "400 32px 'Sarabun'", "500 32px 'Sarabun'", "600 32px 'Sarabun'", "700 32px 'Sarabun'", "800 32px 'Sarabun'", "400 32px 'Sriracha'"];
   const sample = 'กขคงจ ศาลเจ้ามารวย ABC 123';
   promise = Promise.race([
-    Promise.all(specs.map((s) => document.fonts.load(s, sample).catch(() => null))),
+    Promise.all([...specs.map((s) => document.fonts.load(s, sample).catch(() => null)), loadPaperScan()]),
     new Promise((r) => setTimeout(r, 4000)),
   ]).then(() => true);
   return promise;

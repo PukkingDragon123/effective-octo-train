@@ -272,6 +272,22 @@ function truncate(g, text, font, maxW) {
 // ------------------------------------------------------------ base (cached) ----
 const _cache = new Map();
 
+/** The page itself is a real CC0 paper scan (ambientCG Paper003, docs/credits/ui.md). */
+export const PAPER_SCAN = { img: null, promise: null };
+export function loadPaperScan() {
+  if (PAPER_SCAN.promise) return PAPER_SCAN.promise;
+  if (typeof Image === 'undefined') return Promise.resolve(false);
+  const img = new Image();
+  img.decoding = 'async';
+  img.src = 'assets/ui/paper_scan.jpg';
+  PAPER_SCAN.promise = img.decode().then(() => {
+    PAPER_SCAN.img = img;
+    _cache.clear();
+    return true;
+  }, () => false);
+  return PAPER_SCAN.promise;
+}
+
 const _noiseSrc = new Map();
 function noisePattern(g, density, seed) {
   const key = `${density}:${seed}`;
@@ -291,8 +307,30 @@ function noisePattern(g, density, seed) {
   return g.createPattern(c, 'repeat');
 }
 
+/** The page from the scan: aged only by compositing (a warm multiply, darker toward the edges). */
+function buildScanBase(w, h, c, g, shape) {
+  const img = PAPER_SCAN.img;
+  g.save();
+  g.clip(shape.path);
+  // cover the page with the scan at its native detail (no upscaling below the page's pixels)
+  const k = Math.max(W / img.width, H / img.height);
+  g.drawImage(img, (W - img.width * k) / 2, (H - img.height * k) / 2, img.width * k, img.height * k);
+  g.globalCompositeOperation = 'multiply';
+  g.fillStyle = '#ead9b6';
+  g.fillRect(0, 0, W, H);
+  const grd = g.createRadialGradient(W * 0.48, H * 0.44, 120, W * 0.5, H * 0.5, H * 0.8);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.7, 'rgba(236,224,198,1)');
+  grd.addColorStop(1, 'rgba(196,172,128,1)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = 'source-over';
+  g.restore();
+  return { canvas: c, shape, scan: true };
+}
+
 function buildBase(w, h) {
-  const key = `${w}x${h}`;
+  const key = `${w}x${h}:${PAPER_SCAN.img ? 'scan' : 'drawn'}`;
   if (_cache.has(key)) return _cache.get(key);
   const c = canvas(w, h);
   const g = ctx2d(c);
@@ -301,6 +339,11 @@ function buildBase(w, h) {
   g.setTransform(sx, 0, 0, sy, 0, 0);
   const rng = makeRng(90817);
   const shape = paperPath(rng);
+  if (PAPER_SCAN.img) {
+    const out = buildScanBase(w, h, c, g, shape);
+    _cache.set(key, out);
+    return out;
+  }
   g.save();
   g.clip(shape.path);
 
@@ -1044,7 +1087,12 @@ export function drawRulesPaper(ctx, w, h, data = {}) {
   ctx.globalCompositeOperation = 'source-over';
   ctx.restore();
 
-  // ---- stains, burn, folds, wear (over the writing) --------------------------------
+  // ---- stains, burn, folds, wear (over the writing): only on the old drawn page; the scan
+  //      page is real paper and carries no painted marks (owner: no 2D art drawn in code)
+  if (base.scan) {
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.setTransform(sx, 0, 0, sy, 0, 0);
   ctx.clip(shape.path);

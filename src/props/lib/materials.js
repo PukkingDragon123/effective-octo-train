@@ -24,8 +24,9 @@ function hiSize() {
 function safeTex(key, hi = false) {
   try {
     const t = hi ? tex(key, { size: hiSize() }) : tex(key);
-    if (t && hi && t.anisotropy < 8) {
-      t.anisotropy = 8;
+    if (t && t.anisotropy < 16) {
+      // grazing views of close-range props stay crisp (three clamps to the GPU maximum)
+      t.anisotropy = 16;
       t.needsUpdate = true;
     }
     return t;

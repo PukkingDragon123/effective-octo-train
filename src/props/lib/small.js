@@ -101,12 +101,20 @@ const BOTTLE_PROFILES = {
   water: [[0, 0], [0.034, 0], [0.036, 0.01], [0.036, 0.2], [0.024, 0.24], [0.014, 0.255], [0.014, 0.27], [0, 0.27]],
   small: [[0, 0], [0.018, 0], [0.019, 0.006], [0.019, 0.07], [0.012, 0.09], [0.008, 0.1], [0.008, 0.115], [0, 0.115]],
 };
+/** Smooth a lathe profile (Catmull-Rom through the control points; the axis ends stay exact). */
+function smoothProfile(prof, n = 40) {
+  const inner = prof.slice(1, -1).map(([r, y]) => new THREE.Vector2(r, y));
+  const pts = new THREE.SplineCurve(inner).getPoints(n).map((v) => [v.x, v.y]);
+  return [prof[0], ...pts, prof[prof.length - 1]];
+}
+
 export function bottle(k, o = {}) {
   const kind = o.kind || 'soda';
-  const g = G('bottle:' + kind, () => lathe(BOTTLE_PROFILES[kind], 10));
+  // smooth shoulders / neck, 28 sides, real glass for the glass bottles
+  const g = G('bottle2:' + kind, () => lathe(smoothProfile(BOTTLE_PROFILES[kind], 44), 28));
   const col = o.color ?? (kind === 'soda' ? PAL.sodaRed : kind === 'beer' ? 0x3a2a10 : kind === 'whisky' ? 0x8a5a1a : kind === 'oil' ? 0xc8a020 : 0xa8c0c0);
   k.at(o.p, o.r, o.s, () => {
-    k.add(mat(kind === 'oil' || kind === 'water' ? 'plastic' : 'ceramic'), g, { color: col, w: { grime: 0.3, grimeH: 0.08, vary: 0.2 } });
+    k.add(mat(kind === 'oil' || kind === 'water' ? 'plastic' : 'glass_bottle'), g, { color: col, w: { grime: 0.3, grimeH: 0.08, vary: 0.2 } });
     // label band
     if (o.label !== false && kind !== 'small') {
       const r0 = BOTTLE_PROFILES[kind][2][0] + 0.0015;
@@ -115,12 +123,27 @@ export function bottle(k, o = {}) {
       const re = { soda: /red_soda|soda/, water: /water/, beer: /beer/, whisky: /whisky/, oil: /coffee|energy|oil/ }[kind];
       if (!labelBand(k, r0, lh, ly + lh / 2, { re, seed: Math.round((o.p?.[0] ?? 0) * 100 + (o.p?.[2] ?? 0) * 37), yaw: o.labelYaw ?? 0 })) {
         const lc = o.labelColor ?? (kind === 'soda' ? 0xe8e0d0 : kind === 'beer' ? 0xd8c070 : 0xe0d8c0);
-        k.add(mat('plastic'), G('label:' + kind, () => cyl(r0, r0, 0.05, 10, 0, 1, false)), { p: [0, ly, 0], color: lc, w: { grime: 0.2, vary: 0.25 } });
+        k.add(mat('paper'), G('label2:' + kind, () => cyl(r0, r0, 0.05, 28, 0, 1, false)), { p: [0, ly, 0], color: lc, w: { grime: 0.2, vary: 0.25 } });
       }
     }
     // cap
     const top = BOTTLE_PROFILES[kind].at(-1)[1];
-    k.add(mat('metal'), G('cap', () => cyl(0.015, 0.015, 0.012, 8, 0.002)), { p: [0, top - 0.006, 0], color: o.capColor ?? 0xc8b060 });
+    // crimped crown cap: fluted skirt + domed top
+    k.add(mat('galv'), G('cap2', () => {
+      const prof = [[0, 0.013], [0.009, 0.0128], [0.0138, 0.011], [0.0146, 0.008], [0.0152, 0.0005], [0.0145, 0]];
+      const c = lathe(prof, 28);
+      const pa = c.attributes.position;
+      for (let i = 0; i < pa.count; i++) {
+        const x = pa.getX(i), z = pa.getZ(i), y = pa.getY(i);
+        if (y < 0.009) {
+          const f = 1 + 0.06 * Math.max(0, Math.cos(Math.atan2(z, x) * 21));
+          pa.setX(i, x * f);
+          pa.setZ(i, z * f);
+        }
+      }
+      c.computeVertexNormals();
+      return c;
+    }), { p: [0, top - 0.006, 0], color: o.capColor ?? 0xc8b060, w: { grime: 0.2, streak: 0.3 } });
     if (o.straw) {
       const sp = G('straw', () => tube([V(0, 0, 0), V(0, 0.12, 0), V(0.01, 0.15, 0.0), V(0.035, 0.16, 0)], 0.0035, 4));
       k.add(mat('plastic'), sp, { p: [0, top - 0.05, 0], r: o.strawYaw ?? 0, color: o.strawColor ?? 0xe86a9a, w: false });
@@ -132,13 +155,25 @@ export function can(k, o = {}) {
   const h = o.h ?? 0.12, r = o.rad ?? 0.033;
   if (o.rust && useAsset(k, 'can_rusted', o, { fit: { h }, color: 0xffffff, w: { grime: 0.3, grimeH: h * 0.4 } })) return;
   k.at(o.p, o.r, o.s, () => {
-    k.add(mat(o.rust ? 'rust' : 'metal'), G(`can:${h}:${r}`, () => cyl(r, r, h, 12, 0.004, 2)), { color: o.color ?? 0xb0a080, w: { grime: 0.3, grimeH: h * 0.4, streak: 0.4 } });
-    if (o.spout) k.add(mat('metal'), G('spout', () => cyl(0.008, 0.012, 0.05, 6, 0.001)), { p: [r * 0.5, h, 0], color: 0x888070 });
+    // drawn tin: domed base ring, beaded body ribs, necked shoulder and a rolled double-seam rim
+    k.add(mat(o.rust ? 'rust' : 'galv'), G(`can2:${h}:${r}`, () => {
+      const prof = [[0, 0.004], [r * 0.7, 0.0015], [r * 0.86, 0], [r * 0.97, 0.004], [r, 0.012]];
+      for (let i = 1; i <= 7; i++) {
+        const y = 0.012 + ((h - 0.03) * i) / 8;
+        prof.push([r * 1.004, y - 0.004], [r * 0.992, y], [r * 1.004, y + 0.004]);
+      }
+      prof.push([r, h - 0.016], [r * 0.9, h - 0.006], [r * 0.9, h - 0.002], [r * 0.93, h], [r * 0.86, h - 0.001], [r * 0.82, h - 0.004], [0, h - 0.004]);
+      return lathe(prof, 32);
+    }), { color: o.color ?? 0xb0a080, w: { grime: 0.3, grimeH: h * 0.4, streak: 0.4 } });
+    if (o.spout) k.add(mat('galv'), G('spout2', () => lathe([[0, 0], [0.012, 0], [0.012, 0.004], [0.009, 0.01], [0.007, 0.046], [0.008, 0.05], [0, 0.05]], 16)), { p: [r * 0.5, h - 0.004, 0], color: 0x888070 });
   });
 }
 
 /** Square oil/engine-oil can with handle (garage shelves). */
 export function oilCan(k, o = {}) {
+  // real (CC0) scans first: a rectangular oil tin or a squeeze oiler / leather-care can
+  const pick = o.asset ?? ['oil_tin', 'small_oil_can_01', 'leather_cleaner_can'][Math.abs(Math.round((o.p?.[0] ?? 0) * 97 + (o.p?.[2] ?? 0) * 31)) % 3];
+  if (useAsset(k, pick, o, { fit: { h: pick === 'oil_tin' ? 0.2 : 0.17 }, w: { grime: 0.3, grimeH: 0.08, dust: 0.4 } })) return;
   k.at(o.p, o.r, o.s, () => {
     k.add(mat('metal'), G('oilcan', () => bbox(0.12, 0.2, 0.07, 0.008, 0.1)), { color: o.color ?? 0x2a5a8a, w: { grime: 0.5, grimeH: 0.1, streak: 0.5 } });
     k.add(mat('plastic'), G('oilcap', () => cyl(0.015, 0.015, 0.02, 8, 0.002)), { p: [0.03, 0.2, 0], color: 0xd0c020 });
@@ -340,12 +375,25 @@ export function flowerString(k, pts, o = {}) {
 /** Candle (pillar). o.flame -> emissive flame (glow 'candle'), o.color red/white. */
 export function candle(k, o = {}) {
   const h = o.h ?? 0.12, r = o.rad ?? 0.014;
+  const col = o.color ?? 0xe8dcc4;
+  const crng = makeRng(Math.round(h * 1000 + r * 7000) + (o.seed ?? 0));
   k.at(o.p, o.r, o.s, () => {
-    k.add(mat('ceramic'), G(`candle:${h}:${r}`, () => cyl(r * 0.9, r, h, 8, 0.002, 2)), { color: o.color ?? 0xe8dcc4, w: { grime: 0.15, grimeH: h * 0.3, vary: 0.2 }, jitter: 0.0015, jitterFreq: 60 });
-    // drips
-    k.add(mat('ceramic'), G(`drip:${r}`, () => sphere(r * 0.5, 5, 4).scale(0.7, 1.6, 0.7)), { p: [r * 0.8, h * 0.75, 0], color: o.color ?? 0xe8dcc4 });
+    // poured wax: slight taper, a melted lip with a crater round the wick, a wax pool at the foot
+    k.add(mat('ceramic'), G(`candle2:${h}:${r}`, () => lathe([[0, 0], [r * 1.12, 0], [r * 1.08, 0.002], [r, 0.004], [r * 0.97, h * 0.5], [r * 0.93, h - 0.004], [r * 0.95, h - 0.0015], [r * 0.86, h], [r * 0.6, h - 0.003], [r * 0.25, h - 0.006], [0, h - 0.006]], 24)), { color: col, w: { grime: 0.15, grimeH: h * 0.3, vary: 0.2 }, jitter: r * 0.06, jitterFreq: 1 / r });
+    // wax runs down the side: tapered swept beads ending in a drop
+    const nd = 2 + Math.floor(crng() * 3);
+    for (let i = 0; i < nd; i++) {
+      const a = crng() * Math.PI * 2, len = h * (0.2 + crng() * 0.5);
+      const pts = [];
+      for (let j = 0; j <= 6; j++) {
+        const t = j / 6, rr = r * (0.95 + 0.06 * Math.sin(t * 3)) + 0.0006;
+        const aa = a + Math.sin(t * 2.5 + i) * 0.08;
+        pts.push(V(Math.cos(aa) * rr, h - 0.002 - t * len, Math.sin(aa) * rr));
+      }
+      k.add(mat('ceramic'), tube(pts, (t) => r * (0.16 + 0.08 * t + (t > 0.85 ? 0.12 * (t - 0.85) / 0.15 : 0)), 6, true), { color: col, w: { vary: 0.15 } });
+    }
     if (o.flame !== false) {
-      k.add(mat('dark'), G('wick', () => cyl(0.0015, 0.0015, 0.012, 4, 0)), { p: [0, h, 0], color: 0x111111, w: false });
+      k.add(mat('dark'), G('wick2', () => tube([V(0, -0.004, 0), V(0, 0.004, 0), V(0.0012, 0.009, 0), V(0.0026, 0.012, 0)], 0.0011, 5)), { p: [0, h - 0.004, 0], color: 0x111111, w: false });
       k.add(glowMat('candle'), G('flame', () => lathe([[0, 0], [0.005, 0.006], [0.006, 0.014], [0.003, 0.024], [0, 0.034]], 6)), { p: [0, h + 0.006, 0], color: 0xffffff, w: false });
     }
   });
@@ -361,7 +409,7 @@ export function incenseSticks(k, o = {}) {
       const burnt = rng() < (o.burnt ?? 0.7);
       const h = burnt ? 0.03 + rng() * 0.09 : 0.18 + rng() * 0.12;
       const tilt = [(rng() - 0.5) * 0.25, 0, (rng() - 0.5) * 0.25];
-      k.add(mat('dark'), G('stick:' + Math.round(h * 100), () => cyl(0.0016, 0.0016, Math.round(h * 100) / 100, 3, 0, 1, false)), { p: [Math.cos(a) * rr, -0.01, Math.sin(a) * rr], r: tilt, color: rng() < 0.75 ? 0xa0201a : 0xc89a3a, w: false });
+      k.add(mat('dark'), G('stick:' + Math.round(h * 100), () => cyl(0.0016, 0.0016, Math.round(h * 100) / 100, 6, 0, 1, false)), { p: [Math.cos(a) * rr, -0.01, Math.sin(a) * rr], r: tilt, color: rng() < 0.75 ? 0xa0201a : 0xc89a3a, w: false });
       if (!burnt && rng() < (o.lit ?? 0.5)) k.add(glowMat('ember'), G('ember', () => cyl(0.0022, 0.0022, 0.01, 4, 0)), { p: [Math.cos(a) * rr + tilt[2] * -h, h - 0.012, Math.sin(a) * rr + tilt[0] * h], color: 0xffffff, w: false });
     }
   });
@@ -372,11 +420,22 @@ export function incensePot(k, o = {}) {
   const r = o.rad ?? 0.08;
   k.at(o.p, o.r, o.s, () => {
     const prof = [[0, 0], [r * 0.7, 0], [r * 0.75, r * 0.12], [r * 1.0, r * 0.45], [r * 1.02, r * 0.8], [r * 0.95, r * 0.95], [r * 1.02, r * 1.0], [r * 0.9, r * 1.02], [r * 0.85, r * 0.85], [0, r * 0.85]];
-    k.add(mat(o.metal ? 'bronze' : 'ceramic'), G('ipot:' + r + o.metal, () => lathe(prof, 16)), { color: o.color ?? (o.metal ? 0x7a6030 : 0x9a2a1a), w: { grime: 0.3, grimeH: r * 0.5, streak: 0.4, streakColor: 0x3a3028 } });
-    k.add(mat('ash'), G('ipotAsh:' + r, () => cyl(r * 0.86, r * 0.86, 0.004, 14, 0)), { p: [0, r * 0.84, 0], color: 0xb8b0a0, w: false });
+    k.add(mat(o.metal ? 'bronze' : 'ceramic'), G('ipot2:' + r + o.metal, () => lathe(smoothProfile(prof, 36), 36)), { color: o.color ?? (o.metal ? 0x7a6030 : 0x9a2a1a), w: { grime: 0.3, grimeH: r * 0.5, streak: 0.4, streakColor: 0x3a3028 } });
+    // ash bed: a heaped, pitted disc (stick holes, burnt-down stubs' craters)
+    k.add(mat('ash'), G('ipotAsh2:' + r, () => {
+      const c = new THREE.CircleGeometry(r * 0.86, 40, 0, Math.PI * 2).rotateX(-Math.PI / 2);
+      const pa = c.attributes.position;
+      for (let i = 0; i < pa.count; i++) {
+        const x = pa.getX(i), z = pa.getZ(i), d = Math.hypot(x, z) / (r * 0.86);
+        pa.setY(i, 0.004 + (1 - d * d) * r * 0.08 + noise.noise2D(x * 90, z * 90) * r * 0.012);
+      }
+      c.computeVertexNormals();
+      return c;
+    }), { p: [0, r * 0.8, 0], color: 0xb8b0a0, w: false });
     if (o.legs) for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2;
-      k.add(mat(o.metal ? 'bronze' : 'ceramic'), G('ipotleg', () => sphere(0.5, 6, 4)), { p: [Math.cos(a) * r * 0.7, 0, Math.sin(a) * r * 0.7], s: [r * 0.18, r * 0.25, r * 0.18], color: o.color ?? 0x7a6030 });
+      // cast claw foot: a turned, tapered leg with a rolled toe
+      k.add(mat(o.metal ? 'bronze' : 'ceramic'), G('ipotleg2', () => lathe([[0, 0], [0.42, 0], [0.5, 0.08], [0.46, 0.2], [0.3, 0.42], [0.26, 0.7], [0.34, 0.86], [0.3, 1], [0, 1]], 14)), { p: [Math.cos(a) * r * 0.7, -r * 0.04, Math.sin(a) * r * 0.7], s: [r * 0.2, r * 0.26, r * 0.2], color: o.color ?? 0x7a6030 });
     }
     incenseSticks(k, { p: [0, r * 0.84, 0], n: o.sticks ?? 18, radius: r * 0.75, seed: o.seed ?? 5, burnt: o.burnt ?? 0.7, lit: o.lit ?? 0.4 });
   });

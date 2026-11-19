@@ -87,9 +87,17 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
       k.add(mat('paper'), G(`pbox:${bw.toFixed(2)}:${bh.toFixed(2)}`, () => bbox(bw, bh, d * 0.7, 0.006, 0.2)), { p: [x + bw / 2, y, z0], r: (rng() - 0.5) * 0.15, color: rng() < 0.5 ? 0xa8845a : 0x9a7a50, w: { dust: 0.5, grime: 0.2, grimeH: 0.05, ground: y } });
       x += bw + 0.02;
     } else {
-      // spare parts: brake disc / gear / spark plug box
-      if (rng() < 0.5) {
-        k.add(mat('rust'), G('disc', () => cyl(0.11, 0.11, 0.025, 16, 0.004)), { p: [x + 0.11, y + 0.11, zj], r: [Math.PI / 2 - 0.2, 0, 0], color: 0x7a5a40 });
+      // spare parts / hand tools: real 2K CC0 scans (ratchet, groove pliers, multimeter, torch,
+      // hacksaw, lighter, bulb, propane torch) at their true size; a turned brake disc otherwise
+      const tools = ['ratchet_wrench', 'tongue_groove_pliers', 'retro_multimeter', 'small_plastic_torch', 'rusted_hacksaw', 'vintage_lighter', 'lightbulb_01', 'propane_torch'];
+      const tid = tools[Math.floor(rng() * tools.length)];
+      const tsz = assetSize(tid);
+      const tw = tsz ? Math.max(tsz.x, 0.04) : 0;
+      if (tsz && x + tw < x0 + w - 0.02 && useAsset(k, tid, { p: [x + tw / 2, y, zj], r: (rng() - 0.5) * 0.5 }, { w: { dust: 0.45, grime: 0.15 } })) {
+        x += tw + 0.03 + rng() * 0.04;
+      } else if (rng() < 0.5) {
+        // brake disc leaning on the back: turned hat section, vented rotor faces
+        k.add(mat('rust'), G('disc2', () => lathe([[0.03, 0], [0.11, 0], [0.11, 0.011], [0.108, 0.012], [0.108, 0.013], [0.11, 0.014], [0.11, 0.025], [0.07, 0.025], [0.068, 0.045], [0.03, 0.045]], 40)), { p: [x + 0.11, y + 0.11, zj], r: [Math.PI / 2 - 0.2, 0, 0], color: 0x7a5a40, w: { grime: 0.4, streak: 0.3 } });
         x += 0.24;
       } else {
         k.add(mat('metal'), G('gear', () => torus(0.06, 0.025, 6, 16)), { p: [x + 0.06, y + 0.025, zj], r: [Math.PI / 2, 0, 0], color: 0x6a6a64, jitter: 0.004, jitterFreq: 60 });
@@ -289,7 +297,12 @@ export function createGarage(opts = {}) {
   k.details(() => {
     // radio-cassette player (CC0 Poly Haven) on the right end of the bench: the radio anchor
     useAsset(k, 'portable_cassette_player', { p: [bx + 0.9, 0.93, bz + 0.05], r: -0.25 }, { fit: { w: 0.24 }, w: { dust: 0.4, grime: 0.1 } });
-    can(k, { p: [bx - 0.5, 0.93, bz - 0.1], h: 0.14, rad: 0.05, color: 0x9a9080 }); // on the bench top (0.93)
+    if (!useAsset(k, 'cleaner_tin_01', { p: [bx - 0.5, 0.93, bz - 0.1], r: 0.6 }, { fit: { h: 0.13 }, w: { dust: 0.3 } })) can(k, { p: [bx - 0.5, 0.93, bz - 0.1], h: 0.14, rad: 0.05, color: 0x9a9080 }); // on the bench top (0.93)
+    // more of Ah Kong's hand tools on the bench (2K CC0 scans, true size)
+    useAsset(k, 'retro_multimeter', { p: [bx - 0.2, 0.93, bz - 0.2], r: 0.25 }, { w: { dust: 0.3, grime: 0.1 } });
+    useAsset(k, 'ratchet_wrench', { p: [bx + 0.62, 0.93, bz + 0.22], r: -0.6 }, { w: { grime: 0.2 } });
+    useAsset(k, 'small_plastic_torch', { p: [bx + 1.15, 0.93, bz + 0.12], r: 1.2 }, { w: { dust: 0.3 } });
+    useAsset(k, 'tongue_groove_pliers', { p: [bx - 0.62, 0.93, bz - 0.22], r: 2.6 }, { w: { grime: 0.2 } });
     // groceries Ah Kong keeps by the radio + a storage bin under the bench (CC0 Poly Haven)
     useAsset(k, 'long_life_food', { p: [bx - 0.72, 0.93, bz + 0.15], r: 0.1 }, { fit: { w: 0.4 }, w: { dust: 0.3, grime: 0.1 } });
     useAsset(k, 'plastic_container', { p: [bx + 0.35, 0, bz + 0.02], r: 0.04 }, { fit: { w: 0.7 }, w: { dust: 0.6, grime: 0.3 } });
@@ -357,6 +370,7 @@ export function createGarage(opts = {}) {
       // a real printed cigarette pack lying on the table
       if (!printedPack(k, 'cigarette_pack', { p: [0.0, 0.7305, 0.18], r: [-Math.PI / 2, 0, 0.5, 'XYZ'], d: 0.021, seed: 11 }))
         k.add(mat('paper'), G('cigpack', () => bbox(0.055, 0.02, 0.085, 0.003, 0.05)), { p: [0.0, 0.725, 0.18], r: 0.5, color: 0xc83a2a, w: false });
+      useAsset(k, 'vintage_lighter', { p: [-0.07, 0.72, 0.25], r: 0.9 }, { w: { grime: 0.1 } }); // his old flip lighter (CC0 scan)
     });
   });
   out.tableAnchor = anchor(group, 'table', tx, 0.73, tz);
