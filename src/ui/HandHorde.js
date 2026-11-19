@@ -4,13 +4,13 @@
 //
 // Cheap by design: the HandRig mesh (src/creatures/hand.js) is baked into a few static pose
 // variants (claw / reaching / grasping; a slender and a bony, long-nailed build) and drawn with
-// InstancedMesh, one draw call per variant and tint. Only the woman's hand that takes the stick is
-// a skinned rig (IncenseScene). The skin detail is the found photo texture behind creatureMaterial
-// ('hide', public/assets/textures); tints are plain material colours (pale, grey, dirty, and a
-// dark-red one for bloodied hands): nothing is drawn.
+// InstancedMesh, one draw call per pose variant. Only the woman's hand that takes the stick is a
+// skinned rig (IncenseScene). Skin: the CC0 MakeHuman skin scans (public/assets/characters/mh/tex,
+// young / middle / old, sampled triplanar from a clean patch of the atlas and tinted pale), chosen
+// per hand; blood and grime on some fingertips and nails come from the CC0 blood decal scan
+// (public/assets/textures/decals). Nothing is drawn.
 import * as THREE from 'three';
 import { HandRig } from '../creatures/hand.js';
-import { creatureMaterial } from '../creatures/skin.js';
 
 const POSES = {
   claw: { c: { i: -0.25, m: -0.2, r: -0.18, p: -0.14, t: -0.1 }, spread: 1 },
@@ -21,7 +21,6 @@ const SHAPES = [
   { fingerScale: 1.2, thickness: 0.72, bony: 0.3, nails: 0.2, forearm: 2.4, wrist: 0.76, color: [0.66, 0.61, 0.56] },
   { fingerScale: 1.18, thickness: 0.76, bony: 0.85, nails: 0.12, forearm: 2.2, wrist: 0.82, color: [0.6, 0.57, 0.53] },
 ];
-const TINTS = [0xffffff, 0xc9c3b8, 0xa89a86, 0xb07c74];
 
 /** Bake a skinned hand into static geometry in one pose (bone transforms applied on the CPU). */
 function bakePose(shape, pose) {
@@ -59,6 +58,44 @@ const rnd = (() => {
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
 })();
 
+/** One material for the whole horde: per-hand skin scan, age, pale tint, blood and dirt (aVar). */
+function hordeMaterial(tex) {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.58, metalness: 0, vertexColors: true });
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { tSkin0: { value: tex.young }, tSkin1: { value: tex.middle }, tSkin2: { value: tex.old }, tBlood: { value: tex.blood } });
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 aVar; varying vec3 vVar; varying vec3 vHp; varying vec3 vHn;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVar = aVar; vHp = position; vHn = normal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform sampler2D tSkin0; uniform sampler2D tSkin1; uniform sampler2D tSkin2; uniform sampler2D tBlood;
+varying vec3 vVar; varying vec3 vHp; varying vec3 vHn;
+// a clean patch of the MakeHuman atlas (the thigh), mirrored so it tiles without seams
+vec2 hzWin(vec2 p) { vec2 m = abs(fract(p * 0.5) * 2.0 - 1.0); return vec2(0.28, 0.31) + m * vec2(0.11, 0.12); }
+vec3 hzSkin(sampler2D t, vec3 p, vec3 w) {
+  return texture2D(t, hzWin(p.yz)).rgb * w.x + texture2D(t, hzWin(p.xz)).rgb * w.y + texture2D(t, hzWin(p.xy)).rgb * w.z;
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+{
+  vec3 w = abs(normalize(vHn)); w /= (w.x + w.y + w.z);
+  vec3 p = vHp * 1.7;
+  vec3 skin = vVar.x < 0.5 ? hzSkin(tSkin0, p, w) : vVar.x < 1.5 ? hzSkin(tSkin1, p, w) : hzSkin(tSkin2, p, w);
+  // pale: drained toward a cold grey, a little of the scan's warmth left
+  float l = dot(skin, vec3(0.3, 0.55, 0.15));
+  skin = mix(vec3(l) * vec3(0.93, 0.95, 1.0), skin, 0.35) * 1.18;
+  vec3 col = skin * mix(vec3(1.0), diffuseColor.rgb * 1.5, 0.45);
+  // fingertips and nails: blood (vVar.y) or grime (vVar.z), broken up by the decal scan
+  float tip = smoothstep(1.35, 1.75, vHp.y);
+  float splat = texture2D(tBlood, fract(vHp.xz * 2.3 + vHp.y * 0.7)).a;
+  col = mix(col, vec3(0.28, 0.02, 0.02), tip * vVar.y * smoothstep(0.15, 0.6, splat));
+  col = mix(col, vec3(0.16, 0.12, 0.08), tip * vVar.z * smoothstep(0.05, 0.5, splat + 0.2));
+  diffuseColor.rgb = col;
+}`);
+  };
+  m.customProgramCacheKey = () => 'dlb-hand-horde';
+  return m;
+}
+
 export class HandHorde {
   /** Bakes the variants step by step (call build() early, during loading; it yields between steps). */
   constructor(scene, count = 100) {
@@ -82,23 +119,34 @@ export class HandHorde {
         await pause();
       }
     }
-    const mats = TINTS.map((color) => creatureMaterial({
-      detail: 'hide', detailScale: 9, detailAmount: 0.35, bump: 0.6, color, roughness: 0.6,
-      skin: true, sss: 0.7, pale: 0.4, wet: 0.25, brush: 0.15, emissive: 0x000000, rim: 0.3, puddles: 0,
-    }));
-    // assign every hand a variant; one InstancedMesh per (variant, tint) with exactly its hands
+    const L = new THREE.TextureLoader();
+    const load = (f, srgb = true) => L.loadAsync(f).then((t) => {
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      return t;
+    });
+    const [young, middle, old, blood] = await Promise.all([
+      load('assets/characters/mh/tex/skin_young_f.jpg'), load('assets/characters/mh/tex/skin_middle_m.jpg'),
+      load('assets/characters/mh/tex/skin_old_m.jpg'), load('assets/textures/decals/blood_spatter_1.webp'),
+    ]);
+    const mat = hordeMaterial({ young, middle, old, blood });
+    // assign every hand a variant; one InstancedMesh per pose variant with exactly its hands
     const buckets = new Map();
     for (let i = 0; i < this.count; i++) {
       const gi = Math.floor(rnd() * geos.length);
-      const ti = rnd() < 0.5 ? 0 : rnd() < 0.5 ? 1 : rnd() < 0.6 ? 2 : 3;
-      const key = gi * 10 + ti;
-      if (!buckets.has(key)) buckets.set(key, { gi, ti, list: [] });
+      if (!buckets.has(gi)) buckets.set(gi, { gi, list: [] });
       const h = this._newHand(i, geos[gi].pose);
-      buckets.get(key).list.push(h);
+      // old, wrinkled skin goes on the bony build; young and middle on the slender one
+      h.var = [geos[gi].shape === 1 ? 2 : rnd() < 0.5 ? 0 : 1, rnd() < 0.3 ? 0.6 + rnd() * 0.4 : 0, rnd() < 0.4 ? 0.5 + rnd() * 0.5 : 0];
+      buckets.get(gi).list.push(h);
       this.hands.push(h);
     }
     for (const b of buckets.values()) {
-      const im = new THREE.InstancedMesh(geos[b.gi].geo, mats[b.ti], b.list.length);
+      const im = new THREE.InstancedMesh(geos[b.gi].geo, mat, b.list.length);
+      const vars = new Float32Array(b.list.length * 3);
+      b.list.forEach((h, j) => vars.set(h.var, j * 3));
+      im.geometry = im.geometry.clone(); // per-mesh instanced attribute (shares the vertex buffers' data)
+      im.geometry.setAttribute('aVar', new THREE.InstancedBufferAttribute(vars, 3));
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.frustumCulled = false;
       b.list.forEach((h, j) => {
@@ -116,21 +164,21 @@ export class HandHorde {
   _newHand(i, pose) {
     const wave = i < 30 ? 0 : 1;
     const a = rnd() * Math.PI * 2;
-    const r0 = 0.45 + rnd() * 0.55;
+    const r0 = 0.5 + rnd() * 0.6;
     const start = new THREE.Vector3(Math.cos(a) * r0, -0.08 + rnd() * 0.32, Math.sin(a) * r0 * 0.9 - 0.1);
     // targets: the urn's rim, the ledge, the zebras' backs, the stick
     const ta = a + (rnd() - 0.5) * 0.9;
-    const tr = 0.075 + rnd() * (pose === 'grasp' ? 0.05 : 0.22);
-    const target = new THREE.Vector3(Math.cos(ta) * tr, -0.06 + rnd() * 0.14, Math.sin(ta) * tr);
+    const tr = 0.08 + rnd() * (pose === 'grasp' ? 0.06 : 0.36);
+    const target = new THREE.Vector3(Math.cos(ta) * tr, -0.07 + rnd() * 0.2, Math.sin(ta) * tr);
     const child = rnd() < 0.15;
     return {
       t0: wave ? 0.8 + rnd() * 1.8 : 0.15 + rnd() * 0.9,
       dur: 1.3 + rnd() * 1.1,
       start, target,
       lift: 0.02 + rnd() * 0.06,
-      scale: (child ? 0.05 : 0.068 + rnd() * 0.022) * (0.95 + rnd() * 0.1),
+      scale: (0.064 + rnd() * 0.02) * (child ? 0.6 : 1),
       thin: 0.85 + rnd() * 0.25,
-      roll: (rnd() - 0.5) * 1.2,
+      roll: (rnd() - 0.5) * 2.6, // a random wrist roll
       tw: 5 + rnd() * 9,
       ph: rnd() * 10,
       rush: new THREE.Vector2((rnd() - 0.5) * 2, (rnd() - 0.5) * 2),

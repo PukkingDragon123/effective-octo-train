@@ -463,6 +463,10 @@ export class IncenseScene {
     road.position.set(-0.7, 0.45, -0.9); // a faint cold rim from behind
     scene.add(moon, road);
     scene.add(new THREE.HemisphereLight(0x15171b, 0x080504, 0.06));
+    // a cool rim from behind for the hands (on only while they come)
+    this.rimLight = new THREE.DirectionalLight(0xa9bcff, 0);
+    this.rimLight.position.set(-0.4, 0.6, -1.0);
+    scene.add(this.rimLight);
     this.cold = new THREE.PointLight(0x8796b4, 0, 1.6, 2);
     this.cold.position.set(0.34, 0.22, 0.06);
     scene.add(this.cold);
@@ -891,6 +895,7 @@ export class IncenseScene {
     const GT = g.time; // the whole beat: the horde runs on this
     const T = GT - 1.1; // the woman's hand comes when the first hands are already out
     this.horde?.update(GT, this.camera);
+    this.rimLight.intensity = 0.9 * smooth(0.2, 1.2, GT) * (1 - this.fade);
     // the lens draws back to take in the dark around the urn, then the hands rush it
     g.camDist = 0.5 + 0.28 * smooth(0.2, 2.2, GT) - 0.12 * smooth(3.6, 4.6, GT);
     const u = this.u;
