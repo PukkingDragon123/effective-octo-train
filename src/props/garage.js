@@ -45,6 +45,16 @@ function looseItem(out, group, seed, p, r, build, cls = 'nudge') {
   return obj;
 }
 
+/**
+ * Put a hand-tool scan down the way it would really lie: models authored standing up (pliers,
+ * screwdrivers, ratchets) are laid on their side, resting on the surface at p.
+ */
+function layTool(k, id, p, yaw, extra = {}) {
+  const sz = assetSize(id);
+  if (sz && sz.y > Math.max(sz.x, sz.z) * 1.2) return useAsset(k, id, { p: [p[0], p[1] + sz.z / 2, p[2]], r: [Math.PI / 2, yaw, 0, 'YXZ'] }, extra);
+  return useAsset(k, id, { p, r: yaw }, extra);
+}
+
 /** Fill a shelf (kit space: x0..x0+w at height y, depth z0±d/2) with random garage stuff. */
 function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
   let x = x0 + 0.04;
@@ -93,7 +103,7 @@ function fillShelf(k, x0, y, z0, w, d, rng, theme = 'mixed') {
       const tid = tools[Math.floor(rng() * tools.length)];
       const tsz = assetSize(tid);
       const tw = tsz ? Math.max(tsz.x, 0.04) : 0;
-      if (tsz && x + tw < x0 + w - 0.02 && useAsset(k, tid, { p: [x + tw / 2, y, zj], r: (rng() - 0.5) * 0.5 }, { w: { dust: 0.45, grime: 0.15 } })) {
+      if (tsz && x + tw < x0 + w - 0.02 && layTool(k, tid, [x + tw / 2, y, zj], (rng() - 0.5) * 0.5, { w: { dust: 0.45, grime: 0.15 } })) {
         x += tw + 0.03 + rng() * 0.04;
       } else if (rng() < 0.5) {
         // brake disc leaning on the back: turned hat section, vented rotor faces
@@ -300,9 +310,9 @@ export function createGarage(opts = {}) {
     if (!useAsset(k, 'cleaner_tin_01', { p: [bx - 0.5, 0.93, bz - 0.1], r: 0.6 }, { fit: { h: 0.13 }, w: { dust: 0.3 } })) can(k, { p: [bx - 0.5, 0.93, bz - 0.1], h: 0.14, rad: 0.05, color: 0x9a9080 }); // on the bench top (0.93)
     // more of Ah Kong's hand tools on the bench (2K CC0 scans, true size)
     useAsset(k, 'retro_multimeter', { p: [bx - 0.2, 0.93, bz - 0.2], r: 0.25 }, { w: { dust: 0.3, grime: 0.1 } });
-    useAsset(k, 'ratchet_wrench', { p: [bx + 0.62, 0.93, bz + 0.22], r: -0.6 }, { w: { grime: 0.2 } });
+    layTool(k, 'ratchet_wrench', [bx + 0.62, 0.93, bz + 0.22], -0.6, { w: { grime: 0.2 } });
     useAsset(k, 'small_plastic_torch', { p: [bx + 1.15, 0.93, bz + 0.12], r: 1.2 }, { w: { dust: 0.3 } });
-    useAsset(k, 'tongue_groove_pliers', { p: [bx - 0.62, 0.93, bz - 0.22], r: 2.6 }, { w: { grime: 0.2 } });
+    layTool(k, 'tongue_groove_pliers', [bx - 0.62, 0.93, bz - 0.22], 2.6, { w: { grime: 0.2 } });
     // groceries Ah Kong keeps by the radio + a storage bin under the bench (CC0 Poly Haven)
     useAsset(k, 'long_life_food', { p: [bx - 0.72, 0.93, bz + 0.15], r: 0.1 }, { fit: { w: 0.4 }, w: { dust: 0.3, grime: 0.1 } });
     useAsset(k, 'plastic_container', { p: [bx + 0.35, 0, bz + 0.02], r: 0.04 }, { fit: { w: 0.7 }, w: { dust: 0.6, grime: 0.3 } });
@@ -535,8 +545,8 @@ export function createGarage(opts = {}) {
     looseItem(out, group, seed + 49, [bx - 0.75, 0, bz + 0.05], 0.15, (lk) => useAsset(lk, 'metal_toolbox', { p: [0, 0, 0] }, { fit: { w: 0.45 }, w: { grime: 0.4, dust: 0.4 } }));
     // tools left where they were dropped: on the bench at odd angles, a few spilt on the floor
     // (bench tools are static: the loose-prop solver has one floor, they would drop through the bench)
-    useAsset(k, 'pliers', { p: [bx - 0.35, 0.93, bz + 0.2], r: 0.7 + rng() * 0.4 }, { w: false });
-    useAsset(k, 'screwdrivers_02', { p: [bx + 0.05, 0.93, bz + 0.22], r: -0.4 + rng() * 0.5 }, { w: false });
+    layTool(k, 'pliers', [bx - 0.35, 0.93, bz + 0.2], 0.7 + rng() * 0.4, { w: false });
+    layTool(k, 'screwdrivers_02', [bx + 0.05, 0.93, bz + 0.22], -0.4 + rng() * 0.5, { w: false });
     looseItem(out, group, seed + 52, [bx - 0.48, 0.0, bz + 0.62], 1.9 + rng(), (lk) => useAsset(lk, 'adjustable_wrench', { p: [0, 0, 0] }, { w: false }), 'light');
     useAsset(k, 'small_oil_can_01', { p: [bx + 0.55, 0.93, bz - 0.12], r: 2.2 }, { w: { grime: 0.3 } });
     looseItem(out, group, seed + 54, [bx + 0.35, 0.0, bz + 0.85], 0.6 + rng(), (lk) => useAsset(lk, 'combination_wrench', { p: [0, 0, 0] }, { w: { grime: 0.3 } }), 'light');

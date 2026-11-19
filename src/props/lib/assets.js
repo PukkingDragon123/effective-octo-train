@@ -139,6 +139,15 @@ function regradeMap(t, def) {
     }
     const o = new THREE.CanvasTexture(cv);
     o.flipY = t.flipY;
+    // keep the glTF texture transform (gltfpack quantises UVs into KHR_texture_transform): without it
+    // the map is sampled from a tiny corner and the model looks blank / white
+    o.offset.copy(t.offset);
+    o.repeat.copy(t.repeat);
+    o.rotation = t.rotation;
+    o.center.copy(t.center);
+    o.channel = t.channel;
+    o.matrixAutoUpdate = t.matrixAutoUpdate;
+    o.matrix.copy(t.matrix);
     o.colorSpace = THREE.SRGBColorSpace;
     o.wrapS = t.wrapS;
     o.wrapT = t.wrapT;
