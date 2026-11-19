@@ -15,7 +15,7 @@ import { LAYERS } from '../core/layers.js';
 import { settings } from '../core/Settings.js';
 import { clamp, lerp } from '../core/math.js';
 import { glassDirtTex, makeCanvas, toTexture } from './VehicleTextures.js';
-import { setupPortalCamera } from './Mirrors.js';
+import { setupPortalCamera , reducedPass, cheapPreset } from './Mirrors.js';
 import { FONTS } from '../ui/fonts.js';
 import { DIM, belt } from './TaxiBody.js';
 import { paintGlassBlood, smearGlassBlood, handPath } from './Blood.js';
@@ -849,15 +849,24 @@ export class GlassSystem {
     if (!enabled || !paneId || !this.panes[paneId]) return;
     const p = this.panes[paneId];
     if (p.uniforms.uReflect.value < 0.01 && strength < 0.01) return;
+    // low / medium: a quarter of the pixels, refreshed every 3rd frame (the glass is a soft, dim reflection)
+    const cheap = cheapPreset();
+    this._reflN = (this._reflN || 0) + 1;
+    if (cheap && this._reflN % 3 !== 0 && this.reflectRT) return;
+    const RW = cheap ? 160 : 320, RH = cheap ? 96 : 192;
+    if (this.reflectRT && this.reflectRT.width !== RW) {
+      this.reflectRT.dispose();
+      this.reflectRT = null;
+    }
     if (!this.reflectRT) {
-      this.reflectRT = new THREE.WebGLRenderTarget(320, 192, { type: THREE.HalfFloatType });
+      this.reflectRT = new THREE.WebGLRenderTarget(RW, RH, { type: THREE.HalfFloatType });
       this.reflectRT.texture.generateMipmaps = false;
       this.uniforms.tReflect.value = this.reflectRT.texture;
     }
     const size = p.rect(this._C, this._N, this._U);
     // make the normal face the eye
     if (this._N.dot(camera.position.clone().sub(this._C)) < 0) this._N.negate();
-    const ok = setupPortalCamera(this.reflectCam, this._C, this._N, this._U, size[0] * 1.08, size[1] * 1.08, camera.position, 3.2, p.uniforms.uReflectMatrix.value, 1);
+    const ok = setupPortalCamera(this.reflectCam, this._C, this._N, this._U, size[0] * 1.08, size[1] * 1.08, camera.position, cheap ? 2.2 : 3.2, p.uniforms.uReflectMatrix.value, 1);
     if (!ok) {
       p.uniforms.uReflect.value = 0;
       return;
@@ -871,7 +880,7 @@ export class GlassSystem {
     for (const id of this.ids) this.panes[id].mesh.visible = false;
     renderer.setRenderTarget(this.reflectRT);
     renderer.clear();
-    renderer.render(scene, this.reflectCam);
+    reducedPass(() => renderer.render(scene, this.reflectCam));
     renderer.setRenderTarget(prevRT);
     this.ids.forEach((id, i) => (this.panes[id].mesh.visible = shown[i]));
     renderer.shadowMap.autoUpdate = prevAuto;

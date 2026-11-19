@@ -1,18 +1,4 @@
 {
- "old_tyre": {
-  "gltf": "assets/props/polyhaven/old_tyre.glb",
-  "group": "garage",
-  "name": "Old Tyre",
-  "categories": [
-   "industrial",
-   "props",
-   "collection: hidden_alley"
-  ],
-  "author": "MP",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/old_tyre",
-  "bytes": 2188292
- },
  "metal_toolbox": {
   "gltf": "assets/props/polyhaven/metal_toolbox.glb",
   "group": "garage",
@@ -27,23 +13,6 @@
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/metal_toolbox",
   "bytes": 365188
- },
- "metal_tool_chest": {
-  "gltf": "assets/props/polyhaven/metal_tool_chest.glb",
-  "group": "garage",
-  "name": "Metal Tool Chest",
-  "categories": [
-   "props",
-   "tools",
-   "industrial",
-   "containers",
-   "rigged",
-   "collection: the_shed"
-  ],
-  "author": "Yann Kervran, John Hutcheson",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/metal_tool_chest",
-  "bytes": 2114384
  },
  "adjustable_wrench": {
   "gltf": "assets/props/polyhaven/adjustable_wrench.glb",
@@ -147,65 +116,6 @@
   "source": "https://polyhaven.com/a/metal_jerrycan",
   "bytes": 400148
  },
- "plastic_jerrycan": {
-  "gltf": "assets/props/polyhaven/plastic_jerrycan.glb",
-  "group": "garage",
-  "name": "Plastic Jerrycan",
-  "categories": [
-   "collection: project_lighthouse",
-   "props",
-   "containers"
-  ],
-  "author": "Ulan Cabanilla",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/plastic_jerrycan",
-  "bytes": 269868
- },
- "multi_cleaner_5_litre": {
-  "gltf": "assets/props/polyhaven/multi_cleaner_5_litre.glb",
-  "group": "garage",
-  "name": "Multi Cleaner 5 Litre",
-  "categories": [
-   "props",
-   "containers",
-   "industrial",
-   "collection: the_shed"
-  ],
-  "author": "James Ray Cock",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/multi_cleaner_5_litre",
-  "bytes": 153088
- },
- "steel_frame_shelves_02": {
-  "gltf": "assets/props/polyhaven/steel_frame_shelves_02.glb",
-  "group": "garage",
-  "name": "Steel Frame Shelves 02",
-  "categories": [
-   "furniture",
-   "industrial",
-   "shelves",
-   "collection: the_shed"
-  ],
-  "author": "James Ray Cock",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/steel_frame_shelves_02",
-  "bytes": 461816
- },
- "worn_metal_rack": {
-  "gltf": "assets/props/polyhaven/worn_metal_rack.glb",
-  "group": "garage",
-  "name": "Worn Metal Rack",
-  "categories": [
-   "collection: project_lighthouse",
-   "furniture",
-   "shelves",
-   "industrial"
-  ],
-  "author": "Luca B",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/worn_metal_rack",
-  "bytes": 1860616
- },
  "tire_pump": {
   "gltf": "assets/props/polyhaven/tire_pump.glb",
   "group": "garage",
@@ -248,146 +158,6 @@
   "source": "https://polyhaven.com/a/vintage_electric_kettle",
   "bytes": 2476304
  },
- "chinese_stool": {
-  "gltf": "assets/props/polyhaven/chinese_stool.glb",
-  "group": "garage",
-  "name": "Chinese Stool",
-  "categories": [
-   "seating",
-   "furniture"
-  ],
-  "author": "Kirill Sannikov",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/chinese_stool",
-  "bytes": 1770504
- },
- "chinese_tea_table": {
-  "gltf": "assets/props/polyhaven/chinese_tea_table.glb",
-  "group": "garage",
-  "name": "Chinese Tea Table",
-  "categories": [
-   "table",
-   "furniture"
-  ],
-  "author": "Kirill Sannikov",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/chinese_tea_table",
-  "bytes": 1536748
- },
- "small_lpg_tank": {
-  "gltf": "assets/props/polyhaven/small_lpg_tank.glb",
-  "group": "garage",
-  "name": "Small Lpg Tank",
-  "categories": [
-   "collection: project_lighthouse",
-   "props",
-   "industrial"
-  ],
-  "author": "Ulan Cabanilla",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/small_lpg_tank",
-  "bytes": 360648
- },
- "power_box_01": {
-  "gltf": "assets/props/polyhaven/power_box_01.glb",
-  "group": "roadside",
-  "name": "Power Box 01",
-  "categories": [
-   "industrial",
-   "props",
-   "electronics",
-   "tools",
-   "rigged",
-   "collection: the_shed"
-  ],
-  "author": "Rico Cilliers, Yann Kervran",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/power_box_01",
-  "bytes": 486376
- },
- "utility_box_01": {
-  "gltf": "assets/props/polyhaven/utility_box_01.glb",
-  "group": "roadside",
-  "name": "Utility Box 01",
-  "categories": [
-   "industrial",
-   "structures",
-   "collection: hidden_alley"
-  ],
-  "author": "James Ray Cock",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/utility_box_01",
-  "bytes": 201040
- },
- "cardboard_box_01": {
-  "gltf": "assets/props/polyhaven/cardboard_box_01.glb",
-  "group": "garage",
-  "name": "Cardboard Box 01",
-  "categories": [
-   "industrial",
-   "containers",
-   "collection: the_shed"
-  ],
-  "author": "Rahul Chaudhary",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/cardboard_box_01",
-  "bytes": 313608
- },
- "plastic_monobloc_chair_01": {
-  "gltf": "assets/props/polyhaven/plastic_monobloc_chair_01.glb",
-  "group": "stall",
-  "name": "Plastic Monobloc Chair 01",
-  "categories": [
-   "furniture",
-   "seating",
-   "collection: the_shed"
-  ],
-  "author": "Kuutti Siitonen",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/plastic_monobloc_chair_01",
-  "bytes": 1881768
- },
- "metal_stool_02": {
-  "gltf": "assets/props/polyhaven/metal_stool_02.glb",
-  "group": "stall",
-  "name": "Metal Stool 02",
-  "categories": [
-   "collection: project_lighthouse",
-   "furniture",
-   "seating"
-  ],
-  "author": "Ulan Cabanilla",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/metal_stool_02",
-  "bytes": 246804
- },
- "folding_wooden_stool": {
-  "gltf": "assets/props/polyhaven/folding_wooden_stool.glb",
-  "group": "stall",
-  "name": "Folding Wooden Stool",
-  "categories": [
-   "seating",
-   "furniture"
-  ],
-  "author": "Ulan Cabanilla",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/folding_wooden_stool",
-  "bytes": 249392
- },
- "plastic_crate_02": {
-  "gltf": "assets/props/polyhaven/plastic_crate_02.glb",
-  "group": "stall",
-  "name": "Plastic Crate 02",
-  "categories": [
-   "collection: project_lighthouse",
-   "props",
-   "containers"
-  ],
-  "author": "Fabi_G",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/plastic_crate_02",
-  "bytes": 255344
- },
  "pot_enamel_01": {
   "gltf": "assets/props/polyhaven/pot_enamel_01.glb",
   "group": "stall",
@@ -401,22 +171,6 @@
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/pot_enamel_01",
   "bytes": 222092
- },
- "ceramic_pot": {
-  "gltf": "assets/props/polyhaven/ceramic_pot.glb",
-  "group": "stall",
-  "name": "Ceramic Pot",
-  "categories": [
-   "containers",
-   "props",
-   "decorative",
-   "dishes",
-   "collection: project_lighthouse"
-  ],
-  "author": "Aron \u0141yczek",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/ceramic_pot",
-  "bytes": 172720
  },
  "jug_01": {
   "gltf": "assets/props/polyhaven/jug_01.glb",
@@ -446,47 +200,6 @@
   "source": "https://polyhaven.com/a/wooden_cutting_board",
   "bytes": 159612
  },
- "wicker_basket_01": {
-  "gltf": "assets/props/polyhaven/wicker_basket_01.glb",
-  "group": "stall",
-  "name": "Wicker Basket 01",
-  "categories": [
-   "containers",
-   "decorative",
-   "collection: the_shed"
-  ],
-  "author": "Kuutti Siitonen",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/wicker_basket_01",
-  "bytes": 440696
- },
- "wicker_basket_02": {
-  "gltf": "assets/props/polyhaven/wicker_basket_02.glb",
-  "group": "stall",
-  "name": "Wicker Basket 02",
-  "categories": [
-   "containers",
-   "decorative"
-  ],
-  "author": "Kuutti Siitonen",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/wicker_basket_02",
-  "bytes": 410852
- },
- "bananas": {
-  "gltf": "assets/props/polyhaven/bananas.glb",
-  "group": "stall",
-  "name": "Bananas",
-  "categories": [
-   "food",
-   "collection: project_lighthouse",
-   "nature"
-  ],
-  "author": "Alexander Shulha",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/bananas",
-  "bytes": 608908
- },
  "food_lime_01": {
   "gltf": "assets/props/polyhaven/food_lime_01.glb",
   "group": "stall",
@@ -513,20 +226,6 @@
   "source": "https://polyhaven.com/a/plastic_bottle_gallon",
   "bytes": 210188
  },
- "brass_pot_01": {
-  "gltf": "assets/props/polyhaven/brass_pot_01.glb",
-  "group": "shrine",
-  "name": "Brass Pot 01",
-  "categories": [
-   "props",
-   "containers",
-   "decorative"
-  ],
-  "author": "Rico Cilliers",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/brass_pot_01",
-  "bytes": 145144
- },
  "brass_vase_01": {
   "gltf": "assets/props/polyhaven/brass_vase_01.glb",
   "group": "shrine",
@@ -539,20 +238,6 @@
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/brass_vase_01",
   "bytes": 317072
- },
- "ceramic_vase_01": {
-  "gltf": "assets/props/polyhaven/ceramic_vase_01.glb",
-  "group": "shrine",
-  "name": "Ceramic Vase 01",
-  "categories": [
-   "vases",
-   "containers",
-   "decorative"
-  ],
-  "author": "James Ray Cock",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/ceramic_vase_01",
-  "bytes": 166928
  },
  "carved_wooden_elephant": {
   "gltf": "assets/props/polyhaven/carved_wooden_elephant.glb",

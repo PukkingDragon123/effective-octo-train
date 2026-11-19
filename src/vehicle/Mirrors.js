@@ -4,6 +4,7 @@
 // mirror plane (free oblique clipping) and every texel of the render target lands on the
 // mirror. Convex side mirrors pull the virtual eye toward the glass (wider view).
 // Rendered in engine.onPreRender, gaze-prioritised and round-robined.
+import { particles, lightPool } from '../render/index.js';
 import * as THREE from 'three';
 import { LAYERS } from '../core/layers.js';
 import { settings } from '../core/Settings.js';
@@ -21,6 +22,25 @@ const BIAS = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 
  * toward the viewer, unit up U, size w x h) seen from eye E. convex: 1 = flat, <1 = wider.
  * Writes the sampling matrix (world -> uv) into texMatrix. Returns false if the eye is behind.
  */
+/**
+ * Reflective passes see a reduced scene: no particles, no light-pool glow sprites, no shadow
+ * updates, no post (they render straight to their target), and a short far plane on low/medium
+ * (no foliage cards beyond ~30 m; the fog hides that distance anyway).
+ */
+export function reducedPass(fn) {
+  const hidden = [];
+  for (const o of [particles?.group, lightPool?.group]) if (o?.visible) {
+    o.visible = false;
+    hidden.push(o);
+  }
+  try {
+    return fn();
+  } finally {
+    for (const o of hidden) o.visible = true;
+  }
+}
+export const cheapPreset = () => ['low', 'medium'].includes(settings.get('graphicsPreset'));
+
 export function setupPortalCamera(cam, C, N, U, w, h, E, far, texMatrix, convex = 1) {
   const side = _tmp.subVectors(E, C).dot(N);
   if (side <= 0.001) return false;
@@ -135,7 +155,7 @@ class Mirror {
     _R.set(e[0], e[1], e[2]).normalize();
     _U.set(e[4], e[5], e[6]).normalize();
     _N.set(e[8], e[9], e[10]).normalize();
-    return setupPortalCamera(this.camera, _C, _N, _U, this.w * 0.98, this.h * 0.98, eye, this.far, this.texMatrix, this.convex);
+    return setupPortalCamera(this.camera, _C, _N, _U, this.w * 0.98, this.h * 0.98, eye, cheapPreset() ? Math.min(this.far, 30) : this.far, this.texMatrix, this.convex);
   }
   render(renderer, scene, eye, hide) {
     if (!this.frame(eye)) {
@@ -149,7 +169,7 @@ class Mirror {
     for (const o of hide) o.visible = false;
     renderer.setRenderTarget(this.rt);
     renderer.clear();
-    renderer.render(scene, this.camera);
+    reducedPass(() => renderer.render(scene, this.camera));
     for (const o of hide) o.visible = true;
     this.mesh.visible = true;
     renderer.setRenderTarget(prevRT);
@@ -230,8 +250,9 @@ export class MirrorSystem {
     // needs it, e.g. the lagging reflection: mirrors.rearPriority = true)
     const preset = settings.get('graphicsPreset');
     const cheap = preset === 'low' || preset === 'medium';
-    const slot = cheap && !(this.rearPriority && focus === this.rear) ? frame % 2 : -1;
-    if (focus && (slot === -1 || slot === 0 || !others.length)) {
+    const slot = cheap ? frame % 2 : -1; // low / medium: one mirror per frame, alternating
+    const keepRear = this.rearPriority && focus === this.rear; // a rule needs the rear one every frame
+    if (focus && (slot === -1 || slot === 0 || !others.length || keepRear)) {
       focus.render(renderer, scene, eye, this.hide);
       focus.lastRender = frame;
     }
