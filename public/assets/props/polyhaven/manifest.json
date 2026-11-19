@@ -12,7 +12,7 @@
   "author": "Mateusz Sadek",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/metal_toolbox",
-  "bytes": 365188
+  "bytes": 298220
  },
  "adjustable_wrench": {
   "gltf": "assets/props/polyhaven/adjustable_wrench.glb",
@@ -27,7 +27,7 @@
   "author": "Mateusz Sadek",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/adjustable_wrench",
-  "bytes": 2221584
+  "bytes": 468720
  },
  "combination_wrench": {
   "gltf": "assets/props/polyhaven/combination_wrench.glb",
@@ -41,7 +41,7 @@
   "author": "BKS",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/combination_wrench",
-  "bytes": 1256776
+  "bytes": 174104
  },
  "pliers": {
   "gltf": "assets/props/polyhaven/pliers.glb",
@@ -56,7 +56,7 @@
   "author": "PierreB3D",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/pliers",
-  "bytes": 1279160
+  "bytes": 640380
  },
  "screwdrivers_02": {
   "gltf": "assets/props/polyhaven/screwdrivers_02.glb",
@@ -70,7 +70,7 @@
   "author": "BKS",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/screwdrivers_02",
-  "bytes": 1665528
+  "bytes": 933060
  },
  "oil_tin": {
   "gltf": "assets/props/polyhaven/oil_tin.glb",
@@ -85,7 +85,7 @@
   "author": "Niklas",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/oil_tin",
-  "bytes": 1822700
+  "bytes": 321408
  },
  "small_oil_can_01": {
   "gltf": "assets/props/polyhaven/small_oil_can_01.glb",
@@ -100,7 +100,7 @@
   "author": "Raven van de Werken",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/small_oil_can_01",
-  "bytes": 1548596
+  "bytes": 947136
  },
  "metal_jerrycan": {
   "gltf": "assets/props/polyhaven/metal_jerrycan.glb",
@@ -114,7 +114,7 @@
   "author": "Sean Buckley",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/metal_jerrycan",
-  "bytes": 400148
+  "bytes": 332716
  },
  "tire_pump": {
   "gltf": "assets/props/polyhaven/tire_pump.glb",
@@ -128,7 +128,7 @@
   "author": "Garrison Gager",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/tire_pump",
-  "bytes": 207240
+  "bytes": 152788
  },
  "rusted_wheel_rim_01": {
   "gltf": "assets/props/polyhaven/rusted_wheel_rim_01.glb",
@@ -142,7 +142,7 @@
   "author": "John Hutcheson",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/rusted_wheel_rim_01",
-  "bytes": 431748
+  "bytes": 366828
  },
  "vintage_electric_kettle": {
   "gltf": "assets/props/polyhaven/vintage_electric_kettle.glb",
@@ -156,7 +156,7 @@
   "author": "SV Garip",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/vintage_electric_kettle",
-  "bytes": 2476304
+  "bytes": 635420
  },
  "pot_enamel_01": {
   "gltf": "assets/props/polyhaven/pot_enamel_01.glb",
@@ -170,7 +170,7 @@
   "author": "Kuutti Siitonen",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/pot_enamel_01",
-  "bytes": 222092
+  "bytes": 167316
  },
  "jug_01": {
   "gltf": "assets/props/polyhaven/jug_01.glb",
@@ -185,7 +185,7 @@
   "author": "Kuutti Siitonen",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/jug_01",
-  "bytes": 628364
+  "bytes": 140080
  },
  "wooden_cutting_board": {
   "gltf": "assets/props/polyhaven/wooden_cutting_board.glb",
@@ -198,7 +198,7 @@
   "author": "Kuutti Siitonen",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/wooden_cutting_board",
-  "bytes": 159612
+  "bytes": 107936
  },
  "food_lime_01": {
   "gltf": "assets/props/polyhaven/food_lime_01.glb",
@@ -211,7 +211,7 @@
   "author": "Oliver Harries",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/food_lime_01",
-  "bytes": 1446964
+  "bytes": 347384
  },
  "plastic_bottle_gallon": {
   "gltf": "assets/props/polyhaven/plastic_bottle_gallon.glb",
@@ -224,7 +224,7 @@
   "author": "Rahul Chaudhary",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/plastic_bottle_gallon",
-  "bytes": 210188
+  "bytes": 170648
  },
  "brass_vase_01": {
   "gltf": "assets/props/polyhaven/brass_vase_01.glb",
@@ -237,7 +237,7 @@
   "author": "Rico Cilliers",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/brass_vase_01",
-  "bytes": 317072
+  "bytes": 261596
  },
  "carved_wooden_elephant": {
   "gltf": "assets/props/polyhaven/carved_wooden_elephant.glb",
@@ -250,7 +250,7 @@
   "author": "Greg Zaal",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/carved_wooden_elephant",
-  "bytes": 181640
+  "bytes": 120268
  },
  "rock_moss_set_01": {
   "gltf": "assets/props/polyhaven/rock_moss_set_01.glb",
@@ -264,7 +264,7 @@
   "author": "Kless Gyzen",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/rock_moss_set_01",
-  "bytes": 593868
+  "bytes": 430664
  },
  "rock_moss_set_02": {
   "gltf": "assets/props/polyhaven/rock_moss_set_02.glb",
@@ -278,7 +278,7 @@
   "author": "Kless Gyzen",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/rock_moss_set_02",
-  "bytes": 733512
+  "bytes": 504364
  },
  "root_cluster_01": {
   "gltf": "assets/props/polyhaven/root_cluster_01.glb",
@@ -293,7 +293,7 @@
   "author": "Jenelle van Heerden, Rico Cilliers",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/root_cluster_01",
-  "bytes": 3400952
+  "bytes": 1069552
  },
  "tree_stump_01": {
   "gltf": "assets/props/polyhaven/tree_stump_01.glb",
@@ -309,7 +309,7 @@
   "author": "Rob Tuytel",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/tree_stump_01",
-  "bytes": 3057492
+  "bytes": 753840
  },
  "tree_stump_02": {
   "gltf": "assets/props/polyhaven/tree_stump_02.glb",
@@ -325,7 +325,7 @@
   "author": "Rob Tuytel",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/tree_stump_02",
-  "bytes": 3153980
+  "bytes": 835800
  },
  "wall_clock": {
   "gltf": "assets/props/polyhaven/wall_clock.glb",
@@ -339,7 +339,7 @@
   "author": "PierreB3D",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/wall_clock",
-  "bytes": 201320
+  "bytes": 111136
  },
  "portable_cassette_player": {
   "gltf": "assets/props/polyhaven/portable_cassette_player.glb",
@@ -353,7 +353,7 @@
   "author": "Mateusz Sadek",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/portable_cassette_player",
-  "bytes": 2280176
+  "bytes": 1214760
  },
  "long_life_food": {
   "gltf": "assets/props/polyhaven/long_life_food.glb",
@@ -368,7 +368,7 @@
   "author": "Mia Pecina Zorko",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/long_life_food",
-  "bytes": 1281116
+  "bytes": 646900
  },
  "multi_cleaner_bottle": {
   "gltf": "assets/props/polyhaven/multi_cleaner_bottle.glb",
@@ -382,7 +382,7 @@
   "author": "James Ray Cock",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/multi_cleaner_bottle",
-  "bytes": 825928
+  "bytes": 197444
  },
  "plastic_crate_03": {
   "gltf": "assets/props/polyhaven/plastic_crate_03.glb",
@@ -396,7 +396,7 @@
   "author": "Pacific Penguin",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/plastic_crate_03",
-  "bytes": 605184
+  "bytes": 538880
  },
  "plastic_container": {
   "gltf": "assets/props/polyhaven/plastic_container.glb",
@@ -410,7 +410,7 @@
   "author": "PierreB3D",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/plastic_container",
-  "bytes": 186492
+  "bytes": 119412
  },
  "Barrel_02": {
   "gltf": "assets/props/polyhaven/Barrel_02.glb",
@@ -424,7 +424,7 @@
   "author": "Jorge Camacho",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/Barrel_02",
-  "bytes": 149052
+  "bytes": 91856
  },
  "wooden_crate_02": {
   "gltf": "assets/props/polyhaven/wooden_crate_02.glb",
@@ -438,7 +438,7 @@
   "author": "James Ray Cock, Jurita Burger",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/wooden_crate_02",
-  "bytes": 230652
+  "bytes": 157076
  },
  "food_lychee_01": {
   "gltf": "assets/props/polyhaven/food_lychee_01.glb",
@@ -451,7 +451,7 @@
   "author": "Oliver Harries",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/food_lychee_01",
-  "bytes": 1909696
+  "bytes": 473508
  },
  "food_pears_asian_01": {
   "gltf": "assets/props/polyhaven/food_pears_asian_01.glb",
@@ -464,7 +464,7 @@
   "author": "Amal Kumar",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/food_pears_asian_01",
-  "bytes": 876340
+  "bytes": 280836
  },
  "ratchet_wrench": {
   "gltf": "assets/props/polyhaven/ratchet_wrench.glb",
@@ -480,7 +480,7 @@
   "author": "John Hutcheson",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/ratchet_wrench",
-  "bytes": 983048
+  "bytes": 532056
  },
  "tongue_groove_pliers": {
   "gltf": "assets/props/polyhaven/tongue_groove_pliers.glb",
@@ -493,7 +493,7 @@
   "author": "BKS",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/tongue_groove_pliers",
-  "bytes": 1734188
+  "bytes": 1045252
  },
  "retro_multimeter": {
   "gltf": "assets/props/polyhaven/retro_multimeter.glb",
@@ -510,7 +510,7 @@
   "author": "elli moeller",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/retro_multimeter",
-  "bytes": 1191500
+  "bytes": 537464
  },
  "vintage_lighter": {
   "gltf": "assets/props/polyhaven/vintage_lighter.glb",
@@ -524,7 +524,7 @@
   "author": "Slinc",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/vintage_lighter",
-  "bytes": 1695140
+  "bytes": 817068
  },
  "lightbulb_01": {
   "gltf": "assets/props/polyhaven/lightbulb_01.glb",
@@ -537,7 +537,7 @@
   "author": "Josh Dean",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/lightbulb_01",
-  "bytes": 1373916
+  "bytes": 263860
  },
  "leather_cleaner_can": {
   "gltf": "assets/props/polyhaven/leather_cleaner_can.glb",
@@ -551,7 +551,7 @@
   "author": "James Ray Cock",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/leather_cleaner_can",
-  "bytes": 501480
+  "bytes": 102260
  },
  "small_plastic_torch": {
   "gltf": "assets/props/polyhaven/small_plastic_torch.glb",
@@ -565,33 +565,7 @@
   "author": "Abiyyu Panggalih (Abiyyu_xyz)",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/small_plastic_torch",
-  "bytes": 2364544
- },
- "brass_candleholders": {
-  "gltf": "assets/props/polyhaven/brass_candleholders.glb",
-  "group": "shrine",
-  "name": "Brass Candleholders",
-  "categories": [
-   "decorative",
-   "lighting"
-  ],
-  "author": "Tina",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/brass_candleholders",
-  "bytes": 3104820
- },
- "brass_diya_lantern": {
-  "gltf": "assets/props/polyhaven/brass_diya_lantern.glb",
-  "group": "shrine",
-  "name": "Brass Diya Lantern",
-  "categories": [
-   "decorative",
-   "lighting"
-  ],
-  "author": "Bhargav Kubal",
-  "license": "CC0 1.0",
-  "source": "https://polyhaven.com/a/brass_diya_lantern",
-  "bytes": 1753108
+  "bytes": 1435552
  },
  "rusted_hacksaw": {
   "gltf": "assets/props/polyhaven/rusted_hacksaw.glb",
@@ -605,7 +579,7 @@
   "author": "Dabou Master",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/rusted_hacksaw",
-  "bytes": 1427132
+  "bytes": 337692
  },
  "propane_torch": {
   "gltf": "assets/props/polyhaven/propane_torch.glb",
@@ -619,6 +593,6 @@
   "author": "Jan W",
   "license": "CC0 1.0",
   "source": "https://polyhaven.com/a/propane_torch",
-  "bytes": 1054356
+  "bytes": 237692
  }
 }

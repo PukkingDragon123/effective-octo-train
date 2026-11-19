@@ -30,6 +30,7 @@ const G = 9.81;
 
 const registry = new Set();
 let acc = 0;
+let frame = 0; // updateCloth calls: cloth not drawn for a few frames (offscreen, culled) is not stepped
 
 /** One prop's strips of one material: a single mesh whose vertices are the particles. */
 class ClothSet {
@@ -81,6 +82,10 @@ class ClothSet {
     for (const s of this.strips) maxL = Math.max(maxL, s.nv * 0.1);
     geo.boundingSphere.radius += maxL * 0.6 + 0.1;
     this.mesh = mesh;
+    this.seen = -10;
+    mesh.onBeforeRender = () => {
+      this.seen = frame;
+    };
     this.parent.objects.push({ object: mesh, detail: this.detail });
     this._setupSim(geo);
     registry.add(this);
@@ -268,6 +273,7 @@ const _cand = [];
 /** Step the cloth near the camera. Call once a frame (the world does). */
 export function updateCloth(dt, camPos = GLOBAL_UNIFORMS.uCameraPos.value) {
   if (!registry.size) return;
+  frame++;
   acc = Math.min(acc + Math.min(dt, 0.1), STEP * 2);
   if (acc < STEP) return;
   let steps = 0;
@@ -289,7 +295,7 @@ export function updateCloth(dt, camPos = GLOBAL_UNIFORMS.uCameraPos.value) {
     const d2 = _c.distanceToSquared(camPos);
     // small cloth is sub-pixel in the fog long before this: skip its draw call
     mesh.visible = d2 < s.hide * s.hide;
-    if (d2 > SIM_DIST * SIM_DIST) continue;
+    if (d2 > SIM_DIST * SIM_DIST || frame - s.seen > 3) continue;
     s._d2 = d2;
     s._wx = _c.x + _c.z * 0.7;
     _cand.push(s);

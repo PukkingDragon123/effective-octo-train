@@ -86,11 +86,11 @@ like `tools/assets/pack_polyhaven.mjs`, into `public/assets/studio/` (CC0 1.0).
 | lightbulb_01 | Lightbulb 01 | Josh Dean | CC0 1.0 | https://polyhaven.com/a/lightbulb_01 |
 | leather_cleaner_can | Leather Cleaner Can | James Ray Cock | CC0 1.0 | https://polyhaven.com/a/leather_cleaner_can |
 | small_plastic_torch | Small Plastic Torch | Abiyyu Panggalih (Abiyyu_xyz) | CC0 1.0 | https://polyhaven.com/a/small_plastic_torch |
-| brass_candleholders | Brass Candleholders | Tina | CC0 1.0 | https://polyhaven.com/a/brass_candleholders |
-| brass_diya_lantern | Brass Diya Lantern | Bhargav Kubal | CC0 1.0 | https://polyhaven.com/a/brass_diya_lantern |
 | rusted_hacksaw | Rusted Hacksaw | Dabou Master | CC0 1.0 | https://polyhaven.com/a/rusted_hacksaw |
 | propane_torch | Propane Torch | Jan W | CC0 1.0 | https://polyhaven.com/a/propane_torch |
 
 Hand-scale workshop, food and shrine items (the hand tools, tins, cleaner bottles, groceries, fruit, radio, kettle,
 vice, jug and the models above) are packed from the 2K glTF downloads: 2048 px colour and normal maps, 1024 px
-ARM (occlusion/roughness/metal) maps, JPEG.
+ARM maps. For download size every model's maps are WebP: 2048 px only on the dozen hero items handled within
+about 1 m (bench tools, multimeter, lighter, groceries, oil can, radio, torch, vice), 1024 px colour/normal and
+512 px ARM on everything else.

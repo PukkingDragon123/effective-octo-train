@@ -98,8 +98,6 @@ export const PROP_ASSETS = {
   lightbulb_01: { path: 'polyhaven/lightbulb_01.glb', shadows: false },
   leather_cleaner_can: { path: 'polyhaven/leather_cleaner_can.glb', shadows: false },
   small_plastic_torch: { path: 'polyhaven/small_plastic_torch.glb', shadows: false },
-  brass_candleholders: { path: 'polyhaven/brass_candleholders.glb', shadows: false },
-  brass_diya_lantern: { path: 'polyhaven/brass_diya_lantern.glb', shadows: false },
   rusted_hacksaw: { path: 'polyhaven/rusted_hacksaw.glb', shadows: false },
   propane_torch: { path: 'polyhaven/propane_torch.glb', shadows: false },
 };
@@ -299,15 +297,16 @@ export function assetShelves(id) {
  * world.build(); factories built before it resolves use their procedural fallbacks.
  * opts {ids = all, base = 'assets/props/', onProgress(fraction)} -> Promise<{loaded, failed}>
  */
-export function loadPropAssets(opts = {}) {
-  if (loading) return loading;
-  if (typeof document === 'undefined') return Promise.resolve({ loaded: [], failed: [] });
-  const ids = opts.ids || Object.keys(PROP_ASSETS);
-  const base = opts.base ?? 'assets/props/';
+// Models only needed further along the ride (the noodle stall, roadside crates): fetched after the
+// boot set, while the menu is up; the world's background build waits for them (propAssetsLateReady).
+const LATE = new Set(['pot_enamel_01', 'wicker_basket_01', 'wicker_basket_02', 'wooden_cutting_board', 'food_lime_01', 'ceramic_pot', 'plastic_bottle_gallon', 'wooden_crate_02', 'plastic_crate_03', 'carved_wooden_elephant']);
+let lateLoading = null;
+
+function loadIds(ids, base, onProgress) {
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   let done = 0;
-  loading = Promise.all(
+  return Promise.all(
     ids.map((id) =>
       loader
         .loadAsync(new URL(base + (PROP_ASSETS[id]?.path || id + '.glb'), document.baseURI).href)
@@ -316,10 +315,30 @@ export function loadPropAssets(opts = {}) {
           failed.add(id);
           console.warn('[props] asset failed', id, err?.message || err);
         })
-        .finally(() => opts.onProgress?.(++done / ids.length)),
+        .finally(() => onProgress?.(++done / ids.length)),
     ),
-  ).then(() => propAssetsStatus());
+  );
+}
+
+export function loadPropAssets(opts = {}) {
+  if (loading) return loading;
+  if (typeof document === 'undefined') return Promise.resolve({ loaded: [], failed: [] });
+  const base = opts.base ?? 'assets/props/';
+  if (opts.ids) {
+    loading = loadIds(opts.ids, base, opts.onProgress).then(() => propAssetsStatus());
+    return loading;
+  }
+  const all = Object.keys(PROP_ASSETS);
+  const early = all.filter((id) => !LATE.has(id));
+  const late = all.filter((id) => LATE.has(id));
+  loading = loadIds(early, base, opts.onProgress).then(() => propAssetsStatus());
+  lateLoading = loading.then(() => loadIds(late, base)).then(() => propAssetsStatus());
   return loading;
+}
+
+/** Resolves once the later-ride models are in too (or at once when nothing is loading). */
+export function propAssetsLateReady() {
+  return lateLoading || loading || Promise.resolve(propAssetsStatus());
 }
 
 /** { loaded: id[], failed: id[], pending: bool } */

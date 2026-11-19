@@ -147,7 +147,7 @@ export const createDressing = lit(dressing.createDressing, 1);
 export const createRoadScare = lit(scares.createRoadScare);
 export const ROAD_SCARE_KINDS = scares.ROAD_SCARE_KINDS;
 export { LIGHT_PRESETS, lightSpec, flickerValue } from './lib/lights.js';
-export { loadPropAssets, propAssetsStatus, hasAsset as hasPropAsset, PROP_ASSETS } from './lib/assets.js';
+export { loadPropAssets, propAssetsStatus, propAssetsLateReady, hasAsset as hasPropAsset, PROP_ASSETS } from './lib/assets.js';
 
 /**
  * Yaw that turns a prop (front = local +Z) toward the road.

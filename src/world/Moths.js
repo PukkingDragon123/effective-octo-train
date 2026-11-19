@@ -11,6 +11,7 @@ const LAMP_RANGE = 45; // only lamps this close to the camera get moths (m)
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _qr = new THREE.Quaternion(), _z = new THREE.Vector3(0, 0, 1), _down = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
 const _l = new THREE.Vector3();
+const _fr = new THREE.Frustum(), _pv = new THREE.Matrix4(), _sph = new THREE.Sphere();
 
 function softDot() {
   const c = document.createElement('canvas');
@@ -102,8 +103,14 @@ export class Moths {
     let ns = 0;
     const cam = camera || engine.camera;
     const cq = cam ? cam.quaternion : _q.identity();
+    // lamps out of view: no flutter, no matrix upload (their moths simply are not drawn)
+    if (cam) {
+      cam.updateMatrixWorld();
+      _fr.setFromProjectionMatrix(_pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    }
     for (let li = 0; li < this.lamps.length; li++) {
       const L = this.lamps[li].getWorldPosition(_l);
+      if (cam && !_fr.intersectsSphere(_sph.set(L, 2.5))) continue;
       const gy = this.world.getHeight(L.x, L.z);
       for (let k = 0; k < PER_LAMP; k++) {
         const s = this.st[li * PER_LAMP + k];

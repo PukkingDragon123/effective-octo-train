@@ -369,7 +369,7 @@ export class Forest {
       for (const kind of ['rocks', 'stumps', 'roots']) {
         WORLD_ASSETS[kind].forEach((a, i) => {
           const name = 'ph_' + kind;
-          const rec = this._addVariant(name, i, { lods: [{ ph: a.geo }], kind: kind === 'roots' ? 'ground' : 'rock', height: a.height, radius: a.radius }, { mat: a.mat, cast: kind !== 'roots' });
+          const rec = this._addVariant(name, i, { lods: [{ ph: a.geo }], kind: kind === 'roots' ? 'ground' : 'rock', height: a.height, radius: a.radius }, { mat: a.mat, cast: false }); // ground-hugging scans: no shadow-map draws (they barely cast)
           this.ph[kind].push(rec);
         });
       }

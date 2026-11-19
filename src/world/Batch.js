@@ -138,7 +138,9 @@ export class ChunkBatcher {
     for (const b of buckets.values()) {
       const geo = mergeBucket(b);
       const mesh = new THREE.Mesh(geo, b.mat);
-      mesh.castShadow = b.cast;
+      // small roadside props (clutter, offerings, insulators) cast no shadow-map draws: the lamps'
+      // and headlights' shadow passes only see the big pieces (poles, signs, rails, buildings)
+      mesh.castShadow = b.cast && b.cls === 'b';
       mesh.receiveShadow = b.receive;
       mesh.layers.mask = b.layers;
       mesh.renderOrder = b.order;
