@@ -66,7 +66,8 @@ export function updateGlobalUniforms(engine) {
 export function precompileScene(engine) {
   const { renderer, scene, camera } = engine;
   try {
-    return (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).catch(() => {});
+    const par = renderer.compileAsync && renderer.extensions?.has?.('KHR_parallel_shader_compile');
+    return (par ? renderer.compileAsync(scene, camera) : Promise.resolve(renderer.compile(scene, camera))).catch(() => {});
   } catch (e) {
     return Promise.resolve();
   }
