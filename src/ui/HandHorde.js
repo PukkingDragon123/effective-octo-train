@@ -13,13 +13,13 @@ import * as THREE from 'three';
 import { HandRig } from '../creatures/hand.js';
 
 const POSES = {
-  claw: { c: { i: -0.25, m: -0.2, r: -0.18, p: -0.14, t: -0.1 }, spread: 1 },
-  reach: { c: { i: 0.18, m: 0.14, r: 0.2, p: 0.26, t: 0.12 }, spread: 0.6 },
-  grasp: { c: { i: 0.7, m: 0.76, r: 0.8, p: 0.84, t: 0.5 }, spread: 0.15 },
+  claw: { c: { i: -0.25, m: -0.2, r: -0.18, p: -0.14, t: -0.25 }, spread: 3 },
+  reach: { c: { i: 0.1, m: 0.06, r: 0.12, p: 0.18, t: -0.1 }, spread: 2.6 },
+  grasp: { c: { i: 0.55, m: 0.62, r: 0.68, p: 0.74, t: 0.35 }, spread: 1.2 },
 };
 const SHAPES = [
-  { fingerScale: 1.2, thickness: 0.72, bony: 0.3, nails: 0.2, forearm: 2.4, wrist: 0.76, color: [0.66, 0.61, 0.56] },
-  { fingerScale: 1.18, thickness: 0.76, bony: 0.85, nails: 0.12, forearm: 2.2, wrist: 0.82, color: [0.6, 0.57, 0.53] },
+  { fingerScale: 1.2, thickness: 0.74, bony: 0.3, nails: 0.2, forearm: 0.7, wrist: 0.8, color: [0.66, 0.61, 0.56] },
+  { fingerScale: 1.18, thickness: 0.78, bony: 0.85, nails: 0.12, forearm: 0.7, wrist: 0.84, color: [0.6, 0.57, 0.53] },
 ];
 
 /** Bake a skinned hand into static geometry in one pose (bone transforms applied on the CPU). */
@@ -89,6 +89,8 @@ vec3 hzSkin(sampler2D t, vec3 p, vec3 w) {
   float splat = texture2D(tBlood, fract(vHp.xz * 2.3 + vHp.y * 0.7)).a;
   col = mix(col, vec3(0.28, 0.02, 0.02), tip * vVar.y * smoothstep(0.15, 0.6, splat));
   col = mix(col, vec3(0.16, 0.12, 0.08), tip * vVar.z * smoothstep(0.05, 0.5, splat + 0.2));
+  // the wrist stub fades into the dark: palms and fingers carry the shape
+  col *= smoothstep(-0.75, -0.05, vHp.y);
   diffuseColor.rgb = col;
 }`);
   };
@@ -171,6 +173,11 @@ export class HandHorde {
     const tr = 0.08 + rnd() * (pose === 'grasp' ? 0.06 : 0.36);
     const target = new THREE.Vector3(Math.cos(ta) * tr, -0.07 + rnd() * 0.2, Math.sin(ta) * tr);
     const child = rnd() < 0.15;
+    if (i < 18) {
+      // the nearest ones: on the front edge, right under the lens
+      target.set((rnd() - 0.5) * 0.4, -0.04 + rnd() * 0.1, 0.06 + rnd() * 0.12);
+      start.set(target.x * 2.2, -0.12 + rnd() * 0.1, 0.5 + rnd() * 0.3);
+    }
     return {
       t0: wave ? 0.8 + rnd() * 1.8 : 0.15 + rnd() * 0.9,
       dur: 1.3 + rnd() * 1.1,

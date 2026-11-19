@@ -896,6 +896,14 @@ export class IncenseScene {
     const T = GT - 1.1; // the woman's hand comes when the first hands are already out
     this.horde?.update(GT, this.camera);
     this.rimLight.intensity = 0.9 * smooth(0.2, 1.2, GT) * (1 - this.fade);
+    // a warm low key from the urn's embers and the candle so skin, nails and blood read
+    if (!this.warmKey) {
+      this.warmKey = new THREE.PointLight(0xffa868, 0, 1.4, 2);
+      this.warmKey.position.set(0.04, -0.02, 0.14);
+      this.scene.add(this.warmKey);
+    }
+    this.warmKey.intensity = 0.35 * smooth(0.2, 1.0, GT) * (1 - this.fade);
+    this.renderer.toneMappingExposure = 0.95 + 0.4 * smooth(0.3, 1.5, GT);
     // the lens draws back to take in the dark around the urn, then the hands rush it
     g.camDist = 0.5 + 0.28 * smooth(0.2, 2.2, GT) - 0.12 * smooth(3.6, 4.6, GT);
     const u = this.u;
